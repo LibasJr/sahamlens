@@ -7,6 +7,7 @@ import {
   currentModelVersionStamp,
   partitionByScoreVersion,
 } from '../model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 
 /**
  * FASE 1 - MODEL VERSIONING (audit Ronde 3, §9 "reproducibility & audit trail model").
@@ -25,12 +26,14 @@ describe('model-version (Fase 1)', () => {
       expect(typeof v).toBe('string');
       expect(v.length).toBeGreaterThan(0);
     }
+    expect(SCORE_VERSION).toBe(LENS_SCORE_MODEL_METADATA.version);
   });
 
-  it('currentModelVersionStamp memuat lima field wajib dengan timestamp ISO', () => {
+  it('currentModelVersionStamp memuat identitas versi dan hash dengan timestamp ISO', () => {
     const stamp = currentModelVersionStamp(new Date('2026-08-05T10:20:30.000Z'));
 
     expect(stamp.score_version).toBe(SCORE_VERSION);
+    expect(stamp.score_config_hash).toBe(LENS_SCORE_MODEL_METADATA.configHash);
     expect(stamp.valuation_version).toBe(VALUATION_VERSION);
     expect(stamp.signal_version).toBe(SIGNAL_VERSION);
     expect(stamp.data_snapshot_version).toBe(DATA_SNAPSHOT_VERSION);
@@ -39,8 +42,8 @@ describe('model-version (Fase 1)', () => {
 
   it('dataset satu versi diterima seluruhnya', () => {
     const rows = [
-      { score_version: SCORE_VERSION, ticker: 'AAAA' },
-      { score_version: SCORE_VERSION, ticker: 'BBBB' },
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'AAAA' },
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'BBBB' },
     ];
     const result = partitionByScoreVersion(rows);
 
@@ -52,9 +55,9 @@ describe('model-version (Fase 1)', () => {
 
   it('dataset campuran menolak versi minoritas dan menandai mixed', () => {
     const rows = [
-      { score_version: SCORE_VERSION, ticker: 'AAAA' },
-      { score_version: SCORE_VERSION, ticker: 'BBBB' },
-      { score_version: SCORE_VERSION, ticker: 'CCCC' },
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'AAAA' },
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'BBBB' },
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'CCCC' },
       { score_version: 'lens-score-v1.2.0', ticker: 'DDDD' },
     ];
     const result = partitionByScoreVersion(rows);
@@ -68,7 +71,7 @@ describe('model-version (Fase 1)', () => {
 
   it('FAIL-CLOSED: baris tanpa score_version dikeluarkan, bukan dianggap versi sekarang', () => {
     const rows = [
-      { score_version: SCORE_VERSION, ticker: 'AAAA' },
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'AAAA' },
       { score_version: null, ticker: 'LEGACY1' },
       { ticker: 'LEGACY2' } as { score_version?: string | null; ticker: string },
       { score_version: '   ', ticker: 'LEGACY3' },
@@ -78,6 +81,16 @@ describe('model-version (Fase 1)', () => {
     expect(result.accepted.map((r) => r.ticker)).toEqual(['AAAA']);
     expect(result.rejected.map((r) => r.ticker)).toEqual(['LEGACY1', 'LEGACY2', 'LEGACY3']);
     expect(result.unversionedCount).toBe(3);
+  });
+
+  it('FAIL-CLOSED: versi sama tanpa config hash tetap ditolak', () => {
+    const result = partitionByScoreVersion([
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'VALID' },
+      { score_version: SCORE_VERSION, score_config_hash: null, ticker: 'UNHASHED' },
+      { score_version: SCORE_VERSION, score_config_hash: 'different-config', ticker: 'MIXED' },
+    ]);
+    expect(result.accepted.map((row) => row.ticker)).toEqual(['VALID']);
+    expect(result.configRejectedCount).toBe(2);
   });
 
   it('dataset yang SELURUHNYA tanpa versi menghasilkan nol baris diterima', () => {
@@ -100,11 +113,11 @@ describe('model-version (Fase 1)', () => {
 
   it('filter versi eksplisit menang atas mayoritas', () => {
     const rows = [
-      { score_version: SCORE_VERSION, ticker: 'AAAA' },
-      { score_version: SCORE_VERSION, ticker: 'BBBB' },
-      { score_version: 'lens-score-v1.2.0', ticker: 'CCCC' },
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'AAAA' },
+      { score_version: SCORE_VERSION, score_config_hash: LENS_SCORE_MODEL_METADATA.configHash, ticker: 'BBBB' },
+      { score_version: 'lens-score-v1.2.0', score_config_hash: 'legacy-v1.2-hash', ticker: 'CCCC' },
     ];
-    const result = partitionByScoreVersion(rows, 'lens-score-v1.2.0');
+    const result = partitionByScoreVersion(rows, 'lens-score-v1.2.0', 'legacy-v1.2-hash');
 
     expect(result.version).toBe('lens-score-v1.2.0');
     expect(result.accepted.map((r) => r.ticker)).toEqual(['CCCC']);

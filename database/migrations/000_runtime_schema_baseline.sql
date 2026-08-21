@@ -255,6 +255,7 @@ CREATE TABLE IF NOT EXISTS users (
         flow_score NUMERIC,
         coverage_pct NUMERIC,
         score_version TEXT,
+        score_config_hash TEXT,
         universe_version TEXT,
         valuation_version TEXT,
         signal_version TEXT,
@@ -283,6 +284,8 @@ CREATE TABLE IF NOT EXISTS users (
         ADD COLUMN IF NOT EXISTS coverage_pct NUMERIC;
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS score_version TEXT;
+      ALTER TABLE lens_radar_history
+        ADD COLUMN IF NOT EXISTS score_config_hash TEXT;
       ALTER TABLE lens_radar_history
         ADD COLUMN IF NOT EXISTS universe_version TEXT;
 

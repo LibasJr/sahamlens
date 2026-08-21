@@ -92,6 +92,7 @@ export function appendStockFlowAnalyzers(
         : 'NEUTRAL';
 
     analyzersResult.push({
+      dimension: 'FLOW',
       label: 'LensFlow (Arus Dana Asing)',
       value: `${statusLabel} | Net 5D: ${officialNet5D >= 0 ? '+' : ''}${officialNet5D.toFixed(2)}M | Streak: ${streakLabel}`,
       decision: official.accumulationStatus === 'AKUMULASI'
@@ -107,6 +108,7 @@ export function appendStockFlowAnalyzers(
     });
   } else {
     analyzersResult.push({
+      dimension: 'FLOW',
       label: 'LensFlow (Estimasi Arus Dana Asing)',
       value: foreignFlow,
       decision: ffDecision,
@@ -128,6 +130,7 @@ export function appendStockFlowAnalyzers(
     : Math.round(50 + Math.min(45, Math.abs(flowPressure20)));
 
   analyzersResult.push({
+    dimension: 'FLOW',
     label: officialUsable ? 'Bandarmology (Net Asing)' : 'Bandarmology (CMF)',
     value: flowPressure20 == null || flowPressureToday == null
       ? (officialUsable

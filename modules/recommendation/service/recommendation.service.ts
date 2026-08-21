@@ -134,16 +134,16 @@ export async function analyzeStock(ticker: string) {
     const isLiveFormingBar = !!lastBar && lastBar.Date.split('T')[0] === todayDateKeyWIB() && isIdxMarketHoursNow();
 
     const analyzersResult = await Promise.all([
-      Promise.resolve(analyzeEma(history, currentPrice)),
-      Promise.resolve(analyzeRsi(history, currentPrice)),
-      Promise.resolve(analyzeMacd(history, currentPrice)),
-      Promise.resolve(analyzeVolume(history, currentPrice)),
-      Promise.resolve(analyzeTrend(history, currentPrice)),
-      Promise.resolve(analyzeVolatility(history, currentPrice)),
-      Promise.resolve(analyzeMomentum(history, currentPrice)),
-      Promise.resolve(analyzeSupport(history, currentPrice)),
-      Promise.resolve(analyzeSma(history, currentPrice)),
-      Promise.resolve(analyzeMarketFlow(history, currentPrice))
+      Promise.resolve({ ...analyzeEma(history, currentPrice), dimension: 'TREND' as const }),
+      Promise.resolve({ ...analyzeRsi(history, currentPrice), dimension: 'MOMENTUM' as const }),
+      Promise.resolve({ ...analyzeMacd(history, currentPrice), dimension: 'TREND' as const }),
+      Promise.resolve({ ...analyzeVolume(history, currentPrice), dimension: 'FLOW' as const }),
+      Promise.resolve({ ...analyzeTrend(history, currentPrice), dimension: 'TREND' as const }),
+      Promise.resolve({ ...analyzeVolatility(history, currentPrice), dimension: 'VOLATILITY' as const }),
+      Promise.resolve({ ...analyzeMomentum(history, currentPrice), dimension: 'MOMENTUM' as const }),
+      Promise.resolve({ ...analyzeSupport(history, currentPrice), dimension: 'STRUCTURE' as const }),
+      Promise.resolve({ ...analyzeSma(history, currentPrice), dimension: 'TREND' as const }),
+      Promise.resolve({ ...analyzeMarketFlow(history, currentPrice), dimension: 'FLOW' as const })
     ]);
 
     // BUG FIX (audit integritas data 2026-08-03, temuan M-04): blok ini SEBELUMNYA

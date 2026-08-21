@@ -315,9 +315,10 @@ export function buildLensHistoryUpsert(rows) {
       row.universeAvgClose63d ?? null,
       row.universeAvgValue63d ?? null,
       row.universeAnnualVolPct ?? null,
-      row.universeMethodVersion ?? null
+      row.universeMethodVersion ?? null,
+      row.scoreConfigHash
     );
-    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}::timestamptz, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}::timestamptz, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, $${base + 33}, $${base + 34}, $${base + 35}, $${base + 36}, $${base + 37}, $${base + 38}, $${base + 39}, now())`;
+    return `($${base + 1}::date, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9}, $${base + 10}, $${base + 11}, $${base + 12}, $${base + 13}, $${base + 14}, $${base + 15}::timestamptz, $${base + 16}, $${base + 17}, $${base + 18}, $${base + 19}, $${base + 20}, $${base + 21}::timestamptz, $${base + 22}, $${base + 23}, $${base + 24}, $${base + 25}, $${base + 26}, $${base + 27}, $${base + 28}, $${base + 29}, $${base + 30}, $${base + 31}, $${base + 32}, $${base + 33}, $${base + 34}, $${base + 35}, $${base + 36}, $${base + 37}, $${base + 38}, $${base + 39}, $${base + 40}, now())`;
   });
 
   return {
@@ -334,11 +335,11 @@ export function buildLensHistoryUpsert(rows) {
         technical_available_max, fundamental_available_max, flow_available_max,
         council_signal, council_confidence, council_buy_pct, council_sell_pct, council_divided,
         universe_eligible, universe_reason_codes, universe_avg_close_63d, universe_avg_value_63d,
-        universe_annual_vol_pct, universe_method_version,
+        universe_annual_vol_pct, universe_method_version, score_config_hash,
         updated_at
       )
       VALUES ${tuples.join(', ')}
-      ON CONFLICT (date, ticker, score_version, universe_version) DO UPDATE SET
+      ON CONFLICT (date, ticker, score_version, score_config_hash, universe_version) DO UPDATE SET
         lens_score = EXCLUDED.lens_score,
         close_price = EXCLUDED.close_price,
         market_cap = EXCLUDED.market_cap,
@@ -347,6 +348,7 @@ export function buildLensHistoryUpsert(rows) {
         flow_score = EXCLUDED.flow_score,
         coverage_pct = EXCLUDED.coverage_pct,
         score_version = EXCLUDED.score_version,
+        score_config_hash = EXCLUDED.score_config_hash,
         universe_version = EXCLUDED.universe_version,
         valuation_version = EXCLUDED.valuation_version,
         signal_version = EXCLUDED.signal_version,
@@ -629,6 +631,7 @@ export function buildHistoricalLensRows(input) {
       flowScore: score.flow_score,
       coveragePct: score.coverage_pct,
       scoreVersion: deps.SCORE_VERSION,
+      scoreConfigHash: deps.LENS_SCORE_MODEL_HASH,
       universeVersion,
       valuationVersion: deps.VALUATION_VERSION,
       signalVersion: deps.SIGNAL_VERSION,
@@ -708,6 +711,7 @@ async function loadProductionDeps() {
     SIGNAL_VERSION,
     DATA_SNAPSHOT_VERSION,
   } = require('../modules/lens-radar/constants/model-version.ts');
+  const { LENS_SCORE_MODEL_HASH } = require('../modules/technical/config/lens-score-model.ts');
   const {
     PRICE_ADJUSTMENT_VERSION,
     RETURN_PRICE_BASIS,
@@ -741,6 +745,7 @@ async function loadProductionDeps() {
     analyzeBandarmology,
     computeMiniCouncil,
     SCORE_VERSION,
+    LENS_SCORE_MODEL_HASH,
     VALUATION_VERSION,
     SIGNAL_VERSION,
     DATA_SNAPSHOT_VERSION,
