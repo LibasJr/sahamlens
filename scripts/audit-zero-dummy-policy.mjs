@@ -33,6 +33,8 @@ const knownBad = [
   ['old heuristic PBV percentile', /\bpbv\s*\/\s*3\.5\b/],
   ['demo notifications with fabricated market signals', /INITIAL_DEMO_NOTIFICATIONS/],
   ['portfolio stale quote falls back to average buy', /currentPrice\s*=\s*h\.avgPrice/],
+  ['missing broker value rendered as zero rupiah', /compactIdr\([^\n]*(?:\|\||\?\?)\s*0\)/],
+  ['missing broker coverage rendered as zero percent', /classifiedCoveragePct\s*\?\?\s*0/],
   ['single-quarter net income annualization', /quarterlyNetIncome\s*\*\s*4/],
   ['fabricated dashboard stop-loss 5pct', /current_price\s*\*\s*0\.95/],
   ['fabricated dashboard TP1 8pct', /current_price\s*\*\s*1\.08/],

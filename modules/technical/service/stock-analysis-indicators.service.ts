@@ -16,6 +16,11 @@ import {
   appendStockFlowAnalyzers,
   type StockAnalysisFlowMetrics,
 } from '@/modules/technical/service/stock-analysis-flow.service';
+import type { ConsensusDimension } from '@/modules/technical/service/consensus.service';
+
+function dimensioned<T extends object>(result: T, dimension: ConsensusDimension): T & { dimension: ConsensusDimension } {
+  return { ...result, dimension };
+}
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -98,16 +103,16 @@ export async function buildStockIndicatorContext(
   );
 
   const analyzersResult = await Promise.all([
-    Promise.resolve(analyzeEma(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeRsi(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeMacd(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeVolume(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeTrend(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeVolatility(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeMomentum(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeSupport(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeSma(analyzerHistory, currentPrice)),
-    Promise.resolve(analyzeMarketFlow(analyzerHistory, currentPrice)),
+    Promise.resolve(dimensioned(analyzeEma(analyzerHistory, currentPrice), 'TREND')),
+    Promise.resolve(dimensioned(analyzeRsi(analyzerHistory, currentPrice), 'MOMENTUM')),
+    Promise.resolve(dimensioned(analyzeMacd(analyzerHistory, currentPrice), 'TREND')),
+    Promise.resolve(dimensioned(analyzeVolume(analyzerHistory, currentPrice), 'FLOW')),
+    Promise.resolve(dimensioned(analyzeTrend(analyzerHistory, currentPrice), 'TREND')),
+    Promise.resolve(dimensioned(analyzeVolatility(analyzerHistory, currentPrice), 'VOLATILITY')),
+    Promise.resolve(dimensioned(analyzeMomentum(analyzerHistory, currentPrice), 'MOMENTUM')),
+    Promise.resolve(dimensioned(analyzeSupport(analyzerHistory, currentPrice), 'STRUCTURE')),
+    Promise.resolve(dimensioned(analyzeSma(analyzerHistory, currentPrice), 'TREND')),
+    Promise.resolve(dimensioned(analyzeMarketFlow(analyzerHistory, currentPrice), 'FLOW')),
   ]);
 
   const flowMetrics = appendStockFlowAnalyzers(ticker, analyzerHistory, analyzersResult);

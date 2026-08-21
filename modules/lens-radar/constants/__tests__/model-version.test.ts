@@ -7,6 +7,7 @@ import {
   currentModelVersionStamp,
   partitionByScoreVersion,
 } from '../model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 
 /**
  * FASE 1 - MODEL VERSIONING (audit Ronde 3, §9 "reproducibility & audit trail model").
@@ -25,6 +26,7 @@ describe('model-version (Fase 1)', () => {
       expect(typeof v).toBe('string');
       expect(v.length).toBeGreaterThan(0);
     }
+    expect(SCORE_VERSION).toBe(LENS_SCORE_MODEL_METADATA.version);
   });
 
   it('currentModelVersionStamp memuat lima field wajib dengan timestamp ISO', () => {

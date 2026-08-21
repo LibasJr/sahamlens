@@ -617,7 +617,7 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
 
 async function readLatestBucketStats(
   db: Queryable = pool,
-  scoreVersion = SCORE_VERSION
+  scoreVersion: string = SCORE_VERSION
 ): Promise<{ runDate: string | null; rows: CalibrationBucketChartRow[] }> {
   const { rows } = await db.query(
     `
