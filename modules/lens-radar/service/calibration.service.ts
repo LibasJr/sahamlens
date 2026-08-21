@@ -27,6 +27,7 @@ import {
   suppressUnvalidatedSignificance,
 } from '../constants/research-status';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import { buildScoreCalibration, type ScoreCalibrationResult } from './score-calibration.service';
 import {
@@ -164,6 +165,8 @@ export interface CalibrationDashboardData {
   latestStatsRunDate: string | null;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   rejectedRows: number;
   unversionedRows: number;
   versionMixed: boolean;
@@ -454,7 +457,7 @@ async function loadOpenMaps(
 export async function calculateCalibrationObservations(
   rows: LensRadarHistoryEntry[],
   provider: DailyOpenProvider = new YahooDailyOpenProvider(),
-  options: { scoreVersion?: string | null } = {}
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null } = {}
 ): Promise<{
   normalizedRows: number;
   uniqueTickers: number;
@@ -467,6 +470,8 @@ export async function calculateCalibrationObservations(
   tradingCalendarSource: TradingCalendarSource;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   rejectedRows: number;
   unversionedRows: number;
   versionMixed: boolean;
@@ -474,7 +479,8 @@ export async function calculateCalibrationObservations(
   fundamentalPitCoverage: FundamentalPitCoverageDiagnostic;
 }> {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
-  const partition = partitionByScoreVersion(rows, requestedScoreVersion);
+  const requestedConfigHash = options.scoreConfigHash?.trim() || LENS_SCORE_MODEL_METADATA.configHash;
+  const partition = partitionByScoreVersion(rows, requestedScoreVersion, requestedConfigHash);
   const fundamentalPitCoverage = buildFundamentalPitCoverage(partition.accepted);
   const productionGate = emptyValidationPopulationCounters();
   const normalized = normalizeHistory(partition.accepted, productionGate);
@@ -589,6 +595,8 @@ export async function calculateCalibrationObservations(
     tradingCalendarSource: calendar.source,
     scoreVersion: partition.version,
     requestedScoreVersion,
+    scoreConfigHash: partition.configHash ?? requestedConfigHash,
+    configRejectedRows: partition.configRejectedCount,
     rejectedRows: partition.rejected.length,
     unversionedRows: partition.unversionedCount,
     versionMixed: partition.mixed,
@@ -600,7 +608,7 @@ export async function calculateCalibrationObservations(
 async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version, score_config_hash, universe_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
            avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
@@ -617,7 +625,7 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
 
 async function readLatestBucketStats(
   db: Queryable = pool,
-  scoreVersion = SCORE_VERSION
+  scoreVersion: string = SCORE_VERSION
 ): Promise<{ runDate: string | null; rows: CalibrationBucketChartRow[] }> {
   const { rows } = await db.query(
     `
@@ -935,6 +943,8 @@ export async function getCalibrationDashboardData(
     unversionedRows,
     versionMixed,
     versionRejectedReason,
+    scoreConfigHash,
+    configRejectedRows,
     fundamentalPitCoverage,
   } = await calculateCalibrationObservations(historyRows, provider, { scoreVersion: requestedScoreVersion });
   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
@@ -970,6 +980,8 @@ export async function getCalibrationDashboardData(
     latestStatsRunDate: latestStats.runDate,
     scoreVersion,
     requestedScoreVersion,
+    scoreConfigHash,
+    configRejectedRows,
     rejectedRows,
     unversionedRows,
     versionMixed,

@@ -43,6 +43,8 @@ interface AnalyzerVote {
   label: string;
   decision: string;      // 'BULLISH' | 'BEARISH' | 'NEUTRAL'
   confidence: number;    // 0-100
+  /** Metadata produksi eksplisit. Fallback label hanya untuk payload/cache legacy. */
+  dimension?: ConsensusDimension;
 }
 
 export type ConsensusDimension = 'TREND' | 'MOMENTUM' | 'FLOW' | 'STRUCTURE' | 'VOLATILITY';
@@ -156,7 +158,7 @@ export function calculateConsensus(analyzers: AnalyzerVote[]): ConsensusResult {
   const buckets = new Map<ConsensusDimension, { bull: number; bear: number; labels: string[] }>();
 
   for (const a of analyzers) {
-    const dim = dimensionOf(a.label);
+    const dim = a.dimension ?? dimensionOf(a.label);
     if (!buckets.has(dim)) buckets.set(dim, { bull: 0, bear: 0, labels: [] });
     const b = buckets.get(dim)!;
     b.labels.push(a.label);
