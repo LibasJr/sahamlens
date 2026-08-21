@@ -31,7 +31,8 @@ interface OtpEmailTemplate {
   subject: string;
   heading: string;
   bodyText: string;
-  footerText: string;
+  instructionText: string;
+  securityText: string;
 }
 
 // Satu fungsi inti (code review M3) - sendVerificationEmail/sendResetPasswordEmail
@@ -53,14 +54,42 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
       from: `"${process.env.SMTP_FROM_NAME || 'SahamLens'}" <${process.env.SMTP_EMAIL}>`,
       to: email,
       subject: template.subject,
+      text: [
+        template.heading,
+        '',
+        template.bodyText,
+        template.instructionText,
+        '',
+        code,
+        '',
+        template.securityText,
+        '',
+        'Hormat kami,',
+        'Tim SahamLens',
+      ].join('\n'),
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #0f172a;">${template.heading}</h2>
-          <p style="color: #475569;">${template.bodyText}</p>
-          <div style="background-color: #f8fafc; border: 1px dashed #cbd5e1; padding: 15px; text-align: center; margin: 20px 0; border-radius: 5px;">
-            <h1 style="color: #0d9488; letter-spacing: 10px; margin: 0; font-size: 32px;">${code}</h1>
+        <div style="background-color:#f8fafc;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
+          <div style="max-width:560px;margin:0 auto;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
+            <div style="padding:20px 28px;background-color:#0f172a;">
+              <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">SahamLens</div>
+            </div>
+            <div style="padding:32px 28px;">
+              <h1 style="margin:0 0 20px;font-size:24px;line-height:1.3;color:#0f172a;">${template.heading}</h1>
+              <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#475569;">${template.bodyText}</p>
+              <p style="margin:0;font-size:15px;line-height:1.7;color:#475569;">${template.instructionText}</p>
+              <div style="margin:24px 0;padding:20px;text-align:center;background-color:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;">
+                <div style="margin-bottom:8px;font-size:12px;font-weight:700;letter-spacing:1.2px;color:#0f766e;text-transform:uppercase;">Kode verifikasi</div>
+                <div style="font-size:34px;font-weight:700;letter-spacing:10px;color:#0f172a;">${code}</div>
+              </div>
+              <div style="padding:14px 16px;background-color:#f8fafc;border-left:3px solid #0f766e;">
+                <p style="margin:0;font-size:13px;line-height:1.6;color:#475569;">${template.securityText}</p>
+              </div>
+              <p style="margin:24px 0 0;font-size:15px;line-height:1.7;color:#475569;">Hormat kami,<br><strong style="color:#0f172a;">Tim SahamLens</strong></p>
+            </div>
+            <div style="padding:18px 28px;background-color:#f8fafc;border-top:1px solid #e2e8f0;">
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#64748b;">Email ini dikirim secara otomatis. Mohon tidak membalas email ini.</p>
+            </div>
           </div>
-          <p style="color: #64748b; font-size: 12px;">${template.footerText}</p>
         </div>
       `,
     });
@@ -76,19 +105,21 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
 export async function sendVerificationEmail(email: string, code: string): Promise<void> {
   await sendOtpEmail(email, code, {
     label: 'Kode Verifikasi',
-    subject: 'Kode Verifikasi SahamLens',
-    heading: 'Selamat datang di SahamLens!',
-    bodyText: 'Untuk menyelesaikan pendaftaran akun Anda, gunakan kode verifikasi berikut:',
-    footerText: 'Jika Anda tidak mendaftar di SahamLens, abaikan email ini.',
+    subject: 'Verifikasi Akun SahamLens',
+    heading: 'Verifikasi Akun Anda',
+    bodyText: 'Terima kasih telah mendaftar di SahamLens.',
+    instructionText: 'Masukkan kode berikut pada halaman verifikasi untuk menyelesaikan proses pendaftaran:',
+    securityText: 'Kode ini berlaku selama 15 menit. Jangan membagikan kode ini kepada siapa pun. Jika Anda tidak melakukan pendaftaran, abaikan email ini.',
   });
 }
 
 export async function sendResetPasswordEmail(email: string, code: string): Promise<void> {
   await sendOtpEmail(email, code, {
     label: 'Kode Reset Password',
-    subject: 'Kode Reset Password SahamLens',
-    heading: 'Permintaan Reset Password',
-    bodyText: `Seseorang baru saja meminta reset password untuk akun SahamLens Anda (<strong>${email}</strong>). Berikut adalah kode verifikasi 6 digit Anda:`,
-    footerText: 'Kode ini hanya berlaku 15 menit. Jika bukan Anda yang meminta, abaikan email ini.',
+    subject: 'Kode Reset Kata Sandi SahamLens',
+    heading: 'Permintaan Reset Kata Sandi',
+    bodyText: 'Kami menerima permintaan untuk mengatur ulang kata sandi akun SahamLens Anda.',
+    instructionText: 'Masukkan kode berikut pada halaman reset kata sandi untuk melanjutkan:',
+    securityText: 'Kode ini berlaku selama 15 menit. Jangan membagikan kode ini kepada siapa pun. Jika Anda tidak mengajukan permintaan ini, abaikan email ini dan kata sandi Anda tidak akan berubah.',
   });
 }
