@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens local schedule - recommendation-scan
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 09..16:00/15:00 Asia/Jakarta
+Persistent=true
+AccuracySec=1s
+Unit=sahamlens-local-cron@recommendation-scan.service
+
+[Install]
+WantedBy=timers.target

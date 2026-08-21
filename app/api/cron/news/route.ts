@@ -18,9 +18,10 @@ import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 // buffer 1 run telat.
 async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
+  const authorization = req.headers.get('authorization');
   const rawBody = await req.text();
 
-  const isValid = await verifyQStashSignature(signature, rawBody);
+  const isValid = await verifyQStashSignature(signature, rawBody, authorization);
   if (!isValid) {
     logger.warn('Menolak request /api/cron/news - signature QStash tidak valid');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

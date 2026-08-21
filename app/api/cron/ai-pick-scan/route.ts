@@ -16,9 +16,10 @@ export const maxDuration = 300;
 // Rekomendasi sekarang dikerjakan sekali di sini untuk seluruh universe.
 async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
+  const authorization = req.headers.get('authorization');
   const rawBody = await req.text();
 
-  if (!(await verifyQStashSignature(signature, rawBody))) {
+  if (!(await verifyQStashSignature(signature, rawBody, authorization))) {
     logger.warn('Menolak request /api/cron/ai-pick-scan - signature QStash tidak valid');
     // Dicatat, bukan cuma di-log. Penolakan signature (mis. QSTASH_CURRENT_SIGNING_KEY
     // salah/kosong di environment) dulu tidak meninggalkan jejak di database, jadi tidak

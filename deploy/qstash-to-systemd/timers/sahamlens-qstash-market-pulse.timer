@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens local schedule - market-pulse
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 09..16:00/5:00 Asia/Jakarta
+Persistent=true
+AccuracySec=1s
+Unit=sahamlens-local-cron@market-pulse.service
+
+[Install]
+WantedBy=timers.target

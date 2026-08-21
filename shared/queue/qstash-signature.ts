@@ -1,4 +1,5 @@
 import { Receiver } from '@upstash/qstash';
+import { timingSafeEqual } from 'node:crypto';
 
 // Verifikasi bahwa request ke /api/cron/* atau /api/queue/* benar-benar datang
 // dari QStash (bukan siapa pun yang menebak URL-nya) - tanpa ini, job mahal
@@ -16,7 +17,24 @@ function getReceiver(): Receiver | null {
   return receiver;
 }
 
-export async function verifyQStashSignature(signature: string | null, body: string): Promise<boolean> {
+function verifyCronSecret(authorization: string | null): boolean {
+  const secret = process.env.CRON_SECRET;
+  if (!secret || !authorization?.startsWith('Bearer ')) return false;
+
+  const expected = Buffer.from(secret);
+  const supplied = Buffer.from(authorization.slice('Bearer '.length));
+  return expected.length === supplied.length && timingSafeEqual(expected, supplied);
+}
+
+export async function verifyQStashSignature(
+  signature: string | null,
+  body: string,
+  authorization: string | null = null,
+): Promise<boolean> {
+  // systemd di VPS memakai CRON_SECRET; QStash tetap diterima selama cutover.
+  // Kedua mekanisme fail-closed jika kredensial terkait tidak tersedia.
+  if (verifyCronSecret(authorization)) return true;
+
   const r = getReceiver();
   if (!r || !signature) return false;
   try {
