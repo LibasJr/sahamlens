@@ -157,7 +157,7 @@ export default function FundamentalExportCard({
             </div>
             <div>
               <div className="flex items-center gap-2.5">
-                <span className="text-3xl font-black tracking-tight font-heading text-white">{displaySymbol}.JK</span>
+                <span className="text-3xl font-black tracking-tight font-heading text-white">{displaySymbol}</span>
                 <span className="rounded-lg border border-blue-500/40 bg-blue-500/20 px-2.5 py-0.5 text-xs font-bold text-blue-300">
                   {profile.sector || 'Sektor N/A'}
                 </span>

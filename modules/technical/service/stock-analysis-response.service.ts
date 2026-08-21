@@ -3,6 +3,7 @@ import { buildLongTradingSetup } from '@/modules/recommendation/service/trading-
 import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
 import { getLatestMarketIntegrity } from '@/modules/market-data-integrity/repository/market-data-reconciliation.repository';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 import { getEmitenBoard } from '@/shared/market/emiten-list';
 import { classifyFreshness } from '@/shared/http/freshness';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
@@ -132,6 +133,7 @@ export async function buildStockAnalysisResponse(args: {
     },
     technical: {},
     _meta: {
+      lensScoreModel: LENS_SCORE_MODEL_METADATA,
       source: 'live',
       eodHistorySource: eodHistory.source,
       liveQuoteSource: 'YAHOO_CHART',

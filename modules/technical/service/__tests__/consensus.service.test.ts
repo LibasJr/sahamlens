@@ -97,6 +97,13 @@ describe('P1-6 - tren tidak lagi menguasai suara diam-diam', () => {
 });
 
 describe('dimensionOf - pemetaan label ke dimensi', () => {
+  it('metadata dimensi eksplisit menang atas nama label', () => {
+    const result = calculateConsensus([
+      { ...vote('Nama bebas tanpa keyword', 'BULLISH'), dimension: 'MOMENTUM' },
+    ]);
+    expect(result.dimensions[0]?.dimension).toBe('MOMENTUM');
+  });
+
   it('seluruh turunan rata-rata bergerak masuk TREND', () => {
     expect(dimensionOf('EMA 20/50 Cross')).toBe('TREND');
     expect(dimensionOf('MACD (12,26,9)')).toBe('TREND');

@@ -192,7 +192,7 @@ export default function EarningsPage() {
       moduleTitle={isEn ? 'Earnings & Quality Monitor' : 'Earnings Monitor'}
       icon={<TrendingUp className="h-6 w-6" />}
       accent="green"
-      title={`${selectedTicker}.JK ${isEn ? 'Earnings Monitor' : 'Earnings Monitor'}`}
+      title={`${selectedTicker} ${isEn ? 'Earnings Monitor' : 'Earnings Monitor'}`}
       subtitle={t('earningsEnhance.subtitle')}
       headerExtra={
         <div className="flex flex-wrap items-center gap-2">
@@ -253,7 +253,7 @@ export default function EarningsPage() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-heading text-xl font-bold text-tv-text">{data.stock.name}</h2>
-                <Badge variant="neutral">{selectedTicker}.JK</Badge>
+                <Badge variant="neutral">{selectedTicker}</Badge>
               </div>
               <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-tv-green">
                 {[data.stock.sector, data.stock.industry].filter(Boolean).join(' · ') ||

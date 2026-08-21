@@ -40,7 +40,9 @@
 // ada sampel yang terkumpul di bawah model lama yang perlu dibuang. Kalau perubahan skor
 // seperti ini terjadi SETELAH sampel forward mulai terkumpul, freeze WAJIB diulang - lihat
 // catatan di walk-forward-validation.service.ts.
-export const SCORE_VERSION = 'lens-score-v1.5.0';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
+
+export const SCORE_VERSION = LENS_SCORE_MODEL_METADATA.version;
 export const VALUATION_VERSION = 'valuation-v1.3.0';
 export const SIGNAL_VERSION = 'lens-radar-signal-v1.3.0';
 // FASE 2 (2026-08-12): bentuk baris arsip bertambah kolom kelayakan point-in-time dan
