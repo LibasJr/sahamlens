@@ -70,7 +70,7 @@ export async function archiveLensRadarHistory(
       INSERT INTO lens_radar_history (
         date, ticker, lens_score, close_price, market_cap,
         technical_score, fundamental_score, flow_score, coverage_pct,
-        score_version, universe_version, valuation_version, signal_version, data_snapshot_version,
+        score_version, score_config_hash, universe_version, valuation_version, signal_version, data_snapshot_version,
         calculation_timestamp,
         raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
         corporate_action_status, price_data_timestamp, price_data_version,
@@ -80,8 +80,8 @@ export async function archiveLensRadarHistory(
         universe_avg_value_63d, universe_annual_vol_pct, universe_method_version,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, now())
-      ON CONFLICT (date, ticker, score_version, universe_version) DO UPDATE SET
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31, $32, $33, $34, $35, now())
+      ON CONFLICT (date, ticker, score_version, score_config_hash, universe_version) DO UPDATE SET
         lens_score = EXCLUDED.lens_score,
         close_price = EXCLUDED.close_price,
         market_cap = EXCLUDED.market_cap,
@@ -90,6 +90,7 @@ export async function archiveLensRadarHistory(
         flow_score = EXCLUDED.flow_score,
         coverage_pct = EXCLUDED.coverage_pct,
         score_version = EXCLUDED.score_version,
+        score_config_hash = EXCLUDED.score_config_hash,
         universe_version = EXCLUDED.universe_version,
         valuation_version = EXCLUDED.valuation_version,
         signal_version = EXCLUDED.signal_version,
@@ -127,6 +128,7 @@ export async function archiveLensRadarHistory(
         finiteNumber(item.breakdown?.flow),
         finiteNumber(item.coverage),
         versionStamp.score_version,
+        versionStamp.score_config_hash,
         ACTIVE_LIQUID_UNIVERSE_VERSION,
         versionStamp.valuation_version,
         versionStamp.signal_version,
