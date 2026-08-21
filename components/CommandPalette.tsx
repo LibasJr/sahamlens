@@ -260,7 +260,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                     className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 transition-colors ${idx === activeIdx ? 'bg-tv-blue/10' : 'hover:bg-tv-hover'}`}
                   >
                     <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-tv-text font-mono">{r.symbol}</div>
+                      <div className="text-[13px] font-bold text-tv-text font-mono">{r.symbol.replace(/\.JK$/i, '')}</div>
                       <div className="text-[11px] text-tv-muted truncate">{r.name}</div>
                     </div>
                     <span className="text-[10px] font-bold uppercase tracking-wide text-tv-muted shrink-0">{r.board}</span>
@@ -274,7 +274,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                   <div className="m-auto text-[11px] text-tv-muted text-center">Arahkan kursor ke saham untuk melihat preview chart</div>
                 ) : (
                   <>
-                    <div className="text-[13px] font-bold text-tv-text font-mono">{active.symbol}</div>
+                    <div className="text-[13px] font-bold text-tv-text font-mono">{active.symbol.replace(/\.JK$/i, '')}</div>
                     <div className="text-[10px] text-tv-muted truncate mb-3">{active.name}</div>
                     {previewLoading ? (
                       <div className="flex-1 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-tv-muted" /></div>
