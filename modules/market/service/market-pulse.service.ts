@@ -5,6 +5,7 @@ import {
   type RegimeDailyBar,
 } from './market-regime.service';
 import { AI_PICK_UNIVERSE } from '../constants/ai-pick-universe';
+import { readIdxIhsgEod } from './idx-ihsg-eod.service';
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/market-pulse/route.ts, verbatim.
 // IDX Indices
 //
@@ -262,12 +263,37 @@ async function tryFetchQuote(...symbols: string[]) {
   return null;
 }
 
+type PulseIndexRow = {
+  name: string;
+  price: number | null;
+  changePct: number | null;
+  sourceTimestamp: string | null;
+  source: 'YAHOO_CHART' | 'IDX_OFFICIAL_INDEX_SUMMARY';
+  [key: string]: unknown;
+};
+
+export function applyOfficialIhsgClose<T extends PulseIndexRow>(indices: T[], official: ReturnType<typeof readIdxIhsgEod>): T[] {
+  if (!official) return indices;
+  return indices.map((index) => {
+    if (index.name !== 'IHSG') return index;
+    const yahooDate = index.sourceTimestamp?.slice(0, 10) ?? null;
+    if (yahooDate && official.tradeDate < yahooDate) return index;
+    return {
+      ...index,
+      price: official.price,
+      changePct: official.changePct,
+      sourceTimestamp: official.sourceTimestamp,
+      source: official.source,
+    };
+  });
+}
+
 export async function getMarketPulse() {
   // Histori dimulai bersama fetch indeks agar tidak menambah waterfall request.
   const ihsgHistoryPromise = fetchDailyHistory('^JKSE');
 
   // 1. Fetch indices with sparkline
-  const indicesData = await Promise.all(
+  let indicesData = await Promise.all(
     IDX_INDICES.map(async (idx) => {
       let quote = null;
 
@@ -299,9 +325,17 @@ export async function getMarketPulse() {
         sparkline: quote?.sparkline || [],
         volume: quote?.volume ?? null,
         sourceTimestamp: quote?.sourceTimestamp ?? null,
+        source: 'YAHOO_CHART' as 'YAHOO_CHART' | 'IDX_OFFICIAL_INDEX_SUMMARY',
       };
     })
   );
+
+  // Yahoo menghentikan bar intraday IHSG sebelum lelang penutupan selesai (sering
+  // sekitar 15:45 WIB). Sesudah artefak EOD resmi BEI tersedia, angka headline harus
+  // memakai close BEI dan perubahan close-to-close resmi. Yahoo tetap dipakai selama
+  // sesi berjalan dan untuk sparkline; artefak BEI yang tanggalnya lebih tua tidak
+  // boleh menimpa sesi yang lebih baru.
+  indicesData = applyOfficialIhsgClose(indicesData, readIdxIhsgEod());
 
   // 2. Fetch sector stocks in batches
   const allSectorStocks = IDX_SECTORS.flatMap(s => s.stocks);
