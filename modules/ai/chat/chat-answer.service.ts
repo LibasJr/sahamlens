@@ -14,6 +14,8 @@ import { streamChatAnswer } from './stream-answer';
 import { calculateChatQuestion } from './chat-calculator';
 import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
 import { providerErrorResponse } from './provider-error';
+import { getDeterministicProductHelpResponse } from './product-help';
+import { scoringMethodologyBlock } from './blocks/lens-blocks';
 import type { ParsedChatRequest } from './chat-request';
 import type { ChatJsonResponder } from './chat-response';
 
@@ -46,6 +48,20 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
       role: 'assistant',
       content: outOfScopeResponse(classification.outOfScopeReason),
       routing: { intent: 'OUT_OF_SCOPE', reason: classification.outOfScopeReason ?? 'NON_MARKET', providerUsed: false, dataFetches: 0 },
+    });
+  }
+  if (classification.intent === 'SCORING_METHOD' && tickers.length === 0) {
+    return json({
+      role: 'assistant',
+      content: `LensScore ditentukan secara rule-based dari komponen teknikal, fundamental, dan flow; skor akhirnya dinormalisasi hanya terhadap komponen yang datanya tersedia.\n\n${scoringMethodologyBlock()}`,
+      routing: { intent: classification.intent, providerUsed: false, dataFetches: 0, answerMode: 'VERIFIED_METHODOLOGY' },
+    });
+  }
+  if (classification.intent === 'SAHAMLENS_PRODUCT_HELP') {
+    return json({
+      role: 'assistant',
+      content: getDeterministicProductHelpResponse(prompt),
+      routing: { intent: classification.intent, providerUsed: false, dataFetches: 0, answerMode: 'PRODUCT_KNOWLEDGE' },
     });
   }
 

@@ -88,4 +88,9 @@ describe('komposisi beranda', () => {
     expect(brief, 'HomeTodayBrief tidak ditemukan').toBeGreaterThan(-1);
     expect(hero, 'hero harus mendahului blok Hari Ini').toBeLessThan(brief);
   });
+
+  it('hero tidak memotong dropdown pencarian emiten', () => {
+    const hero = baca('components/home/HomeBrandHero.tsx');
+    expect(hero).toMatch(/<Card[\s\S]*?overflow="visible"/);
+  });
 });
