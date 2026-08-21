@@ -262,7 +262,7 @@ export default function MoatPage() {
                 <h2 className="font-heading text-xl font-bold text-tv-text">
                   {payload.stock?.name || selectedTicker}
                 </h2>
-                <Badge variant="neutral">{selectedTicker}.JK</Badge>
+                <Badge variant="neutral">{selectedTicker}</Badge>
               </div>
               <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-tv-purple">
                 {[payload.profile?.sector, payload.profile?.industry].filter(Boolean).join(' · ') ||

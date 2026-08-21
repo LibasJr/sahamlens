@@ -26,7 +26,7 @@ export default function PatternPage() {
       moduleTitle="Statistical Anomaly & Seasonal Patterns"
       icon={<Cpu className="w-6 h-6" />}
       accent="pink"
-      title={`${ticker}.JK Statistical Anomaly & Seasonal Edge`}
+      title={`${ticker} Statistical Anomaly & Seasonal Edge`}
       subtitle="Model Kuantitatif & Anomali Perilaku Harga Berdasarkan Data Historis"
       headerExtra={<SegmentedControl options={PERIODS.map((p) => ({ label: p, value: p }))} value={period} onChange={setPeriod} layoutId="pattern-period" />}
     >
