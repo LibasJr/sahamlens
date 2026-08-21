@@ -4,8 +4,14 @@ import { recordDataSourceHealth } from '../../observability/service/data-source-
 
 function getTransporter() {
   if (!process.env.SMTP_EMAIL || !process.env.SMTP_PASSWORD) return null;
+
+  const port = Number.parseInt(process.env.SMTP_PORT || '465', 10);
   return nodemailer.createTransport({
-    service: 'gmail',
+    host: process.env.SMTP_HOST || 'smtp.hostinger.com',
+    port,
+    secure: process.env.SMTP_SECURE
+      ? process.env.SMTP_SECURE === 'true'
+      : port === 465,
     auth: { user: process.env.SMTP_EMAIL, pass: process.env.SMTP_PASSWORD },
   });
 }
@@ -36,7 +42,7 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
   const transporter = getTransporter();
   if (!transporter) {
     if (process.env.NODE_ENV === 'production') {
-      void recordDataSourceHealth({ sourceId: 'SMTP_GMAIL', ok: false, detail: { reason: 'not_configured' } });
+      void recordDataSourceHealth({ sourceId: 'SMTP_EMAIL', ok: false, detail: { reason: 'not_configured' } });
     }
     devOnlyLog(template.label, email, code);
     return;
@@ -44,7 +50,7 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
   const startedAt = Date.now();
   try {
     await transporter.sendMail({
-      from: `"SahamLens Admin" <${process.env.SMTP_EMAIL}>`,
+      from: `"${process.env.SMTP_FROM_NAME || 'SahamLens'}" <${process.env.SMTP_EMAIL}>`,
       to: email,
       subject: template.subject,
       html: `
@@ -59,10 +65,10 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
       `,
     });
     logger.info(`[AUTH] Email ${template.label.toLowerCase()} berhasil dikirim`, { email });
-    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'SMTP_GMAIL', ok: true, latencyMs: Date.now() - startedAt });
+    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'SMTP_EMAIL', ok: true, latencyMs: Date.now() - startedAt });
   } catch (err) {
     logger.error(`[AUTH] Gagal mengirim email ${template.label.toLowerCase()}`, { email, err });
-    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'SMTP_GMAIL', ok: false, latencyMs: Date.now() - startedAt, detail: { error: err instanceof Error ? err.message : String(err) } });
+    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'SMTP_EMAIL', ok: false, latencyMs: Date.now() - startedAt, detail: { error: err instanceof Error ? err.message : String(err) } });
     devOnlyLog(template.label, email, code);
   }
 }
