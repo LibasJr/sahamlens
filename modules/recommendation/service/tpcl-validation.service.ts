@@ -13,6 +13,7 @@ import {
   LENS_BUCKET_ROUND_TRIP_COST_PCT,
 } from '@/modules/lens-radar/service/bucket-backtest.service';
 import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import { MIN_VALIDATION_COVERAGE_PCT } from '@/modules/lens-radar/service/validation-population';
 import {
@@ -767,6 +768,7 @@ async function readSignals(historyRange: TpclHistoryRange): Promise<SignalRow[]>
        FROM lens_radar_history
       WHERE lens_score >= $1
         AND score_version = $2
+        AND score_config_hash = $7
         AND universe_version = $6
         AND avg_value_20d >= $3
         AND coverage_pct >= $4
@@ -781,6 +783,7 @@ async function readSignals(historyRange: TpclHistoryRange): Promise<SignalRow[]>
       MIN_VALIDATION_COVERAGE_PCT,
       cutoffDate,
       ACTIVE_LIQUID_UNIVERSE_VERSION,
+      LENS_SCORE_MODEL_METADATA.configHash,
     ],
   );
   return result.rows.map((row: any) => {

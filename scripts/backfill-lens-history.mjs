@@ -906,7 +906,10 @@ async function main() {
       deps.pool,
       undefined,
       options.endDate,
-      { scoreVersion: options.scoreVersion ?? deps.SCORE_VERSION }
+      {
+        scoreVersion: options.scoreVersion ?? deps.SCORE_VERSION,
+        scoreConfigHash: deps.LENS_SCORE_MODEL_HASH,
+      }
     );
     // Backfill mengubah sumber data transparency secara massal. Hapus cache spesifik
     // supaya UI publik tidak menunggu TTL 30 menit sambil menampilkan totalSamples lama.

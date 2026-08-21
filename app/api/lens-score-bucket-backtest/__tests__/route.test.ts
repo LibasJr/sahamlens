@@ -86,6 +86,24 @@ describe('GET /api/lens-score-bucket-backtest', () => {
     );
   });
 
+  it('scoreConfigHash ikut membentuk cache key dan filter service', async () => {
+    vi.mocked(getSession).mockResolvedValue(null);
+    vi.mocked(getOrCompute).mockImplementation(async (_key, _ttl, compute) => compute());
+    vi.mocked(runLensScoreBucketBacktest).mockResolvedValue({} as any);
+
+    await GET(makeRequest('?scoreVersion=v3&scoreConfigHash=hash-v3'));
+
+    expect(getOrCompute).toHaveBeenCalledWith(
+      expect.stringContaining(':v3:hash-v3'),
+      expect.any(Number),
+      expect.any(Function),
+    );
+    expect(runLensScoreBucketBacktest).toHaveBeenCalledWith(undefined, {
+      scoreVersion: 'v3',
+      scoreConfigHash: 'hash-v3',
+    });
+  });
+
   it('session ada tapi bukan Pro -> 402, tidak menyentuh cache', async () => {
     vi.mocked(getSession).mockResolvedValue({ id: 'u1' } as any);
     vi.mocked(hasOpenOrProAccess).mockResolvedValue(false);

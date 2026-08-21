@@ -625,7 +625,8 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
 
 async function readLatestBucketStats(
   db: Queryable = pool,
-  scoreVersion: string = SCORE_VERSION
+  scoreVersion: string = SCORE_VERSION,
+  scoreConfigHash: string = LENS_SCORE_MODEL_METADATA.configHash,
 ): Promise<{ runDate: string | null; rows: CalibrationBucketChartRow[] }> {
   const { rows } = await db.query(
     `
@@ -633,13 +634,16 @@ async function readLatestBucketStats(
       SELECT MAX(run_date) AS run_date
       FROM lens_bucket_stats
       WHERE score_version = $1
-        AND price_basis = $2
+        AND score_config_hash = $2
+        AND price_basis = $3
     )
-    SELECT s.run_date::text AS run_date, s.bucket, s.avg_t20, s.total_samples, s.score_version, s.price_basis
+    SELECT s.run_date::text AS run_date, s.bucket, s.avg_t20, s.total_samples,
+           s.score_version, s.score_config_hash, s.price_basis
     FROM lens_bucket_stats s
     JOIN latest l ON s.run_date = l.run_date
     WHERE s.score_version = $1
-      AND s.price_basis = $2
+      AND s.score_config_hash = $2
+      AND s.price_basis = $3
     ORDER BY CASE s.bucket
       WHEN '80-100' THEN 1
       WHEN '70-79' THEN 2
@@ -648,7 +652,7 @@ async function readLatestBucketStats(
       ELSE 5
     END
     `,
-    [scoreVersion, RETURN_PRICE_BASIS]
+    [scoreVersion, scoreConfigHash, RETURN_PRICE_BASIS]
   );
 
   const runDate = typeof rows[0]?.run_date === 'string' ? rows[0].run_date.slice(0, 10) : null;
@@ -923,12 +927,13 @@ function buildFallbackRecommendation(best: ThresholdSimulation | null, baseline:
 export async function getCalibrationDashboardData(
   db: Queryable = pool,
   provider: DailyOpenProvider = new YahooDailyOpenProvider(),
-  options: { scoreVersion?: string | null } = {}
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null } = {}
 ): Promise<CalibrationDashboardData> {
   await ensureSharedSchema();
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
+  const requestedConfigHash = options.scoreConfigHash?.trim() || LENS_SCORE_MODEL_METADATA.configHash;
   const [latestStats, historyRows] = await Promise.all([
-    readLatestBucketStats(db, requestedScoreVersion),
+    readLatestBucketStats(db, requestedScoreVersion, requestedConfigHash),
     readLensRadarHistory(db),
   ]);
   const {
@@ -946,7 +951,10 @@ export async function getCalibrationDashboardData(
     scoreConfigHash,
     configRejectedRows,
     fundamentalPitCoverage,
-  } = await calculateCalibrationObservations(historyRows, provider, { scoreVersion: requestedScoreVersion });
+  } = await calculateCalibrationObservations(historyRows, provider, {
+    scoreVersion: requestedScoreVersion,
+    scoreConfigHash: requestedConfigHash,
+  });
   const observationsT20 = observations.filter((obs) => typeof obs.returnT20 === 'number').length;
   // Calibration Lab harus membandingkan angka dari population yang sama. Sebelumnya
   // chart mengambil snapshot cron lens_bucket_stats sementara simulator memakai
