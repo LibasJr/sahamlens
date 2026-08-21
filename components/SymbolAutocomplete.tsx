@@ -158,7 +158,7 @@ export default function SymbolAutocomplete({
             >
               <TickerAvatar symbol={item.symbol} size="sm" />
               <span className="min-w-0 flex-1">
-                <span className="block font-number text-xs font-bold text-tv-text">{item.symbol}</span>
+                <span className="block font-number text-xs font-bold text-tv-text">{item.symbol.replace(/\.JK$/i, '')}</span>
                 <span className="mt-0.5 block truncate text-[10px] text-tv-muted">{item.name}</span>
               </span>
             </PrimitiveButton>

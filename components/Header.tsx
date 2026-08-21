@@ -43,7 +43,7 @@ export default function Header({
             </span>
             {currentTicker && (
               <span className="font-number text-[10px] font-semibold text-tv-muted">
-                {currentTicker.startsWith('^') ? 'IHSG' : `${currentTicker.replace('.JK', '')}.JK`}
+                {currentTicker.startsWith('^') ? 'IHSG' : currentTicker.replace(/\.JK$/i, '')}
               </span>
             )}
           </div>
