@@ -50,6 +50,8 @@ interface TransparencyData {
   latestStatsRunDate: string | null;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   priceBasis: string;
   priceDataVersion: string;
   rejectedRows: number;
@@ -321,6 +323,8 @@ export default function TransparencyClient() {
         <p className="mt-1 text-xs text-tv-muted">Versi dan baris yang dikeluarkan ditampilkan agar hasil tidak dibaca sebagai campuran model lama.</p>
         <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
           <div><dt className="text-tv-muted">Versi skor</dt><dd className="mt-1 font-number text-tv-text">{data.scoreVersion || data.requestedScoreVersion}</dd></div>
+          <div><dt className="text-tv-muted">Hash konfigurasi</dt><dd className="mt-1 break-all font-mono text-[11px] text-tv-text">{data.scoreConfigHash}</dd></div>
+          <div><dt className="text-tv-muted">Ditolak karena konfigurasi</dt><dd className="mt-1 font-number text-tv-text">{data.configRejectedRows.toLocaleString('id-ID')} baris</dd></div>
           <div><dt className="text-tv-muted">Basis harga</dt><dd className="mt-1 font-number text-tv-text">{data.priceBasis}</dd></div>
           <div><dt className="text-tv-muted">Versi data harga</dt><dd className="mt-1 font-number text-tv-text">{data.priceDataVersion}</dd></div>
           <div><dt className="text-tv-muted">Baris versi lain dibuang</dt><dd className="mt-1 font-number text-tv-text">{num(data.rejectedRows)}{data.unversionedRows > 0 ? ` (${num(data.unversionedRows)} tanpa versi)` : ''}</dd></div>

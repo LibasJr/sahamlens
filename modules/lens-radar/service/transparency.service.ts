@@ -107,6 +107,8 @@ export interface TransparencyData {
   latestStatsRunDate: string | null;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   priceBasis: PriceBasis;
   priceDataVersion: string;
   rejectedRows: number;
@@ -419,6 +421,8 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     unversionedRows,
     versionMixed,
     versionRejectedReason,
+    scoreConfigHash,
+    configRejectedRows,
   } = await calculateCalibrationObservations(historyRows, undefined, { scoreVersion: requestedScoreVersion });
   const ihsgBars = await fetchIhsgBars();
 
@@ -446,6 +450,8 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     latestStatsRunDate: bucketResult.latestStatsRunDate,
     scoreVersion,
     requestedScoreVersion,
+    scoreConfigHash,
+    configRejectedRows,
     priceBasis: RETURN_PRICE_BASIS,
     priceDataVersion: PRICE_ADJUSTMENT_VERSION,
     rejectedRows,

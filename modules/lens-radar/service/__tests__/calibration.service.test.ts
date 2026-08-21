@@ -217,6 +217,8 @@ describe('calibration.service', () => {
     const result = await calculateCalibrationObservations(rows, provider(opens));
 
     expect(result.scoreVersion).toBe(SCORE_VERSION);
+    expect(result.scoreConfigHash).toBe(LENS_SCORE_MODEL_METADATA.configHash);
+    expect(result.configRejectedRows).toBe(0);
     expect(result.rejectedRows).toBe(21);
     expect(result.observations.every((obs) => obs.ticker === 'AAAA.JK')).toBe(true);
   });
@@ -238,6 +240,8 @@ describe('calibration.service', () => {
     });
 
     expect(result.scoreVersion).toBe('lens-score-v1.2.0');
+    expect(result.scoreConfigHash).toBe('legacy-v1.2-hash');
+    expect(result.configRejectedRows).toBe(0);
     expect(result.rejectedRows).toBe(21);
     expect(result.observations.every((obs) => obs.ticker === 'BBBB.JK')).toBe(true);
   });

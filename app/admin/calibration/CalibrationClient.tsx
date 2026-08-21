@@ -193,6 +193,12 @@ interface FundamentalPitCoverageDiagnostic {
 interface CalibrationDashboardData {
   asOfDate: string;
   latestStatsRunDate: string | null;
+  scoreVersion: string | null;
+  requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
+  rejectedRows: number;
+  versionRejectedReason: string | null;
   sourceRows: number;
   uniqueTickers: number;
   observationsT20: number;
@@ -466,6 +472,16 @@ export default function CalibrationClient() {
           <div className="text-[10px] text-tv-muted mt-0.5">dari {MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} minimum</div>
         </Card>
       </div>
+
+      <section className="rounded-xl border border-tv-border bg-tv-card/40 p-4 text-xs">
+        <h2 className="font-bold uppercase tracking-wide text-tv-text">Identitas model tervalidasi</h2>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          <div><div className="text-tv-muted">Versi skor</div><div className="mt-1 font-number text-tv-text">{data.scoreVersion || data.requestedScoreVersion}</div></div>
+          <div><div className="text-tv-muted">Hash konfigurasi</div><div className="mt-1 break-all font-mono text-[11px] text-tv-text">{data.scoreConfigHash}</div></div>
+          <div><div className="text-tv-muted">Histori ditolak</div><div className="mt-1 font-number text-tv-text">{data.rejectedRows.toLocaleString('id-ID')} baris ({data.configRejectedRows.toLocaleString('id-ID')} beda konfigurasi)</div></div>
+        </div>
+        {data.versionRejectedReason && <p className="mt-3 leading-relaxed text-tv-yellow">{data.versionRejectedReason}</p>}
+      </section>
 
       <section className={`rounded-xl border p-4 ${
         data.fundamentalPitCoverage.status === 'FULL_FUNDAMENTAL_COVERAGE'

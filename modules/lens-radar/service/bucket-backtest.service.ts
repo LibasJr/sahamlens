@@ -109,6 +109,8 @@ export interface LensBucketBacktestResult {
   asOfDate: string;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   rejectedRows: number;
   unversionedRows: number;
   versionMixed: boolean;
@@ -591,6 +593,8 @@ export async function calculateLensBucketStats(
     drawdownTrades: t20Trades - skippedNoLow,
     scoreVersion: partition.version,
     requestedScoreVersion,
+    scoreConfigHash: partition.configHash ?? requestedConfigHash,
+    configRejectedRows: partition.configRejectedCount,
     rejectedRows: partition.rejected.length,
     unversionedRows: partition.unversionedCount,
     versionMixed: partition.mixed,
