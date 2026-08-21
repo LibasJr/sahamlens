@@ -37,7 +37,7 @@ const vercelCrons = vercel.crons ?? [];
 
 if (vercelCrons.length) {
   fail(
-    `vercel.json berisi ${vercelCrons.length} entri crons. Penjadwal production adalah systemd timer di VPS + QStash; ` +
+    `vercel.json berisi ${vercelCrons.length} entri crons. Penjadwal production adalah systemd timer di VPS; ` +
     'blok crons di vercel.json membuat Vercel ikut menjalankan job yang sama terhadap database yang sama. Hapus bloknya.'
   );
 }
