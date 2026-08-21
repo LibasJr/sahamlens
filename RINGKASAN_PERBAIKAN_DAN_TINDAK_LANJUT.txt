@@ -1,0 +1,239 @@
+RINGKASAN PERBAIKAN SAHAMLENS DAN TINDAK LANJUT DEPLOYMENT
+======================================================================
+
+Dokumen dibuat: 21 Agustus 2026
+Branch kerja   : work
+
+Dokumen ini membedakan dengan tegas antara perubahan yang SUDAH ADA DI KODE
+dan pekerjaan operasional yang MASIH HARUS dilakukan di server produksi.
+
+
+A. PERBAIKAN YANG SUDAH DILAKUKAN
+----------------------------------------------------------------------
+
+1. Tampilan kode emiten tanpa akhiran .JK
+   - Label yang dilihat pengguna sekarang menampilkan BBCA, BBRI, TLKM, dan
+     seterusnya, bukan BBCA.JK, BBRI.JK, atau TLKM.JK.
+   - Berlaku pada pencarian/autocomplete, header, command palette, ticker,
+     dashboard, Market Pulse, halaman teknikal, dan kartu ekspor.
+   - Nilai internal, parameter API, dan route yang memang membutuhkan .JK tetap
+     dipertahankan. Perubahan hanya pada label presentasi sehingga pengambilan
+     data emiten tidak rusak.
+   - Helper terpusat tickerLabel() dan unit test sudah ditambahkan.
+
+2. Pencarian emiten
+   - Hasil suggestion tidak lagi memperlihatkan .JK.
+   - Nilai ticker internal tetap utuh ketika suggestion dipilih, sehingga request
+     ke API teknikal/fundamental masih memakai simbol provider yang benar.
+
+3. Kesegaran data Infographic Studio 360°
+   - Request data saham memakai cache: no-store agar tidak memakai payload lama
+     dari browser/cache Next.js.
+   - Harga mengutamakan field canonical stock.current_price dengan fallback untuk
+     kompatibilitas payload lama.
+   - Timestamp sumber data diteruskan ke kartu ekspor. Waktu ekspor tidak lagi
+     selalu dianggap sebagai waktu data pasar.
+   - Error request teknikal tidak lagi ditelan diam-diam.
+
+4. IHSG penutupan resmi untuk Market Pulse
+   - Ditambahkan sinkronisasi EOD IHSG dari endpoint Index Summary BEI.
+   - Artifact resmi disimpan di data/idx-index/ihsg.json.
+   - Market Pulse memakai close resmi BEI jika tanggalnya sesuai dan tidak
+     menimpa data intraday Yahoo yang lebih baru.
+   - Sinkronisasi dimasukkan ke cron idx-flow-sync dan deskripsi systemd timer.
+   - Parser menolak close kosong, nol, non-finite, atau baris yang bukan IHSG;
+     tidak ada rekonstruksi atau angka dummy.
+
+5. Keamanan tampilan data broker
+   - Nilai null/non-finite tidak lagi berubah menjadi angka nol yang menyesatkan.
+   - Persentase, nominal IDR bertanda, dan warna positif/negatif memakai guard
+     numerik yang eksplisit.
+
+6. Consensus teknikal berbasis dimensi
+   - Analyzer dikelompokkan ke dimensi TREND, MOMENTUM, FLOW, STRUCTURE, dan
+     VOLATILITY.
+   - Consensus dihitung berdasarkan bobot dimensi, bukan jumlah indikator mentah,
+     sehingga beberapa indikator tren tidak menggandakan suara dimensi TREND.
+   - Metadata dimension diteruskan oleh pipeline indikator dan rekomendasi.
+
+7. Identitas formula LensScore
+   - Spesifikasi model LensScore dibekukan dalam konfigurasi eksplisit.
+   - Hash konfigurasi dibuat deterministik. Formula berbeda menghasilkan identitas
+     berbeda walaupun seseorang lupa mengganti label versi.
+   - Versi dan hash model ikut dikirim dalam metadata response analisis.
+
+8. Histori, kalibrasi, dan backtest tidak mencampur formula
+   - lens_radar_history memiliki kolom score_config_hash.
+   - Primary key histori memasukkan score_version dan score_config_hash.
+   - Archive dan backfill selalu menyimpan hash konfigurasi aktif.
+   - Calibration Lab dan bucket backtest menerapkan fail-closed: baris tanpa hash
+     atau hash berbeda ditolak, bukan dicampur ke hasil statistik.
+   - Halaman Transparency dan Calibration Lab menampilkan versi model, hash model,
+     jumlah baris ditolak, basis harga, serta alasan penolakan.
+
+9. Audit menu dan kebijakan anti-dummy
+   - Audit route menu utama ditambahkan ke verify:prod.
+   - Audit zero-dummy diperketat untuk pola regresi yang sebelumnya terlewat.
+   - Data Pattern yang sebelumnya berisiko dipahami sebagai statistik nyata sudah
+     diganti dengan status data tidak tersedia, bukan angka buatan.
+
+
+B. BATASAN YANG PERLU DIPAHAMI
+----------------------------------------------------------------------
+
+1. Perubahan kode tidak otomatis mengubah server produksi.
+   Commit masih berada di branch lokal "work". Repository pada environment ini
+   belum memiliki Git remote/origin, sehingga belum dapat di-push dari sini.
+
+2. "Sudah terversi dan dapat diaudit" tidak sama dengan "sudah terbukti profit".
+   LensScore baru boleh dinyatakan tervalidasi setelah jumlah sampel forward/OOS
+   mencukupi, melewati biaya transaksi, diuji pada regime berbeda, dan hasilnya
+   stabil. UI tetap harus memperlihatkan status collecting/not significant bila
+   syarat tersebut belum terpenuhi.
+
+3. Data resmi BEI bergantung pada endpoint BEI dan jadwal cron server.
+   Jika sync gagal, aplikasi tidak boleh membuat close pengganti. Operator harus
+   memeriksa timestamp/source dan memperbaiki job.
+
+4. Data lama akan diberi identitas legacy-unhashed oleh migration.
+   Data tersebut sengaja ditolak oleh model aktif sampai dihitung ulang dengan
+   backfill. Nol sampel sementara setelah migration adalah kondisi fail-closed,
+   bukan alasan untuk menghidupkan fallback/dummy.
+
+
+C. YANG HARUS DILAKUKAN SETELAH PERBAIKAN INI
+----------------------------------------------------------------------
+
+Urutan berikut disarankan. Jangan langsung menjalankan backfill sebelum backup dan
+migration selesai.
+
+LANGKAH 1 - Hubungkan repository dan push branch
+  a. Tambahkan remote repository yang benar:
+       git remote add origin <URL_REPOSITORY_SAHAMLENS>
+  b. Pastikan URL benar:
+       git remote -v
+  c. Push branch:
+       git push -u origin work
+  d. Buat Pull Request dari branch work, review, lalu merge sesuai prosedur tim.
+
+LANGKAH 2 - Backup database produksi
+  - Buat snapshot/pg_dump sebelum migration.
+  - Catat timestamp backup dan pastikan file backup dapat dibaca.
+  - Jangan lanjut jika restore backup belum pernah diverifikasi.
+
+LANGKAH 3 - Siapkan environment produksi
+  - Pastikan Node.js sesuai package.json (Node 22).
+  - Pastikan DATABASE_URL menunjuk database yang benar.
+  - Pastikan CRON_SECRET dan dependency runtime tersedia.
+  - Pastikan Python environment job IDX memiliki curl_cffi.
+
+LANGKAH 4 - Periksa migration tanpa menerapkan
+       node --env-file=.env.production scripts/migrate-database.mjs
+
+  Hasil harus menampilkan migration pending, termasuk:
+       011_lens_score_config_identity.sql
+
+  Jika ada checksum migration lama berubah, BERHENTI. Jangan mengedit migration
+  historis yang sudah pernah diterapkan.
+
+LANGKAH 5 - Terapkan migration
+       node --env-file=.env.production scripts/migrate-database.mjs --confirm
+
+  Migration menggunakan transaction dan advisory lock. Tetap lakukan pada window
+  maintenance karena perubahan primary key dapat mengunci tabel histori.
+
+LANGKAH 6 - Jalankan pemeriksaan aplikasi sebelum backfill
+       npm run typecheck
+       npm run lint
+       npm test
+       npm run audit:zero-dummy
+       npm run audit:menus
+       npm run build
+
+  Jangan deploy jika ada perintah yang gagal akibat kesalahan kode. Warning jaringan
+  atau source eksternal harus dicatat dan diuji ulang di environment produksi.
+
+LANGKAH 7 - Dry-run backfill LensRadar
+       node --env-file=.env.production scripts/backfill-lens-history.mjs --dry-run
+
+  Periksa rentang tanggal, universe ticker, versi model, jumlah baris, serta error
+  provider. Jangan meneruskan bila data fundamental point-in-time tidak tersedia.
+
+LANGKAH 8 - Jalankan backfill LensRadar sebenarnya
+       node --env-file=.env.production scripts/backfill-lens-history.mjs
+
+  Untuk proses besar, gunakan checkpoint dan batch yang sesuai kemampuan server.
+  Jangan mengganti missing value dengan nol atau angka estimasi hanya agar proses
+  terlihat selesai.
+
+LANGKAH 9 - Sinkronkan IHSG resmi dan verifikasi artifact
+       python scripts/sync-idx-ihsg-eod.py --days 14
+
+  Periksa data/idx-index/ihsg.json:
+  - source harus BEI/IDX;
+  - tanggal harus tanggal perdagangan yang benar;
+  - close harus positif;
+  - generatedAt/timestamp harus terbaru.
+
+LANGKAH 10 - Deploy aplikasi dan aktifkan scheduler
+  - Deploy commit hasil merge.
+  - Pastikan cron idx-flow-sync dan systemd timer aktif.
+  - Jalankan satu eksekusi manual job, kemudian periksa log dan exit code.
+  - Pastikan file artifact dapat dibaca oleh user proses aplikasi.
+
+LANGKAH 11 - Smoke test menu penting
+  Periksa minimal:
+  - pencarian emiten: label tanpa .JK tetapi navigasi dan API berhasil;
+  - Technical, Fundamental, Flow, Valuation;
+  - Market Pulse: nilai, tanggal, dan sumber IHSG;
+  - LensRadar dan hasil rekomendasi;
+  - Calibration Lab dan Transparency;
+  - Infographic Studio dan timestamp kartu ekspor;
+  - broker summary untuk data valid serta data null.
+
+LANGKAH 12 - Verifikasi identitas model setelah backfill
+  - scoreVersion harus sama dengan model aktif.
+  - scoreConfigHash harus terisi dan sama dengan hash model aktif.
+  - configRejectedRows harus dijelaskan. Setelah backfill lengkap, jumlah legacy
+    seharusnya turun; jangan menghapus data legacy sebelum backup/audit selesai.
+  - Jangan menyimpulkan performa jika genuine OOS masih collecting atau statistik
+    belum signifikan.
+
+
+D. MONITORING HARIAN YANG DISARANKAN
+----------------------------------------------------------------------
+
+1. Alert jika artifact IHSG melewati satu hari bursa tanpa update.
+2. Alert jika cron IDX atau archive LensRadar gagal/non-zero exit.
+3. Pantau configRejectedRows, unversionedRows, dan coverage fundamental PIT.
+4. Pantau perbedaan timestamp data vs timestamp render/export.
+5. Simpan log versi aplikasi, scoreVersion, scoreConfigHash, dan migration terakhir.
+6. Jalankan verify:prod pada setiap release, bukan hanya saat perubahan besar.
+
+
+E. KRITERIA SELESAI
+----------------------------------------------------------------------
+
+Perbaikan dianggap benar-benar aktif di produksi hanya jika:
+
+[ ] Branch sudah di-push dan Pull Request sudah direview/merge.
+[ ] Backup database dibuat dan restore-nya dapat diverifikasi.
+[ ] Migration 011 tercatat di schema_migrations.
+[ ] Backfill selesai tanpa dummy/fallback numerik.
+[ ] score_config_hash model aktif muncul pada histori baru.
+[ ] Calibration/Transparency tidak mencampur baris legacy.
+[ ] Artifact IHSG resmi terbaru dan cron berjalan normal.
+[ ] Semua menu utama lolos smoke test.
+[ ] typecheck, lint, test, audit, dan build lulus pada commit yang dideploy.
+[ ] Status performa tetap jujur: collecting/not significant sampai bukti OOS cukup.
+
+
+F. CATATAN KEAMANAN
+----------------------------------------------------------------------
+
+- Jangan menaruh DATABASE_URL, token, CRON_SECRET, atau kredensial Git di dokumen
+  ini maupun di commit.
+- Jangan menjalankan migration produksi tanpa backup.
+- Jangan menurunkan guard fail-closed hanya untuk membuat dashboard berisi angka.
+- Jangan menyebut LensScore terbukti menghasilkan profit sebelum validasi OOS matang.
+
