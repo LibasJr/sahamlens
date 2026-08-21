@@ -163,10 +163,15 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
         <motion.div variants={fadeUp} initial={false} animate="show">
           <Card
             padding="none"
-            className="relative overflow-hidden mb-6 bg-gradient-accent-soft border border-tv-border/60 px-6 py-8 sm:px-10 sm:py-10 shadow-none"
+            className="relative overflow-visible mb-6 bg-gradient-accent-soft border border-tv-border/60 px-6 py-8 sm:px-10 sm:py-10 shadow-none"
           >
-            <div className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-glow-purple blur-3xl" />
-            <div className="pointer-events-none absolute -left-24 -bottom-16 h-64 w-64 rounded-full bg-glow-blue blur-3xl" />
+            {/* Dekorasi tetap terpotong mengikuti kartu, tetapi konten interaktif tidak.
+                Sebelumnya overflow-hidden berada di Card sehingga dropdown autocomplete
+                hero ikut terpotong dan tampak seolah tidak menghasilkan apa pun. */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+              <div className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-glow-purple blur-3xl" />
+              <div className="absolute -left-24 -bottom-16 h-64 w-64 rounded-full bg-glow-blue blur-3xl" />
+            </div>
 
             <div className="relative grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-stretch">
               <div className="min-w-0">
