@@ -241,6 +241,9 @@ export default function MarketPulse() {
                   )}
                   {hasData && <Sparkline data={idx.sparkline} color={isUp ? '#22C55E' : '#EF4444'} />}
                 </div>
+                {idx.name === 'IHSG' && idx.source === 'IDX_OFFICIAL_INDEX_SUMMARY' && (
+                  <div className="mt-1 text-[10px] font-semibold text-tv-blue">Penutupan resmi BEI</div>
+                )}
               </motion.div>
             );
           }) : (

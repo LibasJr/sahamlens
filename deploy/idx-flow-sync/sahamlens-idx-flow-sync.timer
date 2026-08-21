@@ -12,7 +12,7 @@
 # impor broker bersifat append-only.
 
 [Unit]
-Description=Jadwal SahamLens - sync Foreign Flow & Broker EOD resmi BEI
+Description=Jadwal SahamLens - sync IHSG, Foreign Flow & Broker EOD resmi BEI
 
 [Timer]
 OnCalendar=Mon..Fri *-*-* 17:30:00 Asia/Jakarta
