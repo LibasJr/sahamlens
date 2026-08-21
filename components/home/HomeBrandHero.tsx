@@ -38,6 +38,7 @@ export default function HomeBrandHero({ ihsg, loadingMarket, marketError }: Home
       as="section"
       variant="flat"
       padding="none"
+      overflow="visible"
       className="border-b border-tv-border/70 bg-transparent pb-6 pt-2 sm:pb-7 sm:pt-3 lg:pb-8"
     >
       <div className="grid gap-7 lg:grid-cols-[minmax(0,1.5fr)_minmax(250px,0.55fr)] lg:items-end">
