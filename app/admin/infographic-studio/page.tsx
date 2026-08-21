@@ -95,15 +95,22 @@ export default function InfographicStudioPage() {
       const displaySymbol = isIhsg ? 'IHSG' : cleanSym;
 
       // Parallel fetch payload technical, fundamental, earnings, intrinsic & ownership
+      // Gunakan endpoint teknikal yang sama dengan halaman Technical/Dashboard dan
+      // jangan memakai cache browser. Request teknikal wajib berhasil; sebelumnya
+      // error-nya ditelan menjadi `null`, lalu Studio tetap menampilkan kartu kosong
+      // dengan toast "berhasil" sehingga tampak seperti data tidak pernah diperbarui.
       const [stockRes, fundRes, earningsRes, intrinsicRes, ownershipRes] = await Promise.all([
-        apiRequest<any>(`/api/stock/${encodeURIComponent(apiTicker)}`).catch(() => null),
-        isIhsg ? null : apiRequest<any>(`/api/fundamental/${cleanSym}.JK`).catch(() => null),
-        isIhsg ? null : apiRequest<any>(`/api/earnings/${cleanSym}`).catch(() => null),
-        isIhsg ? null : apiRequest<any>(`/api/intrinsic/${cleanSym}`).catch(() => null),
-        isIhsg ? null : apiRequest<any>(`/api/ownership-flow/${cleanSym}`).catch(() => null),
+        apiRequest<any>(`/api/stock/${encodeURIComponent(apiTicker)}`, { cache: 'no-store' }),
+        isIhsg ? null : apiRequest<any>(`/api/fundamental/${cleanSym}.JK`, { cache: 'no-store' }).catch(() => null),
+        isIhsg ? null : apiRequest<any>(`/api/earnings/${cleanSym}`, { cache: 'no-store' }).catch(() => null),
+        isIhsg ? null : apiRequest<any>(`/api/intrinsic/${cleanSym}`, { cache: 'no-store' }).catch(() => null),
+        isIhsg ? null : apiRequest<any>(`/api/ownership-flow/${cleanSym}`, { cache: 'no-store' }).catch(() => null),
       ]);
 
-      const stockPrice = stockRes?.price ?? fundRes?.stock?.current_price ?? null;
+      // `/api/stock` menaruh harga canonical pada `stock.current_price`, sama seperti
+      // yang dirender halaman Technical. `price` dipertahankan hanya sebagai fallback
+      // kompatibilitas payload lama.
+      const stockPrice = stockRes?.stock?.current_price ?? stockRes?.price ?? fundRes?.stock?.current_price ?? null;
       const changePct = stockRes?.stock?.change_pct ?? fundRes?.stock?.change_pct ?? null;
       const stockVolume = stockRes?.stock?.volume ?? fundRes?.stock?.volume ?? null;
 
@@ -167,6 +174,7 @@ export default function InfographicStudioPage() {
 
       const combinedData = {
         symbol: displaySymbol,
+        dataTimestamp: stockRes?._meta?.dataTimestamp ?? stockRes?._meta?.computedAt ?? null,
         stock: {
           symbol: displaySymbol,
           name: isIhsg ? 'Indeks Harga Saham Gabungan (IHSG)' : (fundRes?.stock?.name || fundRes?.profile?.name || stockRes?.stock?.name || cleanSym),
@@ -584,7 +592,7 @@ export default function InfographicStudioPage() {
                       tradeSetup={data.technical.tradeSetup}
                       flowDetails={data.technical.flowDetails}
                       theme={active3DTheme}
-                      exportedAt={new Date()}
+                      exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
                   ) : (
                     <FundamentalMoatEarningsExportCard3D
@@ -601,7 +609,7 @@ export default function InfographicStudioPage() {
                       valuation={data.fundamental.valuation}
                       ownership={data.fundamental.ownership}
                       theme={active3DTheme}
-                      exportedAt={new Date()}
+                      exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
                   )
                 ) : (
