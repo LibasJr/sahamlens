@@ -42,6 +42,15 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-21 - Hotfix TLS PostgreSQL lokal
+
+- Klien PostgreSQL tidak lagi memaksa TLS untuk host loopback (`127.0.0.1`, `localhost`,
+  dan `::1`) karena PostgreSQL lokal VPS tidak menyediakan SSL.
+- Database remote tetap menggunakan `ssl: { rejectUnauthorized: true }`; hotfix ini tidak
+  menurunkan verifikasi sertifikat untuk koneksi non-loopback.
+- Gejala sebelum hotfix: `/api/health` 503 dan form lupa password mengembalikan Internal
+  Server Error dengan log `The server does not support SSL connections`.
+
 ### 2026-08-21 - OTP email melalui SMTP Hostinger
 
 - Pengiriman OTP signup dan reset password tidak lagi memakai preset Nodemailer Gmail.
