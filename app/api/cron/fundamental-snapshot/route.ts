@@ -55,9 +55,10 @@ async function fetchOne(ticker: string) {
 
 async function handlePOST(req: NextRequest) {
   const signature = req.headers.get('Upstash-Signature');
+  const authorization = req.headers.get('authorization');
   const rawBody = await req.text();
 
-  if (!(await verifyQStashSignature(signature, rawBody))) {
+  if (!(await verifyQStashSignature(signature, rawBody, authorization))) {
     logger.warn('Menolak request /api/cron/fundamental-snapshot - signature QStash tidak valid');
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }

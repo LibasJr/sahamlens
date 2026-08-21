@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens local schedule - news
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 09..15:00/5:00 Asia/Jakarta
+Persistent=true
+AccuracySec=1s
+Unit=sahamlens-local-cron@news.service
+
+[Install]
+WantedBy=timers.target

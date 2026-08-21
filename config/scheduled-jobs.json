@@ -26,70 +26,70 @@
     },
     {
       "path": "/api/cron/ai-pick-scan",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "*/15 9-16 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta"
     },
     {
       "path": "/api/cron/backtest-precompute",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "30 5 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta"
     },
     {
       "path": "/api/cron/breakout-scan",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "*/5 9-16 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id. DIUBAH 2026-08-20 dari '*/5 9-15 * * 1-5' ke '*/5 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta. DIUBAH 2026-08-20 dari '*/5 9-15 * * 1-5' ke '*/5 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
     },
     {
       "path": "/api/cron/fundamental-snapshot",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "0 5 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta"
     },
     {
       "path": "/api/cron/macro",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "0 9-16 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id"
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta"
     },
     {
       "path": "/api/cron/market-pulse",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "*/5 9-16 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id. DIUBAH 2026-08-20 dari '*/5 9-15' ke '*/5 9-16' oleh pengguna di dashboard QStash. Alasan: jam 9-15 membuat eksekusi terakhir jatuh 15:55, dan dikurangi jeda ~15 menit Yahoo, snapshot terakhir hari itu mencerminkan ~15:45 - sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts) apalagi sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Akibatnya LensMarket tidak pernah menampilkan harga penutupan sama sekali; label 'As of 15.45 WIB' pada 19 Agu 2026 adalah gejalanya. Dengan 9-16 eksekusi terakhir 16:55 dan snapshotnya mencerminkan ~16:40, sudah lewat lelang penutupan. Pola ini sama dengan ai-pick-scan dan macro yang memang sudah 9-16."
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta. DIUBAH 2026-08-20 dari '*/5 9-15' ke '*/5 9-16' oleh pengguna di dashboard QStash. Alasan: jam 9-15 membuat eksekusi terakhir jatuh 15:55, dan dikurangi jeda ~15 menit Yahoo, snapshot terakhir hari itu mencerminkan ~15:45 - sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts) apalagi sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Akibatnya LensMarket tidak pernah menampilkan harga penutupan sama sekali; label 'As of 15.45 WIB' pada 19 Agu 2026 adalah gejalanya. Dengan 9-16 eksekusi terakhir 16:55 dan snapshotnya mencerminkan ~16:40, sudah lewat lelang penutupan. Pola ini sama dengan ai-pick-scan dan macro yang memang sudah 9-16."
     },
     {
       "path": "/api/cron/market-summary",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "*/5 9-16 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id. DIUBAH 2026-08-20 dari '*/5 9-15 * * 1-5' ke '*/5 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta. DIUBAH 2026-08-20 dari '*/5 9-15 * * 1-5' ke '*/5 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
     },
     {
       "path": "/api/cron/news",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "*/5 9-15 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id - didaftarkan pengguna 2026-08-14 mengikuti instruksi docs/operations/DEPLOYMENT.md, dikonfirmasi sama persis dengan market-summary/market-pulse/breakout-scan."
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta - didaftarkan pengguna 2026-08-14 mengikuti instruksi docs/operations/DEPLOYMENT.md, dikonfirmasi sama persis dengan market-summary/market-pulse/breakout-scan."
     },
     {
       "path": "/api/cron/recommendation-scan",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "*/15 9-16 * * 1-5",
       "scheduleStatus": "known",
-      "source": "QStash schedule, Upstash-Cron TZ Asia/Jakarta, destination https://sahamlens.id. DIUBAH 2026-08-20 dari '*/15 9-15 * * 1-5' ke '*/15 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta. DIUBAH 2026-08-20 dari '*/15 9-15 * * 1-5' ke '*/15 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
     },
     {
       "path": "/api/cron/watchlist-alert",
-      "provider": "qstash",
+      "provider": "systemd",
       "schedule": "*/5 9-15 * * 1-5",
       "scheduleStatus": "known",
       "source": "PERUBAHAN DIMINTA 2026-08-14 (audit delay Yahoo 15 menit - interval lama sama persis dengan delay Yahoo, worst-case lag alert bisa ~30 menit). Diubah manual oleh pengguna di dashboard QStash dari */15 9-15 * * 1-5 ke */5 9-15 * * 1-5 (sama dengan breakout-scan/market-pulse/market-summary/news), dikonfirmasi 2026-08-14."

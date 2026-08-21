@@ -1,0 +1,20 @@
+[Unit]
+Description=SahamLens local scheduled job - %i
+After=network-online.target sahamlens.service
+Wants=network-online.target
+StartLimitIntervalSec=10min
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+WorkingDirectory=/opt/sahamlens/app
+ExecStart=/usr/bin/node /usr/local/bin/sahamlens-local-cron.mjs %i
+TimeoutStartSec=35min
+Restart=on-failure
+RestartSec=60s
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
