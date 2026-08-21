@@ -340,7 +340,7 @@ export default function TechnicalExportCard3D({
               <div>
                 <div className="flex items-center gap-3">
                   <h1 className="text-4xl font-black tracking-tight font-heading text-white drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
-                    {displaySymbol === 'IHSG' ? 'IHSG' : `${displaySymbol}.JK`}
+                    {displaySymbol}
                   </h1>
                   <span className={`rounded-xl border ${activeTheme.accentBorder} ${activeTheme.accentBg} px-3 py-1 text-xs font-mono font-black ${activeTheme.accentText} shadow-sm`}>
                     {displaySymbol === 'IHSG' ? 'Indeks Komposit BEI' : 'Saham Reguler IDX'}

@@ -172,7 +172,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
         <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-8 text-center">
           <LogIn className="w-8 h-8 mx-auto mb-3 text-tv-blue" />
           <p className="text-white font-semibold mb-1">Jatah coba LensConsensus kamu sudah habis</p>
-          <p className="text-tv-muted text-sm mb-4">Masuk dulu untuk melanjutkan LensConsensus dan membuka analisis lengkap {symbol}.</p>
+          <p className="text-tv-muted text-sm mb-4">Masuk dulu untuk melanjutkan LensConsensus dan membuka analisis lengkap {symbol.replace(/\.JK$/i, '')}.</p>
           <Link href={`/login?next=/technical/${symbol}`} className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2.5 text-sm font-bold text-white hover:bg-tv-blueHover transition">
             Masuk untuk lanjut
           </Link>
@@ -185,7 +185,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
         <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-8 text-center">
           <Crown className="w-8 h-8 mx-auto mb-3 text-tv-gold" />
           <p className="text-white font-semibold mb-1">LensConsensus adalah fitur Pro</p>
-          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap LensConsensus pada {symbol}.</p>
+          <p className="text-tv-muted text-sm mb-4">Upgrade ke SahamLens Pro untuk melihat rapat lengkap LensConsensus pada {symbol.replace(/\.JK$/i, '')}.</p>
           {paymentMethods.length > 0 && (
             <div className="text-left max-w-xs mx-auto mb-4 space-y-1">
               {paymentMethods.map((m) => (
@@ -217,7 +217,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
           title={signedIn ? 'Analisis teknikal belum bisa ditampilkan' : 'Masuk dulu untuk lihat analisis lengkap'}
           description={
             signedIn
-              ? `Grafik dan indikator dasarnya tetap bisa kamu pakai. Rangkuman LensConsensus untuk ${symbol} sedang gagal dihitung - biasanya sementara. Coba muat ulang sebentar lagi.`
+              ? `Grafik dan indikator dasarnya tetap bisa kamu pakai. Rangkuman LensConsensus untuk ${symbol.replace(/\.JK$/i, '')} sedang gagal dihitung - biasanya sementara. Coba muat ulang sebentar lagi.`
               : 'Grafik dasarnya tetap bisa kamu pakai. Untuk membuka rangkuman LensConsensus lengkap, masuk dulu ya.'
           }
         />
@@ -606,7 +606,7 @@ function LensConsensusAnalysisSkeleton({ symbol }: { symbol: string }) {
         <Skeleton className="h-3 w-full rounded-full" />
         <Skeleton className="h-16 w-full" />
         <p className="text-center text-xs text-tv-muted">
-          LensConsensus sedang merapatkan {symbol} - biasanya 5-10 detik.
+          LensConsensus sedang merapatkan {symbol.replace(/\.JK$/i, '')} - biasanya 5-10 detik.
         </p>
         <LoadingFact />
       </Card>
