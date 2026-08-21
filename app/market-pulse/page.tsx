@@ -296,7 +296,7 @@ export default function MarketPulse() {
                     <div className="font-bold text-tv-text font-number flex items-center gap-2 min-w-0">
                       <span className="text-xs text-tv-muted shrink-0">#{idx + 1}</span>
                       <TickerAvatar symbol={item.symbol} size="sm" />
-                      <span className="truncate">{item.symbol}</span>
+                      <span className="truncate">{item.symbol.replace(/\.JK$/i, '')}</span>
                     </div>
                     <div className="text-xs font-bold text-tv-blue font-number shrink-0">{item.change}</div>
                   </div>
