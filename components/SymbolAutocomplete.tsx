@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import { TICKERS } from '@/lib/tickers';
 import TickerAvatar from '@/components/ui/TickerAvatar';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
+import { tickerLabel } from '@/lib/utils/ticker-label';
 
 const POPULAR_SEARCH_RANK = new Map<string, number>([
   ['BBRI.JK', 0],
@@ -89,6 +90,7 @@ export default function SymbolAutocomplete({
       {showSearchIcon && (
         <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-tv-muted" />
       )}
+      {/* Keep the controlled value intact; only suggestion labels hide `.JK`. */}
       <input
         type="text"
         role="combobox"
@@ -158,7 +160,7 @@ export default function SymbolAutocomplete({
             >
               <TickerAvatar symbol={item.symbol} size="sm" />
               <span className="min-w-0 flex-1">
-                <span className="block font-number text-xs font-bold text-tv-text">{item.symbol}</span>
+                <span className="block font-number text-xs font-bold text-tv-text">{tickerLabel(item.symbol)}</span>
                 <span className="mt-0.5 block truncate text-[10px] text-tv-muted">{item.name}</span>
               </span>
             </PrimitiveButton>
