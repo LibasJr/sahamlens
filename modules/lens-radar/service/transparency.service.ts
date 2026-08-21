@@ -52,6 +52,7 @@ interface LensBucketStatsRow {
   run_date: string | Date;
   bucket: string;
   score_version: string | null;
+  score_config_hash?: string | null;
   avg_t1: number | string | null;
   avg_t5: number | string | null;
   avg_t20: number | string | null;
@@ -106,6 +107,8 @@ export interface TransparencyData {
   latestStatsRunDate: string | null;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   priceBasis: PriceBasis;
   priceDataVersion: string;
   rejectedRows: number;
@@ -274,7 +277,7 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
 async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
-    SELECT "date", ticker, lens_score, close_price, market_cap, score_version, universe_version,
+    SELECT "date", ticker, lens_score, close_price, market_cap, score_version, score_config_hash, universe_version,
            raw_close_price, adjusted_close_price, price_basis, adjustment_factor,
            corporate_action_status, price_data_timestamp, price_data_version,
            avg_value_20d, coverage_pct, eligibility_status, fundamental_available_max, universe_eligible
@@ -418,6 +421,8 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     unversionedRows,
     versionMixed,
     versionRejectedReason,
+    scoreConfigHash,
+    configRejectedRows,
   } = await calculateCalibrationObservations(historyRows, undefined, { scoreVersion: requestedScoreVersion });
   const ihsgBars = await fetchIhsgBars();
 
@@ -445,6 +450,8 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     latestStatsRunDate: bucketResult.latestStatsRunDate,
     scoreVersion,
     requestedScoreVersion,
+    scoreConfigHash,
+    configRejectedRows,
     priceBasis: RETURN_PRICE_BASIS,
     priceDataVersion: PRICE_ADJUSTMENT_VERSION,
     rejectedRows,

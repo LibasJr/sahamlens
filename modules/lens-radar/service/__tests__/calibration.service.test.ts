@@ -11,6 +11,7 @@ import {
 import type { DailyOpenProvider, LensRadarHistoryEntry } from '../bucket-backtest.service';
 import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 
 function row(date: string, ticker: string, score: number, close: number, marketCap = 1_000_000_000): LensRadarHistoryEntry {
   return {
@@ -23,6 +24,7 @@ function row(date: string, ticker: string, score: number, close: number, marketC
     price_basis: RETURN_PRICE_BASIS,
     market_cap: marketCap,
     score_version: SCORE_VERSION,
+    score_config_hash: LENS_SCORE_MODEL_METADATA.configHash,
     avg_value_20d: 5_000_000_000,
     // Gerbang populasi produksi (temuan H-01): baris uji harus lolos kelengkapan data
     // DAN kelayakan point-in-time, sama seperti sinyal yang benar-benar dikirim ke
@@ -207,7 +209,7 @@ describe('calibration.service', () => {
     for (let i = 1; i <= 21; i++) {
       const date = `2026-01-${String(i).padStart(2, '0')}`;
       rows.push({ ...row(date, 'AAAA.JK', 85, 100 + i), score_version: SCORE_VERSION });
-      rows.push({ ...row(date, 'BBBB.JK', 85, 100 + i), score_version: 'lens-score-v1.2.0' });
+      rows.push({ ...row(date, 'BBBB.JK', 85, 100 + i), score_version: 'lens-score-v1.2.0', score_config_hash: 'legacy-v1.2-hash' });
       opens['AAAA.JK'][date] = 100;
       opens['BBBB.JK'][date] = 100;
     }
@@ -215,6 +217,8 @@ describe('calibration.service', () => {
     const result = await calculateCalibrationObservations(rows, provider(opens));
 
     expect(result.scoreVersion).toBe(SCORE_VERSION);
+    expect(result.scoreConfigHash).toBe(LENS_SCORE_MODEL_METADATA.configHash);
+    expect(result.configRejectedRows).toBe(0);
     expect(result.rejectedRows).toBe(21);
     expect(result.observations.every((obs) => obs.ticker === 'AAAA.JK')).toBe(true);
   });
@@ -225,16 +229,19 @@ describe('calibration.service', () => {
     for (let i = 1; i <= 21; i++) {
       const date = `2026-01-${String(i).padStart(2, '0')}`;
       rows.push({ ...row(date, 'AAAA.JK', 85, 100 + i), score_version: SCORE_VERSION });
-      rows.push({ ...row(date, 'BBBB.JK', 85, 200 + i), score_version: 'lens-score-v1.2.0' });
+      rows.push({ ...row(date, 'BBBB.JK', 85, 200 + i), score_version: 'lens-score-v1.2.0', score_config_hash: 'legacy-v1.2-hash' });
       opens['AAAA.JK'][date] = 100;
       opens['BBBB.JK'][date] = 200;
     }
 
     const result = await calculateCalibrationObservations(rows, provider(opens), {
       scoreVersion: 'lens-score-v1.2.0',
+      scoreConfigHash: 'legacy-v1.2-hash',
     });
 
     expect(result.scoreVersion).toBe('lens-score-v1.2.0');
+    expect(result.scoreConfigHash).toBe('legacy-v1.2-hash');
+    expect(result.configRejectedRows).toBe(0);
     expect(result.rejectedRows).toBe(21);
     expect(result.observations.every((obs) => obs.ticker === 'BBBB.JK')).toBe(true);
   });
