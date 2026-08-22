@@ -30,6 +30,7 @@ import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 interface MoatPayload {
   ticker: string;
@@ -218,6 +219,18 @@ export default function MoatPage() {
       subtitle={t('moatEnhance.subtitle')}
       headerExtra={
         <div className="flex flex-wrap items-center gap-2">
+      <MenuUsageGuide
+        menuKey="moat"
+        whatItAnswers="Keunggulan bisnis emiten ini bertahan lama atau mudah disalip pesaing?"
+        steps={[
+          "Tiap pilar menilai satu sumber keunggulan - merek, biaya, jaringan, atau biaya pindah.",
+          "Baca dasar penilaiannya, bukan cuma labelnya.",
+          "Uji durabilitas memeriksa apakah keunggulan itu menguat atau menipis.",
+        ]}
+        freeAccess="nama tiap pilar dan indikator yang dinilai"
+        afterSignup="skor tiap sumber keunggulan dan hasil uji durabilitasnya"
+        loginNext="/moat"
+      />
           <Badge variant="info" dot>{payload?.source?.provider || (isEn ? 'Public Source' : 'Sumber publik')}</Badge>
           {!loading && statusBadge(moat.status)}
           <ExportImageButton

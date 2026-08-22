@@ -29,6 +29,7 @@ import ExportImageButton from '@/components/export/ExportImageButton';
 import { buildExportFileName } from '@/shared/format/export-filename';
 import { useLanguage } from '@/lib/i18n';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 function normalizeTicker(value: string) {
   return value.trim().toUpperCase().replace(/\.JK$/, '');
@@ -197,6 +198,15 @@ export default function EarningsPage() {
       subtitle={t('earningsEnhance.subtitle')}
       headerExtra={
         <div className="flex flex-wrap items-center gap-2">
+      <MenuUsageGuide
+        menuKey="earnings"
+        whatItAnswers="Kapan emiten ini melaporkan laba, dan hasil terakhirnya bagaimana?"
+        steps={[
+          "Jadwal rilis membantu menyiapkan diri sebelum harga bergerak karenanya.",
+          "Bandingkan hasil terakhir dengan periode yang sama tahun lalu, bukan kuartal sebelumnya.",
+          "Laba naik karena penjualan berbeda artinya dengan laba naik karena pos sekali jalan.",
+        ]}
+      />
           <Badge variant="info" dot>{data?.source.provider || (isEn ? 'Public Source' : 'Sumber publik')}</Badge>
           {data && (
             <Badge variant={data.coverage.percent >= 60 ? 'success' : 'warning'}>
