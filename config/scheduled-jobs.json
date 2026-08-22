@@ -4,27 +4,6 @@
   "notes": "Source-of-truth inventory. Timezone kolom schedule adalah Asia/Jakarta (QStash memakai header Upstash-Cron + timezone Asia/Jakarta; jadwal UTC lama ditinggalkan saat migrasi VPS 2026-08-13). Sembilan cadence QStash dikonfirmasi dari layar Edit Schedule dashboard dan dicocokkan dengan job_run_log 2026-08-13, screenshot ulang 2026-08-14 (tidak ada drift). Tiga job systemd dikonfirmasi dari output `systemctl list-timers --all` di VPS 2026-08-14 - lihat catatan per job untuk detail LAST/NEXT yang jadi dasarnya. Jangan menebak jam job - kalau timer diganti di VPS, jalankan systemctl list-timers lagi dan perbarui entri ini.",
   "jobs": [
     {
-      "path": "/api/cron/lens-bucket-backtest",
-      "provider": "systemd",
-      "schedule": "0 17 * * *",
-      "scheduleStatus": "known",
-      "source": "systemctl list-timers --all di VPS 2026-08-14: sahamlens-lens-bucket-backtest.timer, LAST Kam 2026-08-13 17:00:02 WIB, NEXT Jum 2026-08-14 17:00:00 WIB - harian 17:00 WIB. Cakupan akhir pekan belum teramati (cuma 2 titik data berurutan hari kerja)."
-    },
-    {
-      "path": "/api/cron/lens-score-optimizer",
-      "provider": "systemd",
-      "schedule": "0 18 * * 6",
-      "scheduleStatus": "known",
-      "source": "systemctl list-timers --all di VPS 2026-08-14: sahamlens-lens-score-optimizer.timer, LAST n/a (belum pernah jalan sejak timer aktif), NEXT Sab 2026-08-15 18:00:00 WIB - mingguan, Sabtu 18:00 WIB."
-    },
-    {
-      "path": "/api/cron/broker-summary-scan",
-      "provider": "systemd",
-      "schedule": "30 17 * * 1-5",
-      "scheduleStatus": "disabled-by-policy",
-      "source": "DINONAKTIFKAN 2026-08-22 atas keputusan pemilik produk, menunggu langganan Index Alpha. Kolom schedule dipertahankan sebagai jadwal yang berlaku KALAU timer diaktifkan lagi.\n\nKenapa dimatikan: job ini memanggil syncIndexAlphaBrokerSummary(), dan modules/broker-flow/service/index-alpha-broker-summary.service.ts melempar 'INDEXALPHA_API_KEY belum dikonfigurasi.' ketika kuncinya kosong. Di .env.production INDEXALPHA_API_KEY dan BROKER_DATA_API_KEY dua-duanya ADA TAPI KOSONG, jadi job ini TIDAK PERNAH bisa berhasil di hari bursa.\n\nTeramati di VPS 2026-08-22: sahamlens-broker-summary-scan.timer enabled, OnCalendar Mon..Fri 17:30 Asia/Jakarta. Jalan terakhir Jum 2026-08-21 17:32:07 WIB dan GAGAL (curl exit 22 = HTTP >= 400). Akhir pekan job berhenti lebih awal dengan 200 karena LensRadar belum tersedia, sehingga tidak pernah sampai ke pemanggilan API - itulah sebabnya ia terlihat sehat di Sabtu/Minggu dan gagal tiap hari bursa.\n\nData broker summary AGREGAT PASAR tetap masuk lewat sahamlens-idx-flow-sync (CSV harian di data/broker-summary/, sukses). Yang hilang hanya rincian PER EMITEN per broker, dan itu memang tidak ada di API publik BEI: GetBrokerSummary mengabaikan parameter code/stock (diuji 2026-08-22, tetap 88 baris tanpa kolom ticker maupun pemisahan beli/jual).\n\nMengaktifkan lagi: isi INDEXALPHA_API_KEY di .env.production, lalu `sudo systemctl enable --now sahamlens-broker-summary-scan.timer`, dan kembalikan scheduleStatus ke 'known' setelah satu siklus berhasil teramati."
-    },
-    {
       "path": "/api/cron/ai-pick-scan",
       "provider": "systemd",
       "schedule": "*/15 9-16 * * 1-5",
@@ -39,11 +18,39 @@
       "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta"
     },
     {
+      "path": "/api/cron/bank-fundamental-collect",
+      "provider": "systemd",
+      "schedule": "Daily 20:45 Asia/Jakarta (jeda acak hingga 600 detik)",
+      "scheduleStatus": "known",
+      "source": "BARU Financial Integrity 2026-08-16. Collector hanya crawl domain resmi issuer BBCA/BBRI/BMRI/BBNI, PDF text-layer via pdftotext, ambiguous/conflict masuk quarantine. Timer repo deploy/bank-fundamental-collector. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sen 2026-08-17 20:52:07 WIB, NEXT Sel 2026-08-18 20:54:55 WIB - harian dengan jeda acak."
+    },
+    {
       "path": "/api/cron/breakout-scan",
       "provider": "systemd",
       "schedule": "*/5 9-16 * * 1-5",
       "scheduleStatus": "known",
       "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta. DIUBAH 2026-08-20 dari '*/5 9-15 * * 1-5' ke '*/5 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
+    },
+    {
+      "path": "/api/cron/broker-summary-scan",
+      "provider": "systemd",
+      "schedule": "30 17 * * 1-5",
+      "scheduleStatus": "disabled-by-policy",
+      "source": "DINONAKTIFKAN 2026-08-22 atas keputusan pemilik produk, menunggu langganan Index Alpha. Kolom schedule dipertahankan sebagai jadwal yang berlaku KALAU timer diaktifkan lagi.\n\nKenapa dimatikan: job ini memanggil syncIndexAlphaBrokerSummary(), dan modules/broker-flow/service/index-alpha-broker-summary.service.ts melempar 'INDEXALPHA_API_KEY belum dikonfigurasi.' ketika kuncinya kosong. Di .env.production INDEXALPHA_API_KEY dan BROKER_DATA_API_KEY dua-duanya ADA TAPI KOSONG, jadi job ini TIDAK PERNAH bisa berhasil di hari bursa.\n\nTeramati di VPS 2026-08-22: sahamlens-broker-summary-scan.timer enabled, OnCalendar Mon..Fri 17:30 Asia/Jakarta. Jalan terakhir Jum 2026-08-21 17:32:07 WIB dan GAGAL (curl exit 22 = HTTP >= 400). Akhir pekan job berhenti lebih awal dengan 200 karena LensRadar belum tersedia, sehingga tidak pernah sampai ke pemanggilan API - itulah sebabnya ia terlihat sehat di Sabtu/Minggu dan gagal tiap hari bursa.\n\nData broker summary AGREGAT PASAR tetap masuk lewat sahamlens-idx-flow-sync (CSV harian di data/broker-summary/, sukses). Yang hilang hanya rincian PER EMITEN per broker, dan itu memang tidak ada di API publik BEI: GetBrokerSummary mengabaikan parameter code/stock (diuji 2026-08-22, tetap 88 baris tanpa kolom ticker maupun pemisahan beli/jual).\n\nMengaktifkan lagi: isi INDEXALPHA_API_KEY di .env.production, lalu `sudo systemctl enable --now sahamlens-broker-summary-scan.timer`, dan kembalikan scheduleStatus ke 'known' setelah satu siklus berhasil teramati."
+    },
+    {
+      "path": "/api/cron/calendar-scan",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 08,12,16:00 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-08-14, audit lanjutan cache menu terkait cron - /api/calendar (menu Jadwal Terdekat/Kalender) sama sekali tidak punya cron warmer, TTL 6 jam (data dividen/earnings tidak berubah intraday, jadi cukup 3x sehari). Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar)."
+    },
+    {
+      "path": "/api/cron/dividend-scan",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-08-14, audit lanjutan cache menu terkait cron (bareng screener-scan/calendar-scan) - /api/dividend-plan (menu Dividend Plan) sama sekali tidak punya cron warmer, TTL 30 menit. Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar)."
     },
     {
       "path": "/api/cron/fundamental-snapshot",
@@ -53,11 +60,53 @@
       "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta"
     },
     {
+      "path": "/api/cron/idx-financial-sync",
+      "provider": "systemd",
+      "schedule": "0 20 * * *",
+      "scheduleStatus": "verify-server",
+      "source": "BARU 2026-08-22. Unit tersedia di deploy/idx-financial-sync/ (install.sh memasang service+timer lalu enable). Status DISENGAJA 'verify-server', bukan 'known': timer belum pernah teramati jalan di VPS. Menandainya 'known' berdasar niat pemasangan adalah kesalahan yang persis membuat entri broker-summary-scan basi berbulan-bulan.\n\nJadwal HARIAN 20:00 WIB termasuk akhir pekan - laporan keuangan diserahkan emiten kapan saja, tidak terikat sesi bursa. Jam 20:00 dipilih agar tidak berebut dengan gerombolan timer 17:30 yang sama-sama memanggil idx.co.id.\n\nMenarget DUA periode tiap jalan (lihat resolveIdxFinancialSyncTargets): periode yang jendelanya terbuka plus periode sebelumnya, karena pelapor telat terus masuk. Diverifikasi ke endpoint BEI 2026-08-22: TW2 2026 = 787 emiten, TW1 2026 = 848, TW3 2026 = 0 (belum jatuh tempo), AUDIT 2025 = 882.\n\nSetelah satu siklus berhasil teramati lewat `systemctl list-timers` dan job_run_log, kembalikan scheduleStatus ke 'known' dengan mencantumkan LAST/NEXT yang teramati."
+    },
+    {
+      "path": "/api/cron/idx-flow-sync",
+      "provider": "systemd",
+      "schedule": "Mon..Fri *-*-* 17:30:00 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "deploy/idx-flow-sync/sahamlens-idx-flow-sync.timer - sinkronisasi harian Net Foreign Buy/Sell per emiten dan EOD Broker Summary dari API resmi BEI, dijalankan setelah sesi bursa tutup. Terverifikasi berjalan: `systemctl list-timers` 2026-08-20 menunjukkan LAST Rab 2026-08-19 17:31:49 WIB dan NEXT Kam 2026-08-20 17:34 WIB. (Catatan sebelumnya menyatakan timer belum pernah tereksekusi - itu benar pada 2026-08-18 dan sudah tidak berlaku sejak run 19 Agustus.) Cakupan diatur IDX_FLOW_SYNC_UNIVERSE; sejak panel Flow hanya menyajikan data resmi BEI (2026-08-20), nilainya WAJIB `all` - dengan `lq45` hanya ~45 emiten yang punya artefak dan sisanya kehilangan panel Flow sepenuhnya."
+    },
+    {
+      "path": "/api/cron/intraday-collect",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 17:30 Asia/Jakarta (jeda acak hingga 120 detik)",
+      "scheduleStatus": "known",
+      "source": "Diverifikasi dari VPS 2026-08-16 lewat `systemctl list-timers --all`: sahamlens-intraday-collect.timer aktif, NEXT Sen 2026-08-17 17:31:05 WIB. Jadwal unit: Mon..Fri 17:30 Asia/Jakarta dengan RandomizedDelaySec=120. LAST n/a wajar karena belum mencapai eksekusi otomatis pertama."
+    },
+    {
+      "path": "/api/cron/lens-bucket-backtest",
+      "provider": "systemd",
+      "schedule": "0 17 * * *",
+      "scheduleStatus": "known",
+      "source": "systemctl list-timers --all di VPS 2026-08-14: sahamlens-lens-bucket-backtest.timer, LAST Kam 2026-08-13 17:00:02 WIB, NEXT Jum 2026-08-14 17:00:00 WIB - harian 17:00 WIB. Cakupan akhir pekan belum teramati (cuma 2 titik data berurutan hari kerja)."
+    },
+    {
+      "path": "/api/cron/lens-score-optimizer",
+      "provider": "systemd",
+      "schedule": "0 18 * * 6",
+      "scheduleStatus": "known",
+      "source": "systemctl list-timers --all di VPS 2026-08-14: sahamlens-lens-score-optimizer.timer, LAST n/a (belum pernah jalan sejak timer aktif), NEXT Sab 2026-08-15 18:00:00 WIB - mingguan, Sabtu 18:00 WIB."
+    },
+    {
       "path": "/api/cron/macro",
       "provider": "systemd",
       "schedule": "0 9-16 * * 1-5",
       "scheduleStatus": "known",
       "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta"
+    },
+    {
+      "path": "/api/cron/market-data-reconcile",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 18:30 Asia/Jakarta (jeda acak hingga 300 detik)",
+      "scheduleStatus": "known",
+      "source": "BARU D-1 Market Data Integrity 2026-08-17. Rekonsiliasi close harian untuk universe aktif; sejak 2026-08-18 IDX menjadi primary dan Yahoo pembanding. Timer repo deploy/market-data-reconcile. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sel 2026-08-18 18:35:00 WIB, NEXT Rab 2026-08-19 18:31:30 WIB."
     },
     {
       "path": "/api/cron/market-pulse",
@@ -81,53 +130,11 @@
       "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta - didaftarkan pengguna 2026-08-14 mengikuti instruksi docs/operations/DEPLOYMENT.md, dikonfirmasi sama persis dengan market-summary/market-pulse/breakout-scan."
     },
     {
-      "path": "/api/cron/recommendation-scan",
-      "provider": "systemd",
-      "schedule": "*/15 9-16 * * 1-5",
-      "scheduleStatus": "known",
-      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta. DIUBAH 2026-08-20 dari '*/15 9-15 * * 1-5' ke '*/15 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
-    },
-    {
-      "path": "/api/cron/watchlist-alert",
-      "provider": "systemd",
-      "schedule": "*/5 9-15 * * 1-5",
-      "scheduleStatus": "known",
-      "source": "PERUBAHAN DIMINTA 2026-08-14 (audit delay Yahoo 15 menit - interval lama sama persis dengan delay Yahoo, worst-case lag alert bisa ~30 menit). Diubah manual oleh pengguna di dashboard QStash dari */15 9-15 * * 1-5 ke */5 9-15 * * 1-5 (sama dengan breakout-scan/market-pulse/market-summary/news), dikonfirmasi 2026-08-14."
-    },
-    {
-      "path": "/api/cron/screener-scan",
-      "provider": "systemd",
-      "schedule": "Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta; Sat,Sun 09:00 Asia/Jakarta",
-      "scheduleStatus": "verify-server",
-      "source": "BARU 2026-08-14 (laporan pengguna: LensScanner lama sekali dimuat - /api/screener sebelumnya tidak punya cron warmer, giliran pengunjung pertama setelah cache 30 menit basi menanggung fetchScreenerUniverse() live). QStash sudah penuh 10/10, jadi dipasang sebagai timer systemd baru (pola sama seperti lens-bucket-backtest/lens-score-optimizer/broker-summary-scan). Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar). DIPERLUAS 2026-08-21 (laporan pengguna: LensScanner tidak menampilkan data): jadwal lama berhenti jam 16:40 Senin-Jumat sementara TTL cuma 30 menit, jadi tiap malam & seluruh akhir pekan cache SELALU dingin dan pengunjung pertama menanggung scan 200 ticker live. Baris Sat,Sun 09:00 ditambahkan, dan CACHE_TTL_SEC.SCREENER_UNIVERSE dibuat sadar jam pasar (24 jam saat bursa tutup) supaya satu run harian menutup penuh sampai run berikutnya. Baris akhir pekan BELUM dipasang di VPS - lihat docs/operations/DEPLOYMENT.md."
-    },
-    {
-      "path": "/api/cron/dividend-scan",
-      "provider": "systemd",
-      "schedule": "Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta",
-      "scheduleStatus": "known",
-      "source": "BARU 2026-08-14, audit lanjutan cache menu terkait cron (bareng screener-scan/calendar-scan) - /api/dividend-plan (menu Dividend Plan) sama sekali tidak punya cron warmer, TTL 30 menit. Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar)."
-    },
-    {
-      "path": "/api/cron/intraday-collect",
-      "provider": "systemd",
-      "schedule": "Mon..Fri 17:30 Asia/Jakarta (jeda acak hingga 120 detik)",
-      "scheduleStatus": "known",
-      "source": "Diverifikasi dari VPS 2026-08-16 lewat `systemctl list-timers --all`: sahamlens-intraday-collect.timer aktif, NEXT Sen 2026-08-17 17:31:05 WIB. Jadwal unit: Mon..Fri 17:30 Asia/Jakarta dengan RandomizedDelaySec=120. LAST n/a wajar karena belum mencapai eksekusi otomatis pertama."
-    },
-    {
       "path": "/api/cron/ownership-flow-ksei-sync",
       "provider": "systemd",
       "schedule": "Daily 19:15 Asia/Jakarta (jeda acak hingga 300 detik)",
       "scheduleStatus": "known",
       "source": "BARU 2026-08-16 untuk sumber VERIFIED KSEI_HOLDING_COMPOSITION. Timer repo: deploy/ownership-flow-ksei-sync/sahamlens-ownership-flow-ksei-sync.timer. Jadwal 19:15 WIB adalah jadwal POLLING SahamLens, bukan klaim jam publikasi KSEI. Satu kali sehari cukup untuk snapshot bulanan. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sel 2026-08-18 19:16:23 WIB, NEXT Rab 2026-08-19 19:18:19 WIB - jeda acak terlihat pada selisih menit antar eksekusi."
-    },
-    {
-      "path": "/api/cron/calendar-scan",
-      "provider": "systemd",
-      "schedule": "Mon..Fri 08,12,16:00 Asia/Jakarta",
-      "scheduleStatus": "known",
-      "source": "BARU 2026-08-14, audit lanjutan cache menu terkait cron - /api/calendar (menu Jadwal Terdekat/Kalender) sama sekali tidak punya cron warmer, TTL 6 jam (data dividen/earnings tidak berubah intraday, jadi cukup 3x sehari). Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar)."
     },
     {
       "path": "/api/cron/privacy-cleanup",
@@ -137,6 +144,20 @@
       "source": "BARU Production Hardening 2026-08-16. Menjalankan kebijakan retensi user_auth_events/product_funnel/LensAI feedback/payment non-PAID/admin audit. Timer repo deploy/privacy-cleanup. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: terpasang dan aktif, NEXT Min 2026-08-23 02:38:32 WIB. LAST masih n/a - wajar untuk job mingguan yang baru dipasang dan belum melewati hari Minggu pertamanya."
     },
     {
+      "path": "/api/cron/recommendation-scan",
+      "provider": "systemd",
+      "schedule": "*/15 9-16 * * 1-5",
+      "scheduleStatus": "known",
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta. DIUBAH 2026-08-20 dari '*/15 9-15 * * 1-5' ke '*/15 9-16 * * 1-5' oleh pengguna di dashboard QStash, menyusul market-pulse yang lebih dulu dipindah. Alasannya sama persis: batas jam 15 membuat eksekusi terakhir jatuh sebelum sesi II berakhir (15:49, lihat lib/utils/market.ts), dan dikurangi jeda ~15 menit Yahoo snapshot terakhirnya mencerminkan ~15:45 - sebelum pra-penutupan 15:50-16:00 yang menentukan harga tutup resmi. Gejalanya: label 'Data sesi 15.45 WIB' bertahan sepanjang malam padahal Yahoo sudah menerbitkan regularMarketTime 16:00. Dibuktikan 2026-08-20 malam: sesudah market-pulse pindah ke 9-16 endpoint-nya menyajikan 16.14 WIB sementara market-summary masih 15.45 WIB - selisih itu yang memastikan penyebabnya jadwal, bukan kode. Route cron TIDAK punya penjaga jam bursa, jadi eksekusi setelah penutupan tetap menghitung ulang dan menimpa cache."
+    },
+    {
+      "path": "/api/cron/screener-scan",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta; Sat,Sun 09:00 Asia/Jakarta",
+      "scheduleStatus": "verify-server",
+      "source": "BARU 2026-08-14 (laporan pengguna: LensScanner lama sekali dimuat - /api/screener sebelumnya tidak punya cron warmer, giliran pengunjung pertama setelah cache 30 menit basi menanggung fetchScreenerUniverse() live). QStash sudah penuh 10/10, jadi dipasang sebagai timer systemd baru (pola sama seperti lens-bucket-backtest/lens-score-optimizer/broker-summary-scan). Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar). DIPERLUAS 2026-08-21 (laporan pengguna: LensScanner tidak menampilkan data): jadwal lama berhenti jam 16:40 Senin-Jumat sementara TTL cuma 30 menit, jadi tiap malam & seluruh akhir pekan cache SELALU dingin dan pengunjung pertama menanggung scan 200 ticker live. Baris Sat,Sun 09:00 ditambahkan, dan CACHE_TTL_SEC.SCREENER_UNIVERSE dibuat sadar jam pasar (24 jam saat bursa tutup) supaya satu run harian menutup penuh sampai run berikutnya. Baris akhir pekan BELUM dipasang di VPS - lihat docs/operations/DEPLOYMENT.md."
+    },
+    {
       "path": "/api/cron/tpcl-validation-worker",
       "provider": "systemd",
       "schedule": "Every 1 minute while VPS is running (queue worker; max one research run per invocation)",
@@ -144,25 +165,11 @@
       "source": "BARU Production Hardening 2026-08-16. Memproses antrean persisten tpcl_validation_runs; action admin hanya enqueue sehingga browser disconnect tidak membatalkan riset. Timer repo deploy/tpcl-validation-worker. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sel 2026-08-18 20:38:30 WIB, NEXT 20:39:31 WIB - jarak satu menit sesuai desain worker antrean."
     },
     {
-      "path": "/api/cron/bank-fundamental-collect",
+      "path": "/api/cron/watchlist-alert",
       "provider": "systemd",
-      "schedule": "Daily 20:45 Asia/Jakarta (jeda acak hingga 600 detik)",
+      "schedule": "*/5 9-15 * * 1-5",
       "scheduleStatus": "known",
-      "source": "BARU Financial Integrity 2026-08-16. Collector hanya crawl domain resmi issuer BBCA/BBRI/BMRI/BBNI, PDF text-layer via pdftotext, ambiguous/conflict masuk quarantine. Timer repo deploy/bank-fundamental-collector. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sen 2026-08-17 20:52:07 WIB, NEXT Sel 2026-08-18 20:54:55 WIB - harian dengan jeda acak."
-    },
-    {
-      "path": "/api/cron/market-data-reconcile",
-      "provider": "systemd",
-      "schedule": "Mon..Fri 18:30 Asia/Jakarta (jeda acak hingga 300 detik)",
-      "scheduleStatus": "known",
-      "source": "BARU D-1 Market Data Integrity 2026-08-17. Rekonsiliasi close harian untuk universe aktif; sejak 2026-08-18 IDX menjadi primary dan Yahoo pembanding. Timer repo deploy/market-data-reconcile. DIVERIFIKASI di VPS 2026-08-18 lewat `systemctl list-timers --all`: LAST Sel 2026-08-18 18:35:00 WIB, NEXT Rab 2026-08-19 18:31:30 WIB."
-    },
-    {
-      "path": "/api/cron/idx-flow-sync",
-      "provider": "systemd",
-      "schedule": "Mon..Fri *-*-* 17:30:00 Asia/Jakarta",
-      "scheduleStatus": "known",
-      "source": "deploy/idx-flow-sync/sahamlens-idx-flow-sync.timer - sinkronisasi harian Net Foreign Buy/Sell per emiten dan EOD Broker Summary dari API resmi BEI, dijalankan setelah sesi bursa tutup. Terverifikasi berjalan: `systemctl list-timers` 2026-08-20 menunjukkan LAST Rab 2026-08-19 17:31:49 WIB dan NEXT Kam 2026-08-20 17:34 WIB. (Catatan sebelumnya menyatakan timer belum pernah tereksekusi - itu benar pada 2026-08-18 dan sudah tidak berlaku sejak run 19 Agustus.) Cakupan diatur IDX_FLOW_SYNC_UNIVERSE; sejak panel Flow hanya menyajikan data resmi BEI (2026-08-20), nilainya WAJIB `all` - dengan `lq45` hanya ~45 emiten yang punya artefak dan sisanya kehilangan panel Flow sepenuhnya."
+      "source": "PERUBAHAN DIMINTA 2026-08-14 (audit delay Yahoo 15 menit - interval lama sama persis dengan delay Yahoo, worst-case lag alert bisa ~30 menit). Diubah manual oleh pengguna di dashboard QStash dari */15 9-15 * * 1-5 ke */5 9-15 * * 1-5 (sama dengan breakout-scan/market-pulse/market-summary/news), dikonfirmasi 2026-08-14."
     }
   ]
 }
