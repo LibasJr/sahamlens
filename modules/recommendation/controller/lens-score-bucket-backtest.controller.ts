@@ -38,7 +38,7 @@ export async function handleLensScoreBucketBacktest(request: Request): Promise<H
     const cookie = anonTrial ? await buildAnonymousTrialCookie(anonTrial) : null;
     return { status: 200, body: result, cookiesToSet: cookie ? [cookie] : undefined };
   } catch (error) {
-    logger.error('GET /api/lens-score-bucket-backtest gagal', { error });
+    logger.error('GET /api/lens-score-bucket-backtest gagal', { err: error });
     return { status: 500, body: { error: 'Server Error', code: 'INTERNAL_ERROR' } };
   }
 }

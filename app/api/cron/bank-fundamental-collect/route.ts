@@ -62,7 +62,7 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ success: true, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error('bank-fundamental-collect gagal', { error });
+    logger.error('bank-fundamental-collect gagal', { err: error });
     await recordDataSourceHealth({ sourceId: 'BANK_ISSUER_IR_AUTO_COLLECTOR', ok: false, force: true, detail: { error: message } });
     return NextResponse.json({ error: 'Bank fundamental collector gagal', detail: message }, { status: 500 });
   }
