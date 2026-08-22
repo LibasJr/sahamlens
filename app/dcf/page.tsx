@@ -10,6 +10,7 @@ import { useLanguage } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 // BUG FIX (2026-08-01): halaman ini SEBELUMNYA selalu mulai dari ticker hardcoded
 // 'TLKM' - berapa pun emiten yang sedang dibuka user di Technical Analyzer, begitu
@@ -91,6 +92,15 @@ function DcfContent() {
       // luberannya menggulirkan SELURUH halaman menyamping, bukan blok ini saja.
       headerExtra={
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+      <MenuUsageGuide
+        menuKey="dcf"
+        whatItAnswers="Harga saham ini sedang murah atau mahal dibanding nilai wajarnya?"
+        steps={[
+          "Nilai wajar dihitung dari proyeksi arus kas, bukan dari harga pasarnya.",
+          "Periksa asumsinya lebih dulu - pertumbuhan dan diskonto menentukan hasilnya sepenuhnya.",
+          "Margin of safety adalah jarak harga sekarang terhadap nilai wajar itu, bukan jaminan.",
+        ]}
+      />
           <div>
             <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Harga Pasar Saat Ini</div>
             <div className="text-xl font-bold text-tv-text font-number">Rp {quant.current_price?.toLocaleString('id-ID') || '-'}</div>
