@@ -8,6 +8,7 @@ import { Button, Input, PageContainer, EmptyState, AnimatedNumber } from '@/comp
 import { useLanguage } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
 import { apiRequest } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 // Risk Calculator - murni kalkulator matematika dari input pengguna (position sizing +
 // risk/reward), TIDAK ada angka yang dikarang/ditebak. Satu-satunya panggilan API adalah
@@ -121,6 +122,15 @@ function RiskCalculatorContent() {
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <MenuUsageGuide
+          menuKey="risk-calculator"
+          whatItAnswers="Berapa lot yang boleh dibeli supaya kerugiannya masih terkendali?"
+          steps={[
+            "Isi modal, harga masuk, dan level stop loss Anda.",
+            "Tentukan berapa persen modal yang siap dirisikokan pada satu transaksi.",
+            "Hasilnya ukuran posisi maksimal dan rasio imbal-risikonya.",
+          ]}
+        />
         <div className="flex items-center gap-3">
           {/* red-500/red-400 mentah diganti tv-red - satu-satunya merah di halaman ini
               yang berbeda dari merah palet yang dipakai kotak kerugian di bawahnya. */}

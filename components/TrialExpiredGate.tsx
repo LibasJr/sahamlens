@@ -5,7 +5,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import PromoUpgradeModal from './PromoUpgradeModal';
 import PaywallModal from './PaywallModal';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
-import { TESTING_OPEN_ACCESS } from '@/shared/constants/access';
+import { TESTING_OPEN_ACCESS, PRO_UI_ENABLED } from '@/shared/constants/access';
 
 // Modal "Trial habis, upgrade ke premium" - muncul otomatis di halaman mana pun
 // begitu masa trial 7 hari lewat (useAuthUser().isTrialExpired), tanpa perlu tiap
@@ -39,6 +39,11 @@ export default function TrialExpiredGate() {
   // Selama pengujian seluruh akun login memiliki akses tanpa batas; jangan pernah
   // menampilkan modal lama dari sesi yang masih membawa tanggal akses terdahulu.
   if (TESTING_OPEN_ACCESS) return null;
+
+  // Gerbang KEDUA, dan sengaja terpisah. Yang di atas soal AKSES; yang ini soal apakah
+  // Pro boleh disebut sama sekali. Tanpa baris ini, mematikan TESTING_OPEN_ACCESS suatu
+  // hari nanti akan memunculkan kembali penawaran paket Pro yang produknya belum ada.
+  if (!PRO_UI_ENABLED) return null;
 
   return (
     <>

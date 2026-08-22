@@ -19,6 +19,7 @@ import BacktestResultsPanel from '@/components/backtest/BacktestResultsPanel';
 import { BACKTEST_PRESETS } from '@/modules/backtest/constants/presets';
 import { BACKTEST_PERIOD_MONTHS, TRADING_DAYS_PER_MONTH } from '@/modules/backtest/constants/backtest-periods';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 export default function BacktestPage() {
   const { user, resolved: authResolved, loading: authLoading } = useAuthUser();
@@ -206,6 +207,15 @@ export default function BacktestPage() {
             "Golden Cross" AI Pick ke saham lain yang kondisinya serupa SEKARANG),
             bukan skor komposit generik. */}
         <PageContainer className="px-6 pt-6">
+        <MenuUsageGuide
+          menuKey="backtest"
+          whatItAnswers="Kalau strategi ini dijalankan di masa lalu, hasilnya bagaimana?"
+          steps={[
+            "Tentukan aturan masuk dan keluar, lalu rentang tanggalnya.",
+            "Jalankan uji, dan baca kurva ekuitasnya lebih dulu sebelum angka ringkasan.",
+            "Perhatikan jumlah transaksi - hasil bagus dari 5 transaksi bukan bukti apa pun.",
+          ]}
+        />
           <p className="text-xs text-tv-muted">
             <b>Backtest Sekarang</b>: uji kombinasi filter ini ke data masa lalu (return, win rate,
             drawdown, 3-60 bulan terakhir). <b>Live Filter Check</b>: cek saham mana yang memenuhi

@@ -28,6 +28,7 @@ import { FREE_LIMITS } from '@/shared/constants/limits';
 import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligibility';
 import { Activity, CheckCircle2, Download, FileText, Radar, RefreshCw, Sparkles } from 'lucide-react';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 function DashboardContent() {
   const {
     ticker, setTicker, loading, fetchError, fetchErrorRequestId, data, lastUpdate, marketClosed,
@@ -118,6 +119,15 @@ function DashboardContent() {
       />
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <MenuUsageGuide
+          menuKey="dashboard"
+          whatItAnswers="Apa gambaran teknikal satu saham secara menyeluruh?"
+          steps={[
+            "Ketik kode saham di kotak pencarian, misalnya BBCA.",
+            "Perhatikan tren, momentum, dan aliran dananya sebagai satu kesatuan - bukan satu indikator saja.",
+            "Turun ke bukti teknikal untuk melihat dasar tiap kesimpulan.",
+          ]}
+        />
         {/* Status Badge */}
         <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2 text-xs font-sans">
           <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2 text-tv-muted">
