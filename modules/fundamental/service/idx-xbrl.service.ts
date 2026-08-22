@@ -86,6 +86,10 @@ export interface IdxFinancialFigures {
   profitLossAttributableToParent: number | null;
   profitLossBeforeIncomeTax: number | null;
   basicEps: number | null;
+  /** Subtotal sisi kanan neraca yang DILAPORKAN EMITEN SENDIRI: Liabilitas + Dana
+   * Syirkah Temporer + Ekuitas. Kalau ada, ini otoritas yang lebih tinggi daripada
+   * menjumlah komponen sendiri - lihat checkBalanceSheet(). */
+  liabilitiesSyirkahAndEquity: number | null;
   /** Modal saham dalam RUPIAH (bukan jumlah lembar - tidak ada tag jumlah lembar di
    * artefak IDX). Nilainya = jumlah lembar x nilai nominal, jadi ia berguna sebagai
    * KONFIRMASI SILANG independen atas jumlah lembar yang diturunkan dari EPS.
@@ -93,12 +97,20 @@ export interface IdxFinancialFigures {
   commonStocks: number | null;
 }
 
+export type IdxBalanceSheetBasis =
+  /** Subtotal sisi kanan yang dilaporkan emiten sendiri. */
+  | 'REPORTED_SUBTOTAL'
+  /** Dijumlah dari Liabilitas + Dana Syirkah Temporer + Ekuitas. */
+  | 'COMPONENT_SUM';
+
 export interface IdxBalanceSheetCheck {
   assets: number | null;
   componentsSum: number | null;
   difference: number | null;
   /** null = tidak bisa diperiksa (ada komponen yang hilang), bukan "lolos". */
   balanced: boolean | null;
+  /** Dari mana `componentsSum` berasal. `null` kalau tidak bisa diperiksa. */
+  basis: IdxBalanceSheetBasis | null;
 }
 
 /** Hasil pemeriksaan satu sisi neraca: lancar + tidak lancar harus sama dengan totalnya. */
@@ -168,7 +180,29 @@ const REVENUE_TAGS = [
   // Bank & lembaga keuangan
   'InterestIncome',
   'InterestAndShariaIncome',
+  // Bank syariah. BRIS (Bank Syariah Indonesia) dan PNBS tidak melaporkan
+  // `InterestIncome` SAMA SEKALI - seluruh pendapatannya berdiri di bawah subtotal ini.
+  // Tanpa tag ini, pendapatan salah satu bank terbesar Indonesia terbaca null.
+  'TotalInterestAndShariaIncome',
 ] as const;
+
+/**
+ * PENDAPATAN YANG MEMANG TIDAK ADA TOTALNYA - dan sengaja TIDAK dikarang.
+ *
+ * Pemindaian 847 artefak TW1 2026 dan 882 laporan audit 2025: 42 emiten tidak memuat
+ * satu pun tag di REVENUE_TAGS. Dua di antaranya (BRIS, PNBS) tertolong subtotal syariah
+ * di atas. Sisanya - asuransi dan multifinance - memecah pendapatannya jadi komponen
+ * tanpa satu pun total resmi:
+ *
+ *   ADMF  IncomeFromConsumerFinancing, IncomeFromFinanceLease,
+ *         IncomeFromMurabahahAndIstishna, IncomeFromProvisionsAndCommissions, ...
+ *   ABDA  NetInvestmentIncome, tanpa baris pendapatan premi tunggal
+ *
+ * Menjumlah komponen itu sendiri adalah kesalahan yang SAMA dengan yang menyebabkan
+ * bug identitas neraca: mengandaikan kita tahu seluruh pos yang membentuk totalnya.
+ * Karena itu `revenue` untuk emiten ini tetap null, dan pemanggil melaporkannya sebagai
+ * "data tidak ditemukan" - bukan sebagai angka.
+ */
 
 /** Kisaran jumlah lembar saham yang masuk akal di IDX. Batasnya sengaja SANGAT longgar
  * (emiten terkecil ~1e7, terbesar ~1e12-1e13) - penjaga ini untuk menangkap kesalahan
@@ -229,6 +263,7 @@ function readFigures(artifact: IdxXbrlArtifact, instantCtx: string, durationCtx:
     profitLossBeforeIncomeTax: factValue(artifact, 'ProfitLossBeforeIncomeTax', durationCtx),
     basicEps: factValue(artifact, 'BasicEarningsLossPerShareFromContinuingOperations', durationCtx),
     commonStocks: factValue(artifact, 'CommonStocks', instantCtx),
+    liabilitiesSyirkahAndEquity: factValue(artifact, 'LiabilitiesTemporarySyirkahFundsAndEquity', instantCtx),
   };
 }
 
@@ -244,16 +279,48 @@ function readFigures(artifact: IdxXbrlArtifact, instantCtx: string, durationCtx:
  */
 function checkBalanceSheet(figures: IdxFinancialFigures): IdxBalanceSheetCheck {
   const { assets, liabilities, equity } = figures;
+  if (!finite(assets)) {
+    return { assets: null, componentsSum: null, difference: null, balanced: null, basis: null };
+  }
+  const tolerance = Math.abs(assets) * BALANCE_TOLERANCE_RATIO;
+
+  // Kalau emiten melaporkan subtotal sisi kanannya sendiri, ITU yang dipakai. Menjumlah
+  // komponen sendiri mengandaikan kita tahu semua pos yang berdiri di sisi kanan neraca
+  // emiten itu - dan pengandaian itu terbukti salah pada data nyata TW1 2026: BSIM
+  // menempatkan Rp 4.629.507.000.000 di `AccumulatedTabarrusFunds`, tag yang tidak kita
+  // baca, sehingga penjumlahan komponen menuduhnya tidak seimbang padahal
+  // `LiabilitiesTemporarySyirkahFundsAndEquity`-nya sama PERSIS dengan total aset.
+  //
+  // Terukur atas 285 emiten: 38 melaporkan subtotal ini, dan ke-38-nya sama persis
+  // dengan Assets. Dua emiten yang dituduh tidak seimbang oleh penjumlahan komponen
+  // (BSIM dan CASA) keduanya dibersihkan oleh subtotalnya sendiri.
+  const reported = figures.liabilitiesSyirkahAndEquity;
+  if (finite(reported)) {
+    const difference = assets - reported;
+    return {
+      assets,
+      componentsSum: reported,
+      difference,
+      balanced: Math.abs(difference) <= tolerance,
+      basis: 'REPORTED_SUBTOTAL',
+    };
+  }
+
+  if (!finite(liabilities) || !finite(equity)) {
+    return { assets, componentsSum: null, difference: null, balanced: null, basis: null };
+  }
   // Syirkah absen itu WAJAR untuk emiten non-syariah; diperlakukan nol HANYA di sini,
   // sebagai suku penjumlahan, bukan dilaporkan sebagai nilai terukur.
   const syirkah = figures.temporarySyirkahFunds ?? 0;
-  if (!finite(assets) || !finite(liabilities) || !finite(equity)) {
-    return { assets: assets ?? null, componentsSum: null, difference: null, balanced: null };
-  }
   const componentsSum = liabilities + syirkah + equity;
   const difference = assets - componentsSum;
-  const tolerance = Math.abs(assets) * BALANCE_TOLERANCE_RATIO;
-  return { assets, componentsSum, difference, balanced: Math.abs(difference) <= tolerance };
+  return {
+    assets,
+    componentsSum,
+    difference,
+    balanced: Math.abs(difference) <= tolerance,
+    basis: 'COMPONENT_SUM',
+  };
 }
 
 /**

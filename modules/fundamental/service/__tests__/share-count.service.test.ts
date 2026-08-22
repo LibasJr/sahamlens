@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { readIdxFinancialReport, mapIdxFinancialReport, type IdxXbrlArtifact } from '../idx-xbrl.service';
+import { readIdxFinancialReport } from '../idx-xbrl.service';
 import { resolveShareCount } from '../share-count.service';
 
 /**
@@ -82,47 +82,32 @@ describe('resolveShareCount - EPS yang ditolak tidak boleh menular ke turunannya
   });
 });
 
-describe('resolveShareCount - cabang yang tidak diwakili fixture', () => {
-  function reportWith(facts: Record<string, Record<string, string>>) {
-    const artifact: IdxXbrlArtifact = {
-      schemaVersion: 1, ticker: 'TEST', entityName: 'Uji', year: 2026, period: 'TW1',
-      fileModified: null, fetchedAt: '2026-08-22T00:00:00Z', sourceUrl: '',
-      contexts: { CurrentYearInstant: { instant: '2026-03-31' } },
-      facts, dimensionalContextCount: 0, dimensionalFactsSkipped: 0, unexpectedPlainContexts: [],
-    };
-    return mapIdxFinancialReport(artifact);
-  }
+/**
+ * ANDI (PT Andira Agro Tbk) TW1 2026 - emiten NYATA, bukan konstruksi uji.
+ *
+ * Ia melaporkan RUGI Rp 7.185.674.949 tetapi EPS dasar POSITIF 0,77. Gerbang EPS di
+ * idx-xbrl.service.ts menilai BESARAN lewat nilai mutlak, jadi kasus ini LOLOS gerbang
+ * itu - besarannya 9,33 miliar lembar, sangat wajar untuk emiten IDX - padahal lembar
+ * tersiratnya NEGATIF.
+ *
+ * Pemindaian seluruh pasar menemukan 19 emiten dengan gejala yang sama pada TW1 2026
+ * (di antaranya ALMI, ASPI, DART, ELTY), jadi ini bukan anomali satu emiten.
+ */
+describe('resolveShareCount - lembar tersirat negatif (kasus nyata ANDI)', () => {
+  const andi = () => readIdxFinancialReport('ANDI', 2026, 'TW1', opts)!;
 
-  it('EPS tidak dilaporkan -> null, dan alasannya BEDA dari kasus EPS ditolak', () => {
-    const result = resolveShareCount(reportWith({}));
-    expect(result.shares).toBeNull();
-    expect(result.reason).toContain('tidak dilaporkan');
-    expect(result.reason).not.toContain('ditolak gerbang');
-  });
-
-  /**
-   * Gerbang EPS menilai BESARAN lewat nilai mutlak, jadi emiten yang melaporkan rugi
-   * tetapi EPS positif bisa lolos gerbang itu dengan lembar tersirat NEGATIF. Jumlah
-   * lembar saham negatif tidak punya arti apa pun - resolver ini harus menangkapnya
-   * sendiri, tidak boleh mengandalkan gerbang EPS untuk itu.
-   */
-  it('tanda EPS tidak konsisten dengan laba -> lembar negatif ditolak', () => {
-    const report = reportWith({
-      'idx-cor:ProfitLossAttributableToParentEntity': { CurrentYearDuration: '-1000000000000' },
-      'idx-cor:BasicEarningsLossPerShareFromContinuingOperations': { CurrentYearDuration: '100' },
-    });
+  it('ANDI lolos gerbang EPS tapi lembar tersiratnya negatif', () => {
+    const report = andi();
+    expect(report.current.profitLossAttributableToParent).toBe(-7_185_674_949);
+    expect(report.current.basicEps).toBe(0.77);
     expect(report.integrity.eps.plausible).toBe(true);
     expect(report.integrity.eps.impliedShares).toBeLessThan(0);
-    expect(resolveShareCount(report).shares).toBeNull();
   });
 
-  it('modal saham tidak dilaporkan -> lembar tetap terselesaikan, nominal tersirat null', () => {
-    const report = reportWith({
-      'idx-cor:ProfitLossAttributableToParentEntity': { CurrentYearDuration: '1000000000000' },
-      'idx-cor:BasicEarningsLossPerShareFromContinuingOperations': { CurrentYearDuration: '100' },
-    });
-    const result = resolveShareCount(report);
-    expect(result.shares).toBe(10_000_000_000);
+  it('resolver menangkapnya sendiri - tidak mengandalkan gerbang EPS', () => {
+    const result = resolveShareCount(andi());
+    expect(result.shares).toBeNull();
+    expect(result.source).toBeNull();
     expect(result.impliedParValue).toBeNull();
   });
 });

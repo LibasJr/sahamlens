@@ -1,0 +1,81 @@
+{
+ "schemaVersion": 1,
+ "ticker": "BSIM",
+ "entityName": "Bank Sinarmas Tbk",
+ "year": 2026,
+ "period": "TW1",
+ "fileModified": "2026-04-30T16:59:30.203",
+ "fetchedAt": "2026-08-22T11:03:07.306626+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202026/TW1/BSIM/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2026-03-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2026-01-01",
+   "endDate": "2026-03-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-03-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2025-03-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2024-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "56422278000000",
+   "PriorEndYearInstant": "58244487000000"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "42780038000000",
+   "PriorEndYearInstant": "41753345000000"
+  },
+  "idx-cor:LiabilitiesTemporarySyirkahFundsAndEquity": {
+   "CurrentYearInstant": "56422278000000",
+   "PriorEndYearInstant": "58244487000000"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "8406142000000",
+   "PriorEndYearInstant": "8675787000000"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "9012733000000",
+   "PriorEndYearInstant": "9282595000000"
+  },
+  "idx-cor:CommonStocks": {
+   "CurrentYearInstant": "1971616000000",
+   "PriorEndYearInstant": "1971616000000"
+  },
+  "idx-cor:InterestIncome": {
+   "CurrentYearDuration": "567381000000",
+   "PriorYearDuration": "650191000000"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "66633000000",
+   "PriorYearDuration": "71585000000"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "54646000000",
+   "PriorYearDuration": "57122000000"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "48141000000",
+   "PriorYearDuration": "46137000000"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "2.44",
+   "PriorYearDuration": "2.34"
+  }
+ },
+ "dimensionalContextCount": 636,
+ "dimensionalFactsSkipped": 317,
+ "unexpectedPlainContexts": []
+}
