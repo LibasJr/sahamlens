@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { FULL_FEATURE_LIST, PRICING_PLANS, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
+import { PRO_UI_ENABLED } from '@/shared/constants/access';
 
 const PromoUpgradeModal = dynamic(() => import('@/components/PromoUpgradeModal'), { ssr: false });
 const PaywallModal = dynamic(() => import('@/components/PaywallModal'), { ssr: false });
@@ -27,7 +28,7 @@ export default function HomeUpgradePrompt({ shouldOffer }: { shouldOffer: boolea
   const [showPaywall, setShowPaywall] = useState(false);
 
   useEffect(() => {
-    if (!shouldOffer || hasSeenPromoToday()) return;
+    if (!PRO_UI_ENABLED || !shouldOffer || hasSeenPromoToday()) return;
     setShowPromoModal(true);
   }, [shouldOffer]);
 
@@ -44,6 +45,15 @@ export default function HomeUpgradePrompt({ shouldOffer }: { shouldOffer: boolea
   }, []);
 
   const selectedPlan = PRICING_PLANS.find((plan) => plan.id === promoPlan) || PRICING_PLANS[0];
+
+  // Keputusan produk 2026-08-23: fitur Pro belum ada, jadi promo yang menawarkan paket
+  // berbayar tidak bisa dipenuhi siapa pun. Digerbang di sini - bukan di pemanggilnya -
+  // supaya seluruh jalur yang merender promo ini ikut mati sekaligus.
+  //
+  // Gerbangnya SETELAH seluruh hook, bukan sebelumnya: `return null` di awal komponen
+  // membuat useState/useEffect/useCallback di bawahnya terpanggil bersyarat dan melanggar
+  // rules-of-hooks. Lint repo ini menangkapnya, dan itu memang benar.
+  if (!PRO_UI_ENABLED) return null;
 
   return (
     <>

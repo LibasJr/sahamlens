@@ -9,6 +9,7 @@ import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { useLanguage } from '@/lib/i18n';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 export default function DividendPage() {
   const { t, language } = useLanguage();
@@ -81,6 +82,15 @@ export default function DividendPage() {
       subtitle={isEn ? 'Dividend-yield and DRIP scenario from provider data; tax treatment follows applicable rules.' : 'Skenario yield dividen & DRIP dari data provider; perlakuan pajak mengikuti ketentuan yang berlaku.'}
       headerExtra={
         <div className="flex flex-wrap items-end gap-3">
+      <MenuUsageGuide
+        menuKey="dividend"
+        whatItAnswers="Berapa arus kas dividen yang bisa diharapkan dari saham ini?"
+        steps={[
+          "Yield dihitung dari dividen terakhir terhadap harga sekarang.",
+          "Periksa payout ratio - yield tinggi dari laba yang menipis tidak berkelanjutan.",
+          "Perhatikan tanggal cum dividen; membeli setelahnya tidak mendapat dividennya.",
+        ]}
+      />
           <Input
             label={isEn ? 'Initial Capital (IDR)' : 'Modal Awal (IDR)'}
             type="number"

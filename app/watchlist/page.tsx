@@ -18,6 +18,7 @@ import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { WatchlistHeader } from '@/components/watchlist/WatchlistHeader';
 import { JourneyBeacon } from '@/components/analytics/JourneyBeacon';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 interface WatchlistItem {
   symbol: string;
@@ -304,6 +305,15 @@ export default function WatchlistPage() {
       />
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <MenuUsageGuide
+          menuKey="watchlist"
+          whatItAnswers="Bagaimana kabar saham-saham yang Anda pantau?"
+          steps={[
+            "Tambahkan saham lewat kotak pencarian; daftarnya tersimpan di akun Anda.",
+            "Pasang alert harga supaya tidak perlu memeriksa manual tiap hari.",
+            "Klik satu saham untuk melihat analisis lengkapnya.",
+          ]}
+        />
 
         {/* Watchlist Section */}
         <div className="lg:col-span-2 space-y-6">

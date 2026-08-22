@@ -33,6 +33,29 @@ export const PROTECTED_PAGES = [
  */
 export const TESTING_OPEN_ACCESS = process.env.NEXT_PUBLIC_TESTING_OPEN_ACCESS !== 'false';
 
+/**
+ * Apakah seluruh TAMPILAN Pro ditampilkan - lencana status akun, masa berlaku, tombol
+ * "Upgrade ke Pro", dan modal promonya.
+ *
+ * Keputusan produk 2026-08-23: fitur Pro BELUM ADA. Selama fase pengujian semuanya
+ * gratis, jadi menampilkan status "Free" pun menyesatkan - ia menyiratkan ada tingkat
+ * berbayar yang bisa dibeli, dan modal promo di beranda menawarkan paket yang tidak
+ * bisa dipenuhi siapa pun.
+ *
+ * Ini SENGAJA terpisah dari TESTING_OPEN_ACCESS. Konstanta itu mengatur AKSES (siapa
+ * boleh membuka apa); konstanta ini mengatur TAMPILAN (apakah Pro disebut sama sekali).
+ * Menggabungkannya berarti menghidupkan kembali penjualan Pro secara tidak sengaja pada
+ * hari entitlement diaktifkan.
+ *
+ * Default MATI dan harus dinyalakan eksplisit: set NEXT_PUBLIC_PRO_UI_ENABLED=true saat
+ * fitur Pro benar-benar siap dijual. Tidak perlu menyunting kode untuk menyalakannya.
+ *
+ * Data dan API Pro TIDAK disentuh - kolom `isPro`, `proExpiresAt`, dan menu admin
+ * SetProForm tetap berfungsi. Yang hilang hanya penyebutannya ke pengguna, supaya
+ * mengaktifkannya kembali tidak menuntut migrasi apa pun.
+ */
+export const PRO_UI_ENABLED = process.env.NEXT_PUBLIC_PRO_UI_ENABLED === 'true';
+
 export function isProtectedPage(pathname: string): boolean {
   return PROTECTED_PAGES.some((p) => pathname === p || pathname.startsWith(p + '/'));
 }

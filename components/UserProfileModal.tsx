@@ -6,7 +6,7 @@ import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, User, ShieldCheck, Users, Loader2, Crown } from 'lucide-react';
 import PaywallModal from './PaywallModal';
-import { TESTING_OPEN_ACCESS } from '@/shared/constants/access';
+import { TESTING_OPEN_ACCESS, PRO_UI_ENABLED } from '@/shared/constants/access';
 import { Card } from '@/components/ui/Card';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 
@@ -155,14 +155,19 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                       <ShieldCheck className="w-3.5 h-3.5" /> {data.isVerified ? 'Terverifikasi' : 'Belum Terverifikasi'}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-tv-muted">Status Akun</span>
-                    <span className="text-tv-text font-medium">{data.hasProAccess ? 'Pro' : 'Free'}</span>
-                  </div>
+                  {/* Baris ini disembunyikan seluruhnya saat tampilan Pro dimatikan, BUKAN
+                      dipaksa menampilkan "Free". Menulis "Free" tetap menyiratkan ada tingkat
+                      berbayar yang bisa dibeli, padahal fitur Pro belum ada sama sekali. */}
+                  {PRO_UI_ENABLED && (
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-tv-muted">Status Akun</span>
+                      <span className="text-tv-text font-medium">{data.hasProAccess ? 'Pro' : 'Free'}</span>
+                    </div>
+                  )}
                   {/* Masa berlaku Pro (2026-08-03). null berarti tanpa batas - akun admin dan
                       akun lama sebelum migrasi - jadi barisnya disembunyikan alih-alih
                       menampilkan tanggal palsu. */}
-                  {data.isPro && data.proExpiresAt && (
+                  {PRO_UI_ENABLED && data.isPro && data.proExpiresAt && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-tv-muted">Pro Berakhir</span>
                       <span className="text-tv-text font-medium">
@@ -179,7 +184,7 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                       aktif - akun Pro punya barisnya sendiri di atas, admin tidak bergantung
                       tanggal sama sekali. Jangan tampilkan seolah akun itu akan "kehabisan"
                       akses pada tanggal trial. */}
-                  {!TESTING_OPEN_ACCESS && data.role !== 'admin' && data.role !== 'pro' && !data.isPro && data.trialEndsAt && new Date(data.trialEndsAt) > new Date() && (
+                  {PRO_UI_ENABLED && !TESTING_OPEN_ACCESS && data.role !== 'admin' && data.role !== 'pro' && !data.isPro && data.trialEndsAt && new Date(data.trialEndsAt) > new Date() && (
                     <div className="flex justify-between items-center text-sm">
                       <span className="text-tv-muted">Akses Berakhir</span>
                       <span className="text-tv-text font-medium">{formatDate(data.trialEndsAt)}</span>
@@ -191,7 +196,7 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
                   </div>
                 </div>
 
-                {data.role !== 'admin' && data.role !== 'pro' && !data.isPro && (
+                {PRO_UI_ENABLED && data.role !== 'admin' && data.role !== 'pro' && !data.isPro && (
                   <Button variant="bare" size="none"
                     onClick={handleUpgradeClick}
                     className="w-full flex items-center justify-center gap-2 bg-tv-blue hover:bg-tv-blueHover text-white font-bold py-2.5 rounded-md transition-all mb-5"
@@ -244,8 +249,11 @@ export default function UserProfileModal({ open, onClose }: UserProfileModalProp
         </motion.div>
       )}
     </AnimatePresence>
+    {/* Dijaga ganda: tombol pemicunya sudah disembunyikan, tapi modal ini tetap digerbang
+        supaya jalur lain yang memanggil setShowPaywall(true) di kemudian hari tidak
+        diam-diam memunculkan penawaran Pro yang belum ada produknya. */}
     <PaywallModal
-      open={showPaywall}
+      open={PRO_UI_ENABLED && showPaywall}
       onClose={() => setShowPaywall(false)}
       title="Upgrade ke SahamLens Pro"
       body="Buka semua fitur Pro tanpa batas: LensConsensus, LensRadar scan berkala, Compare Tool, Market Pulse, dan lainnya."

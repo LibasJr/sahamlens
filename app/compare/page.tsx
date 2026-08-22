@@ -16,6 +16,7 @@ import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { ApiErrorHint, Button, Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -201,6 +202,15 @@ function CompareContent() {
 
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. */}
         <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <MenuUsageGuide
+          menuKey="compare"
+          whatItAnswers="Dari beberapa saham ini, mana yang paling menarik?"
+          steps={[
+            "Tambahkan dua saham atau lebih untuk dibandingkan berdampingan.",
+            "Tiap baris adalah satu metrik; nilai terbaik disorot otomatis.",
+            "Kolom penjelasan memberi tahu kenapa metrik itu penting.",
+          ]}
+        />
 
           <Card as="form" onSubmit={handleCompare} padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-6 shadow-2 flex flex-col sm:flex-row items-center gap-4 justify-center">
             <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto">

@@ -34,6 +34,7 @@ import FundamentalOverview from '@/components/fundamental/FundamentalOverview';
 import FundamentalAnalyzerGrid from '@/components/fundamental/FundamentalAnalyzerGrid';
 import dynamic from 'next/dynamic';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -299,6 +300,15 @@ function FundamentalContent() {
         {/* Sebelumnya satu spinner teal-500 - warna yang tidak ada di palet - di tengah
             halaman kosong. Kerangka di bawah mengikuti bentuk halaman aslinya. */}
         <PageContainer className="p-4 md:p-6 lg:p-7 space-y-10">
+        <MenuUsageGuide
+          menuKey="fundamental"
+          whatItAnswers="Bisnis di balik saham ini sehat atau tidak?"
+          steps={[
+            "Ketik kode saham untuk memuat laporan keuangannya.",
+            "Lihat rasio profitabilitas dan neraca - itu inti kualitas bisnisnya.",
+            "Bandingkan dengan pertumbuhannya: laba naik tapi utang ikut naik bukan hal yang sama.",
+          ]}
+        />
           <Skeleton className="h-24 w-full" />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Skeleton className="h-48 w-full" />

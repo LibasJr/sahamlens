@@ -27,6 +27,10 @@ import ExportImageButton from '@/components/export/ExportImageButton';
 import { buildExportFileName } from '@/shared/format/export-filename';
 import { useLanguage } from '@/lib/i18n';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import Link from 'next/link';
+import { Lock } from 'lucide-react';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 interface MoatPayload {
   ticker: string;
@@ -83,6 +87,11 @@ export default function MoatPage() {
   const { t, language } = useLanguage();
   const isEn = language === 'en';
 
+  const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
+  // GEMBOK TAMU (2026-08-23). Nama pilar dan indikatornya TETAP terbuka - itu yang
+  // memperlihatkan cara halaman ini berpikir. Yang dikunci adalah VONISNYA: skor tiap
+  // sumber moat (KUAT/MODERAT/TERBATAS) dan pemeriksaan durabilitas.
+  const lockForGuest = !authResolved || authLoading || !authUser;
   const [ticker, setTicker] = useState('BBCA');
   const [payload, setPayload] = useState<MoatPayload | null>(null);
   const [loading, setLoading] = useState(true);
@@ -210,6 +219,18 @@ export default function MoatPage() {
       subtitle={t('moatEnhance.subtitle')}
       headerExtra={
         <div className="flex flex-wrap items-center gap-2">
+      <MenuUsageGuide
+        menuKey="moat"
+        whatItAnswers="Keunggulan bisnis emiten ini bertahan lama atau mudah disalip pesaing?"
+        steps={[
+          "Tiap pilar menilai satu sumber keunggulan - merek, biaya, jaringan, atau biaya pindah.",
+          "Baca dasar penilaiannya, bukan cuma labelnya.",
+          "Uji durabilitas memeriksa apakah keunggulan itu menguat atau menipis.",
+        ]}
+        freeAccess="nama tiap pilar dan indikator yang dinilai"
+        afterSignup="skor tiap sumber keunggulan dan hasil uji durabilitasnya"
+        loginNext="/moat"
+      />
           <Badge variant="info" dot>{payload?.source?.provider || (isEn ? 'Public Source' : 'Sumber publik')}</Badge>
           {!loading && statusBadge(moat.status)}
           <ExportImageButton
@@ -390,7 +411,15 @@ export default function MoatPage() {
                     <div>
                       <div className="flex items-center justify-between gap-2">
                         <h4 className="text-xs font-bold text-white uppercase tracking-wider">{t(source.titleKey)}</h4>
-                        {moatSourceScoreBadge(source.score)}
+                        {lockForGuest ? (
+                          <Link
+                            href="/moat"
+                            aria-label={`Masuk untuk melihat skor moat ${t(source.titleKey)}`}
+                            className="inline-flex items-center gap-1 text-tv-blue"
+                          >
+                            <Lock className="h-3.5 w-3.5" />
+                          </Link>
+                        ) : moatSourceScoreBadge(source.score)}
                       </div>
                       <p className="mt-2 text-xs text-tv-muted leading-relaxed">{source.basis}</p>
                     </div>
@@ -434,7 +463,22 @@ export default function MoatPage() {
                 {durabilityBadge(payload.moatDurability.status)}
               </div>
 
-              {payload.moatDurability.checks.length > 0 ? (
+              {lockForGuest ? (
+                <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-tv-border py-8 text-center">
+                  <Lock className="h-5 w-5 text-tv-yellow" />
+                  <p className="text-sm font-bold text-tv-text">Uji durabilitas terkunci</p>
+                  <p className="max-w-sm px-4 text-xs leading-relaxed text-tv-muted">
+                    Buat akun gratis untuk melihat apakah keunggulan bisnis ini bertahan atau menipis,
+                    beserta bukti tiap pemeriksaannya.
+                  </p>
+                  <Link
+                    href="/login?next=/moat"
+                    className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2 text-sm font-bold text-white transition hover:bg-tv-blueHover"
+                  >
+                    Masuk atau daftar gratis
+                  </Link>
+                </div>
+              ) : payload.moatDurability.checks.length > 0 ? (
                 <div className="space-y-2">
                   {payload.moatDurability.checks.map((check: any) => (
                     <div
