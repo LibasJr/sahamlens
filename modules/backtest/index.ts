@@ -4,6 +4,12 @@
 export { precomputeBacktestData, computeTickerSeries } from './service/precompute.service';
 export { writeBacktestCache, readBacktestCache } from './service/cache.service';
 export { simulateBacktest } from './service/simulate.service';
+export {
+  calculateBacktestSignificance,
+  MIN_SIGNIFICANCE_TRADES,
+  type BacktestSignificanceResult,
+  type SignificanceStatus,
+} from './service/backtest-significance.service';
 export { BACKTEST_LIMITATIONS } from './constants/backtest-limitations';
 export { scanLiveFilterCheck, evaluateIndicatorDecisions, type LiveFilterMatch, type LiveFilterCheckResult } from './service/live-filter-check.service';
 export { BACKTEST_PRESETS, type BacktestPreset } from './constants/presets';
