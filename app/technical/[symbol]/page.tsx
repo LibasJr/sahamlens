@@ -411,6 +411,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
                   {terkunci ? (
                     <Link
                       href={`/login?next=/technical/${symbol}`}
+                      aria-label={`Masuk untuk melihat skor ${bagian.label}`}
                       className="lens-metric mt-1 inline-flex items-center gap-1.5 text-tv-blue hover:underline"
                     >
                       <Lock className="h-4 w-4" />
