@@ -47,7 +47,12 @@ describe('isolasi galat panel admin', () => {
 
     expect(logger.error).toHaveBeenCalledTimes(1);
     const [, context] = vi.mocked(logger.error).mock.calls[0];
-    expect(context).toMatchObject({ panel: 'funnel', error: boom });
+    // Kuncinya WAJIB `err`. Hanya `err` yang diekstrak jadi errMessage/errStack dan
+    // dikirim ke Sentry sebagai exception; kunci lain berakhir di JSON.stringify dan
+    // menjadi `{}` karena Error tidak punya properti enumerable - persis kebalikan dari
+    // yang dijanjikan nama test ini. Lihat shared/logger/__tests__/logger-error-key.test.ts.
+    expect(context).toMatchObject({ panel: 'funnel', err: boom });
+    expect(context).not.toHaveProperty('error');
   });
 
   it('nilai yang dilempar bukan Error tetap tertangani', async () => {

@@ -22,7 +22,7 @@ export async function handleProductJourneyEvents(request: Request): Promise<Http
     await recordJourneyEvents(parsed);
     return new Response(null, { status: 204 });
   } catch (error) {
-    logger.error('product journey events failed', { error });
+    logger.error('product journey events failed', { err: error });
     return { status: 500, body: { error: 'Event perjalanan tidak dapat disimpan', code: 'INTERNAL_ERROR' } };
   }
 }

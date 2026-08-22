@@ -32,7 +32,7 @@ export async function loadPanel<T>(label: string, load: () => Promise<T>): Promi
     // Detailnya ke log, bukan ke DOM. Galat basis data membawa nama host, port, dan kadang
     // kredensial di dalam pesannya; halaman ini memang hanya untuk admin, tapi tangkapan
     // layar admin beredar di tiket dukungan dan grup chat.
-    logger.error('panel admin gagal dimuat', { panel: label, error });
+    logger.error('panel admin gagal dimuat', { panel: label, err: error });
     return {
       ok: false,
       message: `Panel "${label}" tidak dapat dimuat. Panel lain di halaman ini tidak terpengaruh; periksa log aplikasi untuk sebabnya.`,
