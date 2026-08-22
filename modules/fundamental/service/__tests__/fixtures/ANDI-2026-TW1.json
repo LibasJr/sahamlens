@@ -1,0 +1,97 @@
+{
+ "schemaVersion": 1,
+ "ticker": "ANDI",
+ "entityName": "PT Andira Agro Tbk",
+ "year": 2026,
+ "period": "TW1",
+ "fileModified": "2026-04-28T18:01:00.337",
+ "fetchedAt": "2026-08-22T11:01:52.282751+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202026/TW1/ANDI/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2026-03-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2026-01-01",
+   "endDate": "2026-03-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-03-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2025-03-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2024-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "273840976516",
+   "PriorEndYearInstant": "296571404929"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "162397826493",
+   "PriorEndYearInstant": "177942579957"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "111443150023",
+   "PriorEndYearInstant": "118628824972"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "111443150023",
+   "PriorEndYearInstant": "118628824972"
+  },
+  "idx-cor:CommonStocks": {
+   "CurrentYearInstant": "187000000000",
+   "PriorEndYearInstant": "187000000000"
+  },
+  "idx-cor:CurrentAssets": {
+   "CurrentYearInstant": "20705754162",
+   "PriorEndYearInstant": "35915151956"
+  },
+  "idx-cor:CurrentLiabilities": {
+   "CurrentYearInstant": "46806858411",
+   "PriorEndYearInstant": "39107613198"
+  },
+  "idx-cor:NonCurrentAssets": {
+   "CurrentYearInstant": "253135222354",
+   "PriorEndYearInstant": "260656252973"
+  },
+  "idx-cor:NonCurrentLiabilities": {
+   "CurrentYearInstant": "115590968082",
+   "PriorEndYearInstant": "138834966759"
+  },
+  "idx-cor:SalesAndRevenue": {
+   "CurrentYearDuration": "24741085461",
+   "PriorYearDuration": "71995714625"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "-7185674949",
+   "PriorYearDuration": "2704981230"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "-7185674949",
+   "PriorYearDuration": "2704981230"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "-7185674949",
+   "PriorYearDuration": "2704981230"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "0.77",
+   "PriorYearDuration": "0.29"
+  }
+ },
+ "dimensionalContextCount": 3140,
+ "dimensionalFactsSkipped": 211,
+ "unexpectedPlainContexts": []
+}
