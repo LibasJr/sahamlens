@@ -48,5 +48,7 @@ export {
   type IdxXbrlArtifact,
   type IdxFinancialReport,
   type IdxFinancialFigures,
+  type IdxCurrentClassificationCheck,
+  type IdxCurrentClassificationSide,
   type ReadIdxFinancialOptions,
 } from './service/idx-xbrl.service';
