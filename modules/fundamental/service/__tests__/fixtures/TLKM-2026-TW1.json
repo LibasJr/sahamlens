@@ -66,6 +66,10 @@
    "CurrentYearInstant": "155810000000000",
    "PriorEndYearInstant": "150537000000000"
   },
+  "idx-cor:CommonStocks": {
+   "CurrentYearInstant": "4953000000000",
+   "PriorEndYearInstant": "4953000000000"
+  },
   "idx-cor:SalesAndRevenue": {
    "CurrentYearDuration": "37189000000000",
    "PriorYearDuration": "36639000000000"
