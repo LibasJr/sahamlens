@@ -1,3 +1,8 @@
+import { calculateStochastic } from '@/modules/technical/service/stochastic';
+import { calculateWilliamsR } from '@/modules/technical/service/williams-r';
+import { calculateAdx, ADX_PERIOD } from '@/modules/technical/service/adx';
+import { calculateObvSeries } from '@/modules/technical/service/obv';
+
 export type ChartCandle = {
   time: string;
   open: number;
@@ -9,7 +14,7 @@ export type ChartCandle = {
 
 export type ChartType = 'candlestick' | 'bar' | 'line' | 'area' | 'baseline' | 'heikin-ashi';
 
-export type IndicatorKind = 'SMA' | 'EMA' | 'BB' | 'VOLUME' | 'RSI' | 'MACD' | 'ATR' | 'CMF';
+export type IndicatorKind = 'SMA' | 'EMA' | 'BB' | 'VOLUME' | 'RSI' | 'MACD' | 'ATR' | 'CMF' | 'STOCH' | 'WILLIAMS_R' | 'ADX' | 'OBV';
 
 export type IndicatorConfig = {
   id: string;
@@ -39,6 +44,10 @@ export const INDICATOR_LIBRARY: IndicatorMeta[] = [
   { kind: 'MACD', name: 'MACD', category: 'Momentum', pane: 'oscillator', description: 'EMA cepat vs lambat beserta signal line dan histogram.' },
   { kind: 'ATR', name: 'Average True Range', category: 'Volatility', pane: 'oscillator', description: 'Volatilitas berbasis true range dengan Wilder smoothing.' },
   { kind: 'CMF', name: 'Chaikin Money Flow', category: 'Volume / Flow', pane: 'oscillator', description: 'Proxy tekanan akumulasi/distribusi dari harga dan volume.' },
+  { kind: 'STOCH', name: 'Stochastic Oscillator', category: 'Momentum', pane: 'oscillator', description: '%K/%D dari posisi harga dalam range High-Low, Slow Stochastic baku (14,3,3).' },
+  { kind: 'WILLIAMS_R', name: 'Williams %R', category: 'Momentum', pane: 'oscillator', description: 'Posisi harga dalam range, skala 0 s/d -100 (kebalikan Stochastic).' },
+  { kind: 'ADX', name: 'ADX / DMI', category: 'Trend', pane: 'oscillator', description: 'Kekuatan tren (ADX) beserta arah +DI/-DI, Wilder smoothing.' },
+  { kind: 'OBV', name: 'On-Balance Volume', category: 'Volume / Flow', pane: 'oscillator', description: 'Volume kumulatif terarah - naik saat harga naik, turun saat harga turun.' },
 ];
 
 export const DEFAULT_CHART_INDICATORS: IndicatorConfig[] = [
@@ -57,6 +66,10 @@ export function defaultIndicator(kind: IndicatorKind): IndicatorConfig {
     case 'MACD': return { id: `macd-${suffix}`, kind, fast: 12, slow: 26, signal: 9, visible: true };
     case 'ATR': return { id: `atr-${suffix}`, kind, period: 14, visible: true };
     case 'CMF': return { id: `cmf-${suffix}`, kind, period: 20, visible: true };
+    case 'STOCH': return { id: `stoch-${suffix}`, kind, period: 14, visible: true };
+    case 'WILLIAMS_R': return { id: `williamsr-${suffix}`, kind, period: 14, visible: true };
+    case 'ADX': return { id: `adx-${suffix}`, kind, period: ADX_PERIOD, visible: true };
+    case 'OBV': return { id: `obv-${suffix}`, kind, visible: true };
     case 'VOLUME': return { id: `volume-${suffix}`, kind, visible: true };
   }
 }
@@ -70,6 +83,10 @@ export function indicatorLabel(indicator: IndicatorConfig): string {
     case 'MACD': return `MACD ${indicator.fast ?? 12}/${indicator.slow ?? 26}/${indicator.signal ?? 9}`;
     case 'ATR': return `ATR ${indicator.period ?? 14}`;
     case 'CMF': return `CMF ${indicator.period ?? 20}`;
+    case 'STOCH': return `Stoch ${indicator.period ?? 14},3,3`;
+    case 'WILLIAMS_R': return `Williams %R ${indicator.period ?? 14}`;
+    case 'ADX': return `ADX ${indicator.period ?? ADX_PERIOD}`;
+    case 'OBV': return 'OBV';
     case 'VOLUME': return 'Volume';
   }
 }
@@ -277,6 +294,68 @@ export function cmfSeries(candles: ChartCandle[], period: number): Array<number 
     if (i >= safePeriod - 1) out[i] = volumeSum > 0 ? flowSum / volumeSum : null;
   }
   return out;
+}
+
+/**
+ * Stochastic/Williams %R/ADX (2026-08-22) - dihitung lewat implementasi kanonis di
+ * modules/technical/service/{stochastic,williams-r,adx}.ts, BUKAN ditulis ulang di sini.
+ * RSI/MACD/ATR/CMF di atas masing-masing punya salinan lokal sendiri (warisan sebelum
+ * modul ini ada) - tiga indikator baru ini sengaja tidak menambah salinan keempat/kelima
+ * dari kelas bug yang sama (lihat komentar riwayat bug ATR di atrSeries()).
+ *
+ * Fungsi kanonis di atas menghitung SATU nilai dari histori yang diberikan (dipakai
+ * analyzer: "apa sinyalnya hari ini"), bukan deret bertahap seperti smaSeries/rsiSeries
+ * di atas. Untuk chart, deretnya dibangun dengan memanggil ulang fungsi itu pada potongan
+ * histori yang tumbuh (bars.slice(0, i+1)) di tiap index - O(n^2) tapi n di sini adalah
+ * jumlah candle di chart (ratusan, bukan jutaan), jadi ini instan di browser dan jauh
+ * lebih murah daripada risiko menulis versi "incremental" sendiri yang bisa diam-diam
+ * berbeda dari definisi kanonisnya.
+ */
+export function stochasticSeriesForChart(candles: ChartCandle[], period: number): { k: Array<number | null>; d: Array<number | null> } {
+  const safePeriod = Math.max(2, Math.floor(period));
+  const k: Array<number | null> = Array(candles.length).fill(null);
+  const d: Array<number | null> = Array(candles.length).fill(null);
+  const bars = candles.map((c) => ({ high: c.high, low: c.low, close: c.close }));
+  for (let i = 0; i < candles.length; i += 1) {
+    const result = calculateStochastic(bars.slice(0, i + 1), safePeriod);
+    if (result) {
+      k[i] = result.k;
+      d[i] = result.d;
+    }
+  }
+  return { k, d };
+}
+
+export function williamsRSeriesForChart(candles: ChartCandle[], period: number): Array<number | null> {
+  const safePeriod = Math.max(2, Math.floor(period));
+  const bars = candles.map((c) => ({ high: c.high, low: c.low, close: c.close }));
+  const out: Array<number | null> = Array(candles.length).fill(null);
+  for (let i = safePeriod - 1; i < candles.length; i += 1) {
+    out[i] = calculateWilliamsR(bars.slice(0, i + 1), safePeriod);
+  }
+  return out;
+}
+
+export function adxSeriesForChart(candles: ChartCandle[], period: number): { adx: Array<number | null>; plusDi: Array<number | null>; minusDi: Array<number | null> } {
+  const safePeriod = Math.max(2, Math.floor(period));
+  const bars = candles.map((c) => ({ high: c.high, low: c.low, close: c.close }));
+  const adx: Array<number | null> = Array(candles.length).fill(null);
+  const plusDi: Array<number | null> = Array(candles.length).fill(null);
+  const minusDi: Array<number | null> = Array(candles.length).fill(null);
+  for (let i = 2 * safePeriod - 1; i < candles.length; i += 1) {
+    const result = calculateAdx(bars.slice(0, i + 1), safePeriod);
+    if (result) {
+      adx[i] = result.adx;
+      plusDi[i] = result.plusDi;
+      minusDi[i] = result.minusDi;
+    }
+  }
+  return { adx, plusDi, minusDi };
+}
+
+/** OBV sudah kumulatif/bertahap secara alami - satu pass, tidak perlu pola windowed di atas. */
+export function obvSeriesForChart(candles: ChartCandle[]): number[] {
+  return calculateObvSeries(candles.map((c) => ({ adjClose: c.close, volume: c.volume })));
 }
 
 export function latestFinite(values: Array<number | null>): number | null {

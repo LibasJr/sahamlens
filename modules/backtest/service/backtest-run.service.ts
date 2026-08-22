@@ -3,6 +3,7 @@ import {
   precomputeBacktestData,
   writeBacktestCache,
   simulateBacktest,
+  calculateBacktestSignificance,
   type IndicatorName,
   type BacktestIndicatorCache,
 } from '@/modules/backtest';
@@ -84,6 +85,11 @@ export async function runBacktestSimulation(
     : result.trades.slice(0, MAX_TRADES_IN_RESPONSE);
   const tradesLockedCount = options.isGuest ? Math.max(0, result.totalTrades - 2) : 0;
 
+  // Signifikansi dihitung dari SELURUH trade (result.trades), bukan visibleTrades yang
+  // sudah dipotong untuk tampilan/guest-limit - memotong dulu baru menguji akan membuang
+  // sampel dan bisa menaikkan/menurunkan p-value tanpa alasan statistik apa pun.
+  const significance = calculateBacktestSignificance(result.trades);
+
   const responseBody: Record<string, unknown> = {
     return: fmtPct(result.returnPct),
     ihsgReturn: fmtPct(result.ihsgReturnPct),
@@ -92,6 +98,7 @@ export async function runBacktestSimulation(
     totalTrades: result.totalTrades,
     maxDD: fmtPct(result.maxDrawdownPct),
     performance: result.performance,
+    significance,
     universe: result.universe,
     equityCurve: result.equityCurve,
     ihsgCurve: result.ihsgCurve,

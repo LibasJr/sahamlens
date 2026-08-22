@@ -5,6 +5,8 @@ import { ColorType, createChart, type IChartApi } from 'lightweight-charts';
 import FinancialChartToolbar from '@/components/chart/FinancialChartToolbar';
 import {
   DEFAULT_CHART_INDICATORS,
+  INDICATOR_LIBRARY,
+  adxSeriesForChart,
   atrSeries,
   bollingerSeries,
   cmfSeries,
@@ -13,8 +15,11 @@ import {
   indicatorLabel,
   latestFinite,
   macdSeries,
+  obvSeriesForChart,
   rsiSeries,
   smaSeries,
+  stochasticSeriesForChart,
+  williamsRSeriesForChart,
   type ChartCandle,
   type ChartType,
   type IndicatorConfig,
@@ -58,9 +63,17 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/** Kind yang boleh muncul di pane oscillator (sub-panel dengan skala sendiri di bawah
+ * harga) - diturunkan dari INDICATOR_LIBRARY, bukan daftar hardcoded, supaya menambah
+ * indikator baru di lib/chart-indicators.ts otomatis ikut ke sini tanpa perlu diingat
+ * untuk disunting di dua tempat. */
+function isOscillatorKind(kind: IndicatorConfig['kind']): boolean {
+  return INDICATOR_LIBRARY.find((item) => item.kind === kind)?.pane === 'oscillator';
+}
+
 function sanitizeIndicators(input: unknown): IndicatorConfig[] {
   if (!Array.isArray(input)) return DEFAULT_CHART_INDICATORS.map((indicator) => ({ ...indicator }));
-  const allowed = new Set(['SMA', 'EMA', 'BB', 'VOLUME', 'RSI', 'MACD', 'ATR', 'CMF']);
+  const allowed = new Set(INDICATOR_LIBRARY.map((item) => item.kind));
   const safe = input
     .filter((value): value is IndicatorConfig => Boolean(value && typeof value === 'object' && allowed.has((value as IndicatorConfig).kind)))
     .slice(0, 9)
@@ -184,9 +197,7 @@ export default function TradingViewChart({
   const [prefsLoaded, setPrefsLoaded] = useState(false);
 
   const visibleIndicators = useMemo(() => indicators.filter((indicator) => indicator.visible !== false), [indicators]);
-  const oscillatorIndicators = useMemo(() => visibleIndicators.filter((indicator) => (
-    indicator.kind === 'VOLUME' || indicator.kind === 'RSI' || indicator.kind === 'MACD' || indicator.kind === 'ATR' || indicator.kind === 'CMF'
-  )), [visibleIndicators]);
+  const oscillatorIndicators = useMemo(() => visibleIndicators.filter((indicator) => isOscillatorKind(indicator.kind)), [visibleIndicators]);
 
   useEffect(() => {
     try {
@@ -227,9 +238,7 @@ export default function TradingViewChart({
     setHoverIndicators([]);
     chartHostRef.current.innerHTML = '';
 
-    const activeOscillators = visibleIndicators.filter((indicator) => (
-      indicator.kind === 'VOLUME' || indicator.kind === 'RSI' || indicator.kind === 'MACD' || indicator.kind === 'ATR' || indicator.kind === 'CMF'
-    ));
+    const activeOscillators = visibleIndicators.filter((indicator) => isOscillatorKind(indicator.kind));
     const oscillatorRegion = activeOscillators.length > 0 ? Math.min(0.48, 0.15 * activeOscillators.length) : 0;
     const initialWidth = Math.max(1, chartHostRef.current.clientWidth);
     const initialHeight = resolveChartHeight(initialWidth, height, variant, document.fullscreenElement === shellRef.current ? shellRef.current?.clientHeight : undefined);
@@ -480,6 +489,58 @@ export default function TradingViewChart({
         const zero = addValueLine(candles.map(() => 0), 'rgba(120, 123, 134, 0.55)', 'CMF 0', scaleId);
         zero.applyOptions({ lineStyle: 2, lastValueVisible: false });
         hoverSeries.push({ series, label: indicatorLabel(indicator), formatter: (value) => value.toFixed(3) });
+        return;
+      }
+
+      if (indicator.kind === 'STOCH') {
+        const { k, d } = stochasticSeriesForChart(candles, indicator.period ?? 14);
+        const kSeries = addValueLine(k, color, `${indicatorLabel(indicator)} %K`, scaleId, 2);
+        applyPaneScale();
+        const dSeries = addValueLine(d, '#f0b90b', `${indicatorLabel(indicator)} %D`, scaleId, 1);
+        const guide20 = addValueLine(candles.map(() => 20), 'rgba(120, 123, 134, 0.55)', 'Oversold 20', scaleId);
+        const guide80 = addValueLine(candles.map(() => 80), 'rgba(120, 123, 134, 0.55)', 'Overbought 80', scaleId);
+        guide20.applyOptions({ lineStyle: 2, lastValueVisible: false });
+        guide80.applyOptions({ lineStyle: 2, lastValueVisible: false });
+        hoverSeries.push(
+          { series: kSeries, label: '%K', formatter: (value) => value.toFixed(1) },
+          { series: dSeries, label: '%D', formatter: (value) => value.toFixed(1) },
+        );
+        return;
+      }
+
+      if (indicator.kind === 'WILLIAMS_R') {
+        const values = williamsRSeriesForChart(candles, indicator.period ?? 14);
+        const series = addValueLine(values, color, indicatorLabel(indicator), scaleId, 2);
+        applyPaneScale();
+        const guideOversold = addValueLine(candles.map(() => -80), 'rgba(120, 123, 134, 0.55)', 'Oversold -80', scaleId);
+        const guideOverbought = addValueLine(candles.map(() => -20), 'rgba(120, 123, 134, 0.55)', 'Overbought -20', scaleId);
+        guideOversold.applyOptions({ lineStyle: 2, lastValueVisible: false });
+        guideOverbought.applyOptions({ lineStyle: 2, lastValueVisible: false });
+        hoverSeries.push({ series, label: '%R', formatter: (value) => value.toFixed(1) });
+        return;
+      }
+
+      if (indicator.kind === 'ADX') {
+        const { adx, plusDi, minusDi } = adxSeriesForChart(candles, indicator.period ?? 14);
+        const adxLine = addValueLine(adx, color, indicatorLabel(indicator), scaleId, 2);
+        applyPaneScale();
+        const plusLine = addValueLine(plusDi, 'rgba(8, 153, 129, 0.85)', '+DI', scaleId, 1);
+        const minusLine = addValueLine(minusDi, 'rgba(242, 54, 69, 0.85)', '-DI', scaleId, 1);
+        const guideTrend = addValueLine(candles.map(() => 25), 'rgba(120, 123, 134, 0.55)', 'Ambang Tren 25', scaleId);
+        guideTrend.applyOptions({ lineStyle: 2, lastValueVisible: false });
+        hoverSeries.push(
+          { series: adxLine, label: 'ADX', formatter: (value) => value.toFixed(1) },
+          { series: plusLine, label: '+DI', formatter: (value) => value.toFixed(1) },
+          { series: minusLine, label: '-DI', formatter: (value) => value.toFixed(1) },
+        );
+        return;
+      }
+
+      if (indicator.kind === 'OBV') {
+        const values = obvSeriesForChart(candles);
+        const series = addValueLine(values, color, indicatorLabel(indicator), scaleId, 2);
+        applyPaneScale();
+        hoverSeries.push({ series, label: 'OBV', formatter: (value) => value.toLocaleString('id-ID', { notation: Math.abs(value) >= 1_000_000 ? 'compact' : 'standard', maximumFractionDigits: 1 }) });
       }
     });
 
@@ -572,11 +633,15 @@ export default function TradingViewChart({
     else if (indicator.kind === 'ATR') latest = latestFinite(atrSeries(candles, indicator.period ?? 14));
     else if (indicator.kind === 'CMF') latest = latestFinite(cmfSeries(candles, indicator.period ?? 20));
     else if (indicator.kind === 'MACD') latest = latestFinite(macdSeries(candles, indicator.fast ?? 12, indicator.slow ?? 26, indicator.signal ?? 9).macd);
+    else if (indicator.kind === 'STOCH') latest = latestFinite(stochasticSeriesForChart(candles, indicator.period ?? 14).k);
+    else if (indicator.kind === 'WILLIAMS_R') latest = latestFinite(williamsRSeriesForChart(candles, indicator.period ?? 14));
+    else if (indicator.kind === 'ADX') latest = latestFinite(adxSeriesForChart(candles, indicator.period ?? 14).adx);
+    else if (indicator.kind === 'OBV') latest = latestFinite(obvSeriesForChart(candles));
     const bounds = paneBounds(index, oscillatorIndicators.length);
     return {
       id: indicator.id,
       label: indicatorLabel(indicator),
-      latest: latest == null ? null : indicator.kind === 'RSI' ? latest.toFixed(1) : latest.toFixed(2),
+      latest: latest == null ? null : indicator.kind === 'RSI' || indicator.kind === 'STOCH' || indicator.kind === 'WILLIAMS_R' || indicator.kind === 'ADX' ? latest.toFixed(1) : indicator.kind === 'OBV' ? latest.toLocaleString('id-ID', { notation: Math.abs(latest) >= 1_000_000 ? 'compact' : 'standard', maximumFractionDigits: 1 }) : latest.toFixed(2),
       top: `${bounds.start * 100}%`,
     };
   }), [candles, oscillatorIndicators]);
