@@ -206,3 +206,85 @@ describe('pemeriksaan integritas - membedakan "tidak bisa diperiksa" dari "gagal
     expect(report.current.basicEps).toBe(150);
   });
 });
+
+describe('klasifikasi lancar/tidak lancar - dasar current ratio', () => {
+  function artifactWith(facts: Record<string, Record<string, string>>): IdxXbrlArtifact {
+    return {
+      schemaVersion: 1, ticker: 'TEST', entityName: 'Uji', year: 2026, period: 'TW1',
+      fileModified: null, fetchedAt: '2026-08-22T00:00:00Z', sourceUrl: '',
+      contexts: { CurrentYearInstant: { instant: '2026-03-31' } },
+      facts, dimensionalContextCount: 0, dimensionalFactsSkipped: 0, unexpectedPlainContexts: [],
+    };
+  }
+
+  it('AALI melaporkan pos lancar dan identitasnya persis', () => {
+    const report = readIdxFinancialReport('AALI', 2026, 'TW1', opts)!;
+    expect(report.current.currentAssets).toBe(9_770_714_000_000);
+    expect(report.current.currentLiabilities).toBe(2_442_686_000_000);
+    expect(report.integrity.currentClassification.assets.difference).toBe(0);
+    expect(report.integrity.currentClassification.liabilities.difference).toBe(0);
+    expect(report.integrity.currentClassification.assets.balanced).toBe(true);
+    expect(report.integrity.currentClassification.liabilities.balanced).toBe(true);
+  });
+
+  it('TLKM juga seimbang - aset dimiliki-untuk-dijual sudah termasuk di NonCurrentAssets', () => {
+    const report = readIdxFinancialReport('TLKM', 2026, 'TW1', opts)!;
+    expect(report.current.currentAssets).toBe(65_928_000_000_000);
+    expect(report.current.currentLiabilities).toBe(71_609_000_000_000);
+    expect(report.integrity.currentClassification.assets.balanced).toBe(true);
+    expect(report.integrity.currentClassification.liabilities.balanced).toBe(true);
+  });
+
+  /**
+   * Ini kasus yang paling penting di blok ini. BBCA tidak melaporkan SATU PUN tag
+   * lancar/tidak lancar - neraca bank disusun menurut likuiditas, bukan klasifikasi itu.
+   *
+   * Yang diuji bukan cuma "null-nya benar", tapi bahwa null-nya TIDAK tertukar dengan
+   * "gagal periksa": balanced harus null, bukan false, dan tidak boleh ada entri di
+   * integrity.rejected - sebab tidak ada yang ditolak, memang tidak dilaporkan.
+   */
+  it('BBCA (bank) - pos lancar null, balanced null, dan TIDAK dianggap pelanggaran', () => {
+    const report = readIdxFinancialReport('BBCA', 2026, 'TW1', opts)!;
+    expect(report.current.currentAssets).toBeNull();
+    expect(report.current.currentLiabilities).toBeNull();
+    expect(report.integrity.currentClassification.assets.balanced).toBeNull();
+    expect(report.integrity.currentClassification.liabilities.balanced).toBeNull();
+    expect(report.integrity.rejected).toEqual([]);
+  });
+
+  it('total aset ada tapi rinciannya tidak -> balanced null, dan totalnya tetap dilaporkan', () => {
+    const report = mapIdxFinancialReport(artifactWith({
+      'idx-cor:Assets': { CurrentYearInstant: '1000' },
+    }));
+    expect(report.integrity.currentClassification.assets.balanced).toBeNull();
+    expect(report.integrity.currentClassification.assets.total).toBe(1000);
+    expect(report.integrity.currentClassification.assets.componentsSum).toBeNull();
+  });
+
+  it('rincian yang tidak menjumlah ke total -> pos lancar di-null-kan dan alasannya dicatat', () => {
+    const report = mapIdxFinancialReport(artifactWith({
+      'idx-cor:Assets': { CurrentYearInstant: '1000' },
+      'idx-cor:CurrentAssets': { CurrentYearInstant: '400' },
+      'idx-cor:NonCurrentAssets': { CurrentYearInstant: '500' },
+    }));
+    expect(report.integrity.currentClassification.assets.balanced).toBe(false);
+    expect(report.integrity.currentClassification.assets.difference).toBe(100);
+    expect(report.current.currentAssets).toBeNull();
+    expect(report.integrity.rejected).toHaveLength(1);
+    expect(report.integrity.rejected[0]).toContain('current.currentAssets');
+  });
+
+  it('sisi aset dan sisi liabilitas dinilai TERPISAH - satu rusak tidak menjatuhkan yang lain', () => {
+    const report = mapIdxFinancialReport(artifactWith({
+      'idx-cor:Assets': { CurrentYearInstant: '1000' },
+      'idx-cor:CurrentAssets': { CurrentYearInstant: '400' },
+      'idx-cor:NonCurrentAssets': { CurrentYearInstant: '500' },
+      'idx-cor:Liabilities': { CurrentYearInstant: '800' },
+      'idx-cor:CurrentLiabilities': { CurrentYearInstant: '300' },
+      'idx-cor:NonCurrentLiabilities': { CurrentYearInstant: '500' },
+    }));
+    expect(report.current.currentAssets).toBeNull();
+    expect(report.current.currentLiabilities).toBe(300);
+    expect(report.integrity.currentClassification.liabilities.balanced).toBe(true);
+  });
+});

@@ -42,6 +42,22 @@
    "CurrentYearInstant": "134145000000000",
    "PriorEndYearInstant": "137222000000000"
   },
+  "idx-cor:CurrentAssets": {
+   "CurrentYearInstant": "65928000000000",
+   "PriorEndYearInstant": "61766000000000"
+  },
+  "idx-cor:CurrentLiabilities": {
+   "CurrentYearInstant": "71609000000000",
+   "PriorEndYearInstant": "73948000000000"
+  },
+  "idx-cor:NonCurrentAssets": {
+   "CurrentYearInstant": "224027000000000",
+   "PriorEndYearInstant": "225993000000000"
+  },
+  "idx-cor:NonCurrentLiabilities": {
+   "CurrentYearInstant": "62536000000000",
+   "PriorEndYearInstant": "63274000000000"
+  },
   "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
    "CurrentYearInstant": "134492000000000",
    "PriorEndYearInstant": "130685000000000"
