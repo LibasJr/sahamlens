@@ -23,6 +23,7 @@ import { cookies } from 'next/headers';
 import { getAnalyzerDirectionLabel, getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 import { susunTemuanDimensi, type TemuanDimensi } from '@/shared/presentation/stock-brief';
 import { describeFreshness } from '@/shared/presentation/freshness-labels';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 
 
@@ -684,6 +685,18 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
       {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental (sebelumnya
           max-w-7xl = 1280px). */}
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-10">
+        <MenuUsageGuide
+          menuKey="technical"
+          whatItAnswers="Apa kata data teknikal, fundamental, dan aliran dana tentang saham ini?"
+          steps={[
+            'Lihat LensScore di atas - satu angka 0-100 yang meringkas ketiga dimensi itu.',
+            'Turun ke Temuan untuk tahu ALASAN di balik angkanya, bukan cuma hasilnya.',
+            'Buka Konsensus Teknikal untuk memeriksa tiap indikator satu per satu.',
+          ]}
+          freeAccess="angka LensScore, satu temuan utama, dan tiga indikator dasar (EMA, RSI, MA Trend)"
+          afterSignup="kesimpulan BUY/HOLD/SELL, seluruh temuan beserta buktinya, semua indikator, dan ekspor hasil analisis"
+          loginNext={`/technical/${code}`}
+        />
         <div className="mb-2 flex items-center gap-3">
           <TickerAvatar symbol={symbol} size="lg" />
           <div className="min-w-0">

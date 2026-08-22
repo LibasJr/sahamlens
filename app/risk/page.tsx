@@ -10,6 +10,7 @@ import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 // AUDIT DATA INTEGRITY 2026-08-03 (temuan M-09): 4 kartu stress test di halaman ini
 // SEBELUMNYA angka TETAP ("-5.75%", "-12.5%", "-4.2%", "-6.8%") - halaman sudah jujur
@@ -136,6 +137,21 @@ export default function RiskPage() {
       title="Risk Matrix & Stress Testing Portofolio"
       subtitle="Beta historis 1 tahun (regresi return harian terhadap IHSG & USD/IDR, data Yahoo Finance) - dihitung dari komposisi portofolio Anda"
     >
+      <div className="mb-6">
+        <MenuUsageGuide
+          menuKey="risk"
+          whatItAnswers="Seberapa keras portofolio Anda terguncang kalau pasar jatuh?"
+          steps={[
+            'Isi komposisinya - klik "Impor dari Portofolio saya", atau ketik ticker dan bobot persennya.',
+            'Bobot tidak wajib berjumlah 100%; dipakai sebagai proporsi antar-posisi.',
+            'Klik hitung. Hasilnya beta terhadap IHSG dan USD/IDR, plus simulasi saat IHSG turun 5% dan 10%.',
+          ]}
+          freeAccess="beta terhadap IHSG beserta artinya dalam bahasa sehari-hari"
+          afterSignup="simulasi guncangan IHSG -5% dan -10%, serta dampak pelemahan Rupiah"
+          loginNext="/risk"
+        />
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6">
         <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
