@@ -1,0 +1,81 @@
+{
+ "schemaVersion": 1,
+ "ticker": "BBCA",
+ "entityName": "PT Bank Central Asia Tbk.",
+ "year": 2026,
+ "period": "TW1",
+ "fileModified": "2026-04-23T17:06:59.06",
+ "fetchedAt": "2026-08-22T05:59:55.393763+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202026/TW1/BBCA/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2026-03-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2026-01-01",
+   "endDate": "2026-03-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-03-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2025-03-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2024-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "1640830566000000",
+   "PriorEndYearInstant": "1586828536000000"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "1370360247000000",
+   "PriorEndYearInstant": "1294508286000000"
+  },
+  "idx-cor:TemporarySyirkahFunds": {
+   "CurrentYearInstant": "11111526000000",
+   "PriorEndYearInstant": "10632695000000"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "259132407000000",
+   "PriorEndYearInstant": "281466478000000"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "259358793000000",
+   "PriorEndYearInstant": "281687555000000"
+  },
+  "idx-cor:InterestIncome": {
+   "CurrentYearDuration": "24592248000000",
+   "PriorYearDuration": "24366718000000"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "18077072000000",
+   "PriorYearDuration": "17455662000000"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "14689799000000",
+   "PriorYearDuration": "14146990000000"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "14684123000000",
+   "PriorYearDuration": "14146131000000"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "119",
+   "PriorYearDuration": "115"
+  }
+ },
+ "dimensionalContextCount": 1198,
+ "dimensionalFactsSkipped": 2213,
+ "unexpectedPlainContexts": []
+}

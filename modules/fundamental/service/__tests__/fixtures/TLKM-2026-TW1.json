@@ -1,0 +1,77 @@
+{
+ "schemaVersion": 1,
+ "ticker": "TLKM",
+ "entityName": "PT Telkom Indonesia (Persero) Tbk",
+ "year": 2026,
+ "period": "TW1",
+ "fileModified": "2026-05-29T17:05:44.857",
+ "fetchedAt": "2026-08-22T06:00:37.531230+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202026/TW1/TLKM/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2026-03-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2026-01-01",
+   "endDate": "2026-03-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-03-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2025-03-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2024-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "289955000000000",
+   "PriorEndYearInstant": "287759000000000"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "134145000000000",
+   "PriorEndYearInstant": "137222000000000"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "134492000000000",
+   "PriorEndYearInstant": "130685000000000"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "155810000000000",
+   "PriorEndYearInstant": "150537000000000"
+  },
+  "idx-cor:SalesAndRevenue": {
+   "CurrentYearDuration": "37189000000000",
+   "PriorYearDuration": "36639000000000"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "8248000000000",
+   "PriorYearDuration": "9268000000000"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "6054000000000",
+   "PriorYearDuration": "7336000000000"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "4344000000000",
+   "PriorYearDuration": "5549000000000"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "0.0000000439",
+   "PriorYearDuration": "0.00000005602"
+  }
+ },
+ "dimensionalContextCount": 2856,
+ "dimensionalFactsSkipped": 437,
+ "unexpectedPlainContexts": []
+}

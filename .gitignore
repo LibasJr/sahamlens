@@ -73,3 +73,9 @@ __pycache__/
 # Artefak harness responsif (dibuat ulang tiap `npm run test:responsive`)
 /e2e/__screenshots__/
 /e2e/__fixtures__/
+
+# Artefak laporan keuangan XBRL dari BEI (scripts/sync-idx-financial-reports.py).
+# Data runtime yang diregenerasi, dan besar: ~100KB per emiten-periode x ~850 emiten
+# (~90MB per kuartal). Fixture untuk test disimpan terpisah & sengaja dipangkas di
+# modules/fundamental/service/__tests__/fixtures/.
+data/idx-financial/
