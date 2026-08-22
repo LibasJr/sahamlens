@@ -34,6 +34,14 @@ const RSS_FEEDS = [
   { name: 'Sindonews', url: 'https://ekbis.sindonews.com/rss' },
   { name: 'Liputan6', url: 'https://www.liputan6.com/feed/rss/bisnis' },
   { name: 'Warta Ekonomi', url: 'https://www.wartaekonomi.co.id/rss' },
+  // Empat sumber tambahan (2026-08-23). Diuji dengan rss-parser + header yang PERSIS
+  // dipakai produksi, bukan dengan curl biasa - Investor.id dan Tribunnews lolos lewat
+  // curl_cffi tapi tetap 403 lewat jalur ini, jadi keduanya TIDAK dimasukkan alih-alih
+  // ditambahkan dan dibiarkan gagal diam-diam tiap siklus.
+  { name: 'Bloomberg Technoz', url: 'https://www.bloombergtechnoz.com/rss' },
+  { name: 'Tempo Bisnis', url: 'https://rss.tempo.co/bisnis' },
+  { name: 'Kontan', url: 'https://investasi.kontan.co.id/rss' },
+  { name: 'Antara Ekonomi', url: 'https://www.antaranews.com/rss/ekonomi.xml' },
 ];
 
 const parser = new Parser({
@@ -169,16 +177,24 @@ export async function getMarketNews(): Promise<{
 
   // Filter relevansi dulu, baru urut+ambil 40 - supaya berita non-pasar (sosial/
   // politik yang kebetulan ada di kanal Ekonomi/News umum) tidak ikut lolos hanya
-  // karena kebetulan terbaru. Fallback ke pool tanpa filter kalau hasil relevan
-  // terlalu sedikit (<5) - lebih baik ada berita ekonomi umum daripada widget
-  // kosong total pada hari yang sepi berita pasar spesifik.
+  // karena kebetulan terbaru.
+  //
+  // FALLBACK KE POOL TANPA FILTER DIHAPUS (2026-08-23, permintaan eksplisit "hanya yang
+  // berhubungan dengan market yang ditampilkan"). Dulu ia dibenarkan saat sumbernya 10:
+  // lebih baik ada berita ekonomi umum daripada widget kosong. Dengan 14 sumber alasan
+  // itu gugur - diukur live 2026-08-23: 325 item mentah, 317 setelah dedup, 42 lolos
+  // filter (13%). Ambang fallback-nya 5, jadi ia praktis tidak akan pernah terpicu.
+  //
+  // Dan justru itu yang membuatnya berbahaya: ia diam berbulan-bulan lalu tiba-tiba
+  // memasukkan berita non-pasar pada satu hari sepi, ke widget bernama "Berita &
+  // Sentimen Pasar", tanpa ada yang menyadari. Widget kosong yang jujur lebih baik
+  // daripada widget terisi yang isinya bukan yang dijanjikan namanya.
   //
   // 40 (bukan 12) - satu fungsi ini dipakai BERSAMA oleh widget ringkas di Beranda
   // (app/home/page.tsx, slice sendiri ke 12 di sisi client) DAN halaman Berita penuh
   // (app/news/page.tsx, tampilkan semua). Menghitung 40 sekali lalu cache 15 menit
   // lebih murah daripada dua cache/panggilan AI terpisah untuk hal yang sama.
-  const relevant = deduped.filter((item) => isMarketRelevant(item.title));
-  const pool = relevant.length >= 5 ? relevant : deduped;
+  const pool = deduped.filter((item) => isMarketRelevant(item.title));
 
   pool.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
   const top = pool.slice(0, 40);
