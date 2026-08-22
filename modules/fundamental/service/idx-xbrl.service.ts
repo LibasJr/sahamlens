@@ -180,7 +180,29 @@ const REVENUE_TAGS = [
   // Bank & lembaga keuangan
   'InterestIncome',
   'InterestAndShariaIncome',
+  // Bank syariah. BRIS (Bank Syariah Indonesia) dan PNBS tidak melaporkan
+  // `InterestIncome` SAMA SEKALI - seluruh pendapatannya berdiri di bawah subtotal ini.
+  // Tanpa tag ini, pendapatan salah satu bank terbesar Indonesia terbaca null.
+  'TotalInterestAndShariaIncome',
 ] as const;
+
+/**
+ * PENDAPATAN YANG MEMANG TIDAK ADA TOTALNYA - dan sengaja TIDAK dikarang.
+ *
+ * Pemindaian 847 artefak TW1 2026 dan 882 laporan audit 2025: 42 emiten tidak memuat
+ * satu pun tag di REVENUE_TAGS. Dua di antaranya (BRIS, PNBS) tertolong subtotal syariah
+ * di atas. Sisanya - asuransi dan multifinance - memecah pendapatannya jadi komponen
+ * tanpa satu pun total resmi:
+ *
+ *   ADMF  IncomeFromConsumerFinancing, IncomeFromFinanceLease,
+ *         IncomeFromMurabahahAndIstishna, IncomeFromProvisionsAndCommissions, ...
+ *   ABDA  NetInvestmentIncome, tanpa baris pendapatan premi tunggal
+ *
+ * Menjumlah komponen itu sendiri adalah kesalahan yang SAMA dengan yang menyebabkan
+ * bug identitas neraca: mengandaikan kita tahu seluruh pos yang membentuk totalnya.
+ * Karena itu `revenue` untuk emiten ini tetap null, dan pemanggil melaporkannya sebagai
+ * "data tidak ditemukan" - bukan sebagai angka.
+ */
 
 /** Kisaran jumlah lembar saham yang masuk akal di IDX. Batasnya sengaja SANGAT longgar
  * (emiten terkecil ~1e7, terbesar ~1e12-1e13) - penjaga ini untuk menangkap kesalahan

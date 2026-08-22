@@ -1,0 +1,93 @@
+{
+ "schemaVersion": 1,
+ "ticker": "BRIS",
+ "entityName": "PT Bank Syariah Indonesia (Persero) Tbk",
+ "year": 2026,
+ "period": "TW1",
+ "fileModified": "2026-05-12T21:07:57.323",
+ "fetchedAt": "2026-08-22T11:03:02.885895+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202026/TW1/BRIS/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2026-03-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2026-01-01",
+   "endDate": "2026-03-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-03-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2025-03-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2024-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "460131020000000",
+   "PriorEndYearInstant": "456192606000000"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "110917365000000",
+   "PriorEndYearInstant": "104929242000000"
+  },
+  "idx-cor:TemporarySyirkahFunds": {
+   "CurrentYearInstant": "298444506000000",
+   "PriorEndYearInstant": "299310490000000"
+  },
+  "idx-cor:LiabilitiesTemporarySyirkahFundsAndEquity": {
+   "CurrentYearInstant": "460131020000000",
+   "PriorEndYearInstant": "456192606000000"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "50769149000000",
+   "PriorEndYearInstant": "51952874000000"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "50769149000000",
+   "PriorEndYearInstant": "51952874000000"
+  },
+  "idx-cor:CommonStocks": {
+   "CurrentYearInstant": "23064630000000",
+   "PriorEndYearInstant": "23064630000000"
+  },
+  "idx-cor:TotalInterestAndShariaIncome": {
+   "CurrentYearDuration": "7032378000000",
+   "PriorYearDuration": "6728340000000"
+  },
+  "idx-cor:SubtotalShariaIncome": {
+   "CurrentYearDuration": "7032378000000",
+   "PriorYearDuration": "6728340000000"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "2830432000000",
+   "PriorYearDuration": "2423940000000"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "2200099000000",
+   "PriorYearDuration": "1878797000000"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "2200099000000",
+   "PriorYearDuration": "1878797000000"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "47.69",
+   "PriorYearDuration": "40.73"
+  }
+ },
+ "dimensionalContextCount": 1866,
+ "dimensionalFactsSkipped": 1027,
+ "unexpectedPlainContexts": []
+}
