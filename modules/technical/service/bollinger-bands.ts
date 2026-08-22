@@ -15,9 +15,21 @@ export interface BollingerBandsResult {
   lower: number;
   /** (upper - lower) / middle x 100 - lebar band relatif, indikasi squeeze/ekspansi. */
   bandwidthPct: number;
-  /** Posisi harga di dalam band: 0 = tepat di lower band, 1 = tepat di upper band, bisa
-   * di luar [0,1] kalau harga tembus band. */
-  percentB: number;
+  /**
+   * Posisi harga di dalam band: 0 = tepat di lower band, 1 = tepat di upper band, bisa
+   * di luar [0,1] kalau harga tembus band.
+   *
+   * `null` kalau lebar band NOL (seluruh harga di jendela identik, stddev = 0) - posisi
+   * relatif di dalam band yang tidak punya lebar adalah pembagian nol, tidak terdefinisi.
+   * FAIL-CLOSED, bukan 0,5: versi pertama file ini (2026-08-22) memakai 0,5 ("titik
+   * tengah"), yang tidak bisa dibedakan dari harga yang memang benar-benar di tengah
+   * band - cacat yang sama dengan temuan C-7 (`rsi: 50` untuk data yang tidak tersedia).
+   *
+   * Catatan: `middle`/`upper`/`lower`/`bandwidthPct` TETAP terdefinisi pada kasus ini
+   * (ketiganya sama dengan mean, lebar 0) - itu hasil pengukuran nyata, bukan karangan,
+   * jadi tidak ikut di-null-kan.
+   */
+  percentB: number | null;
 }
 
 function populationStdDev(values: number[]): number {
@@ -49,6 +61,6 @@ export function calculateBollingerBands(
     upper,
     lower,
     bandwidthPct: (range / middle) * 100,
-    percentB: range > 0 ? (currentPrice - lower) / range : 0.5,
+    percentB: range > 0 ? (currentPrice - lower) / range : null,
   };
 }

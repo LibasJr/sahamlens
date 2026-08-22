@@ -27,17 +27,25 @@ function sma(values: number[]): number {
   return values.reduce((sum, v) => sum + v, 0) / values.length;
 }
 
-/** %K mentah per bar, mulai dari index `period - 1`. Range datar (HH=LL, mis. saham
- * yang benar-benar tidak bertransaksi) didefinisikan 50 (titik tengah), bukan NaN dari
- * pembagian nol. */
-function rawKSeries(bars: StochasticBar[], period: number): number[] {
-  const out: number[] = [];
+/**
+ * %K mentah per bar, mulai dari index `period - 1`. `null` kalau range jendela DATAR
+ * (HH = LL, mis. saham yang benar-benar tidak bertransaksi sepanjang jendela).
+ *
+ * FAIL-CLOSED, BUKAN 50. Versi pertama file ini (2026-08-22) mengembalikan 50 - "titik
+ * tengah" - untuk kasus ini. Itu persis temuan C-7 yang sudah pernah diperbaiki di
+ * scoring.service.ts: `rsi: 50` dikirim saat RSI tidak tersedia, lalu 50 jatuh tepat di
+ * pita "zona BUY ideal" - ketiadaan data DIHADIAHI skor. %K = 50 punya cacat yang sama:
+ * ia bukan hasil pengukuran, ia angka karangan yang tidak bisa dibedakan dari saham yang
+ * benar-benar berada di tengah range-nya.
+ */
+function rawKSeries(bars: StochasticBar[], period: number): Array<number | null> {
+  const out: Array<number | null> = [];
   for (let i = period - 1; i < bars.length; i++) {
     const window = bars.slice(i - period + 1, i + 1);
     const highest = Math.max(...window.map((b) => b.high));
     const lowest = Math.min(...window.map((b) => b.low));
     const range = highest - lowest;
-    out.push(range > 0 ? ((bars[i]!.close - lowest) / range) * 100 : 50);
+    out.push(range > 0 ? ((bars[i]!.close - lowest) / range) * 100 : null);
   }
   return out;
 }
@@ -57,14 +65,21 @@ export function calculateStochastic(
   const rawK = rawKSeries(bars, period);
   if (rawK.length < smoothK + periodD - 1) return null;
 
-  const slowK: number[] = [];
+  // Null menular lewat kedua lapis smoothing: satu %K mentah yang tidak terdefinisi
+  // membuat SMA yang memuatnya ikut tidak terdefinisi. Menghitungnya dengan membuang
+  // yang null diam-diam akan menghasilkan rata-rata atas jendela yang lebih pendek dari
+  // yang dijanjikan namanya - itu bukan Stochastic (14,3,3) lagi.
+  const slowK: Array<number | null> = [];
   for (let i = smoothK - 1; i < rawK.length; i++) {
-    slowK.push(sma(rawK.slice(i - smoothK + 1, i + 1)));
+    const window = rawK.slice(i - smoothK + 1, i + 1);
+    slowK.push(window.every((v): v is number => v != null) ? sma(window) : null);
   }
   if (slowK.length < periodD) return null;
 
-  const k = slowK[slowK.length - 1]!;
-  const d = sma(slowK.slice(-periodD));
+  const k = slowK[slowK.length - 1];
+  const dWindow = slowK.slice(-periodD);
+  if (k == null || !dWindow.every((v): v is number => v != null)) return null;
+  const d = sma(dWindow);
   if (!Number.isFinite(k) || !Number.isFinite(d)) return null;
   return { k, d };
 }
