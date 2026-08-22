@@ -71,6 +71,16 @@ export interface IdxFinancialFigures {
   temporarySyirkahFunds: number | null;
   equity: number | null;
   equityAttributableToParent: number | null;
+  /** Pos LANCAR - dasar current ratio. `null` untuk emiten yang neracanya memang tidak
+   * diklasifikasikan lancar/tidak lancar, dan itu BUKAN kekurangan data: bank menyusun
+   * neraca menurut likuiditas. Terukur TW1 2026: AALI & TLKM melaporkan keduanya, BBCA
+   * tidak melaporkan satu pun tag lancar/tidak lancar. */
+  currentAssets: number | null;
+  currentLiabilities: number | null;
+  /** Hanya dipakai untuk MEMVALIDASI pos lancar di atas (lancar + tidak lancar = total),
+   * tidak masuk rasio mana pun. */
+  nonCurrentAssets: number | null;
+  nonCurrentLiabilities: number | null;
   revenue: number | null;
   profitLoss: number | null;
   profitLossAttributableToParent: number | null;
@@ -84,6 +94,21 @@ export interface IdxBalanceSheetCheck {
   difference: number | null;
   /** null = tidak bisa diperiksa (ada komponen yang hilang), bukan "lolos". */
   balanced: boolean | null;
+}
+
+/** Hasil pemeriksaan satu sisi neraca: lancar + tidak lancar harus sama dengan totalnya. */
+export interface IdxCurrentClassificationSide {
+  total: number | null;
+  componentsSum: number | null;
+  difference: number | null;
+  /** `null` = emiten tidak mengklasifikasikan sisi ini (wajar untuk bank), jadi tidak
+   * bisa diperiksa - bukan gagal periksa. */
+  balanced: boolean | null;
+}
+
+export interface IdxCurrentClassificationCheck {
+  assets: IdxCurrentClassificationSide;
+  liabilities: IdxCurrentClassificationSide;
 }
 
 export interface IdxEpsCheck {
@@ -110,6 +135,7 @@ export interface IdxFinancialReport {
   prior: IdxFinancialFigures;
   integrity: {
     balanceSheet: IdxBalanceSheetCheck;
+    currentClassification: IdxCurrentClassificationCheck;
     eps: IdxEpsCheck;
     /** Field yang di-null-kan oleh validasi, beserta alasannya. Dilaporkan supaya
      * "tidak ada angka" tidak pernah tertukar dengan "angkanya nol". */
@@ -188,6 +214,10 @@ function readFigures(artifact: IdxXbrlArtifact, instantCtx: string, durationCtx:
     temporarySyirkahFunds: factValue(artifact, 'TemporarySyirkahFunds', instantCtx),
     equity: factValue(artifact, 'Equity', instantCtx),
     equityAttributableToParent: factValue(artifact, 'EquityAttributableToEquityOwnersOfParentEntity', instantCtx),
+    currentAssets: factValue(artifact, 'CurrentAssets', instantCtx),
+    currentLiabilities: factValue(artifact, 'CurrentLiabilities', instantCtx),
+    nonCurrentAssets: factValue(artifact, 'NonCurrentAssets', instantCtx),
+    nonCurrentLiabilities: factValue(artifact, 'NonCurrentLiabilities', instantCtx),
     revenue: firstFactValue(artifact, REVENUE_TAGS, durationCtx),
     profitLoss: factValue(artifact, 'ProfitLoss', durationCtx),
     profitLossAttributableToParent: factValue(artifact, 'ProfitLossAttributableToParentEntity', durationCtx),
@@ -218,6 +248,35 @@ function checkBalanceSheet(figures: IdxFinancialFigures): IdxBalanceSheetCheck {
   const difference = assets - componentsSum;
   const tolerance = Math.abs(assets) * BALANCE_TOLERANCE_RATIO;
   return { assets, componentsSum, difference, balanced: Math.abs(difference) <= tolerance };
+}
+
+/**
+ * Lancar + tidak lancar = total, diperiksa terpisah untuk sisi aset dan sisi liabilitas.
+ *
+ * Terverifikasi TW1 2026: AALI dan TLKM keduanya berselisih 0 rupiah di kedua sisi -
+ * termasuk TLKM yang punya aset dimiliki-untuk-dijual, yang ternyata sudah termasuk di
+ * dalam NonCurrentAssets dan bukan pos ketiga di luar identitas.
+ *
+ * BBCA tidak melaporkan satu pun tag lancar/tidak lancar, jadi kedua sisinya
+ * `balanced: null`. Ini alasan gerbangnya ada: current ratio bank TIDAK BOLEH dihitung
+ * dari total aset/liabilitas sebagai pengganti - angkanya akan terlihat wajar dan
+ * sepenuhnya salah arti.
+ */
+function checkSide(total: number | null, current: number | null, nonCurrent: number | null): IdxCurrentClassificationSide {
+  if (!finite(total) || !finite(current) || !finite(nonCurrent)) {
+    return { total: total ?? null, componentsSum: null, difference: null, balanced: null };
+  }
+  const componentsSum = current + nonCurrent;
+  const difference = total - componentsSum;
+  const tolerance = Math.abs(total) * BALANCE_TOLERANCE_RATIO;
+  return { total, componentsSum, difference, balanced: Math.abs(difference) <= tolerance };
+}
+
+function checkCurrentClassification(figures: IdxFinancialFigures): IdxCurrentClassificationCheck {
+  return {
+    assets: checkSide(figures.assets, figures.currentAssets, figures.nonCurrentAssets),
+    liabilities: checkSide(figures.liabilities, figures.currentLiabilities, figures.nonCurrentLiabilities),
+  };
 }
 
 /**
@@ -259,12 +318,31 @@ export function mapIdxFinancialReport(artifact: IdxXbrlArtifact): IdxFinancialRe
   const prior = readFigures(artifact, 'PriorEndYearInstant', 'PriorYearDuration');
 
   const balanceSheet = checkBalanceSheet(current);
+  const currentClassification = checkCurrentClassification(current);
   const eps = checkEps(current);
   const rejected: string[] = [];
 
   if (eps.plausible === false) {
     current.basicEps = null;
     rejected.push(`current.basicEps: ${eps.rejectedReason}`);
+  }
+
+  // Pos lancar yang tidak lolos identitasnya sendiri di-null-kan, sepola dengan EPS:
+  // current ratio dari komponen yang tidak menjumlah ke totalnya bukan angka yang
+  // lebih baik daripada tidak ada angka.
+  if (currentClassification.assets.balanced === false) {
+    current.currentAssets = null;
+    rejected.push(
+      `current.currentAssets: lancar + tidak lancar = ${currentClassification.assets.componentsSum}, `
+      + `total aset ${currentClassification.assets.total} (selisih ${currentClassification.assets.difference}).`,
+    );
+  }
+  if (currentClassification.liabilities.balanced === false) {
+    current.currentLiabilities = null;
+    rejected.push(
+      `current.currentLiabilities: lancar + tidak lancar = ${currentClassification.liabilities.componentsSum}, `
+      + `total liabilitas ${currentClassification.liabilities.total} (selisih ${currentClassification.liabilities.difference}).`,
+    );
   }
 
   return {
@@ -278,7 +356,7 @@ export function mapIdxFinancialReport(artifact: IdxXbrlArtifact): IdxFinancialRe
     priorPeriodEnd: artifact.contexts.PriorEndYearInstant?.instant ?? null,
     current,
     prior,
-    integrity: { balanceSheet, eps, rejected },
+    integrity: { balanceSheet, currentClassification, eps, rejected },
   };
 }
 
