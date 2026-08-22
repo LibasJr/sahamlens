@@ -79,3 +79,7 @@ __pycache__/
 # (~90MB per kuartal). Fixture untuk test disimpan terpisah & sengaja dipangkas di
 # modules/fundamental/service/__tests__/fixtures/.
 data/idx-financial/
+# Isi artikel berita hasil ekstraksi - ANTARA, bukan simpanan permanen.
+# Teks penuh media massa tidak disimpan lebih lama dari yang dibutuhkan untuk
+# menarik faktanya; artefaknya juga bisa dibuat ulang kapan saja dari URL-nya.
+data/news-articles/
