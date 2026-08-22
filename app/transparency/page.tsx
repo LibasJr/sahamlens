@@ -9,20 +9,27 @@ import { Card } from '@/components/ui/Card';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-async function loadReconciliationSummary(): Promise<Array<Record<string, unknown>>> {
+// BUG FIX (2026-08-22): SEBELUMNYA fungsi ini menangkap SEMUA error (termasuk query DB
+// yang gagal total) lalu mengembalikan array kosong - dari sisi pemanggil, itu tidak
+// terbedakan dari "belum pernah ada rekonsiliasi produksi". Halaman ini secara eksplisit
+// berkomitmen "fail-closed, jangan samarkan error jadi kosong" (lihat section "Komitmen
+// Integritas Data" di bawah) - array kosong yang diam-diam menyamarkan kegagalan query
+// justru melanggar komitmen itu sendiri. `failed: true` membuat pemanggil menampilkan
+// pesan yang jujur ("gagal dimuat") alih-alih "belum ada hasil produksi".
+async function loadReconciliationSummary(): Promise<{ runs: Array<Record<string, unknown>>; failed: boolean }> {
   try {
     const { getReconciliationSummary } = await import(
       '@/modules/market-data-integrity/repository/market-data-reconciliation.repository'
     );
-    return await getReconciliationSummary(1);
+    return { runs: await getReconciliationSummary(1), failed: false };
   } catch (error) {
     console.error('[transparency] reconciliation summary unavailable', error);
-    return [];
+    return { runs: [], failed: true };
   }
 }
 
 export default async function TransparencyPage() {
-  const reconciliationRuns = await loadReconciliationSummary();
+  const { runs: reconciliationRuns, failed: reconciliationFailed } = await loadReconciliationSummary();
   const latestRecon = reconciliationRuns[0];
   const compared = Number(latestRecon?.compared_count ?? 0);
   const matched = Number(latestRecon?.match_count ?? 0);
@@ -83,6 +90,8 @@ export default async function TransparencyPage() {
               <div><p className="text-xs text-tv-muted">Cocok persis</p><p className="font-number text-lg font-bold text-tv-green">{matchPct.toFixed(2)}%</p></div>
               <div><p className="text-xs text-tv-muted">Coverage dibandingkan</p><p className="font-number text-lg font-bold">{coveragePct == null ? '-' : `${coveragePct.toFixed(2)}%`}</p></div><div><p className="text-xs text-tv-muted">Mismatch / gap</p><p className="font-number text-lg font-bold text-amber-300">{mismatched} / {gaps}</p></div>
             </div>
+          ) : reconciliationFailed ? (
+            <p className="mt-2 text-sm text-tv-yellow">Data rekonsiliasi sedang gagal dimuat (bukan berarti belum ada hasil) - coba muat ulang halaman ini sesaat lagi.</p>
           ) : (
             <p className="mt-2 text-sm text-tv-muted">Rekonsiliasi lintas sumber belum memiliki hasil produksi. SahamLens tidak mengklaim tingkat kecocokan sebelum bukti tersedia.</p>
           )}

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Input, Button } from '@/components/ui';
+import { Input, Button, Skeleton } from '@/components/ui';
 import { Card } from '@/components/ui/Card';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
@@ -119,6 +119,27 @@ export default function RiskPage() {
             ))}
           </div>
 
+          {/* BUG FIX (2026-08-22): backend menormalisasi ulang bobot saham yang beta-nya
+              GAGAL dihitung dari sisa saham yang berhasil (lihat app/api/risk-analysis/
+              route.ts) - tapi UI ini tidak pernah menampilkan total bobot atau menyebut
+              normalisasi itu, jadi user yang menambah mis. 3 posisi @10% tidak tahu
+              apakah sisa 70% dianggap "kas" atau ada penjelasan lain. */}
+          {portfolio.length > 0 && (() => {
+            const totalWeight = portfolio.reduce((sum, item) => sum + item.weight, 0);
+            const isBalanced = Math.abs(totalWeight - 100) < 0.5;
+            return (
+              <div className="flex items-center justify-between rounded-md bg-tv-bg/60 border border-tv-border px-2.5 py-1.5 text-[11px]">
+                <span className="text-tv-muted">Total bobot diisi</span>
+                <span className={`font-bold font-number ${isBalanced ? 'text-tv-text' : 'text-tv-yellow'}`}>{totalWeight}%</span>
+              </div>
+            );
+          })()}
+          <p className="text-[10px] leading-relaxed text-tv-muted">
+            Bobot tidak wajib berjumlah 100% - kalkulator memakainya sebagai proporsi relatif antar-posisi.
+            Kalau beta salah satu saham gagal dihitung (data tidak tersedia), saham itu dikeluarkan dan bobot sisanya
+            dinormalisasi ulang di antara saham yang berhasil, bukan diperlakukan sebagai kas.
+          </p>
+
           <div className="pt-2 border-t border-tv-border flex items-end gap-2">
             <SymbolAutocomplete
               containerClassName="relative flex-1"
@@ -157,20 +178,24 @@ export default function RiskPage() {
             <div className="p-3 rounded-md bg-tv-red/10 border border-tv-red/30 text-xs text-tv-red">{error}</div>
           )}
 
+          {/* BUG FIX (2026-08-22): sebelumnya tidak ada skeleton di sini sama sekali -
+              hanya tombol yang menunjukkan spinner ("Menghitung..."), sementara kartu
+              metrik ini tetap menampilkan nilai LAMA (atau N/A) tanpa indikasi visual
+              bahwa sedang dihitung ulang. */}
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Drops -5%</div>
-              <div className="text-lg font-bold text-tv-red font-number">{fmtPct(analysis?.scenarios.ihsgDrop5Pct ?? null)}</div>
+              {loading ? <Skeleton className="h-6 w-16 mt-0.5" /> : <div className="text-lg font-bold text-tv-red font-number">{fmtPct(analysis?.scenarios.ihsgDrop5Pct ?? null)}</div>}
               <div className="text-[10px] text-tv-muted mt-1">Beta portofolio x -5%</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Crash -10%</div>
-              <div className="text-lg font-bold text-tv-red font-number">{fmtPct(analysis?.scenarios.ihsgDrop10Pct ?? null)}</div>
+              {loading ? <Skeleton className="h-6 w-16 mt-0.5" /> : <div className="text-lg font-bold text-tv-red font-number">{fmtPct(analysis?.scenarios.ihsgDrop10Pct ?? null)}</div>}
               <div className="text-[10px] text-tv-muted mt-1">Beta portofolio x -10%</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">USD/IDR Melemah 1%</div>
-              <div className="text-lg font-bold text-tv-yellow font-number">{fmtPct(analysis?.scenarios.usdIdrWeaken1Pct ?? null)}</div>
+              {loading ? <Skeleton className="h-6 w-16 mt-0.5" /> : <div className="text-lg font-bold text-tv-yellow font-number">{fmtPct(analysis?.scenarios.usdIdrWeaken1Pct ?? null)}</div>}
               <div className="text-[10px] text-tv-muted mt-1">Beta portofolio vs USDIDR=X</div>
             </div>
           </div>
@@ -185,11 +210,11 @@ export default function RiskPage() {
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs IHSG</div>
-              <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaIhsg ?? 'N/A'}</div>
+              {loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaIhsg ?? 'N/A'}</div>}
             </div>
             <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs USD/IDR</div>
-              <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaUsdIdr ?? 'N/A'}</div>
+              {loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaUsdIdr ?? 'N/A'}</div>}
             </div>
           </div>
 

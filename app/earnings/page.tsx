@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
 import {
   AlertTriangle,
   BarChart3,
@@ -606,10 +607,10 @@ export default function EarningsPage() {
                 </p>
               </div>
             </div>
-            <a href="/calendar" className="inline-flex items-center gap-2 text-sm font-semibold text-tv-blue hover:underline">
+            <Link href="/calendar" className="inline-flex items-center gap-2 text-sm font-semibold text-tv-blue hover:underline">
               <Clock3 className="h-4 w-4" />
               {isEn ? 'Open Corporate Calendar' : 'Buka Corporate Calendar'}
-            </a>
+            </Link>
           </Card>
         </>
       )}
