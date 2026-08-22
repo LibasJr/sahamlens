@@ -11,6 +11,9 @@ import { Card, Button, PageContainer } from '@/components/ui';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 import { AI_PICK_UNIVERSE } from '@/modules/market/constants/ai-pick-universe';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import Link from 'next/link';
+import { Lock } from 'lucide-react';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -85,6 +88,7 @@ function SortableTh({
 }
 
 export default function Recommendations() {
+  const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
@@ -260,6 +264,14 @@ export default function Recommendations() {
     return result.slice(0, 50);
   }, [data, searchTerm, sortConfig]);
 
+  // GEMBOK TAMU (2026-08-23). Pengunjung dapat SATU rekomendasi teratas beserta seluruh
+  // alasannya - cukup untuk menilai apakah analisisnya layak dipercaya - lalu sisanya
+  // dikunci dengan jumlahnya disebutkan. Menyebut angka konkret ("49 saham lainnya")
+  // memancing lebih kuat daripada ajakan masuk tanpa konteks.
+  const lockForGuest = !authResolved || authLoading || !authUser;
+  const visibleData = lockForGuest ? processedData.slice(0, 1) : processedData;
+  const lockedCount = processedData.length - visibleData.length;
+
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <header className="bg-tv-card border-b border-tv-border px-6 py-3 sticky top-0 z-20 shadow-md flex items-center justify-between">
@@ -364,7 +376,7 @@ export default function Recommendations() {
                       </div>
                     </td>
                   </tr>
-                ) : processedData.map((item, idx) => (
+                ) : visibleData.map((item, idx) => (
                   <tr key={item.ticker} className="border-b border-tv-border/50 hover:bg-tv-hover/50 transition-colors">
                     <td className="p-4">
                       <div className="flex items-center gap-2">
@@ -439,6 +451,19 @@ export default function Recommendations() {
                     </td>
                   </tr>
                 ))}
+                {lockedCount > 0 && (
+                  <tr className="border-b border-tv-border/50">
+                    <td colSpan={8} className="p-0">
+                      <Link
+                        href="/login?next=/recommendations"
+                        className="flex items-center justify-center gap-2 px-4 py-6 text-sm font-bold text-tv-blue transition hover:bg-tv-hover"
+                      >
+                        <Lock className="h-4 w-4" />
+                        Masuk untuk melihat {lockedCount} rekomendasi lainnya
+                      </Link>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
