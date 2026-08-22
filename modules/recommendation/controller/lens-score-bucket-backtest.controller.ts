@@ -6,9 +6,11 @@ import { runLensScoreBucketBacktest } from '../service/lens-score-bucket-backtes
 import { logger } from '@/shared/logger/logger';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 
-function cacheKeyFor(scoreVersion: string | null): string {
-  return `sahamlens:cache:computed:lens-score-bucket-backtest:${scoreVersion ?? 'default'}`;
+function cacheKeyFor(scoreVersion: string | null, scoreConfigHash: string | null): string {
+  return `sahamlens:cache:computed:lens-score-bucket-backtest:${scoreVersion ?? 'default'}:${scoreConfigHash ?? 'default'}`;
 }
 
 export async function handleLensScoreBucketBacktest(request: Request): Promise<HttpResult> {
@@ -25,11 +27,13 @@ export async function handleLensScoreBucketBacktest(request: Request): Promise<H
       return { status: 403, body: { error: 'Khusus admin', code: 'ADMIN_REQUIRED' } };
     }
 
-    const scoreVersion = new URL(request.url).searchParams.get('scoreVersion');
+    const searchParams = new URL(request.url).searchParams;
+    const scoreVersion = searchParams.get('scoreVersion')?.trim() || SCORE_VERSION;
+    const scoreConfigHash = searchParams.get('scoreConfigHash')?.trim() || LENS_SCORE_MODEL_METADATA.configHash;
     const result = await getOrCompute(
-      cacheKeyFor(scoreVersion),
+      cacheKeyFor(scoreVersion, scoreConfigHash),
       CACHE_TTL_SEC.LENS_BUCKET_BACKTEST,
-      () => runLensScoreBucketBacktest(undefined, { scoreVersion }),
+      () => runLensScoreBucketBacktest(undefined, { scoreVersion, scoreConfigHash }),
     );
     const cookie = anonTrial ? await buildAnonymousTrialCookie(anonTrial) : null;
     return { status: 200, body: result, cookiesToSet: cookie ? [cookie] : undefined };

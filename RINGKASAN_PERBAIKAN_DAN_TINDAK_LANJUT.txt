@@ -81,9 +81,9 @@ A. PERBAIKAN YANG SUDAH DILAKUKAN
 B. BATASAN YANG PERLU DIPAHAMI
 ----------------------------------------------------------------------
 
-1. Perubahan kode tidak otomatis mengubah server produksi.
-   Commit masih berada di branch lokal "work". Repository pada environment ini
-   belum memiliki Git remote/origin, sehingga belum dapat di-push dari sini.
+1. PR #101 sudah ter-merge ke main, tetapi CI run #732 gagal pada audit adopsi UI.
+   Typecheck, lint, test, dan build pada run itu di-skip, sehingga merge tersebut tidak
+   boleh dianggap siap deploy. Remediasi wajib masuk lewat PR baru dan CI hijau.
 
 2. "Sudah terversi dan dapat diaudit" tidak sama dengan "sudah terbukti profit".
    LensScore baru boleh dinyatakan tervalidasi setelah jumlah sampel forward/OOS
@@ -132,6 +132,7 @@ LANGKAH 4 - Periksa migration tanpa menerapkan
 
   Hasil harus menampilkan migration pending, termasuk:
        011_lens_score_config_identity.sql
+       012_lens_bucket_stats_config_identity.sql
 
   Jika ada checksum migration lama berubah, BERHENTI. Jangan mengedit migration
   historis yang sudah pernah diterapkan.
@@ -236,4 +237,3 @@ F. CATATAN KEAMANAN
 - Jangan menjalankan migration produksi tanpa backup.
 - Jangan menurunkan guard fail-closed hanya untuk membuat dashboard berisi angka.
 - Jangan menyebut LensScore terbukti menghasilkan profit sebelum validasi OOS matang.
-

@@ -473,15 +473,15 @@ export default function CalibrationClient() {
         </Card>
       </div>
 
-      <section className="rounded-xl border border-tv-border bg-tv-card/40 p-4 text-xs">
-        <h2 className="font-bold uppercase tracking-wide text-tv-text">Identitas model tervalidasi</h2>
+      <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-card/40 p-4 text-xs">
+        <h2 className="font-bold uppercase tracking-wide text-tv-text">Identitas model riset yang diuji</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-3">
           <div><div className="text-tv-muted">Versi skor</div><div className="mt-1 font-number text-tv-text">{data.scoreVersion || data.requestedScoreVersion}</div></div>
           <div><div className="text-tv-muted">Hash konfigurasi</div><div className="mt-1 break-all font-mono text-[11px] text-tv-text">{data.scoreConfigHash}</div></div>
           <div><div className="text-tv-muted">Histori ditolak</div><div className="mt-1 font-number text-tv-text">{data.rejectedRows.toLocaleString('id-ID')} baris ({data.configRejectedRows.toLocaleString('id-ID')} beda konfigurasi)</div></div>
         </div>
         {data.versionRejectedReason && <p className="mt-3 leading-relaxed text-tv-yellow">{data.versionRejectedReason}</p>}
-      </section>
+      </Card>
 
       <section className={`rounded-xl border p-4 ${
         data.fundamentalPitCoverage.status === 'FULL_FUNDAMENTAL_COVERAGE'

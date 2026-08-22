@@ -50,7 +50,9 @@ async function jalankan() {
       return {
         asOfDate: stats.asOfDate,
         scoreVersion: stats.scoreVersion,
+        scoreConfigHash: stats.scoreConfigHash,
         requestedScoreVersion: stats.requestedScoreVersion,
+        configRejectedRows: stats.configRejectedRows,
         rejectedRows: stats.rejectedRows,
         unversionedRows: stats.unversionedRows,
         savedRows: stats.savedRows,

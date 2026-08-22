@@ -1,6 +1,7 @@
 import { pool } from '../../../shared/database/postgres.client';
 import { logger } from '../../../shared/logger/logger';
 import { SCORE_VERSION, partitionByScoreVersion } from '../../lens-radar/constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '../../technical/config/lens-score-model';
 import { RETURN_PRICE_BASIS, type PriceBasis } from '../../../shared/market/price-basis';
 import {
   countValidationPopulationRejection,
@@ -23,6 +24,7 @@ export interface LensRadarHistoryRow {
   lens_score: number | string;
   close_price: number | string;
   score_version?: string | null;
+  score_config_hash?: string | null;
   universe_version?: string | null;
   adjusted_close_price?: number | string | null;
   raw_close_price?: number | string | null;
@@ -61,6 +63,8 @@ export interface LensScoreBucketBacktestResult {
   ready: boolean;
   scoreVersion: string | null;
   requestedScoreVersion: string;
+  scoreConfigHash: string;
+  configRejectedRows: number;
   rejectedRows: number;
   unversionedRows: number;
   versionMixed: boolean;
@@ -210,10 +214,15 @@ function welchTTest(
 
 export function computeLensScoreBucketBacktest(
   rows: LensRadarHistoryRow[],
-  options: { scoreVersion?: string | null } = {}
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null } = {}
 ): LensScoreBucketBacktestResult {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
-  const partition = partitionByScoreVersion(Array.isArray(rows) ? rows : [], requestedScoreVersion);
+  const requestedConfigHash = options.scoreConfigHash?.trim() || LENS_SCORE_MODEL_METADATA.configHash;
+  const partition = partitionByScoreVersion(
+    Array.isArray(rows) ? rows : [],
+    requestedScoreVersion,
+    requestedConfigHash,
+  );
   // Gerbang populasi yang SAMA dengan produksi, bucket backtest, dan calibration lab
   // (temuan H-01). Endpoint ini publik, jadi tanpa gerbang ini ia menerbitkan angka
   // bucket dari sinyal yang aplikasinya sendiri tidak akan pernah rekomendasikan.
@@ -292,6 +301,8 @@ export function computeLensScoreBucketBacktest(
     ready,
     scoreVersion: partition.version,
     requestedScoreVersion,
+    scoreConfigHash: partition.configHash ?? requestedConfigHash,
+    configRejectedRows: partition.configRejectedCount,
     rejectedRows: partition.rejected.length,
     unversionedRows: partition.unversionedCount,
     versionMixed: partition.mixed,
@@ -314,12 +325,12 @@ export function computeLensScoreBucketBacktest(
 
 export async function runLensScoreBucketBacktest(
   db: Queryable = pool,
-  options: { scoreVersion?: string | null } = {}
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null } = {}
 ): Promise<LensScoreBucketBacktestResult> {
   try {
     const { rows } = await db.query(
       `
-      SELECT "date", ticker, lens_score, close_price, score_version, universe_version,
+      SELECT "date", ticker, lens_score, close_price, score_version, score_config_hash, universe_version,
              raw_close_price, adjusted_close_price, price_basis,
              coverage_pct, eligibility_status, universe_eligible
       FROM lens_radar_history

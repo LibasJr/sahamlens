@@ -6,6 +6,7 @@ import {
 } from '../lens-score-bucket-backtest.service';
 import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 import { SCORE_VERSION } from '@/modules/lens-radar/constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 
 function row(date: string, ticker: string, score: number, close: number): LensRadarHistoryRow {
   return {
@@ -17,6 +18,7 @@ function row(date: string, ticker: string, score: number, close: number): LensRa
     adjusted_close_price: close,
     price_basis: RETURN_PRICE_BASIS,
     score_version: SCORE_VERSION,
+    score_config_hash: LENS_SCORE_MODEL_METADATA.configHash,
     coverage_pct: 100,
     eligibility_status: 'ELIGIBLE',
     universe_eligible: true,
@@ -92,16 +94,33 @@ describe('computeLensScoreBucketBacktest', () => {
     const rows: LensRadarHistoryRow[] = [];
     for (let i = 0; i < 7; i++) {
       rows.push({ ...row(dateFromStart(i), 'NEW.JK', 85, 100 * 1.1 ** i), score_version: SCORE_VERSION });
-      rows.push({ ...row(dateFromStart(i), 'OLD.JK', 85, 100 * 0.9 ** i), score_version: 'lens-score-v1.2.0' });
+      rows.push({ ...row(dateFromStart(i), 'OLD.JK', 85, 100 * 0.9 ** i), score_version: 'lens-score-v1.2.0', score_config_hash: 'legacy-v1.2-hash' });
       rows.push({ ...row(dateFromStart(i), 'LEGACY.JK', 85, 100), score_version: null });
     }
 
-    const result = computeLensScoreBucketBacktest(rows, { scoreVersion: 'lens-score-v1.2.0' });
+    const result = computeLensScoreBucketBacktest(rows, {
+      scoreVersion: 'lens-score-v1.2.0',
+      scoreConfigHash: 'legacy-v1.2-hash',
+    });
 
     expect(result.scoreVersion).toBe('lens-score-v1.2.0');
     expect(result.rejectedRows).toBe(14);
     expect(result.rowsRead).toBe(7);
     expect(result.buckets.find((b) => b.bucket === '80-100')?.horizons.t1.avgReturnPct).toBeLessThan(0);
+  });
+
+  it('FAIL-CLOSED: menolak versi sama dengan hash konfigurasi berbeda atau kosong', () => {
+    const valid = row('2026-01-01', 'VALID.JK', 85, 100);
+    const result = computeLensScoreBucketBacktest([
+      valid,
+      { ...valid, ticker: 'MIXED.JK', score_config_hash: 'different-config' },
+      { ...valid, ticker: 'UNHASHED.JK', score_config_hash: null },
+    ]);
+
+    expect(result.rowsRead).toBe(1);
+    expect(result.rejectedRows).toBe(2);
+    expect(result.configRejectedRows).toBe(2);
+    expect(result.scoreConfigHash).toBe(LENS_SCORE_MODEL_METADATA.configHash);
   });
 
   it('baris legacy tanpa price_basis tidak masuk validasi baru', () => {
