@@ -11,6 +11,7 @@ import { getPaymentMethods } from '@/shared/config/payment';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
 import { Card } from '@/components/ui/Card';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
+import { PRO_UI_ENABLED } from '@/shared/constants/access';
 
 
 function createPaymentReference(): string {
@@ -141,6 +142,16 @@ export default function PaywallModal({
   }, [open, isUpgradeFlow, selectedPlanId]);
 
   useModalBehavior({ open, onClose, containerRef: modalRef });
+
+  // GERBANG TERPUSAT (keputusan produk 2026-08-23). Fitur Pro belum ada, jadi modal
+  // pembelian ini tidak boleh muncul dari jalur mana pun - dan ada 22 pemanggilnya di
+  // 12 berkas. Menggerbangnya di sini, bukan di tiap pemanggil, membuat satu perubahan
+  // menutup seluruhnya sekaligus dan tidak ada pemanggil baru yang bisa lolos.
+  //
+  // Ditaruh SETELAH seluruh hook: `return null` di awal komponen membuat useState/
+  // useEffect/useModalBehavior di atasnya terpanggil bersyarat dan melanggar
+  // rules-of-hooks.
+  if (!PRO_UI_ENABLED) return null;
 
   return (
     <AnimatePresence>

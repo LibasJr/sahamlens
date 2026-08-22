@@ -42,6 +42,7 @@ import HomeCalendarWatchlist from '@/components/home/HomeCalendarWatchlist';
 import HomeUpgradePrompt from '@/components/home/HomeUpgradePrompt';
 import HomeBrandHero from '@/components/home/HomeBrandHero';
 import HomeTodayBrief from '@/components/home/HomeTodayBrief';
+import { PRO_UI_ENABLED } from '@/shared/constants/access';
 
 
 // Jeda antar insight LensConsensus (permintaan user 2026-08-06: 50 detik SEBELUMNYA
@@ -79,12 +80,12 @@ export default function HomeWorkspace() {
     marketError,
     loadingMarket,
     loadingDailyPicks,
-    picksNeedPro,
+    picksNeedPro: rawPicksNeedPro,
     picksLoginRequired,
     aiBriefing,
     newsInsights,
     marketPulse,
-    marketPulseNeedPro,
+    marketPulseNeedPro: rawMarketPulseNeedPro,
     marketPulseLoginRequired,
     marketPulseError,
     loadingMarketPulse,
@@ -94,6 +95,17 @@ export default function HomeWorkspace() {
     fetchRadar,
     topPick,
   } = useHomeWorkspaceData(language);
+
+  // Fitur Pro belum ada (keputusan produk 2026-08-23), jadi keadaan "butuh Pro" tidak
+  // boleh pernah dirender - ia menawarkan tingkat berbayar yang tidak bisa dibeli siapa
+  // pun. Digerbang DI SUMBERNYA, bukan di tiap tempat pakai: kedua nilai ini dipakai di
+  // tiga cabang render sekaligus diteruskan sebagai prop ke komponen anak, jadi
+  // menambalnya satu per satu meninggalkan celah.
+  //
+  // Keadaan "butuh LOGIN" sengaja TIDAK disentuh - itu gembok tamu yang justru harus
+  // tetap ada supaya pengunjung mendaftar.
+  const picksNeedPro = PRO_UI_ENABLED && rawPicksNeedPro;
+  const marketPulseNeedPro = PRO_UI_ENABLED && rawMarketPulseNeedPro;
 
   const [moversTab, setMoversTab] = useState<'gainer' | 'loser' | 'volume' | 'technicalBearish' | 'rsiOversold'>('gainer');
   const [insightIndex, setInsightIndex] = useState(0);

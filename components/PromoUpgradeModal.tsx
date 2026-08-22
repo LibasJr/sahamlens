@@ -2,6 +2,7 @@
 
 import React, { useRef } from 'react';
 import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
+import { PRO_UI_ENABLED } from '@/shared/constants/access';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, Check, Crown } from 'lucide-react';
 import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from '@/shared/config/pricing';
@@ -36,6 +37,10 @@ export default function PromoUpgradeModal({
   const modalRef = useRef<HTMLDivElement>(null);
 
   useModalBehavior({ open, onClose, containerRef: modalRef });
+
+  // Gerbang terpusat, sepasang dengan PaywallModal. Ditaruh setelah hook - lihat catatan
+  // rules-of-hooks di sana.
+  if (!PRO_UI_ENABLED) return null;
 
   return (
     <AnimatePresence>
