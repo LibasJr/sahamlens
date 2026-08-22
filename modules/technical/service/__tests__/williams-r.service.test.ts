@@ -48,9 +48,10 @@ describe('calculateWilliamsR - sifat matematis & guard', () => {
     expect(value).toBeLessThanOrEqual(0);
   });
 
-  it('range High=Low sepanjang window -> -50 (titik tengah), bukan NaN', () => {
+  // FAIL-CLOSED, bukan -50 (lihat catatan C-7 di williams-r.ts).
+  it('range High=Low sepanjang window -> null, BUKAN -50', () => {
     const flat: WilliamsRBar[] = Array.from({ length: WILLIAMS_R_PERIOD }, () => ({ high: 1000, low: 1000, close: 1000 }));
-    expect(calculateWilliamsR(flat)).toBe(-50);
+    expect(calculateWilliamsR(flat)).toBeNull();
   });
 
   it('bar kurang dari period -> null', () => {

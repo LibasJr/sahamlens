@@ -27,12 +27,17 @@ describe('calculateBollingerBands - GOLDEN (nilai acuan dari implementasi indepe
 });
 
 describe('calculateBollingerBands - standar deviasi POPULASI, bukan sampel', () => {
-  it('deret konstan -> stddev = 0 -> upper = middle = lower', () => {
+  it('deret konstan -> stddev = 0 -> upper = middle = lower, dan %B null (BUKAN 0,5)', () => {
     const flat = Array.from({ length: BOLLINGER_PERIOD }, () => 1000);
     const result = calculateBollingerBands(flat, 1000);
     expect(result!.upper).toBeCloseTo(1000, 8);
     expect(result!.lower).toBeCloseTo(1000, 8);
+    // bandwidthPct = 0 adalah PENGUKURAN NYATA (lebarnya memang nol) - tetap dilaporkan.
     expect(result!.bandwidthPct).toBeCloseTo(0, 8);
+    // %B = posisi relatif di dalam band yang tidak punya lebar -> pembagian nol, tidak
+    // terdefinisi. FAIL-CLOSED, bukan 0,5 ("titik tengah") yang tidak bisa dibedakan
+    // dari harga yang memang benar-benar di tengah band (kelas temuan C-7).
+    expect(result!.percentB).toBeNull();
   });
 
   it('dua nilai bergantian (mudah dihitung tangan): mean=15, populasi stddev=5, bukan sampel stddev=~5.29', () => {

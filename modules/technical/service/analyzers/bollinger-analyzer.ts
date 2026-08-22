@@ -19,30 +19,44 @@ export function analyze(history: any[], currentPrice: number) {
   const bb = calculateBollingerBands(closes as number[], currentPrice);
   if (!bb) return empty;
 
+  // Lebar band nol (seluruh harga jendela identik) -> %B tidak terdefinisi, jadi tidak
+  // ada posisi relatif yang bisa dinilai. Bandnya sendiri tetap dilaporkan apa adanya;
+  // yang tidak dilakukan adalah MENYIMPULKAN arah dari angka yang tidak ada.
+  if (bb.percentB == null) {
+    return {
+      label: 'Bollinger Bands (20,2)',
+      value: `Upper: ${bb.upper.toFixed(0)}, Middle: ${bb.middle.toFixed(0)}, Lower: ${bb.lower.toFixed(0)} (%B: N/A - lebar band nol)`,
+      decision: 'NEUTRAL',
+      confidence: 0,
+      raw: { middle: bb.middle, upper: bb.upper, lower: bb.lower, percentB: null },
+    };
+  }
+
+  const percentB = bb.percentB;
   let decision = 'NEUTRAL';
   let confidence = 50;
 
   // Sentuh/lewat upper band -> rawan pullback (BEARISH); sentuh/lewat lower band -> area
   // jenuh jual (BULLISH). Konsisten dengan interpretasi Bollinger Band baku (John
   // Bollinger) dan dengan Bollinger Agent lama di lib/miniCouncil.ts.
-  if (bb.percentB >= 1) {
+  if (percentB >= 1) {
     decision = 'BEARISH';
-    confidence = Math.round(Math.min(95, 70 + (bb.percentB - 1) * 50));
-  } else if (bb.percentB <= 0) {
+    confidence = Math.round(Math.min(95, 70 + (percentB - 1) * 50));
+  } else if (percentB <= 0) {
     decision = 'BULLISH';
-    confidence = Math.round(Math.min(95, 70 + (0 - bb.percentB) * 50));
+    confidence = Math.round(Math.min(95, 70 + (0 - percentB) * 50));
   } else {
     // Di dalam band: makin dekat ke salah satu sisi, makin condong ke arah itu.
-    const distanceFromMid = Math.abs(bb.percentB - 0.5) * 2; // 0 (tengah) .. 1 (di tepi band)
+    const distanceFromMid = Math.abs(percentB - 0.5) * 2; // 0 (tengah) .. 1 (di tepi band)
     confidence = Math.round(50 + distanceFromMid * 20);
-    decision = bb.percentB > 0.5 ? 'BEARISH' : bb.percentB < 0.5 ? 'BULLISH' : 'NEUTRAL';
+    decision = percentB > 0.5 ? 'BEARISH' : percentB < 0.5 ? 'BULLISH' : 'NEUTRAL';
   }
 
   return {
     label: 'Bollinger Bands (20,2)',
-    value: `Upper: ${bb.upper.toFixed(0)}, Middle: ${bb.middle.toFixed(0)}, Lower: ${bb.lower.toFixed(0)} (%B: ${bb.percentB.toFixed(2)})`,
+    value: `Upper: ${bb.upper.toFixed(0)}, Middle: ${bb.middle.toFixed(0)}, Lower: ${bb.lower.toFixed(0)} (%B: ${percentB.toFixed(2)})`,
     decision,
     confidence,
-    raw: { middle: bb.middle, upper: bb.upper, lower: bb.lower, percentB: bb.percentB },
+    raw: { middle: bb.middle, upper: bb.upper, lower: bb.lower, percentB },
   };
 }

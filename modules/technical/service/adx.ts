@@ -45,9 +45,16 @@ export function calculateAdx(bars: TrueRangeBar[], period = ADX_PERIOD): AdxResu
   for (let i = 1; i < bars.length; i++) {
     const upMove = bars[i]!.high - bars[i - 1]!.high;
     const downMove = bars[i - 1]!.low - bars[i]!.low;
+    // FAIL-CLOSED. Versi pertama file ini (2026-08-22) menulis `trueRangeAt(...) ?? 0`.
+    // TR bernilai null berarti barnya CACAT (high/low/close bukan angka terhingga) -
+    // bukan berarti rentangnya nol. Menyulapnya jadi 0 membuat smoothing Wilder
+    // meneruskan angka karangan itu ke SELURUH bar sesudahnya, dan hasil ADX-nya tetap
+    // tampil seolah-olah hasil pengukuran. Deret yang cacat tidak menghasilkan ADX.
+    const tr = trueRangeAt(bars, i);
+    if (tr == null || !Number.isFinite(upMove) || !Number.isFinite(downMove)) return null;
     plusDmArr.push(upMove > downMove && upMove > 0 ? upMove : 0);
     minusDmArr.push(downMove > upMove && downMove > 0 ? downMove : 0);
-    trArr.push(trueRangeAt(bars, i) ?? 0);
+    trArr.push(tr);
   }
   if (trArr.length < period) return null;
 
@@ -55,25 +62,37 @@ export function calculateAdx(bars: TrueRangeBar[], period = ADX_PERIOD): AdxResu
   let smoothedPlusDM = plusDmArr.slice(0, period).reduce((sum, v) => sum + v, 0);
   let smoothedMinusDM = minusDmArr.slice(0, period).reduce((sum, v) => sum + v, 0);
 
-  function diAt(trSum: number, plusDmSum: number, minusDmSum: number): { plusDi: number; minusDi: number; dx: number } {
-    if (trSum <= 0) return { plusDi: 0, minusDi: 0, dx: 0 };
+  // FAIL-CLOSED di kedua cabang. Versi pertama file ini (2026-08-22) mengembalikan
+  // {plusDi: 0, minusDi: 0, dx: 0} saat trSum <= 0, dan dx = 0 saat +DI + -DI = 0.
+  // Keduanya adalah pembagian nol - besarannya TIDAK TERDEFINISI, bukan nol. Angka nol
+  // di sini tidak bisa dibedakan dari hasil pengukuran "benar-benar tidak ada gerakan
+  // berarah", dan itu tepat yang dilarang temuan C-7.
+  function diAt(trSum: number, plusDmSum: number, minusDmSum: number): { plusDi: number; minusDi: number; dx: number } | null {
+    if (!(trSum > 0)) return null;
     const plusDi = (100 * plusDmSum) / trSum;
     const minusDi = (100 * minusDmSum) / trSum;
     const total = plusDi + minusDi;
-    const dx = total > 0 ? (100 * Math.abs(plusDi - minusDi)) / total : 0;
+    if (!(total > 0)) return null;
+    const dx = (100 * Math.abs(plusDi - minusDi)) / total;
     return { plusDi, minusDi, dx };
   }
 
   const dxSeries: number[] = [];
   let lastDi = diAt(smoothedTR, smoothedPlusDM, smoothedMinusDM);
+  if (lastDi == null) return null;
   dxSeries.push(lastDi.dx);
 
   for (let j = period; j < trArr.length; j++) {
     smoothedTR = smoothedTR - smoothedTR / period + trArr[j]!;
     smoothedPlusDM = smoothedPlusDM - smoothedPlusDM / period + plusDmArr[j]!;
     smoothedMinusDM = smoothedMinusDM - smoothedMinusDM / period + minusDmArr[j]!;
-    lastDi = diAt(smoothedTR, smoothedPlusDM, smoothedMinusDM);
-    dxSeries.push(lastDi.dx);
+    const di = diAt(smoothedTR, smoothedPlusDM, smoothedMinusDM);
+    // Satu titik yang tidak terdefinisi merusak seluruh rantai smoothing sesudahnya -
+    // ADX di-seed dari rata-rata `period` DX pertama, jadi tidak ada cara jujur
+    // "melewati" satu nilai tanpa mengubah arti angkanya.
+    if (di == null) return null;
+    lastDi = di;
+    dxSeries.push(di.dx);
   }
 
   if (dxSeries.length < period) return null;
