@@ -46,6 +46,16 @@ function normalizeDatabaseUrl(raw) {
   );
 }
 
+function resolveDatabaseSsl(databaseUrl) {
+  const databaseHost = new URL(databaseUrl).hostname;
+  const isLoopbackDatabase =
+    databaseHost === '127.0.0.1' ||
+    databaseHost === 'localhost' ||
+    databaseHost === '::1';
+
+  return isLoopbackDatabase ? false : { rejectUnauthorized: true };
+}
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -181,9 +191,12 @@ async function main() {
   }
 
   const { Client } = await import('pg');
+  const databaseUrl = normalizeDatabaseUrl(process.env.DATABASE_URL);
   const client = new Client({
-    connectionString: normalizeDatabaseUrl(process.env.DATABASE_URL),
-    ssl: { rejectUnauthorized: true },
+    connectionString: databaseUrl,
+    // PostgreSQL VPS terikat ke loopback dan tidak menyediakan TLS. Database
+    // remote tetap memakai validasi sertifikat dan hostname secara ketat.
+    ssl: resolveDatabaseSsl(databaseUrl),
     connectionTimeoutMillis: 15_000,
   });
 
