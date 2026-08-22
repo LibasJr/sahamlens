@@ -21,6 +21,7 @@ import {
   type RadarColumnKey,
 } from './radar-model';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 // Halaman ini dulu punya 8 tab (Breakout, Rekomendasi, Menarik, Undervalue, Berisiko,
 // Golden Cross, Dead Cross, Akumulasi Asing). Audit 2026-08-03 menemukan tab-tab itu
@@ -179,6 +180,15 @@ export default function AiPickPage() {
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental - sebelumnya
             1200px membuat sisi kiri-kanan penuh ruang kosong menganggur di layar lebar. */}
         <PageContainer className="p-4 md:p-6 lg:p-7">
+        <MenuUsageGuide
+          menuKey="breakout-radar"
+          whatItAnswers="Saham mana yang baru saja menembus level pentingnya hari ini?"
+          steps={[
+            "Daftar di bawah adalah hasil pemindaian sesi terakhir, bukan rekomendasi beli.",
+            "Periksa alasan tiap kandidat sebelum menindaklanjuti.",
+            "Klik satu saham untuk membuka analisis teknikal lengkapnya.",
+          ]}
+        />
           <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border">
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
               <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">

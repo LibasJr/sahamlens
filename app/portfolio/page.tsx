@@ -17,6 +17,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { fadeUp } from '@/lib/motion';
 import { getDecisionPresentation } from '@/modules/eligibility';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 const formatIDR = (n: number | null | undefined) => n == null || !Number.isFinite(n) ? 'N/A' : 'Rp ' + Math.round(n).toLocaleString('id-ID');
 
@@ -372,6 +373,15 @@ export default function PortfolioPage() {
           kanan) - sebelumnya max-w-4xl (896px) satu kolom menyisakan ruang kosong besar
           di kanan-kiri pada layar lebar. */}
       <PageContainer className="mt-4 px-4 lg:px-6">
+        <MenuUsageGuide
+          menuKey="portfolio"
+          whatItAnswers="Bagaimana rasanya menjalankan strategi ini tanpa mempertaruhkan uang sungguhan?"
+          steps={[
+            "Ini akun latihan - seluruh transaksinya simulasi, bukan uang nyata.",
+            "Catat beli dan jual seperti biasa; posisi dan hasilnya dihitung otomatis.",
+            "Komposisinya bisa langsung diimpor ke Risk Matrix untuk diuji ketahanannya.",
+          ]}
+        />
         <div className="grid grid-cols-1 lg:grid-cols-[380px_1fr] gap-6 items-start">
         <div className="space-y-4 lg:sticky lg:top-[73px]">
         {/* Hero Equity Card */}

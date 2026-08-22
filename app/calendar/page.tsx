@@ -14,6 +14,7 @@ import PaywallModal from '@/components/PaywallModal';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { Card, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 const TYPE_LABEL: Record<EventType, string> = {
   DIVIDEND: 'Dividen',
@@ -225,6 +226,15 @@ export default function CalendarPage() {
       </header>
 
       <PageContainer className="p-4 md:p-6 lg:p-7">
+        <MenuUsageGuide
+          menuKey="calendar"
+          whatItAnswers="Aksi korporasi apa yang akan datang di saham yang Anda pantau?"
+          steps={[
+            "Kalender memuat jadwal dividen, RUPS, dan laporan laba.",
+            "Perhatikan tanggal cum dividen - membeli setelah tanggal itu tidak mendapat dividennya.",
+            "Saring menurut jenis aksi korporasi kalau daftarnya terlalu ramai.",
+          ]}
+        />
         {error && (
           <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-red/30 mb-6">
             {/* Sebelumnya cuma satu baris teks merah tanpa tombol apa pun. */}

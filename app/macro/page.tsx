@@ -31,6 +31,7 @@ import type {
 } from '@/modules/macro/service/public-macro-dashboard.service';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 export default function MacroPage() {
   const { t, language } = useLanguage();
@@ -120,6 +121,15 @@ export default function MacroPage() {
     <div className="min-h-screen bg-tv-base text-tv-text">
       <Header currentTicker="^JKSE" onTickerChange={() => {}} moduleTitle={t('macroEnhance.title')} />
       <PageContainer className="space-y-6 p-4 md:p-6 max-w-6xl">
+        <MenuUsageGuide
+          menuKey="macro"
+          whatItAnswers="Kondisi ekonomi Indonesia sedang mendukung pasar saham atau menekan?"
+          steps={[
+            "Perhatikan suku bunga dan inflasi lebih dulu - keduanya paling langsung memengaruhi bursa.",
+            "Bandingkan arah terkini dengan periode sebelumnya, bukan angka tunggalnya.",
+            "Gunakan ini sebagai latar, bukan sebagai sinyal beli-jual.",
+          ]}
+        />
         <Card variant="glass" className="flex flex-wrap items-center justify-between gap-4 border-tv-blue/20 bg-gradient-to-r from-tv-blue/[0.05] via-tv-card to-tv-purple/[0.05]">
           <div className="flex items-center gap-3.5">
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-tv-blue/10 text-tv-blue border border-tv-blue/20">
