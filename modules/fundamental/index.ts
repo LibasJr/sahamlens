@@ -52,3 +52,14 @@ export {
   type IdxCurrentClassificationSide,
   type ReadIdxFinancialOptions,
 } from './service/idx-xbrl.service';
+
+// Jumlah lembar saham beredar (2026-08-22) - blocker kedua menuju penyambungan ke
+// LensScore: `pbv`/`per` butuh angka ini dan artefak IDX tidak memuatnya sebagai tag.
+// Diturunkan dari laba induk / EPS, dengan sumber luar HANYA sebagai cadangan.
+export {
+  resolveShareCount,
+  type ShareCountResult,
+  type ShareCountSource,
+  type ShareCountBasis,
+  type ResolveShareCountOptions,
+} from './service/share-count.service';
