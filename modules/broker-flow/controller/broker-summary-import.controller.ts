@@ -36,7 +36,7 @@ export async function handleBrokerSummaryImport(request: Request): Promise<HttpR
     if (error instanceof BrokerSummaryValidationError) {
       return { status: 400, body: { error: error.message, code: 'VALIDATION_ERROR' } };
     }
-    logger.error('broker-summary-import failed', { error });
+    logger.error('broker-summary-import failed', { err: error });
     return { status: 500, body: { error: 'Import broker summary gagal.', code: 'INTERNAL_ERROR' } };
   }
 }

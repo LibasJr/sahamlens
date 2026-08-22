@@ -344,7 +344,7 @@ export async function runLensScoreBucketBacktest(
     if (error?.code === '42P01') {
       return computeLensScoreBucketBacktest([], options);
     }
-    logger.error('LensScore bucket backtest gagal', { error });
+    logger.error('LensScore bucket backtest gagal', { err: error });
     throw error;
   }
 }
