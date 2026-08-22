@@ -1,0 +1,28 @@
+{
+ "_catatan": "Harga penutupan RESMI dari data/foreign-flow/*.json (source IDX_OFFICIAL_API), disalin apa adanya tanpa diubah. Dipakai test karena data/foreign-flow/ gitignored sehingga tidak tersedia di CI. Bukan angka karangan: setiap nilai bisa dilacak ke berkas sumbernya pada tanggal yang sama.",
+ "tanggal": "2026-08-21",
+ "sumber": "IDX_OFFICIAL_API",
+ "penutupan": {
+  "AALI": {
+   "close": 7900.0,
+   "open": 8000.0,
+   "high": 8025.0,
+   "low": 7900.0,
+   "volume": 1169100.0
+  },
+  "BBCA": {
+   "close": 6450.0,
+   "open": 6400.0,
+   "high": 6475.0,
+   "low": 6400.0,
+   "volume": 100684300.0
+  },
+  "TLKM": {
+   "close": 2610.0,
+   "open": 2610.0,
+   "high": 2640.0,
+   "low": 2610.0,
+   "volume": 72276500.0
+  }
+ }
+}
