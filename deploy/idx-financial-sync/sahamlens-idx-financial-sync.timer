@@ -1,0 +1,24 @@
+# /etc/systemd/system/sahamlens-idx-financial-sync.timer
+#
+# HARIAN 20:00 WIB, termasuk akhir pekan - sengaja BUKAN Mon..Fri seperti timer pasar.
+# Laporan keuangan diserahkan emiten kapan saja, tidak terikat sesi bursa, dan BEI
+# memperbaruinya di luar hari kerja juga.
+#
+# Jam 20:00 dipilih supaya tidak berebut dengan gerombolan timer 17:30 (idx-flow-sync,
+# intraday-collect) yang sama-sama memanggil idx.co.id - Cloudflare BEI membalas 403
+# sesaat kalau dipanggil terlalu rapat.
+#
+# Persistent=true: kalau VPS mati saat jadwalnya, job dikejar setelah menyala. Aman
+# karena skripnya idempoten.
+
+[Unit]
+Description=Jadwal SahamLens - sync laporan keuangan kuartalan resmi BEI
+
+[Timer]
+OnCalendar=*-*-* 20:00:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=600
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target

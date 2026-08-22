@@ -83,8 +83,26 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def fetch_report_list(session, year: int, periode: str, kode: str, page_size: int, timeout: int) -> list[dict]:
-    """Daftar emiten yang SUDAH melaporkan pada periode itu. Paginasi diikuti sampai habis."""
+def fetch_report_list(
+    session,
+    year: int,
+    periode: str,
+    kode: str,
+    page_size: int,
+    timeout: int,
+    retries: int = 3,
+) -> list[dict]:
+    """Daftar emiten yang SUDAH melaporkan pada periode itu. Paginasi diikuti sampai habis.
+
+    RETRY WAJIB DI SINI, BUKAN CUMA DI UNDUHAN. Cloudflare idx.co.id membalas 403 sesaat
+    kalau endpoint ini dipanggil beruntun - teramati tiga kali pada 2026-08-22 saat
+    menyinkronkan seluruh pasar, dan tiap kali pulih sendiri dalam hitungan detik.
+    Sebelumnya satu 403 langsung melempar dan MEMBATALKAN seluruh sinkronisasi, termasuk
+    periode yang sebenarnya baik-baik saja. Untuk cron tak berpenunggu itu berarti job
+    dilaporkan gagal karena gangguan yang bahkan tidak bertahan semenit.
+
+    Backoff-nya sama persis dengan download_instance(): 2^percobaan, dibatasi 10 detik.
+    """
     out: list[dict] = []
     index_from = 0
     while True:
@@ -99,10 +117,21 @@ def fetch_report_list(session, year: int, periode: str, kode: str, page_size: in
             "SortColumn": "KodeEmiten",
             "SortOrder": "asc",
         }
-        response = session.get(LIST_ENDPOINT, params=params, timeout=timeout)
-        if response.status_code != 200:
-            raise RuntimeError(f"GetFinancialReport HTTP {response.status_code}")
-        payload = response.json()
+        payload = None
+        for attempt in range(1, retries + 1):
+            try:
+                response = session.get(LIST_ENDPOINT, params=params, timeout=timeout)
+            except Exception as exc:  # noqa: BLE001 - jaringan; dilaporkan lalu dicoba ulang
+                print(f"    daftar percobaan {attempt}/{retries} gagal: {type(exc).__name__}", file=sys.stderr)
+                time.sleep(min(2 ** attempt, 10))
+                continue
+            if response.status_code == 200:
+                payload = response.json()
+                break
+            print(f"    daftar percobaan {attempt}/{retries} HTTP {response.status_code}", file=sys.stderr)
+            time.sleep(min(2 ** attempt, 10))
+        if payload is None:
+            raise RuntimeError(f"GetFinancialReport gagal setelah {retries} percobaan")
         results = payload.get("Results") or []
         if not results:
             break
@@ -252,7 +281,9 @@ def main(argv: list[str]) -> int:
 
     print(f"[i] Daftar laporan {args.year} {args.period.upper()}...")
     try:
-        entries = fetch_report_list(session, args.year, args.period, args.ticker.upper(), args.page_size, args.timeout)
+        entries = fetch_report_list(
+            session, args.year, args.period, args.ticker.upper(), args.page_size, args.timeout, args.retries
+        )
     except Exception as exc:  # noqa: BLE001
         print(f"[!] Gagal mengambil daftar: {exc}", file=sys.stderr)
         return 1
