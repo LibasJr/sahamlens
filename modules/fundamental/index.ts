@@ -63,3 +63,12 @@ export {
   type ShareCountBasis,
   type ResolveShareCountOptions,
 } from './service/share-count.service';
+
+// Perakitan FundamentalInput LensScore dari laporan resmi BEI (2026-08-22). `roe` dan
+// `per` sengaja null - butuh laba dua belas bulan, lihat penjelasan di service-nya.
+export {
+  buildIdxFundamentalInput,
+  type IdxFundamentalInputResult,
+  type IdxFundamentalFieldNote,
+  type BuildIdxFundamentalInputOptions,
+} from './service/idx-fundamental-input.service';
