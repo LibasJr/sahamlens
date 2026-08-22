@@ -7,6 +7,9 @@ import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button, Skeleton } from '@/components/ui';
 import { Card } from '@/components/ui/Card';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import Link from 'next/link';
+import { Lock } from 'lucide-react';
 
 // AUDIT DATA INTEGRITY 2026-08-03 (temuan M-09): 4 kartu stress test di halaman ini
 // SEBELUMNYA angka TETAP ("-5.75%", "-12.5%", "-4.2%", "-6.8%") - halaman sudah jujur
@@ -38,6 +41,11 @@ export default function RiskPage() {
   const [analysis, setAnalysis] = useState<RiskAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
+  // GEMBOK TAMU (2026-08-23). Beta vs IHSG TETAP terbuka beserta terjemahannya - itu
+  // yang membuktikan halaman ini berguna, dan tanpanya tidak ada yang cukup paham
+  // untuk mau mendaftar. Yang dikunci: tiga skenario stres dan beta USD/IDR.
+  const lockForGuest = !authResolved || authLoading || !authUser;
   const [importing, setImporting] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
 
@@ -244,6 +252,22 @@ export default function RiskPage() {
               hanya tombol yang menunjukkan spinner ("Menghitung..."), sementara kartu
               metrik ini tetap menampilkan nilai LAMA (atau N/A) tanpa indikasi visual
               bahwa sedang dihitung ulang. */}
+          {lockForGuest ? (
+            <div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-tv-border py-8 text-center">
+              <Lock className="h-5 w-5 text-tv-yellow" />
+              <p className="text-sm font-bold text-tv-text">Simulasi guncangan terkunci</p>
+              <p className="max-w-sm px-4 text-xs leading-relaxed text-tv-muted">
+                Buat akun gratis untuk melihat berapa persen portofolio ini turun saat IHSG jatuh 5%
+                dan 10%, serta dampak pelemahan Rupiah.
+              </p>
+              <Link
+                href="/login?next=/risk"
+                className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2 text-sm font-bold text-white transition hover:bg-tv-blueHover"
+              >
+                Masuk atau daftar gratis
+              </Link>
+            </div>
+          ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Drops -5%</div>
@@ -261,6 +285,7 @@ export default function RiskPage() {
               <div className="text-[10px] text-tv-muted mt-1">Beta portofolio vs USDIDR=X</div>
             </div>
           </div>
+          )}
 
           <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border text-xs text-tv-muted">
             <span className="font-bold text-tv-text">BI Rate Hike:</span> Data tidak tersedia - SahamLens belum
@@ -290,8 +315,16 @@ export default function RiskPage() {
             </div>
             <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs USD/IDR</div>
-              {loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaUsdIdr ?? 'N/A'}</div>}
-              {!loading && typeof analysis?.portfolioBetaUsdIdr === 'number' && (
+              {lockForGuest ? (
+                <Link
+                  href="/login?next=/risk"
+                  aria-label="Masuk untuk melihat beta portofolio terhadap USD/IDR"
+                  className="mt-1 inline-flex items-center gap-1.5 font-bold text-tv-blue hover:underline"
+                >
+                  <Lock className="h-4 w-4" />
+                </Link>
+              ) : loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaUsdIdr ?? 'N/A'}</div>}
+              {!lockForGuest && !loading && typeof analysis?.portfolioBetaUsdIdr === 'number' && (
                 <p className="mt-1 text-[10px] leading-relaxed text-tv-muted">
                   {analysis.portfolioBetaUsdIdr < 0
                     ? 'Bernilai negatif: portofolio ini cenderung melemah saat Rupiah melemah.'
