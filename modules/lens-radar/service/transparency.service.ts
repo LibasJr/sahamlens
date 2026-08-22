@@ -26,6 +26,7 @@ import {
   worstTradeDrawdownPct,
 } from './history-return-utils';
 import { SCORE_VERSION } from '../constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 import {
   VALIDATION_LIMITATIONS,
   VALIDATION_LIMITATIONS_REVIEWED_ON,
@@ -229,19 +230,25 @@ export function buildBucketRows(
   return { latestStatsRunDate, totalSamples, rows };
 }
 
-async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_VERSION): Promise<LensBucketStatsRow[]> {
+async function readLatestBucketStats(
+  db: Queryable = pool,
+  scoreVersion = SCORE_VERSION,
+  scoreConfigHash = LENS_SCORE_MODEL_METADATA.configHash,
+): Promise<LensBucketStatsRow[]> {
   const { rows } = await db.query(
     `
     WITH latest AS (
       SELECT MAX(run_date) AS run_date
       FROM lens_bucket_stats
       WHERE score_version = $1
-        AND price_basis = $2
+        AND score_config_hash = $2
+        AND price_basis = $3
     )
     SELECT
       s.run_date,
       s.bucket,
       s.score_version,
+      s.score_config_hash,
       s.avg_t1,
       s.avg_t5,
       s.avg_t20,
@@ -260,7 +267,8 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
     FROM lens_bucket_stats s
     JOIN latest l ON s.run_date = l.run_date
     WHERE s.score_version = $1
-      AND s.price_basis = $2
+      AND s.score_config_hash = $2
+      AND s.price_basis = $3
     ORDER BY CASE s.bucket
       WHEN '80-100' THEN 1
       WHEN '70-79' THEN 2
@@ -269,7 +277,7 @@ async function readLatestBucketStats(db: Queryable = pool, scoreVersion = SCORE_
       ELSE 5
     END
     `,
-    [scoreVersion, RETURN_PRICE_BASIS]
+    [scoreVersion, scoreConfigHash, RETURN_PRICE_BASIS]
   );
   return rows as LensBucketStatsRow[];
 }
@@ -410,8 +418,9 @@ export function buildTransparencyBanner(status: ValidationStatus): TransparencyB
 async function computeTransparencyData(db: Queryable = pool): Promise<TransparencyData> {
   await ensureSharedSchema();
   const requestedScoreVersion = SCORE_VERSION;
+  const requestedConfigHash = LENS_SCORE_MODEL_METADATA.configHash;
   const [statsRows, historyRows] = await Promise.all([
-    readLatestBucketStats(db, requestedScoreVersion),
+    readLatestBucketStats(db, requestedScoreVersion, requestedConfigHash),
     readLensRadarHistory(db),
   ]);
   const {
@@ -423,7 +432,10 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     versionRejectedReason,
     scoreConfigHash,
     configRejectedRows,
-  } = await calculateCalibrationObservations(historyRows, undefined, { scoreVersion: requestedScoreVersion });
+  } = await calculateCalibrationObservations(historyRows, undefined, {
+    scoreVersion: requestedScoreVersion,
+    scoreConfigHash: requestedConfigHash,
+  });
   const ihsgBars = await fetchIhsgBars();
 
   // Hari validasi harus mengikuti sinyal yang benar-benar lolos versi model, basis
