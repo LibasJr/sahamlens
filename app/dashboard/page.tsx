@@ -492,7 +492,13 @@ function DashboardContent() {
 
 export default function Dashboard() {
   return (
-    <Suspense fallback={null}>
+    // BUG FIX (2026-08-22): fallback sebelumnya `null` - satu-satunya titik blank yang
+    // tersisa di halaman ini, berlawanan dengan disiplin skeleton ketat yang dipegang
+    // DashboardLoadingState/DashboardEmptyState di atas untuk state loading berikutnya.
+    // Ticker/setTicker/dst belum ada di scope ini (state-nya baru lahir di dalam
+    // DashboardContent) - nilai kosong/no-op di sini murni visual, boundary-nya sendiri
+    // biasanya sangat singkat (hanya untuk useSearchParams()).
+    <Suspense fallback={<DashboardLoadingState ticker="" setTicker={() => {}} analisaRemaining={0} isAdminUser={false} />}>
       <DashboardContent />
     </Suspense>
   );

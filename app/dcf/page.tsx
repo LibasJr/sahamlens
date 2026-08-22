@@ -8,6 +8,7 @@ import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
 import { useLanguage } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
+import { Skeleton } from '@/components/ui/Skeleton';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 
 // BUG FIX (2026-08-01): halaman ini SEBELUMNYA selalu mulai dari ticker hardcoded
@@ -147,6 +148,16 @@ function DcfContent() {
             Proyeksi Cash Flow 5-Tahun (Free Cash Flow Per Share)
           </h3>
 
+          {/* BUG FIX (2026-08-22): tabel ini sebelumnya tidak punya state loading sama
+              sekali - header tabel tampil dengan tbody kosong (baris ringkasan quant.*
+              merender "Rp undefined") saat data belum tiba, tanpa indikasi "sedang
+              memuat" apa pun. */}
+          {loading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full rounded-lg" />
+              {[0, 1, 2, 3, 4].map((row) => <Skeleton key={row} className="h-9 w-full rounded-lg" />)}
+            </div>
+          ) : (
           <div className="lens-table-sticky-col overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -193,6 +204,7 @@ function DcfContent() {
               </tbody>
             </table>
           </div>
+          )}
 
           {isGuestLimited && (
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-tv-blue/35 bg-tv-blue/5 px-3.5 py-2.5 text-xs">
@@ -215,7 +227,16 @@ function DcfContent() {
             Tabel Sensitivitas Valuasi Discount Rate vs Terminal Growth
           </h3>
 
-          {isGuestLimited || sensitivity.length === 0 ? (
+          {/* BUG FIX (2026-08-22): `sensitivity.length === 0` juga TRUE selama halaman
+              masih memuat (data belum tiba) - sebelum ini, user yang SUDAH login pun
+              sekilas melihat panel "Terkunci" ajakan upgrade, padahal itu cuma loading,
+              bukan pembatasan akses. Cabang loading eksplisit dicek lebih dulu. */}
+          {loading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-full rounded-lg" />
+              {[0, 1, 2, 3].map((row) => <Skeleton key={row} className="h-10 w-full rounded-lg" />)}
+            </div>
+          ) : isGuestLimited || sensitivity.length === 0 ? (
             <div className="p-6 rounded-lg border border-tv-blue/35 bg-tv-blue/5 text-center space-y-3">
               <Lock className="w-6 h-6 text-tv-blue mx-auto" />
               <div>

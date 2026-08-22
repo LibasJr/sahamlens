@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useModalBehavior } from '@/lib/hooks/useModalBehavior';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Trophy, Download, FileText, ArrowUpRight, ArrowDownRight, Clock } from 'lucide-react';
@@ -69,6 +70,12 @@ export default function PortfolioPage() {
   const [orderPrice, setOrderPrice] = useState('');
   const [orderLots, setOrderLots] = useState('');
   const [orderLoading, setOrderLoading] = useState(false);
+  // BUG FIX (2026-08-22): modal order ini di-hand-roll langsung di halaman tanpa
+  // role="dialog"/aria-modal dan tanpa Escape/focus-trap - lima dialog lain di app ini
+  // (PaywallModal, PromoUpgradeModal, StockNewsModal, UserProfileModal, CommandPalette)
+  // sudah memakai hook bersama untuk perilaku ini, lihat lib/hooks/useModalBehavior.ts.
+  const orderModalRef = useRef<HTMLElement>(null);
+  useModalBehavior({ open: showOrderModal, onClose: () => setShowOrderModal(false), containerRef: orderModalRef });
 
   const submitOrder = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -593,8 +600,19 @@ export default function PortfolioPage() {
 
       {/* Order Modal */}
       {showOrderModal && (
-        <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4">
-          <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border w-full max-w-sm p-6">
+        <div
+          className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowOrderModal(false); }}
+        >
+          <Card
+            ref={orderModalRef}
+            as="div"
+            role="dialog"
+            aria-modal="true"
+            aria-label={`${orderType === 'BUY' ? 'Beli' : 'Jual'} Saham`}
+            padding="none" radius="xl" elevation="none" overflow="visible" highlight={false}
+            className="border-tv-border w-full max-w-sm p-6"
+          >
             <h2 className={`font-heading text-xl font-bold mb-4 ${orderType === 'BUY' ? 'text-tv-blue' : 'text-tv-red'}`}>{orderType === 'BUY' ? 'Beli' : 'Jual'} Saham</h2>
             <form onSubmit={submitOrder} className="space-y-4">
               <div>

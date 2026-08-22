@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Coins, ShieldCheck, Repeat } from 'lucide-react';
+import { Coins, ShieldCheck, Repeat, AlertTriangle, RefreshCw } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
-import { Card, Input } from '@/components/ui';
+import { Card, Input, Skeleton, EmptyState } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { useLanguage } from '@/lib/i18n';
@@ -33,8 +33,17 @@ export default function DividendPage() {
       const json = await apiRequest<any>(`/api/dividend-plan?capital=${capital}&targetMonthly=${targetMonthly}`);
       setData(json);
     } catch (e) {
-      console.error(e);
-      setError('Gagal memuat simulasi dividen');
+      // BUG FIX (2026-08-22): sebelumnya SEMUA error (termasuk 402 SUBSCRIPTION_REQUIRED
+      // dari app/api/dividend-plan/route.ts) jatuh ke pesan generik "Gagal memuat..." -
+      // PaywallModal di bawah sudah diimpor dan showPaywall sudah ada, tapi tidak pernah
+      // di-set true. User non-Pro melihat error yang terkesan seperti kegagalan sistem,
+      // bukan ajakan upgrade. Pola sama dengan app/backtest/page.tsx.
+      if (isApiClientError(e) && e.code === 'SUBSCRIPTION_REQUIRED') {
+        setShowPaywall(true);
+      } else {
+        console.error(e);
+        setError(apiErrorMessage(e, 'Gagal memuat simulasi dividen', true));
+      }
     } finally {
       setLoading(false);
     }
@@ -91,13 +100,31 @@ export default function DividendPage() {
         </div>
       }
     >
-      {error && (
-        <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-red/30 p-4 text-sm text-tv-red">
-          {error}
-        </Card>
-      )}
       {loading && !data && (
-        <div className="text-sm text-tv-muted">Menghitung simulasi dari data dividen real...</div>
+        <div className="mb-6 space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
+            {[0, 1, 2, 3].map((item) => (
+              <Card key={item} padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4 space-y-2">
+                <Skeleton variant="text" className="w-24" />
+                <Skeleton className="h-7 w-32 rounded-lg" />
+                <Skeleton variant="text" className="w-3/4" />
+              </Card>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && error && (
+        <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="mb-6 flex flex-col items-start gap-4 border-tv-red/20 bg-tv-red/[0.04] p-4">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-tv-red" />
+            <p className="text-sm text-tv-red">{error}</p>
+          </div>
+          <PrimitiveButton variant="secondary" size="sm" type="button" onClick={fetchDividendPlan} className="inline-flex items-center gap-1.5">
+            <RefreshCw className="h-4 w-4" />
+            Coba lagi
+          </PrimitiveButton>
+        </Card>
       )}
 
       {/* Metric Cards */}
@@ -180,6 +207,14 @@ export default function DividendPage() {
             </div>
           </div>
 
+          {filteredStocks.length === 0 && stocks.length > 0 ? (
+            <EmptyState
+              illustration="search"
+              title="Tidak ada emiten yang cocok filter ini"
+              description="Filter 'Konsisten 5Y+' tidak menemukan emiten yang cocok dari universe saat ini. Coba kembali ke 'Semua'."
+              action={{ label: 'Tampilkan Semua', onClick: () => setAristocratFilter('all') }}
+            />
+          ) : (
           <div className="lens-table-sticky-col overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
@@ -215,6 +250,7 @@ export default function DividendPage() {
               </tbody>
             </table>
           </div>
+          )}
         </Card>
 
         <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-5 space-y-4">

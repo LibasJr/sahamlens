@@ -154,9 +154,19 @@ export default function OwnershipFlowPage() {
 
         {error && (
           <Card className="mb-4 border-tv-red/20 bg-tv-red/[0.04]">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-tv-red" />
-              <p className="text-[13px] text-tv-text">{error}</p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-tv-red" />
+                <p className="text-[13px] text-tv-text">{error}</p>
+              </div>
+              {/* BUG FIX (2026-08-22): sebelumnya cuma ada tombol "Muat ulang" generik di
+                  header (terpisah dari pesan errornya) - halaman lain (LensMarket,
+                  LensRadar, Compare) selalu menaruh retry menempel ke pesan error itu
+                  sendiri. */}
+              <Button variant="secondary" size="sm" onClick={() => void load()} disabled={loading} className="shrink-0">
+                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                Coba lagi
+              </Button>
             </div>
           </Card>
         )}
