@@ -157,3 +157,36 @@ prosesnya, `rm -rf .next`, jalankan ulang satu saja.
 **Jangan commit `next-env.d.ts` setelah menjalankan `next dev`.** Next menulis ulang
 isinya ke `.next/dev/types/...`, sedangkan build produksi memakai `.next/types/...`.
 Berkasnya sendiri sudah menyatakan "should not be edited".
+
+## 7. `/opt/sahamlens/app` di VPS ADALAH checkout produksi
+
+Bukan salinan kerja. Aplikasi yang melayani pengguna dibangun dari direktori itu, dan
+skrip deploy (`/usr/local/bin/deploy-sahamlens`) menjalankan:
+
+```bash
+git fetch --prune origin main
+git reset --hard "$(git rev-parse origin/main)"
+```
+
+**`reset --hard` itu tidak peduli branch apa yang sedang aktif.** Konsekuensinya, saat
+deploy berjalan — dan ia berjalan otomatis setiap kali sesuatu di-merge ke `main`:
+
+- setiap perubahan yang **belum di-commit** di direktori itu HILANG, tanpa peringatan;
+- pointer branch yang sedang aktif ikut dipindah ke commit `main`. Kalau branch itu
+  belum pernah di-push, commitnya jadi tidak tergapai.
+
+Ini bukan skenario teoretis: 22 Agustus 2026 seluruh pekerjaan sesi berlangsung di
+direktori ini sambil enam PR di-merge dan enam deploy berjalan. Tidak ada yang hilang
+semata-mata karena setiap branch selalu di-commit dan di-push lebih dulu sebelum PR-nya
+di-merge — kebiasaan, bukan pengaman.
+
+**Aturan:** kalau menyunting di `/opt/sahamlens/app`, commit dan push SEBELUM me-merge
+apa pun ke `main`. Setelah merge, `git checkout main` supaya `reset --hard` mendarat di
+tempat yang memang seharusnya. Untuk pekerjaan panjang, pakai `git worktree` di luar
+direktori itu.
+
+**Skrip sync menulis ke `data/` yang sama dengan produksi.** Menjalankan
+`scripts/sync-idx-*.py` dari sini bukan latihan — hasilnya langsung dibaca aplikasi yang
+sedang melayani pengguna. Itu menguntungkan (22 Agustus 2026 pemindaian data-nyata
+sekaligus mengisi `data/idx-financial/` produksi dengan 847 artefak TW1 2026), tapi
+artinya `--out-dir` wajib dipakai kalau yang diinginkan memang cuma percobaan.
