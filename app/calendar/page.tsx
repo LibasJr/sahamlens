@@ -152,6 +152,14 @@ export default function CalendarPage() {
       // seragam), jadi sekilas pandang sudah kelihatan hari mana yang dividen dan
       // mana yang rilis laporan - tanpa perlu mengklik tanggalnya satu per satu.
       const types = Array.from(new Set(dayEvents.map((e) => e.type)));
+      // BUG FIX (2026-08-22): sebelumnya cuma `title` HTML - pembaca layar tidak
+      // konsisten mengumumkan `title`, jadi hari yang punya event tidak terasa "berbeda"
+      // dari hari kosong bagi pengguna screen reader (mereka hanya mendengar angka
+      // tanggalnya). `aria-label` eksplisit menyatakan isinya secara program.
+      const dayLabel = d.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' });
+      const ariaLabel = dayEvents.length > 0
+        ? `${dayLabel}, ${dayEvents.length} agenda: ${types.map((t) => TYPE_LABEL[t]).join(', ')}`
+        : dayLabel;
 
       days.push(
         <Button variant="bare" size="none"
@@ -160,6 +168,9 @@ export default function CalendarPage() {
           title={dayEvents.length > 0
             ? `${dayEvents.length} agenda: ${types.map((t) => TYPE_LABEL[t]).join(', ')}`
             : undefined}
+          aria-label={ariaLabel}
+          aria-current={isToday ? 'date' : undefined}
+          aria-pressed={isSelected}
           className={`
             relative flex flex-col items-center justify-center p-1 sm:p-2 h-9 w-9 sm:h-12 sm:w-12 rounded-md mx-auto font-number text-xs sm:text-sm transition-colors
             ${isSelected ? 'bg-tv-blue text-white font-bold' : 'text-tv-text hover:bg-tv-hover'}
