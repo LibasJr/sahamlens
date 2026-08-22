@@ -639,12 +639,12 @@ export async function saveLensBucketStats(
         run_date, bucket, avg_t1, avg_t5, avg_t20,
         win_rate_t5, win_rate_t20, max_dd_p95, worst_mae,
         avg_win_t20, avg_loss_t20, total_samples,
-        source_rows, unique_tickers, round_trip_cost_pct, score_version,
+        source_rows, unique_tickers, round_trip_cost_pct, score_version, score_config_hash,
         price_basis, price_data_version,
         avg_t20_gross, illiquid_rows_skipped, unknown_liquidity_rows, updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, now())
-      ON CONFLICT (run_date, bucket) DO UPDATE SET
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, now())
+      ON CONFLICT (run_date, bucket, score_version, score_config_hash) DO UPDATE SET
         avg_t1 = EXCLUDED.avg_t1,
         avg_t5 = EXCLUDED.avg_t5,
         avg_t20 = EXCLUDED.avg_t20,
@@ -662,6 +662,7 @@ export async function saveLensBucketStats(
         unique_tickers = EXCLUDED.unique_tickers,
         round_trip_cost_pct = EXCLUDED.round_trip_cost_pct,
         score_version = EXCLUDED.score_version,
+        score_config_hash = EXCLUDED.score_config_hash,
         price_basis = EXCLUDED.price_basis,
         price_data_version = EXCLUDED.price_data_version,
         updated_at = now()
@@ -683,6 +684,7 @@ export async function saveLensBucketStats(
         result.uniqueTickers,
         result.roundTripCostPct,
         result.scoreVersion,
+        result.scoreConfigHash,
         result.priceBasis,
         result.priceDataVersion,
         stat.avgT20Gross,
@@ -699,7 +701,7 @@ export async function runAndSaveLensBucketBacktest(
   db: Queryable = pool,
   provider: DailyOpenProvider = new YahooDailyOpenProvider(),
   asOfDate = todayDateKeyWIB(),
-  options: { scoreVersion?: string | null } = {}
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null } = {}
 ): Promise<LensBucketBacktestResult & { savedRows: number }> {
   await ensureSharedSchema();
   const rows = await readLensRadarHistory(db);

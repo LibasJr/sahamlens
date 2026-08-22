@@ -9,6 +9,9 @@ import {
 } from './calibration.service';
 import type { LensRadarHistoryEntry, LensScoreBucket } from './bucket-backtest.service';
 import { LENS_SCORE_WEIGHTS, type LensScoreWeights } from '@/shared/constants/lens-score-weights';
+import { SCORE_VERSION } from '../constants/model-version';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
+import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 // Di-re-export supaya pemanggil lama yang mengimpor tipe ini dari service tidak perlu
 // diubah. Definisinya kini tinggal di shared/constants/lens-score-weights.ts.
@@ -316,8 +319,10 @@ async function readRecentBucketStats(db: Queryable = pool, lookbackDays = LOOKBA
     SELECT MIN(run_date)::text AS start, MAX(run_date)::text AS end, COUNT(DISTINCT run_date)::int AS days
     FROM lens_bucket_stats
     WHERE run_date >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
+      AND score_version = $2
+      AND score_config_hash = $3
     `,
-    [lookbackDays]
+    [lookbackDays, SCORE_VERSION, LENS_SCORE_MODEL_METADATA.configHash]
   );
   return {
     start: dateKey(rows[0]?.start ?? null),
@@ -349,9 +354,17 @@ async function readHistoryRowsForWindow(db: Queryable = pool, startDate: string 
       AND close_price IS NOT NULL
       AND ($1::date IS NULL OR "date" >= $1::date)
       AND universe_eligible = TRUE
+      AND score_version = $2
+      AND score_config_hash = $3
+      AND universe_version = $4
     ORDER BY ticker ASC, "date" ASC
     `,
-    [startDate]
+    [
+      startDate,
+      SCORE_VERSION,
+      LENS_SCORE_MODEL_METADATA.configHash,
+      ACTIVE_LIQUID_UNIVERSE_VERSION,
+    ]
   );
   return rows as LensRadarHistoryWithComponents[];
 }
@@ -443,7 +456,10 @@ export async function runLensScoreOptimizer(db: Queryable = pool): Promise<LensW
   }
 
   const rows = await readHistoryRowsForWindow(db, statsWindow.start);
-  const { observations } = await calculateCalibrationObservations(rows);
+  const { observations } = await calculateCalibrationObservations(rows, undefined, {
+    scoreVersion: SCORE_VERSION,
+    scoreConfigHash: LENS_SCORE_MODEL_METADATA.configHash,
+  });
   // Optimizer memakai observasi T+20 yang didekorelasikan agar sinyal harian overlap
   // dari ticker yang sama tidak memperbesar effective sample size secara semu.
   const effectiveObservations = decorrelateCalibrationObservations(

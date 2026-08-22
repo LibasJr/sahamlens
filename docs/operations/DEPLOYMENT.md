@@ -42,6 +42,24 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-21 - Remediasi CI dan identitas konfigurasi LensScore
+
+- PR #101 ter-merge saat CI run #732 masih merah. Kegagalan terjadi pada
+  `audit:adoption`, sehingga typecheck, lint, unit test, dan build pada run itu tidak
+  pernah dijalankan. Merge tersebut tidak boleh dianggap bukti release sehat.
+- Remediasi mengganti kartu mentah Calibration Lab dengan primitive `<Card>` dan
+  mengikat seluruh jalur backtest publik, snapshot `lens_bucket_stats`, optimizer bobot,
+  serta TP/CL Lab ke pasangan `score_version` + `score_config_hash` yang sama.
+- Checksum `000_runtime_schema_baseline.sql` dikembalikan ke isi historis sebelum PR #101.
+  Kolom baru hanya boleh ditambahkan lewat migration bernomor baru; jangan memperbarui
+  checksum `schema_migrations` secara manual.
+- **MIGRATION BARU:** `012_lens_bucket_stats_config_identity.sql`. Jalankan hanya setelah
+  backup dan restore verification lulus, setelah `011_lens_score_config_identity.sql`.
+  Migration 012 menandai snapshot lama `legacy-unhashed` dan membuat identitas snapshot
+  backtest append-safe berdasarkan tanggal, bucket, versi, dan hash konfigurasi.
+- Jangan menjalankan migration, backfill, atau deploy manual hanya untuk mengejar status
+  hijau. PR remediasi harus direview dan seluruh CI harus lulus lebih dulu.
+
 ### 2026-08-21 - Dropdown pencarian hero beranda tidak terlihat
 
 - Autocomplete bersama sudah berfungsi pada pencarian lain, tetapi dropdown di bawah hero
