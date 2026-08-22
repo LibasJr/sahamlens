@@ -1,0 +1,27 @@
+# /etc/systemd/system/sahamlens-idx-financial-sync.service
+#
+# Sinkronisasi laporan keuangan kuartalan RESMI BEI (XBRL) ke data/idx-financial/.
+# Service memanggil endpoint localhost aplikasi supaya job tercatat di job_run_log dan
+# memakai concurrency guard yang sama dengan cron SahamLens lain.
+#
+# PRASYARAT SERVER: python3 dengan curl_cffi terpasang untuk user yang menjalankan
+# aplikasi (pip install curl_cffi). Tanpa itu langkah Python dilaporkan gagal - endpoint
+# idx.co.id menolak klien tanpa fingerprint TLS browser.
+#
+# DURASI: jalan PERTAMA berat - ratusan unduhan instance.zip untuk dua periode, bisa
+# 40-80 menit. Jalan berikutnya nyaris gratis karena skrip melewati emiten yang
+# File_Modified-nya tidak berubah. Kalau satu jalan terpotong timeout, kemajuannya TIDAK
+# hilang: jalan berikutnya melanjutkan dari yang belum ada.
+
+[Unit]
+Description=SahamLens - sync laporan keuangan kuartalan resmi BEI (XBRL)
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+# Endpoint localhost. CRON_SECRET tetap wajib; request tanpa secret ditolak.
+ExecStart=/usr/bin/curl -sfS --max-time 5400 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/idx-financial-sync
+TimeoutStartSec=5460
