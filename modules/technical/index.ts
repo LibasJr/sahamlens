@@ -37,6 +37,7 @@ export {
   calculateScore,
   type TechnicalInput,
   type FundamentalInput,
+  type SectorContext,
   type FlowInput,
   type ScoringResult,
 } from './service/scoring.service';
