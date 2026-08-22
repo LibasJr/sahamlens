@@ -19,6 +19,7 @@ import {
   type ColumnKey,
   type ScreenerTemplate,
 } from '@/components/screener/screener-model';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 // Konstanta modul, bukan `|| []` inline: literal baru tiap render mengubah identitas
 // dependensi useMemo di bawah, jadi memo-nya tidak pernah benar-benar memo (dan eslint
@@ -239,6 +240,18 @@ export default function ScreenerPage() {
       />
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <MenuUsageGuide
+          menuKey="screener"
+          whatItAnswers="Saham mana yang sedang memenuhi kriteria teknikal yang Anda cari?"
+          steps={[
+            'Pilih filter atau preset di panel atas - misalnya tren naik, RSI, atau pola tertentu.',
+            'Daftar hasilnya menyusut mengikuti filter; klik judul kolom untuk mengurutkan.',
+            'Klik salah satu saham untuk membuka analisis teknikal lengkapnya.',
+          ]}
+          freeAccess={`${GUEST_VISIBLE_RESULT_COUNT} saham teratas dari hasil filter, lengkap dengan semua kolomnya`}
+          afterSignup="seluruh hasil filter tanpa batas, plus simpan kombinasi filter sebagai template"
+          loginNext="/screener"
+        />
         <ScreenerControls
           availableSectors={availableSectors}
           momentumScored={data?.momentumScored !== false}
