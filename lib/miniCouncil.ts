@@ -7,6 +7,8 @@
 
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { calculateEmaSeries, MACD_FAST, MACD_SLOW, MACD_SIGNAL } from '@/modules/technical/service/ema';
+import { calculateBollingerBands } from '@/modules/technical/service/bollinger-bands';
+import { calculateObvSeries, obvSlope as calcObvSlope } from '@/modules/technical/service/obv';
 import { CONSENSUS_VOTE_THRESHOLDS } from '@/modules/technical/service/decision-thresholds';
 import { analyzeBandarmology } from '@/modules/market/service/foreign-flow-proxy';
 
@@ -75,13 +77,6 @@ function sma(values: number[], period: number): number | null {
 // dari EMA yang berbeda dari MACD yang dipakai LensScore, padahal keduanya tampil
 // bersamaan. Sekarang satu implementasi: modules/technical/service/ema.ts.
 const ema = calculateEmaSeries;
-
-function stddev(values: number[]): number {
-  if (values.length === 0) return 0;
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const variance = values.reduce((a, b) => a + (b - mean) ** 2, 0) / values.length;
-  return Math.sqrt(variance);
-}
 
 // BUG FIX (audit integritas data 2026-08-03, temuan H-01): sebelumnya rata-rata
 // aritmatik sederhana (bias, lihat modules/technical/service/rsi.ts untuk bukti
@@ -233,17 +228,23 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
   }
 
   // 5. Volatility / Bollinger Agent
-  if (ma20 != null && closes.length >= 20) {
-    const sd = stddev(closes.slice(-20));
-    const upper = ma20 + 2 * sd;
-    const lower = ma20 - 2 * sd;
+  //
+  // BUG FIX (2026-08-22): salinan Bollinger Band di file ini menghitung band-nya sendiri
+  // (stddev lokal + ma20 sebagai middle) - sama persis kelas masalah dengan bug EMA di
+  // atas (satu formula, banyak salinan). Sekarang satu implementasi:
+  // modules/technical/service/bollinger-bands.ts. Hasilnya identik secara matematis
+  // (middle = mean 20 close terakhir di kedua versi) - ini pemindahan sumber, bukan
+  // perubahan angka.
+  {
     const price = closes[closes.length - 1];
-    const width = ma20 ? (upper - lower) / ma20 : 0;
-    if (price >= upper) agents.push({ name: 'Volatilitas', signal: 'SELL', reason: 'Harga menyentuh upper Bollinger Band, rawan pullback jangka pendek.' });
-    else if (price <= lower) agents.push({ name: 'Volatilitas', signal: 'BUY', reason: 'Harga menyentuh lower Bollinger Band, area jenuh jual.' });
-    else agents.push({ name: 'Volatilitas', signal: 'HOLD', reason: `Harga bergerak dalam band (lebar ${(width * 100).toFixed(1)}% dari MA20), belum ekstrem.` });
-  } else {
-    agents.push({ name: 'Volatilitas', signal: 'HOLD', reason: 'Data belum cukup untuk Bollinger Band 20 hari.' });
+    const bb = calculateBollingerBands(closes, price);
+    if (bb) {
+      if (price >= bb.upper) agents.push({ name: 'Volatilitas', signal: 'SELL', reason: 'Harga menyentuh upper Bollinger Band, rawan pullback jangka pendek.' });
+      else if (price <= bb.lower) agents.push({ name: 'Volatilitas', signal: 'BUY', reason: 'Harga menyentuh lower Bollinger Band, area jenuh jual.' });
+      else agents.push({ name: 'Volatilitas', signal: 'HOLD', reason: `Harga bergerak dalam band (lebar ${bb.bandwidthPct.toFixed(1)}% dari MA20), belum ekstrem.` });
+    } else {
+      agents.push({ name: 'Volatilitas', signal: 'HOLD', reason: 'Data belum cukup untuk Bollinger Band 20 hari.' });
+    }
   }
 
   // 6. Support/Resistance Agent
@@ -258,15 +259,19 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
   else agents.push({ name: 'Support/Resistance', signal: 'HOLD', reason: `Harga di tengah range ${lookback}-hari (support Rp ${Math.round(recentLow).toLocaleString('id-ID')} - resistance Rp ${Math.round(recentHigh).toLocaleString('id-ID')}).` });
 
   // 7. Money Flow (OBV slope) Agent
-  const obv: number[] = [0];
-  for (let i = 1; i < closes.length; i++) {
-    const dir = closes[i] > closes[i - 1] ? 1 : closes[i] < closes[i - 1] ? -1 : 0;
-    obv.push(obv[i - 1] + dir * volumes[i]);
-  }
-  const obvLookback = Math.min(10, obv.length - 1);
-  const obvSlope = obvLookback > 0 ? obv[obv.length - 1] - obv[obv.length - 1 - obvLookback] : 0;
-  if (obvSlope > 0) agents.push({ name: 'Money Flow', signal: 'BUY', reason: 'On-Balance Volume naik 10 hari terakhir, indikasi akumulasi.' });
-  else if (obvSlope < 0) agents.push({ name: 'Money Flow', signal: 'SELL', reason: 'On-Balance Volume turun 10 hari terakhir, indikasi distribusi.' });
+  //
+  // BUG FIX (2026-08-22): salinan OBV di file ini dihitung manual di sini - sekarang satu
+  // implementasi: modules/technical/service/obv.ts. Satu perilaku SENGAJA berubah bersamaan:
+  // lookback dulu menyusut diam-diam (`Math.min(10, obv.length-1)`) kalau histori < 11 hari,
+  // jadi agen ini tetap "menjawab" dengan lookback yang lebih pendek dari yang dijanjikan
+  // labelnya sendiri ("10 hari terakhir"). Implementasi bersama fail-closed (null kalau
+  // < 11 hari) - konsisten dengan pola "data belum cukup -> HOLD eksplisit" yang dipakai
+  // agen lain di file ini (Trend, Momentum, dst), bukan diam-diam mengukur jendela lain.
+  const obvSeries = calculateObvSeries(closes.map((c, i) => ({ adjClose: c, volume: volumes[i] })));
+  const obvSlopeValue = calcObvSlope(obvSeries, 10);
+  if (obvSlopeValue == null) agents.push({ name: 'Money Flow', signal: 'HOLD', reason: 'Data belum cukup (butuh min. 11 hari) untuk OBV.' });
+  else if (obvSlopeValue > 0) agents.push({ name: 'Money Flow', signal: 'BUY', reason: 'On-Balance Volume naik 10 hari terakhir, indikasi akumulasi.' });
+  else if (obvSlopeValue < 0) agents.push({ name: 'Money Flow', signal: 'SELL', reason: 'On-Balance Volume turun 10 hari terakhir, indikasi distribusi.' });
   else agents.push({ name: 'Money Flow', signal: 'HOLD', reason: 'On-Balance Volume relatif flat.' });
 
   // 8. Candlestick Pattern Agent — hanya candle harian yang SUDAH lengkap dan open-nya

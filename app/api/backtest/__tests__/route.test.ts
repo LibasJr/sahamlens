@@ -9,6 +9,15 @@ vi.mock('../../../../modules/backtest', () => ({
   precomputeBacktestData: vi.fn(),
   writeBacktestCache: vi.fn(),
   simulateBacktest: vi.fn(),
+  // Stub, bukan implementasi asli: test di file ini menegaskan bentuk response lama
+  // (return/trades/dst), bukan angka signifikansi statistik itu sendiri - itu sudah
+  // ditest terpisah di modules/backtest/service/__tests__/backtest-significance.service.test.ts.
+  calculateBacktestSignificance: vi.fn(() => ({
+    method: 'stub', totalTrades: 0, weekBlocks: 0, meanPnlPct: null,
+    bootstrap: { iterations: 0, ci95Low: null, ci95High: null, status: 'INSUFFICIENT_DATA' },
+    permutation: { iterations: 0, pValueOneTailed: null, significant: false },
+    note: 'stub',
+  })),
 }));
 vi.mock('../../../../shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
