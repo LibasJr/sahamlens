@@ -86,6 +86,11 @@ export interface IdxFinancialFigures {
   profitLossAttributableToParent: number | null;
   profitLossBeforeIncomeTax: number | null;
   basicEps: number | null;
+  /** Modal saham dalam RUPIAH (bukan jumlah lembar - tidak ada tag jumlah lembar di
+   * artefak IDX). Nilainya = jumlah lembar x nilai nominal, jadi ia berguna sebagai
+   * KONFIRMASI SILANG independen atas jumlah lembar yang diturunkan dari EPS.
+   * Lihat share-count.service.ts. */
+  commonStocks: number | null;
 }
 
 export interface IdxBalanceSheetCheck {
@@ -223,6 +228,7 @@ function readFigures(artifact: IdxXbrlArtifact, instantCtx: string, durationCtx:
     profitLossAttributableToParent: factValue(artifact, 'ProfitLossAttributableToParentEntity', durationCtx),
     profitLossBeforeIncomeTax: factValue(artifact, 'ProfitLossBeforeIncomeTax', durationCtx),
     basicEps: factValue(artifact, 'BasicEarningsLossPerShareFromContinuingOperations', durationCtx),
+    commonStocks: factValue(artifact, 'CommonStocks', instantCtx),
   };
 }
 
