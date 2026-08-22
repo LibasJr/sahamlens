@@ -59,7 +59,7 @@ async function handleGET(req: NextRequest) {
     });
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    logger.error('TPCL Validation worker gagal', { error: error instanceof Error ? error.message : String(error) });
+    logger.error('TPCL Validation worker gagal', { err: error });
     return NextResponse.json({ error: 'TPCL Validation worker gagal' }, { status: 500 });
   }
 }

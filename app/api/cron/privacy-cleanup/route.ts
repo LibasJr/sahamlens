@@ -52,7 +52,7 @@ async function handleGET(req: NextRequest) {
     });
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    logger.error('Job privacy-cleanup gagal', { error });
+    logger.error('Job privacy-cleanup gagal', { err: error });
     return NextResponse.json({ error: 'Job privacy-cleanup gagal' }, { status: 500 });
   }
 }
