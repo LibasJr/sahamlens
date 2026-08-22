@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle, RefreshCw, Download } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Input, Button, Skeleton } from '@/components/ui';
@@ -38,6 +38,44 @@ export default function RiskPage() {
   const [analysis, setAnalysis] = useState<RiskAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importNote, setImportNote] = useState<string | null>(null);
+
+  /**
+   * Impor komposisi dari portofolio NYATA pengguna (2026-08-23).
+   *
+   * Sebelumnya halaman ini menyuruh mengetik ulang tiap posisi padahal pengguna sudah
+   * mengisinya di /portfolio - keluhan "bingung cara pakainya" berawal dari situ.
+   * Catatan lama di berkas ini menyatakan halaman tidak punya akses ke portofolio user;
+   * itu tidak lagi benar, /api/portfolio menyediakannya.
+   *
+   * Bobot diturunkan dari NILAI PEROLEHAN (totalCost), bukan nilai pasar, karena itulah
+   * yang tersedia di respons - dan itu DINYATAKAN ke pengguna alih-alih disamarkan
+   * seolah bobot pasar terkini.
+   */
+  const importFromPortfolio = useCallback(async () => {
+    setImporting(true);
+    setImportNote(null);
+    setError(null);
+    try {
+      const res = await apiRequest<{ holdings?: { symbol: string; totalCost: number }[] }>('/api/portfolio');
+      const holdings = (res?.holdings ?? []).filter((h) => h?.symbol && Number(h.totalCost) > 0);
+      if (holdings.length === 0) {
+        setImportNote('Portofolio Anda belum berisi posisi saham. Tambahkan dulu di menu Portfolio, atau isi manual di bawah.');
+        return;
+      }
+      const total = holdings.reduce((sum, h) => sum + Number(h.totalCost), 0);
+      setPortfolio(holdings.map((h) => ({
+        ticker: h.symbol.replace(/\.JK$/, '').toUpperCase(),
+        weight: Math.round((Number(h.totalCost) / total) * 1000) / 10,
+      })));
+      setImportNote(`${holdings.length} posisi diimpor. Bobot dihitung dari nilai perolehan, bukan nilai pasar terkini.`);
+    } catch (err) {
+      setImportNote(isApiClientError(err) ? 'Perlu masuk dulu untuk mengimpor portofolio Anda.' : 'Gagal mengimpor portofolio.');
+    } finally {
+      setImporting(false);
+    }
+  }, []);
 
   const runAnalysis = useCallback(async () => {
     if (portfolio.length === 0) return;
@@ -99,7 +137,13 @@ export default function RiskPage() {
 
           <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
             {portfolio.length === 0 ? (
-              <p className="rounded-md border border-dashed border-tv-border px-3 py-4 text-xs leading-relaxed text-tv-muted">Belum ada komposisi. Tambahkan ticker dan bobot untuk menghitung beta simulasi.</p>
+              <div className="rounded-md border border-dashed border-tv-border px-3 py-4 text-xs leading-relaxed text-tv-muted">
+                <p className="font-bold text-tv-text">Halaman ini menghitung seberapa keras portofolio Anda terguncang saat pasar jatuh.</p>
+                <p className="mt-1.5">
+                  Isi komposisinya dulu - impor dari portofolio Anda, atau ketik ticker dan bobot di bawah.
+                  Hasilnya: beta terhadap IHSG dan USD/IDR, plus simulasi saat IHSG turun 5% dan 10%.
+                </p>
+              </div>
             ) : portfolio.map((item, idx) => (
               <div key={item.ticker} className="flex items-center justify-between p-2.5 rounded-md bg-tv-bg border border-tv-border text-xs">
                 <div className="flex items-center gap-2">
@@ -140,7 +184,25 @@ export default function RiskPage() {
             dinormalisasi ulang di antara saham yang berhasil, bukan diperlakukan sebagai kas.
           </p>
 
-          <div className="pt-2 border-t border-tv-border flex items-end gap-2">
+          <div className="pt-2 border-t border-tv-border">
+            <Button
+              variant="bare"
+              size="none"
+              onClick={() => void importFromPortfolio()}
+              disabled={importing}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-md border border-tv-border bg-tv-bg px-3 py-2 text-xs font-bold text-tv-text transition hover:border-tv-blue hover:text-tv-blue disabled:opacity-60"
+            >
+              <Download className="h-3.5 w-3.5" />
+              {importing ? 'Mengimpor...' : 'Impor dari Portofolio saya'}
+            </Button>
+            {importNote && (
+              <p className="mb-2 rounded-md border border-tv-border bg-tv-bg/60 px-2.5 py-1.5 text-[11px] leading-relaxed text-tv-muted">
+                {importNote}
+              </p>
+            )}
+          </div>
+
+          <div className="flex items-end gap-2">
             <SymbolAutocomplete
               containerClassName="relative flex-1"
               value={newTicker}
@@ -211,10 +273,31 @@ export default function RiskPage() {
             <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs IHSG</div>
               {loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaIhsg ?? 'N/A'}</div>}
+              {/* Angka beta tidak berarti apa-apa bagi yang belum tahu beta - dan itulah
+                  mayoritas pengguna. Diterjemahkan ke kalimat yang bisa langsung dipakai,
+                  memakai angka portofolionya sendiri, bukan contoh umum. */}
+              {!loading && typeof analysis?.portfolioBetaIhsg === 'number' && (
+                <p className="mt-1 text-[10px] leading-relaxed text-tv-muted">
+                  Artinya: kalau IHSG turun 10%, portofolio ini secara historis bergerak
+                  sekitar <span className="font-bold text-tv-text">{(analysis.portfolioBetaIhsg * 10).toFixed(1)}%</span>.
+                  {analysis.portfolioBetaIhsg > 1
+                    ? ' Lebih liar daripada pasar.'
+                    : analysis.portfolioBetaIhsg < 1
+                    ? ' Lebih kalem daripada pasar.'
+                    : ' Bergerak seirama pasar.'}
+                </p>
+              )}
             </div>
             <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
               <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs USD/IDR</div>
               {loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaUsdIdr ?? 'N/A'}</div>}
+              {!loading && typeof analysis?.portfolioBetaUsdIdr === 'number' && (
+                <p className="mt-1 text-[10px] leading-relaxed text-tv-muted">
+                  {analysis.portfolioBetaUsdIdr < 0
+                    ? 'Bernilai negatif: portofolio ini cenderung melemah saat Rupiah melemah.'
+                    : 'Bernilai positif: portofolio ini cenderung menguat saat Rupiah melemah.'}
+                </p>
+              )}
             </div>
           </div>
 
