@@ -45,12 +45,23 @@ describe('calculateStochastic - guard & sifat matematis', () => {
     expect(result.d).toBeLessThanOrEqual(100);
   });
 
-  it('range High=Low sepanjang window (saham tidak bertransaksi) -> %K/%D = 50 (titik tengah), bukan NaN', () => {
+  // FAIL-CLOSED, bukan 50. Ini menjaga agar temuan C-7 (`rsi: 50` dikirim saat data
+  // tidak tersedia, lalu 50 jatuh di pita "BUY ideal") tidak lahir kembali lewat
+  // indikator baru. 50 adalah angka karangan yang tidak bisa dibedakan dari saham yang
+  // memang benar-benar di tengah range-nya.
+  it('range High=Low sepanjang window (saham tidak bertransaksi) -> null, BUKAN 50', () => {
     const flatBars: StochasticBar[] = Array.from({ length: 25 }, () => ({ high: 1000, low: 1000, close: 1000 }));
-    const result = calculateStochastic(flatBars);
-    expect(result).not.toBeNull();
-    expect(result!.k).toBe(50);
-    expect(result!.d).toBe(50);
+    expect(calculateStochastic(flatBars)).toBeNull();
+  });
+
+  it('satu jendela datar di ekor deret ikut membuat hasil null (null menular lewat smoothing)', () => {
+    // 20 bar bergerak normal, lalu 14 bar terakhir benar-benar datar - jendela %K
+    // terakhir seluruhnya datar, jadi tidak ada Stochastic yang jujur untuk dilaporkan.
+    const bars: StochasticBar[] = [
+      ...Array.from({ length: 20 }, (_, i) => ({ high: 1010 + i, low: 990 + i, close: 1000 + i })),
+      ...Array.from({ length: 14 }, () => ({ high: 1020, low: 1020, close: 1020 })),
+    ];
+    expect(calculateStochastic(bars)).toBeNull();
   });
 
   it('harga tepat di Highest High seluruh window -> %K = 100 (puncak range)', () => {

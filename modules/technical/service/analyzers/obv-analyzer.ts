@@ -19,6 +19,10 @@ export function analyze(history: any[], currentPrice: number) {
   }
 
   const series = calculateObvSeries(bars as { adjClose: number; volume: number }[]);
+  // Gerbang kedua: pemeriksaan di atas sudah menolak bar cacat, tapi calculateObvSeries
+  // memeriksanya lagi secara mandiri (fail-closed) - kalau ia tetap menolak, hormati itu
+  // dan jangan paksa hitung.
+  if (series == null) return { ...empty, value: 'N/A (MISSING_ADJUSTED_PRICE_OR_VOLUME)' };
   const slope = obvSlope(series, OBV_LOOKBACK);
   if (slope == null) return empty;
 

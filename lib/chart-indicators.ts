@@ -353,9 +353,14 @@ export function adxSeriesForChart(candles: ChartCandle[], period: number): { adx
   return { adx, plusDi, minusDi };
 }
 
-/** OBV sudah kumulatif/bertahap secara alami - satu pass, tidak perlu pola windowed di atas. */
+/** OBV sudah kumulatif/bertahap secara alami - satu pass, tidak perlu pola windowed di atas.
+ *
+ * Array KOSONG (bukan deret berisi nol) kalau ada bar dengan volume/harga yang tidak
+ * terhingga - lihat catatan fail-closed di modules/technical/service/obv.ts. Pemanggil
+ * chart merender array kosong sebagai "tidak ada garis", yang benar: lebih baik tidak
+ * menggambar apa pun daripada menggambar garis kumulatif yang diam-diam salah. */
 export function obvSeriesForChart(candles: ChartCandle[]): number[] {
-  return calculateObvSeries(candles.map((c) => ({ adjClose: c.close, volume: c.volume })));
+  return calculateObvSeries(candles.map((c) => ({ adjClose: c.close, volume: c.volume }))) ?? [];
 }
 
 export function latestFinite(values: Array<number | null>): number | null {

@@ -11,10 +11,19 @@ export interface ObvBar {
   volume: number;
 }
 
-/** Seluruh deret OBV, mulai dari 0 (definisi Granville: OBV bar pertama = 0, bukan
- * volume bar itu sendiri - tidak ada bar sebelumnya untuk dibandingkan arahnya). */
-export function calculateObvSeries(bars: ObvBar[]): number[] {
-  if (!Array.isArray(bars) || bars.length === 0) return [];
+/**
+ * Seluruh deret OBV, mulai dari 0 (definisi Granville: OBV bar pertama = 0, bukan
+ * volume bar itu sendiri - tidak ada bar sebelumnya untuk dibandingkan arahnya).
+ *
+ * `null` kalau ADA SATU SAJA bar dengan adjClose/volume yang tidak terhingga.
+ * FAIL-CLOSED, dan di sini taruhannya paling besar dari semua indikator: OBV
+ * MENJUMLAHKAN volume secara kumulatif, jadi satu volume yang dianggap 0 padahal
+ * sebenarnya hilang akan menggeser SELURUH deret sesudahnya secara permanen - garis yang
+ * tampil tetap mulus dan meyakinkan, tanpa satu pun tanda bahwa angkanya salah.
+ */
+export function calculateObvSeries(bars: ObvBar[]): number[] | null {
+  if (!Array.isArray(bars) || bars.length === 0) return null;
+  if (bars.some((b) => !Number.isFinite(b?.adjClose) || !Number.isFinite(b?.volume))) return null;
   const out: number[] = [0];
   for (let i = 1; i < bars.length; i++) {
     const prev = out[i - 1]!;

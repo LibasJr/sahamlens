@@ -61,6 +61,22 @@ describe('calculateAdx - sifat & guard', () => {
     expect(Number.isFinite(result!.adx)).toBe(true);
   });
 
+  // FAIL-CLOSED. Bar cacat berarti True Range tidak terdefinisi, BUKAN nol - dan karena
+  // Wilder men-smoothing secara kumulatif, satu nilai karangan akan menular ke seluruh
+  // bar sesudahnya sementara hasilnya tetap tampil seperti hasil pengukuran.
+  it('satu bar dengan high/low tidak terhingga -> null, bukan TR dianggap 0', () => {
+    const bars = trendBars(40, 1);
+    bars[20] = { high: NaN, low: 1200, close: 1205 };
+    expect(calculateAdx(bars)).toBeNull();
+  });
+
+  it('deret benar-benar datar (TR nol sepanjang periode) -> null, bukan ADX/DI = 0', () => {
+    // +DI = 100 x smoothedDM / smoothedTR dengan smoothedTR = 0 adalah pembagian nol:
+    // tidak terdefinisi, bukan "tidak ada gerakan berarah yang terukur".
+    const flat = Array.from({ length: 40 }, () => ({ high: 1000, low: 1000, close: 1000 }));
+    expect(calculateAdx(flat)).toBeNull();
+  });
+
   it('ADX selalu di [0,100], +DI/-DI selalu >= 0, untuk tren maupun sideways', () => {
     for (const bars of [trendBars(50, 1), trendBars(50, -1), sidewaysBars(50)]) {
       const result = calculateAdx(bars)!;

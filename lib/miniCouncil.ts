@@ -268,8 +268,8 @@ export function computeMiniCouncil(candles: Candle[], isIndex: boolean = false):
   // < 11 hari) - konsisten dengan pola "data belum cukup -> HOLD eksplisit" yang dipakai
   // agen lain di file ini (Trend, Momentum, dst), bukan diam-diam mengukur jendela lain.
   const obvSeries = calculateObvSeries(closes.map((c, i) => ({ adjClose: c, volume: volumes[i] })));
-  const obvSlopeValue = calcObvSlope(obvSeries, 10);
-  if (obvSlopeValue == null) agents.push({ name: 'Money Flow', signal: 'HOLD', reason: 'Data belum cukup (butuh min. 11 hari) untuk OBV.' });
+  const obvSlopeValue = obvSeries == null ? null : calcObvSlope(obvSeries, 10);
+  if (obvSlopeValue == null) agents.push({ name: 'Money Flow', signal: 'HOLD', reason: 'Data belum cukup (butuh min. 11 hari) atau volume tidak lengkap untuk OBV.' });
   else if (obvSlopeValue > 0) agents.push({ name: 'Money Flow', signal: 'BUY', reason: 'On-Balance Volume naik 10 hari terakhir, indikasi akumulasi.' });
   else if (obvSlopeValue < 0) agents.push({ name: 'Money Flow', signal: 'SELL', reason: 'On-Balance Volume turun 10 hari terakhir, indikasi distribusi.' });
   else agents.push({ name: 'Money Flow', signal: 'HOLD', reason: 'On-Balance Volume relatif flat.' });

@@ -40,6 +40,14 @@ export default function WatchlistPage() {
   const isAdmin = authResolved && authUser?.role === 'admin';
   const hasPro = authResolved && hasProAccessFor(authUser);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  // BUG FIX (2026-08-22): `watchlist` di-init `[]` SEBELUM fetchWatchlist() sempat
+  // resolve. Efek live-data di bawah dulu membaca `watchlist.length === 0` di render
+  // pertama itu dan langsung setLoading(false) - untuk user yang SUNGGUHAN punya isi
+  // watchlist, ini membuat EmptyState "Belum ada saham" berkedip sekilas sebelum data
+  // asli masuk dan menggantikannya. Flag ini membedakan "belum tahu isinya" dari
+  // "sudah tahu, dan memang kosong" - live-data effect hanya boleh menyerah ke
+  // setLoading(false) pada kasus KEDUA.
+  const [watchlistLoaded, setWatchlistLoaded] = useState(false);
   const [watchlistError, setWatchlistError] = useState(false);
   const [watchlistErrorRequestId, setWatchlistErrorRequestId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
@@ -82,7 +90,12 @@ export default function WatchlistPage() {
       setWatchlist(json?.data || []);
       setWatchlistError(false);
       setWatchlistErrorRequestId(null);
+      setWatchlistLoaded(true);
     } catch (error) {
+      // Diabaikan lewat, TANPA menandai watchlistLoaded - abort berarti request ini
+      // disusul/dibatalkan (mis. React StrictMode me-render efek dua kali di dev),
+      // bukan "sudah selesai dan hasilnya diketahui". Menandai loaded di sini akan
+      // membuka lagi celah race yang sama seperti bug yang diperbaiki ini.
       if (error instanceof DOMException && error.name === 'AbortError') return;
       // Toast menghilang sendiri setelah beberapa detik, jadi ID yang hanya lewat di sana
       // praktis tidak bisa disalin ke tiket dukungan. Panel galat di bawah yang menetap -
@@ -91,10 +104,12 @@ export default function WatchlistPage() {
       if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
         if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
         else setWatchlistError(true);
+        setWatchlistLoaded(true);
         return;
       }
       console.error('Failed to fetch watchlist', error);
       setWatchlistError(true);
+      setWatchlistLoaded(true);
       if (isApiClientError(error) && error.requestId) {
         showToast(`Watchlist gagal dimuat. ID request: ${error.requestId}`, 'error');
       }
@@ -107,11 +122,13 @@ export default function WatchlistPage() {
     // berubah supaya harga dari daftar lama tidak menimpa daftar yang baru.
     if (watchlist.length > 0) {
       fetchLiveData(controller.signal);
-    } else {
+    } else if (watchlistLoaded) {
+      // Baru boleh menyerah ke "memang kosong" SETELAH fetchWatchlist() benar-benar
+      // resolve - bukan pada render pertama saat `watchlist` masih `[]` bawaan useState.
       setLoading(false);
     }
     return () => controller.abort();
-  }, [watchlist]);
+  }, [watchlist, watchlistLoaded]);
 
   const fetchAlerts = async (signal?: AbortSignal) => {
     try {

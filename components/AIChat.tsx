@@ -70,6 +70,7 @@ export default function AIChat() {
   // dikirimi pertanyaan, jadi memang belum ada yang bisa dipastikan.
   const [penyediaSiap, setPenyediaSiap] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
   // Parser Markdown dimuat saat panel DIBUKA, bukan saat jawaban tiba - jadi begitu
   // jawaban pertama muncul, parser biasanya sudah siap dan tidak ada kedipan teks mentah.
   const [markdownReady, setMarkdownReady] = useState(false);
@@ -88,6 +89,28 @@ export default function AIChat() {
     import('react-markdown').then(() => { if (!cancelled) setMarkdownReady(true); }).catch(() => {});
     return () => { cancelled = true; };
   }, [isOpen, markdownReady]);
+
+  // BUG FIX (2026-08-22): panel ini tidak punya Escape-to-close maupun pengelolaan
+  // fokus sama sekali - pengguna keyboard-only harus Tab manual dari awal setiap kali
+  // panel dibuka, dan tidak ada jalan pintas menutupnya selain mengklik tombol X.
+  // BUKAN lib/hooks/useModalBehavior.ts: hook itu mengunci scroll & focus-trap ke
+  // dalam dialog, cocok untuk modal yang MEMBLOKIR sisa halaman (ada backdrop) -
+  // panel LensAI ini sengaja TIDAK punya backdrop, mengambang di pojok sambil sisa
+  // halaman tetap bisa dipakai, jadi mengunci fokus ke dalamnya akan salah perilaku.
+  useEffect(() => {
+    if (!isOpen) return;
+    const previouslyFocused = document.activeElement as HTMLElement | null;
+    const focusTimer = setTimeout(() => chatInputRef.current?.focus(), 30);
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKeyDown);
+      if (previouslyFocused?.isConnected) previouslyFocused.focus();
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     const handleOpenChat = (e: any) => {
@@ -392,7 +415,10 @@ export default function AIChat() {
           terformat rapi terlihat "berantakan" karena lebar sisa yang tidak menentu.
           calc(100vw-2rem) di layar sempit, kembali ke ukuran tetap mulai breakpoint sm. */}
       {isOpen && (
-        <div className={`overflow-hidden flex flex-col mb-3 origin-bottom-right w-[calc(100vw-1.5rem)] max-h-[80vh] rounded-[24px] border border-tv-border bg-tv-surface shadow-[0_28px_90px_rgba(0,0,0,0.58)] backdrop-blur-2xl transition-all duration-300 ${isExpanded ? 'sm:w-[600px] h-[80vh] sm:h-[700px]' : 'sm:w-[400px] h-[70vh] sm:h-[500px]'}`}>
+        <div
+          role="dialog"
+          aria-label="LensAI Research"
+          className={`overflow-hidden flex flex-col mb-3 origin-bottom-right w-[calc(100vw-1.5rem)] max-h-[80vh] rounded-[24px] border border-tv-border bg-tv-surface shadow-[0_28px_90px_rgba(0,0,0,0.58)] backdrop-blur-2xl transition-all duration-300 ${isExpanded ? 'sm:w-[600px] h-[80vh] sm:h-[700px]' : 'sm:w-[400px] h-[70vh] sm:h-[500px]'}`}>
 
           {/* Header */}
           <div className="flex items-center justify-between border-b border-tv-border bg-white/[0.025] p-4">
@@ -427,7 +453,13 @@ export default function AIChat() {
           </div>
 
           {/* Messages */}
-          <div className="flex-1 space-y-4 overflow-y-auto bg-transparent p-4">
+          {/* BUG FIX (2026-08-22): jawaban LensAI datang streaming (delta demi delta) tapi
+              kontainer ini tidak punya aria-live/role apa pun - pembaca layar tidak
+              pernah diberi tahu ada konten baru masuk, jadi fitur chat ini praktis tidak
+              bisa dipakai secara real-time oleh pengguna screen reader. "polite" (bukan
+              "assertive") supaya pengumuman tidak memotong apa pun yang sedang dibaca
+              user di tempat lain. */}
+          <div role="log" aria-live="polite" aria-relevant="additions text" className="flex-1 space-y-4 overflow-y-auto bg-transparent p-4">
             {messages.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
                 <div className="mb-2 flex h-14 w-14 items-center justify-center rounded-2xl border border-tv-border bg-tv-surface/80">
@@ -534,11 +566,13 @@ export default function AIChat() {
           <div className="border-t border-tv-border bg-white/[0.025] p-3">
             <div className="relative flex items-center">
               <input
+                ref={chatInputRef}
                 type="text"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
                 placeholder="Tanya LensAI tentang saham atau fitur SahamLens..."
+                aria-label="Tanya LensAI tentang saham atau fitur SahamLens"
                 className="w-full rounded-2xl border border-white/[0.08] bg-black/20 min-h-12 py-3 pl-4 pr-12 text-base text-tv-text sm:min-h-0 sm:text-sm placeholder:text-tv-muted/60 transition-all focus:border-tv-blue/60 focus:outline-none focus:ring-2 focus:ring-tv-blue/10"
               />
               <Button variant="bare" size="none"
