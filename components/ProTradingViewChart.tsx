@@ -163,7 +163,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
 
   // Parse and format data
   const formattedData = useMemo(() => {
-    if (!candles || candles.length === 0) return { candlesticks: [], volumes: [], emaSource: [], chartCandles: [] as ChartCandle[] };
+    if (!candles || candles.length === 0) return { candlesticks: [], volumes: [], emaSource: [], chartCandles: [] as ChartCandle[], volumeComplete: false };
 
     const parsed: { time: Time; open: number; high: number; low: number; close: number; volume: number | null }[] = [];
 
@@ -212,19 +212,27 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     const emaSource = sorted.map((c) => ({ time: c.time, close: c.close }));
 
     // Bentuk ChartCandle (lib/chart-indicators.ts) untuk Bollinger/Stochastic/Williams
-    // %R/ADX/OBV - volume null (belum lengkap/tidak ada) jadi 0, konsisten dengan
-    // perlakuan "belum ada transaksi" di modules/technical/service/atr.ts (TR=0 tetap
-    // dihitung, bukan dibuang).
+    // %R/ADX/OBV.
+    //
+    // BUG FIX (2026-08-22): versi pertama menulis `volume: c.volume ?? 0` dengan alasan
+    // "konsisten dengan TR=0 di atr.ts". Itu ANALOGI YANG SALAH: TR = 0 adalah hasil
+    // pengukuran nyata (high = low = close, rentangnya memang nol), sedangkan volume
+    // null berarti DATANYA TIDAK ADA. OBV menjumlahkan volume secara kumulatif, jadi
+    // satu volume hilang yang dijadikan 0 menggeser seluruh garis sesudahnya secara
+    // permanen - dan garisnya tetap tampil mulus tanpa tanda apa pun bahwa ia salah.
+    // NaN dipakai sengaja: calculateObvSeries() fail-closed menolak deret yang memuatnya,
+    // sehingga OBV tidak digambar sama sekali alih-alih digambar salah.
     const chartCandles: ChartCandle[] = sorted.map((c) => ({
       time: c.time as string,
       open: c.open,
       high: c.high,
       low: c.low,
       close: c.close,
-      volume: c.volume ?? 0,
+      volume: c.volume ?? NaN,
     }));
+    const volumeComplete = sorted.every((c) => typeof c.volume === 'number' && Number.isFinite(c.volume));
 
-    return { candlesticks, volumes, emaSource, chartCandles };
+    return { candlesticks, volumes, emaSource, chartCandles, volumeComplete };
   }, [candles]);
 
   // Initialize chart
@@ -726,21 +734,33 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               { value: 'WILLIAMS_R', label: 'W%R' },
               { value: 'ADX', label: 'ADX' },
               { value: 'OBV', label: 'OBV' },
-            ] as const).map((opt) => (
-              <Button variant="bare" size="none"
-                key={opt.value}
-                type="button"
-                onClick={() => setOscillator(opt.value)}
-                title={opt.value === 'NONE' ? 'Sembunyikan sub-panel oscillator' : `Tampilkan ${opt.label} di sub-panel bawah`}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
-                  oscillator === opt.value
-                    ? 'bg-tv-blue text-white shadow-sm'
-                    : 'text-tv-muted hover:text-tv-text'
-                }`}
-              >
-                {opt.label}
-              </Button>
-            ))}
+            ] as const).map((opt) => {
+              // OBV dinonaktifkan (bukan diam-diam menggambar garis kosong) saat ada bar
+              // tanpa volume - lihat catatan fail-closed di formattedData. Alasannya
+              // dinyatakan di tooltip supaya pengguna tahu ini keterbatasan data, bukan
+              // tombol rusak.
+              const obvUnavailable = opt.value === 'OBV' && !formattedData.volumeComplete;
+              return (
+                <Button variant="bare" size="none"
+                  key={opt.value}
+                  type="button"
+                  disabled={obvUnavailable}
+                  onClick={() => setOscillator(opt.value)}
+                  title={obvUnavailable
+                    ? 'OBV tidak tersedia: ada bar tanpa data volume, dan OBV menjumlahkan volume secara kumulatif'
+                    : opt.value === 'NONE' ? 'Sembunyikan sub-panel oscillator' : `Tampilkan ${opt.label} di sub-panel bawah`}
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                    obvUnavailable
+                      ? 'text-tv-muted/30 cursor-not-allowed line-through'
+                      : oscillator === opt.value
+                        ? 'bg-tv-blue text-white shadow-sm'
+                        : 'text-tv-muted hover:text-tv-text'
+                  }`}
+                >
+                  {opt.label}
+                </Button>
+              );
+            })}
           </div>
 
           {/* Range Selector */}
