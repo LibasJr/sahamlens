@@ -43,7 +43,11 @@ export interface TrueRangeBar {
   close: number;
 }
 
-function trueRangeAt(bars: TrueRangeBar[], i: number): number | null {
+// Diekspor (bukan private) supaya adx.ts memakai True Range yang SAMA persis - True
+// Range adalah komponen bersama ATR dan ADX (Wilder mendefinisikan keduanya di paper
+// yang sama, 1978), dan duplikasi formula ini persis pola yang berulang kali jadi bug
+// di app ini (lihat komentar BUG FIX di atas untuk ATR sendiri).
+export function trueRangeAt(bars: TrueRangeBar[], i: number): number | null {
   const curr = bars[i];
   const prev = bars[i - 1];
   if (!curr || !prev) return null;
