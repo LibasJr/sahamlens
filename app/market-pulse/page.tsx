@@ -21,6 +21,9 @@ import {
   type BreadthDirection,
 } from '@/components/market-pulse/PulseVisuals';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import Link from 'next/link';
+import { Lock } from 'lucide-react';
 
 export default function MarketPulse() {
   const [data, setData] = useState<any>(null);
@@ -39,6 +42,7 @@ export default function MarketPulse() {
   // memberi tahu user bahwa permintaannya gagal. Modal paywall menutupi gejalanya
   // hanya sampai user menutup modal itu.
   const [loadError, setLoadError] = useState(false);
+  const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
   const fetchAbortRef = useRef<AbortController | null>(null);
 
@@ -102,6 +106,29 @@ export default function MarketPulse() {
   // dan berbeda-beda - di tiga tempat.
   const blocker: null | 'login' | 'pro' | 'error' | 'loading' =
     gated ?? (loadError ? 'error' : !data ? 'loading' : null);
+
+  // GEMBOK TAMU (2026-08-23). SENGAJA terpisah dari `blocker` di atas: `blocker`
+  // berlaku global untuk seluruh section, sedangkan arah pasar (indeks) harus TETAP
+  // terbuka - itu yang membuat halaman ini berguna sekilas dan layak muncul di mesin
+  // pencari. Yang dikunci hanya dua section yang butuh kerja analisis: Sector Heatmap
+  // dan Market Breadth.
+  const lockForGuest = !authResolved || authLoading || !authUser;
+
+  const renderGuestLock = (what: string) => (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-10 text-center">
+      <Lock className="h-6 w-6 text-tv-yellow" />
+      <p className="text-sm font-bold text-tv-text">{what} terkunci</p>
+      <p className="max-w-xs text-xs leading-relaxed text-tv-muted">
+        Buat akun gratis untuk melihat kekuatan 11 sektor dan sebaran naik-turun pasar hari ini.
+      </p>
+      <Link
+        href="/login?next=/market-pulse"
+        className="inline-flex items-center gap-2 rounded-full bg-tv-blue px-5 py-2 text-sm font-bold text-white transition hover:bg-tv-blueHover"
+      >
+        Masuk atau daftar gratis
+      </Link>
+    </div>
+  );
 
   const renderBlocker = (what: string) => {
     if (blocker === 'login') {
@@ -350,7 +377,9 @@ export default function MarketPulse() {
             </span>
           </div>
 
-          {blocker && blocker !== 'loading' ? (
+          {lockForGuest ? (
+            renderGuestLock('Sector Heatmap')
+          ) : blocker && blocker !== 'loading' ? (
             renderBlocker('Sector Heatmap')
           ) : data?.sectorHeatmap ? (
             <>
@@ -388,7 +417,9 @@ export default function MarketPulse() {
             </span>
           </div>
 
-          {blocker && blocker !== 'loading' ? (
+          {lockForGuest ? (
+            renderGuestLock('Market Breadth')
+          ) : blocker && blocker !== 'loading' ? (
             renderBlocker('Market Breadth')
           ) : data?.breadth ? (
             <div className="space-y-5 flex-1 flex flex-col">
