@@ -530,9 +530,30 @@ function FundamentalContent() {
   );
 }
 
+// BUG FIX (2026-08-22): fallback ini dulu `<div>` polos tanpa indikator visual - satu-
+// satunya titik "blank" yang tersisa di halaman ini, di tengah disiplin skeleton ketat
+// yang dipegang di tempat lain (lihat FundamentalContent di atas). Boundary Suspense ini
+// hanya untuk useSearchParams() dan biasanya sangat singkat, tapi tetap sengaja diberi
+// skeleton, bukan dibiarkan blank, konsisten dengan prinsip "jangan pernah blank".
+function FundamentalSuspenseFallback() {
+  return (
+    <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-10">
+        <Skeleton className="h-24 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-48 w-full" />
+          <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+            {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-20 w-full" />)}
+          </div>
+        </div>
+      </PageContainer>
+    </div>
+  );
+}
+
 export default function FundamentalPage() {
   return (
-    <Suspense fallback={<div className="flex-1 bg-tv-bg min-h-screen" />}>
+    <Suspense fallback={<FundamentalSuspenseFallback />}>
       <FundamentalContent />
     </Suspense>
   );

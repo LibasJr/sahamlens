@@ -4,7 +4,7 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShieldAlert, Calculator, RefreshCw, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Button, PageContainer, EmptyState, AnimatedNumber } from '@/components/ui';
+import { Button, Input, PageContainer, EmptyState, AnimatedNumber } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
 import { apiRequest } from '@/shared/http/api-client';
@@ -170,20 +170,27 @@ function RiskCalculatorContent() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-[11px] text-tv-muted uppercase tracking-wide">Modal (Rp)</label>
-                <input
+                {/* BUG FIX (2026-08-22): 5 field di form ini sebelumnya <input> mentah
+                    tanpa id/htmlFor - label tampil di layar tapi tidak tersambung secara
+                    program ke input-nya (pembaca layar tidak tahu field mana yang sedang
+                    diisi). Diganti komponen Input bersama yang sudah menangani ini -
+                    lihat komentar di components/ui/Input.tsx. */}
+                <Input
+                  label="Modal (Rp)"
                   type="number"
+                  size="sm"
                   value={modal}
                   onChange={(e) => setModal(e.target.value)}
-                  className="w-full mt-1 bg-tv-bg border border-tv-border text-white rounded-lg px-3 py-2 text-sm font-number focus:outline-none focus:border-tv-blue"
+                  className="font-number"
                 />
               </div>
               <div>
-                <label className="text-[11px] text-tv-muted uppercase tracking-wide">
+                <label htmlFor="risk-pct-input" className="text-[11px] text-tv-muted uppercase tracking-wide">
                   {isEn ? 'Risk Per Trade (%)' : 'Risiko per Trade (%)'}
                 </label>
                 <div className="flex gap-1.5 mt-1">
                   <input
+                    id="risk-pct-input"
                     type="number"
                     value={riskPct}
                     onChange={(e) => setRiskPct(e.target.value)}
@@ -213,36 +220,39 @@ function RiskCalculatorContent() {
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="text-[11px] text-tv-muted uppercase tracking-wide">Harga Entry</label>
-                <input
+                <Input
+                  label="Harga Entry"
                   type="number"
+                  size="sm"
                   min="0"
                   value={entry}
                   onChange={(e) => setEntry(e.target.value)}
                   placeholder="0"
-                  className="w-full mt-1 bg-tv-bg border border-tv-border text-white rounded-lg px-3 py-2 text-sm font-number focus:outline-none focus:border-tv-blue"
+                  className="font-number"
                 />
               </div>
               <div>
-                <label className="text-[11px] text-tv-muted uppercase tracking-wide">Stop Loss</label>
-                <input
+                <Input
+                  label="Stop Loss"
                   type="number"
+                  size="sm"
                   min="0"
                   value={stopLoss}
                   onChange={(e) => setStopLoss(e.target.value)}
                   placeholder="0"
-                  className="w-full mt-1 bg-tv-bg border border-tv-border text-white rounded-lg px-3 py-2 text-sm font-number focus:outline-none focus:border-tv-red"
+                  className="font-number"
                 />
               </div>
               <div>
-                <label className="text-[11px] text-tv-muted uppercase tracking-wide">Target (opsional)</label>
-                <input
+                <Input
+                  label="Target (opsional)"
                   type="number"
+                  size="sm"
                   min="0"
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
                   placeholder="0"
-                  className="w-full mt-1 bg-tv-bg border border-tv-border text-white rounded-lg px-3 py-2 text-sm font-number focus:outline-none focus:border-tv-green"
+                  className="font-number"
                 />
               </div>
             </div>

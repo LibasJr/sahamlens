@@ -431,11 +431,26 @@ function CompareContent() {
   );
 }
 
+// BUG FIX (2026-08-22): fallback sebelumnya sudah diperbaiki dari `<div>Loading...</div>`
+// telanjang ke `<div>` polos ber-kelas latar - tapi itu masih blank tanpa indikator
+// visual apa pun. CompareContent sendiri sudah punya skeleton ketat (lihat blok
+// `loading ?` di atas); fallback ini memakai bentuk skeleton yang sama supaya transisi
+// blank->skeleton->konten tidak pernah terjadi, konsisten dengan prinsip "jangan pernah
+// blank" yang dipegang di tempat lain pada halaman ini.
+function CompareSuspenseFallback() {
+  return (
+    <div className="flex-1 bg-tv-bg min-h-screen p-4 md:p-6">
+      <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border shadow-2 p-4 space-y-2">
+        <Skeleton className="h-14 w-full" />
+        {[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-12 w-full" />)}
+      </Card>
+    </div>
+  );
+}
+
 export default function ComparePage() {
   return (
-    // Fallback sebelumnya `<div>Loading...</div>` polos tanpa kelas apa pun - teks
-    // telanjang di atas latar body, tanpa struktur halaman sama sekali.
-    <Suspense fallback={<div className="flex-1 bg-tv-bg min-h-screen" />}>
+    <Suspense fallback={<CompareSuspenseFallback />}>
       <CompareContent />
     </Suspense>
   );
