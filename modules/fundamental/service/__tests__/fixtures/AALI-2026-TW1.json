@@ -1,0 +1,77 @@
+{
+ "schemaVersion": 1,
+ "ticker": "AALI",
+ "entityName": "Astra Agro Lestari Tbk",
+ "year": 2026,
+ "period": "TW1",
+ "fileModified": "2026-04-28T16:30:24.593",
+ "fetchedAt": "2026-08-22T06:00:36.684851+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202026/TW1/AALI/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2026-03-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2026-01-01",
+   "endDate": "2026-03-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-03-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2025-03-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2024-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "27893355000000",
+   "PriorEndYearInstant": "27047104000000"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "3359838000000",
+   "PriorEndYearInstant": "2889470000000"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "23917380000000",
+   "PriorEndYearInstant": "23556137000000"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "24533517000000",
+   "PriorEndYearInstant": "24157634000000"
+  },
+  "idx-cor:SalesAndRevenue": {
+   "CurrentYearDuration": "7501811000000",
+   "PriorYearDuration": "7023961000000"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "540005000000",
+   "PriorYearDuration": "370798000000"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "388401000000",
+   "PriorYearDuration": "284923000000"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "373407000000",
+   "PriorYearDuration": "277032000000"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "194.01",
+   "PriorYearDuration": "143.94"
+  }
+ },
+ "dimensionalContextCount": 3450,
+ "dimensionalFactsSkipped": 659,
+ "unexpectedPlainContexts": []
+}
