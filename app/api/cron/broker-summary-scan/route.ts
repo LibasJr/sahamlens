@@ -49,7 +49,7 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
   try { return await execute(); } catch (error) {
-    logger.error('Job broker-summary-scan gagal', { error });
+    logger.error('Job broker-summary-scan gagal', { err: error });
     return NextResponse.json({ error: 'Job broker summary gagal' }, { status: 500 });
   }
 }
@@ -65,7 +65,7 @@ async function handlePOST(req: NextRequest) {
   try {
     return await execute();
   } catch (error) {
-    logger.error('Job broker-summary-scan gagal', { error });
+    logger.error('Job broker-summary-scan gagal', { err: error });
     return NextResponse.json({ error: 'Job broker summary gagal' }, { status: 500 });
   }
 }

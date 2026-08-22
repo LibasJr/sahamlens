@@ -92,7 +92,7 @@ export async function GET(
     } };
   } catch (error) {
     // Stack trace TIDAK PERNAH sampai ke klien (§30) - hanya ke log server.
-    logger.error('API ownership-flow gagal', { module: 'ownership-flow', ticker, error });
+    logger.error('API ownership-flow gagal', { module: 'ownership-flow', ticker, err: error });
     return { status: 500, body: { error: 'Gagal memuat Ownership Flow' } };
   }
   }, request);

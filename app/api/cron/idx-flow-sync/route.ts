@@ -75,7 +75,7 @@ async function runStep(
     return { step, ok: true, detail: lastLine.slice(0, 500), stdout };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error(`idx-flow-sync ${step} gagal`, { error });
+    logger.error(`idx-flow-sync ${step} gagal`, { err: error });
     return { step, ok: false, detail: message.slice(0, 500), stdout: '' };
   }
 }
@@ -151,7 +151,7 @@ async function handleGET(req: NextRequest) {
     return NextResponse.json({ success: result.status !== 'PARTIAL', result });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error('idx-flow-sync gagal', { error });
+    logger.error('idx-flow-sync gagal', { err: error });
     return NextResponse.json({ error: 'Sinkronisasi IDX gagal', detail: message }, { status: 500 });
   }
 }

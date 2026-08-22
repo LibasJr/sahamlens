@@ -113,7 +113,7 @@ async function handleGET(req: NextRequest) {
     });
     return NextResponse.json({ success: true, result });
   } catch (error) {
-    logger.error('Job ownership-flow-ksei-sync gagal', { error });
+    logger.error('Job ownership-flow-ksei-sync gagal', { err: error });
     await recordDataSourceHealth({ sourceId: 'KSEI_HOLDING_COMPOSITION', ok: false, force: true, detail: { error: error instanceof Error ? error.message : String(error) } });
     return NextResponse.json(
       {

@@ -33,7 +33,7 @@ async function handleGET(req: NextRequest) {
     if (!guarded.executed) return NextResponse.json({ success: true, skipped: true, reason: guarded.reason }, { status: 202 });
     return NextResponse.json({ success: true, result: guarded.value });
   } catch (error) {
-    logger.error('Job calendar-scan gagal', { error });
+    logger.error('Job calendar-scan gagal', { err: error });
     return NextResponse.json({ error: 'Job calendar-scan gagal' }, { status: 500 });
   }
 }
