@@ -10,6 +10,9 @@ import { Input } from '@/components/ui/Input';
 import { PageContainer } from '@/components/ui/PageContainer';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import Link from 'next/link';
+import { Lock } from 'lucide-react';
 import {
   formatObservedDate,
   formatPercent,
@@ -33,6 +36,7 @@ type SortKey = 'ticker' | 'foreignPct' | 'prevForeign' | 'prevLocal';
 type FilterKey = 'ALL' | 'WITH_DATA' | 'MISSING' | 'STALE';
 
 export default function OwnershipFlowPage() {
+  const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
   const [data, setData] = useState<OwnershipFlowApiResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,6 +100,13 @@ export default function OwnershipFlowPage() {
       return (av - bv) * direction;
     });
   }, [data, query, sortKey, sortAsc, filter]);
+
+  // GEMBOK TAMU (2026-08-23). Lima baris cukup memperlihatkan bentuk datanya - kolom
+  // asing/lokal, delta, tren - tanpa memberikan seluruh pemindaian pasar. Yang dijual
+  // menu ini adalah CAKUPANNYA, jadi itulah yang dikunci.
+  const lockForGuest = !authResolved || authLoading || !authUser;
+  const visibleRows = lockForGuest ? rows.slice(0, 5) : rows;
+  const lockedRowCount = rows.length - visibleRows.length;
 
   const toggleSort = (key: SortKey) => {
     if (key === sortKey) setSortAsc((prev) => !prev);
@@ -249,7 +260,7 @@ export default function OwnershipFlowPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((row) => (
+                    {visibleRows.map((row) => (
                       <tr key={row.ticker} className="border-b border-white/[0.04] last:border-0 hover:bg-white/[0.02]">
                         <td className="px-3.5 py-2.5 font-semibold text-tv-text">{row.ticker}</td>
                         <td className="px-3.5 py-2.5 text-right tabular-nums text-tv-text">{formatPercent(row.foreignPct)}</td>
@@ -270,7 +281,7 @@ export default function OwnershipFlowPage() {
               </div>
 
               <div className="divide-y divide-white/[0.04] md:hidden">
-                {rows.map((row) => (
+                {visibleRows.map((row) => (
                   <div key={row.ticker} className="p-3.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-heading text-[15px] font-bold text-tv-text">{row.ticker}</span>
@@ -316,6 +327,16 @@ export default function OwnershipFlowPage() {
                   </div>
                 ))}
               </div>
+
+              {lockedRowCount > 0 && (
+                <Link
+                  href="/login?next=/ownership-flow"
+                  className="flex items-center justify-center gap-2 border-t border-white/[0.06] px-4 py-6 text-sm font-bold text-tv-blue transition hover:bg-white/[0.03]"
+                >
+                  <Lock className="h-4 w-4" />
+                  Masuk untuk melihat {lockedRowCount} emiten lainnya
+                </Link>
+              )}
             </>
           )}
         </Card>
