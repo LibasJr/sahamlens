@@ -235,3 +235,31 @@ describe('GOLDEN - BSIM: subtotal resmi mengalahkan penjumlahan komponen', () =>
     expect(aali.integrity.balanceSheet.balanced).toBe(true);
   });
 });
+
+/**
+ * BRIS (Bank Syariah Indonesia) TW1 2026 - emiten NYATA yang membuktikan daftar tag
+ * pendapatan belum lengkap.
+ *
+ * BRIS tidak melaporkan `InterestIncome` SAMA SEKALI. Seluruh pendapatannya berdiri di
+ * bawah `TotalInterestAndShariaIncome`, subtotal resmi yang dilaporkan emitennya sendiri.
+ * Tanpa tag itu, pendapatan salah satu bank terbesar Indonesia terbaca null.
+ *
+ * Pemindaian 847 artefak TW1 2026: 42 emiten tidak memuat satu pun tag pendapatan yang
+ * dikenali. Dua (BRIS, PNBS) tertolong subtotal ini. Empat puluh sisanya - asuransi dan
+ * multifinance - memang TIDAK punya total pendapatan yang dilaporkan, dan itu dibiarkan
+ * null: menjumlah komponennya sendiri adalah kesalahan yang sama persis dengan yang
+ * menyebabkan bug identitas neraca.
+ */
+describe('GOLDEN - BRIS: pendapatan bank syariah dari subtotal resminya', () => {
+  const report = readIdxFinancialReport('BRIS', 2026, 'TW1', opts)!;
+
+  it('BRIS tidak punya InterestIncome, tapi pendapatannya tetap terbaca', () => {
+    expect(report.current.revenue).toBe(7_032_378_000_000);
+  });
+
+  it('dana syirkah temporer BRIS jauh lebih besar dari ekuitasnya - dan neraca tetap seimbang', () => {
+    expect(report.current.temporarySyirkahFunds).toBe(298_444_506_000_000);
+    expect(report.current.equity).toBe(50_769_149_000_000);
+    expect(report.integrity.balanceSheet.balanced).toBe(true);
+  });
+});
