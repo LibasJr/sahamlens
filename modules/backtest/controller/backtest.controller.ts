@@ -48,7 +48,7 @@ export async function handleRunBacktest(request: Request): Promise<HttpResult> {
       cookiesToSet: cookie ? [cookie] : undefined,
     };
   } catch (error) {
-    logger.error('Backtest gagal', { error });
+    logger.error('Backtest gagal', { err: error });
     return { status: 500, body: { error: 'Server Error' } };
   }
 }

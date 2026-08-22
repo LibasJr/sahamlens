@@ -26,7 +26,7 @@ export async function handleProductFunnelEvent(request: Request): Promise<HttpRe
     });
     return new Response(null, { status: 204 });
   } catch (error) {
-    logger.error('product funnel event failed', { error });
+    logger.error('product funnel event failed', { err: error });
     return { status: 500, body: { error: 'Event funnel tidak dapat disimpan', code: 'INTERNAL_ERROR' } };
   }
 }

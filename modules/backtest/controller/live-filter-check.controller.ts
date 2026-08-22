@@ -50,7 +50,7 @@ export async function handleLiveFilterCheck(request: Request): Promise<HttpResul
       cookiesToSet: cookie ? [cookie] : undefined,
     };
   } catch (error) {
-    logger.error('Live filter check gagal', { error });
+    logger.error('Live filter check gagal', { err: error });
     return { status: 500, body: { error: 'Server Error', code: 'INTERNAL_ERROR' } };
   }
 }

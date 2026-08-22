@@ -82,7 +82,7 @@ export async function GET(request: Request) {
       })),
     } };
   } catch (error) {
-    logger.error('API ownership-flow (daftar) gagal', { module: 'ownership-flow', error });
+    logger.error('API ownership-flow (daftar) gagal', { module: 'ownership-flow', err: error });
     return { status: 500, body: { error: 'Gagal memuat Ownership Flow' } };
   }
   }, request);
