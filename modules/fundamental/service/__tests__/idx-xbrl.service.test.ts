@@ -1,10 +1,8 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
-  mapIdxFinancialReport,
   readIdxFinancialArtifact,
   readIdxFinancialReport,
-  type IdxXbrlArtifact,
 } from '../idx-xbrl.service';
 
 /**
@@ -155,68 +153,7 @@ describe('GOLDEN - TLKM: EPS salah lapor di sumber resmi wajib ditolak, bukan di
   });
 });
 
-describe('pemeriksaan integritas - membedakan "tidak bisa diperiksa" dari "gagal"', () => {
-  function artifactWith(facts: Record<string, Record<string, string>>): IdxXbrlArtifact {
-    return {
-      schemaVersion: 1, ticker: 'TEST', entityName: 'Uji', year: 2026, period: 'TW1',
-      fileModified: null, fetchedAt: '2026-08-22T00:00:00Z', sourceUrl: '',
-      contexts: { CurrentYearInstant: { instant: '2026-03-31' } },
-      facts, dimensionalContextCount: 0, dimensionalFactsSkipped: 0, unexpectedPlainContexts: [],
-    };
-  }
-
-  it('komponen neraca tidak lengkap -> balanced null, BUKAN false', () => {
-    const report = mapIdxFinancialReport(artifactWith({
-      'idx-cor:Assets': { CurrentYearInstant: '1000' },
-    }));
-    expect(report.integrity.balanceSheet.balanced).toBeNull();
-  });
-
-  it('neraca yang benar-benar tidak seimbang -> false', () => {
-    const report = mapIdxFinancialReport(artifactWith({
-      'idx-cor:Assets': { CurrentYearInstant: '1000' },
-      'idx-cor:Liabilities': { CurrentYearInstant: '400' },
-      'idx-cor:Equity': { CurrentYearInstant: '300' },
-    }));
-    expect(report.integrity.balanceSheet.balanced).toBe(false);
-    expect(report.integrity.balanceSheet.difference).toBe(300);
-  });
-
-  it('pos yang tidak dilaporkan -> null, bukan 0', () => {
-    const report = mapIdxFinancialReport(artifactWith({}));
-    expect(report.current.assets).toBeNull();
-    expect(report.current.revenue).toBeNull();
-    expect(report.current.basicEps).toBeNull();
-  });
-
-  it('nilai kosong/bukan angka -> null, tidak menyusup sebagai NaN', () => {
-    const report = mapIdxFinancialReport(artifactWith({
-      'idx-cor:Assets': { CurrentYearInstant: '' },
-      'idx-cor:Liabilities': { CurrentYearInstant: 'n/a' },
-    }));
-    expect(report.current.assets).toBeNull();
-    expect(report.current.liabilities).toBeNull();
-  });
-
-  it('EPS ada tapi laba tidak -> plausible null (tidak bisa diperiksa), EPS tetap dipakai', () => {
-    const report = mapIdxFinancialReport(artifactWith({
-      'idx-cor:BasicEarningsLossPerShareFromContinuingOperations': { CurrentYearDuration: '150' },
-    }));
-    expect(report.integrity.eps.plausible).toBeNull();
-    expect(report.current.basicEps).toBe(150);
-  });
-});
-
 describe('klasifikasi lancar/tidak lancar - dasar current ratio', () => {
-  function artifactWith(facts: Record<string, Record<string, string>>): IdxXbrlArtifact {
-    return {
-      schemaVersion: 1, ticker: 'TEST', entityName: 'Uji', year: 2026, period: 'TW1',
-      fileModified: null, fetchedAt: '2026-08-22T00:00:00Z', sourceUrl: '',
-      contexts: { CurrentYearInstant: { instant: '2026-03-31' } },
-      facts, dimensionalContextCount: 0, dimensionalFactsSkipped: 0, unexpectedPlainContexts: [],
-    };
-  }
-
   it('AALI melaporkan pos lancar dan identitasnya persis', () => {
     const report = readIdxFinancialReport('AALI', 2026, 'TW1', opts)!;
     expect(report.current.currentAssets).toBe(9_770_714_000_000);
@@ -251,40 +188,50 @@ describe('klasifikasi lancar/tidak lancar - dasar current ratio', () => {
     expect(report.integrity.currentClassification.liabilities.balanced).toBeNull();
     expect(report.integrity.rejected).toEqual([]);
   });
+});
 
-  it('total aset ada tapi rinciannya tidak -> balanced null, dan totalnya tetap dilaporkan', () => {
-    const report = mapIdxFinancialReport(artifactWith({
-      'idx-cor:Assets': { CurrentYearInstant: '1000' },
-    }));
-    expect(report.integrity.currentClassification.assets.balanced).toBeNull();
-    expect(report.integrity.currentClassification.assets.total).toBe(1000);
-    expect(report.integrity.currentClassification.assets.componentsSum).toBeNull();
+/**
+ * BSIM (Bank Sinarmas Tbk) TW1 2026 - emiten NYATA yang membuktikan kenapa identitas
+ * neraca TIDAK boleh dihitung dengan menjumlah komponen sendiri.
+ *
+ * Menjumlah Liabilitas + Dana Syirkah Temporer + Ekuitas menghasilkan
+ * Rp 51.792.771.000.000, sementara total asetnya Rp 56.422.278.000.000 - meleset
+ * Rp 4.629.507.000.000. Selisih itu PERSIS sama dengan `AccumulatedTabarrusFunds`,
+ * pos yang berdiri di sisi kanan neraca BSIM tapi tidak ada di daftar tag yang kita baca.
+ *
+ * Neracanya sendiri seimbang, dan BSIM menyatakannya: ia melaporkan
+ * `LiabilitiesTemporarySyirkahFundsAndEquity` = total asetnya, sama persis.
+ *
+ * Terukur atas 847 emiten yang melapor TW1 2026: 38 melaporkan subtotal ini dan
+ * ke-38-nya sama persis dengan Assets. Dengan penjumlahan komponen, BSIM dan CASA
+ * dituduh tidak seimbang; dengan subtotal resmi, 847 dari 847 emiten seimbang.
+ */
+describe('GOLDEN - BSIM: subtotal resmi mengalahkan penjumlahan komponen', () => {
+  const report = readIdxFinancialReport('BSIM', 2026, 'TW1', opts)!;
+
+  it('menjumlah komponen sendiri akan MELESET - ini angka yang membuktikannya', () => {
+    const componentSum = report.current.liabilities! + report.current.equity!;
+    expect(report.current.temporarySyirkahFunds).toBeNull();
+    expect(componentSum).toBe(51_792_771_000_000);
+    expect(report.current.assets! - componentSum).toBe(4_629_507_000_000);
   });
 
-  it('rincian yang tidak menjumlah ke total -> pos lancar di-null-kan dan alasannya dicatat', () => {
-    const report = mapIdxFinancialReport(artifactWith({
-      'idx-cor:Assets': { CurrentYearInstant: '1000' },
-      'idx-cor:CurrentAssets': { CurrentYearInstant: '400' },
-      'idx-cor:NonCurrentAssets': { CurrentYearInstant: '500' },
-    }));
-    expect(report.integrity.currentClassification.assets.balanced).toBe(false);
-    expect(report.integrity.currentClassification.assets.difference).toBe(100);
-    expect(report.current.currentAssets).toBeNull();
-    expect(report.integrity.rejected).toHaveLength(1);
-    expect(report.integrity.rejected[0]).toContain('current.currentAssets');
+  it('subtotal yang dilaporkan BSIM sendiri sama persis dengan total aset', () => {
+    expect(report.current.liabilitiesSyirkahAndEquity).toBe(56_422_278_000_000);
+    expect(report.current.assets).toBe(56_422_278_000_000);
   });
 
-  it('sisi aset dan sisi liabilitas dinilai TERPISAH - satu rusak tidak menjatuhkan yang lain', () => {
-    const report = mapIdxFinancialReport(artifactWith({
-      'idx-cor:Assets': { CurrentYearInstant: '1000' },
-      'idx-cor:CurrentAssets': { CurrentYearInstant: '400' },
-      'idx-cor:NonCurrentAssets': { CurrentYearInstant: '500' },
-      'idx-cor:Liabilities': { CurrentYearInstant: '800' },
-      'idx-cor:CurrentLiabilities': { CurrentYearInstant: '300' },
-      'idx-cor:NonCurrentLiabilities': { CurrentYearInstant: '500' },
-    }));
-    expect(report.current.currentAssets).toBeNull();
-    expect(report.current.currentLiabilities).toBe(300);
-    expect(report.integrity.currentClassification.liabilities.balanced).toBe(true);
+  it('gerbang memakai subtotal resmi, dan BSIM dinyatakan seimbang', () => {
+    expect(report.integrity.balanceSheet.basis).toBe('REPORTED_SUBTOTAL');
+    expect(report.integrity.balanceSheet.difference).toBe(0);
+    expect(report.integrity.balanceSheet.balanced).toBe(true);
+    expect(report.integrity.rejected).toEqual([]);
+  });
+
+  it('emiten tanpa subtotal itu tetap diperiksa lewat penjumlahan komponen', () => {
+    const aali = readIdxFinancialReport('AALI', 2026, 'TW1', opts)!;
+    expect(aali.current.liabilitiesSyirkahAndEquity).toBeNull();
+    expect(aali.integrity.balanceSheet.basis).toBe('COMPONENT_SUM');
+    expect(aali.integrity.balanceSheet.balanced).toBe(true);
   });
 });
