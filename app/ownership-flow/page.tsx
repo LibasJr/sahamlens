@@ -22,6 +22,7 @@ import {
   type OwnershipFlowApiResponse,
   type OwnershipFlowApiRow,
 } from '@/components/ownership-flow/ownership-flow-format';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 // HALAMAN OWNERSHIP FLOW.
 //
@@ -126,6 +127,18 @@ export default function OwnershipFlowPage() {
         moduleTitle="Ownership Flow"
       />
       <PageContainer className="px-4 py-6 sm:px-6 lg:px-8">
+        <MenuUsageGuide
+          menuKey="ownership-flow"
+          whatItAnswers="Siapa yang sedang menambah dan mengurangi kepemilikan di sebuah saham?"
+          steps={[
+            "Kolom asing dan lokal memperlihatkan komposisi kepemilikan terkini.",
+            "Kolom delta menunjukkan perubahannya dibanding periode sebelumnya.",
+            "Urutkan berdasarkan delta untuk melihat pergeseran paling tajam.",
+          ]}
+          freeAccess="5 emiten teratas beserta seluruh kolomnya"
+          afterSignup="komposisi kepemilikan seluruh emiten yang terpantau"
+          loginNext="/ownership-flow"
+        />
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">

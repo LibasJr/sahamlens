@@ -24,6 +24,7 @@ import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 export default function MarketPulse() {
   const [data, setData] = useState<any>(null);
@@ -201,6 +202,18 @@ export default function MarketPulse() {
       </header>
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <MenuUsageGuide
+          menuKey="market-pulse"
+          whatItAnswers="Pasar hari ini sedang condong ke mana, dan sektor apa yang memimpin?"
+          steps={[
+            "Lihat baris indeks di atas untuk tahu arah IHSG hari ini.",
+            "Sector Heatmap memperlihatkan sektor mana yang menguat dan mana yang tertinggal.",
+            "Market Breadth memberi tahu apakah kenaikan merata atau cuma ditopang segelintir saham.",
+          ]}
+          freeAccess="arah IHSG dan indeks pasar hari ini"
+          afterSignup="kekuatan 11 sektor dan sebaran naik-turun seluruh pasar"
+          loginNext="/market-pulse"
+        />
         {/* Skor regime dihitung server-side dari snapshot yang sama. */}
         {blocker && blocker !== 'loading' ? (
           <Card padding="none" radius="xl" elevation="sm" overflow="visible" highlight={false} className="border-tv-border">

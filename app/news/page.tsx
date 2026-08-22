@@ -9,6 +9,7 @@ import { StructuredNewsCard, StructuredNewsIntro } from '@/components/news/Struc
 import { staggerContainer } from '@/lib/motion';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest } from '@/shared/http/api-client';
+import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 interface NewsItemDto {
   title: string;
@@ -116,6 +117,15 @@ export default function NewsPage() {
       </header>
 
       <PageContainer className="p-4 md:p-6 lg:p-7">
+        <MenuUsageGuide
+          menuKey="news"
+          whatItAnswers="Berita apa yang sedang menggerakkan pasar hari ini?"
+          steps={[
+            "Daftar berita diurutkan dari yang terbaru.",
+            "Label sentimen membantu memilah nada beritanya, bukan menilai benar-salahnya.",
+            "Klik satu berita untuk membaca sumber aslinya.",
+          ]}
+        />
         {!loading && !error && newsItems.length > 0 && (
           <StructuredNewsIntro itemCount={newsItems.length} />
         )}
