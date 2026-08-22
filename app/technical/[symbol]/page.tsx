@@ -373,7 +373,21 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             <div className="lens-metric-lg mt-1 text-tv-text">
               {skor ?? 'N/A'}{skor != null && <span className="lens-meta font-medium text-tv-muted"> / 100</span>}
             </div>
-            <div className={`mt-1 text-sm font-bold ${warnaKategori}`}>{kategoriLabel}</div>
+            {/* GEMBOK TAMU (2026-08-23). Angka LensScore sengaja TETAP terbuka; yang
+                dikunci justru tafsirnya. Angka tanpa arti jauh lebih memancing daripada
+                halaman kosong - pengunjung melihat 78/100 tapi tidak tahu itu BUY atau
+                HOLD, dan itulah alasan mendaftar. Halaman ini juga tetap punya isi nyata
+                untuk mesin pencari. */}
+            {signedIn ? (
+              <div className={`mt-1 text-sm font-bold ${warnaKategori}`}>{kategoriLabel}</div>
+            ) : (
+              <Link
+                href={`/login?next=/technical/${symbol}`}
+                className="mt-1 inline-flex items-center gap-1.5 text-sm font-bold text-tv-blue hover:underline"
+              >
+                <Lock className="h-3.5 w-3.5" /> Masuk untuk lihat kesimpulan
+              </Link>
+            )}
             {/* Penyangkalan ini menempel pada SKORNYA, bukan disimpan di paragraf jauh di
                 bawah. Label seperti "BUY" dibaca sebagai ajakan transaksi kalau tidak ada
                 yang menyanggahnya di tempat yang sama - dan model ini belum lolos
@@ -388,24 +402,55 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             Kelompok tanpa data sama sekali ditulis N/A, bukan 0. */}
         {subSkor.length > 0 && (
           <div className="mt-4 grid grid-cols-3 border-y border-tv-border/60 sm:divide-x sm:divide-tv-border/60">
-            {subSkor.map((bagian, index) => (
-              <div key={bagian.label} className={index === 0 ? 'py-3 sm:pr-4' : index === subSkor.length - 1 ? 'py-3 pl-3 sm:pl-4' : 'py-3 pl-3 sm:px-4'}>
-                <div className="lens-meta font-semibold text-tv-muted">{bagian.label}</div>
-                <div className="lens-metric mt-1 text-tv-text">
-                  {bagian.nilai ?? 'N/A'}{bagian.nilai != null && <span className="lens-meta font-medium text-tv-muted"> / 100</span>}
+            {subSkor.map((bagian, index) => {
+              // Kelompok pertama terbuka sebagai contoh bentuknya; sisanya dikunci.
+              const terkunci = !signedIn && index > 0;
+              return (
+                <div key={bagian.label} className={index === 0 ? 'py-3 sm:pr-4' : index === subSkor.length - 1 ? 'py-3 pl-3 sm:pl-4' : 'py-3 pl-3 sm:px-4'}>
+                  <div className="lens-meta font-semibold text-tv-muted">{bagian.label}</div>
+                  {terkunci ? (
+                    <Link
+                      href={`/login?next=/technical/${symbol}`}
+                      className="lens-metric mt-1 inline-flex items-center gap-1.5 text-tv-blue hover:underline"
+                    >
+                      <Lock className="h-4 w-4" />
+                    </Link>
+                  ) : (
+                    <div className="lens-metric mt-1 text-tv-text">
+                      {bagian.nilai ?? 'N/A'}{bagian.nilai != null && <span className="lens-meta font-medium text-tv-muted"> / 100</span>}
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {temuan.length > 0 && (
-          <div className="mt-4">
-            {temuan.map((item) => (
-              <InsightRow key={item.judul} direction={item.arah} title={item.judul} detail={item.bukti} />
-            ))}
-          </div>
-        )}
+        {temuan.length > 0 && (() => {
+          // GEMBOK TAMU (2026-08-23). Temuan adalah bagian paling berharga di halaman ini -
+          // ia menjawab "kenapa", bukan cuma "berapa". Satu ditampilkan utuh supaya
+          // pengunjung tahu bentuk dan kedalamannya; sisanya dikunci dengan jumlahnya
+          // disebutkan, karena "4 temuan lainnya" jauh lebih memancing daripada tombol
+          // masuk tanpa konteks.
+          const terlihat = signedIn ? temuan : temuan.slice(0, 1);
+          const tersisa = temuan.length - terlihat.length;
+          return (
+            <div className="mt-4">
+              {terlihat.map((item) => (
+                <InsightRow key={item.judul} direction={item.arah} title={item.judul} detail={item.bukti} />
+              ))}
+              {tersisa > 0 && (
+                <Link
+                  href={`/login?next=/technical/${symbol}`}
+                  className="mt-2 flex items-center justify-center gap-2 rounded-md border border-dashed border-tv-border px-3 py-3 text-sm font-bold text-tv-blue transition hover:border-tv-blue hover:bg-tv-hover"
+                >
+                  <Lock className="h-4 w-4" />
+                  Masuk untuk melihat {tersisa} temuan lainnya
+                </Link>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Baris kepercayaan (PRD SEC.36): umur data ditulis apa adanya, termasuk saat basi.
             Satu baris, bukan tiga sel bergaris - ini konteks yang menyertai skor, dan
@@ -432,7 +477,10 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
           <h2 className="font-heading font-bold text-tv-text">
             Konsensus Teknikal · {total} analyzer
           </h2>
-          <TechnicalExportSection
+          {/* GEMBOK TAMU (2026-08-23). Mengunduh hasil analisis adalah fitur yang dibawa
+              pulang - kalau tamu bisa mengekspornya, tidak ada yang tersisa untuk
+              diperoleh dengan mendaftar. */}
+          {signedIn && <TechnicalExportSection
             symbol={symbol}
             finalSuggestion={kategoriLabel}
             finalSuggestionTone={kategoriTone}
@@ -443,7 +491,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             waitPct={0}
             agents={analyzers.map((a) => ({ name: String(a.label || '-'), signal: sinyalDariAnalyzer(a.decision) }))}
             score={skor}
-          />
+          />}
         </div>
 
         {total > 0 && (
