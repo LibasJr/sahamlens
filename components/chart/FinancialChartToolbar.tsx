@@ -57,7 +57,7 @@ function normalizeIndicator(indicator: IndicatorConfig): IndicatorConfig {
       stdDev: Math.min(5, Math.max(0.5, Number(indicator.stdDev) || 2)),
     };
   }
-  if (indicator.kind === 'VOLUME') return indicator;
+  if (indicator.kind === 'VOLUME' || indicator.kind === 'OBV') return indicator;
   return { ...indicator, period: clampInt(indicator.period, indicator.kind === 'CMF' ? 20 : 14, 2, 500) };
 }
 
@@ -133,7 +133,7 @@ export default function FinancialChartToolbar({
     const allowMultiple = kind === 'SMA' || kind === 'EMA';
     const existing = indicators.find((indicator) => indicator.kind === kind);
     if (existing && !allowMultiple) {
-      if (kind !== 'VOLUME') setDraftIndicator({ ...existing });
+      if (kind !== 'VOLUME' && kind !== 'OBV') setDraftIndicator({ ...existing });
       return;
     }
 
@@ -142,7 +142,7 @@ export default function FinancialChartToolbar({
 
     const next = defaultIndicator(kind);
     onIndicatorsChange([...indicators, next]);
-    if (kind !== 'VOLUME') setDraftIndicator({ ...next });
+    if (kind !== 'VOLUME' && kind !== 'OBV') setDraftIndicator({ ...next });
   };
 
   const removeIndicator = (id: string) => {
@@ -298,11 +298,11 @@ export default function FinancialChartToolbar({
                   <Button variant="bare" size="none"
                     type="button"
                     className="inline-flex min-h-8 items-center gap-1 px-2 hover:text-white"
-                    onClick={() => indicator.kind !== 'VOLUME' && setDraftIndicator({ ...indicator })}
-                    title={indicator.kind === 'VOLUME' ? 'Volume OHLCV server' : 'Atur indikator'}
+                    onClick={() => indicator.kind !== 'VOLUME' && indicator.kind !== 'OBV' && setDraftIndicator({ ...indicator })}
+                    title={indicator.kind === 'VOLUME' ? 'Volume OHLCV server' : indicator.kind === 'OBV' ? 'On-Balance Volume kumulatif' : 'Atur indikator'}
                   >
                     {indicatorLabel(indicator)}
-                    {indicator.kind !== 'VOLUME' && <Settings2 className="h-3 w-3" />}
+                    {indicator.kind !== 'VOLUME' && indicator.kind !== 'OBV' && <Settings2 className="h-3 w-3" />}
                   </Button>
                   <Button variant="bare" size="none"
                     type="button"
@@ -407,7 +407,7 @@ export default function FinancialChartToolbar({
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              {draftIndicator.kind !== 'VOLUME' && draftIndicator.kind !== 'MACD' && (
+              {draftIndicator.kind !== 'VOLUME' && draftIndicator.kind !== 'MACD' && draftIndicator.kind !== 'OBV' && (
                 <label className="space-y-1.5">
                   <span className="text-[11px] font-semibold text-tv-muted">Period</span>
                   <input type="number" min={2} max={500} value={draftIndicator.period ?? 14} onChange={(event) => setDraftIndicator({ ...draftIndicator, period: Number(event.target.value) })} className="min-h-11 w-full rounded-lg border border-tv-border bg-tv-bg px-3 text-sm text-white outline-none focus:border-tv-blue" />

@@ -302,19 +302,75 @@ export default function BacktestResultsPanel({
             </Card>
           )}
 
+          {/* SIGNIFIKANSI STATISTIK (2026-08-22). Empat angka di kartu "Risiko & kualitas
+              hasil" di atas adalah titik tunggal - tidak membedakan strategi yang benar
+              punya edge dari strategi yang cuma kebetulan beruntung pada N trade kecil.
+              Kartu ini menjawab itu lewat block bootstrap CI95 + permutation test per
+              blok minggu kalender (lihat modules/backtest/service/backtest-significance.service.ts) -
+              pola yang sama dipakai LensRadar/TP-CL Lab, ditulis ulang khusus untuk
+              daftar trade tunggal (bukan spread bucket skor). */}
+          {results.significance && (
+            <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
+                <div className="text-sm font-semibold text-tv-text">Signifikansi statistik</div>
+                {results.significance.bootstrap.status !== 'INSUFFICIENT_DATA' && (
+                  <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded border ${
+                    results.significance.bootstrap.status === 'SUPPORTIVE'
+                      ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
+                      : results.significance.bootstrap.status === 'NEGATIVE'
+                        ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
+                        : 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30'
+                  }`}>
+                    {results.significance.bootstrap.status === 'SUPPORTIVE'
+                      ? 'Beda signifikan dari nol'
+                      : results.significance.bootstrap.status === 'NEGATIVE'
+                        ? 'Signifikan NEGATIF'
+                        : 'Tidak bisa dibedakan dari kebetulan'}
+                  </span>
+                )}
+              </div>
+
+              {results.significance.bootstrap.status === 'INSUFFICIENT_DATA' ? (
+                <p className="text-[11px] leading-relaxed text-tv-muted">{results.significance.note}</p>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[
+                      { label: 'Rata-rata / trade', value: metricPct(results.significance.meanPnlPct, 2), hint: `${results.significance.totalTrades} trade, ${results.significance.weekBlocks} blok minggu` },
+                      {
+                        label: 'CI 95%',
+                        value: results.significance.bootstrap.ci95Low == null || results.significance.bootstrap.ci95High == null
+                          ? '—'
+                          : `${metricPct(results.significance.bootstrap.ci95Low, 1)} .. ${metricPct(results.significance.bootstrap.ci95High, 1)}`,
+                        hint: 'block bootstrap per-minggu',
+                      },
+                      { label: 'p-value', value: results.significance.permutation.pValueOneTailed == null ? '—' : results.significance.permutation.pValueOneTailed.toFixed(4), hint: 'permutation test, 1 arah' },
+                      { label: 'Iterasi', value: String(results.significance.permutation.iterations || 0), hint: 'resample per uji' },
+                    ].map((metric) => (
+                      <div key={metric.label} className="bg-tv-bg border border-tv-border rounded-lg p-3">
+                        <div className="text-[11px] text-tv-muted">{metric.label}</div>
+                        <div className="text-lg font-bold font-number text-tv-text mt-0.5">{metric.value}</div>
+                        <div className="text-[10px] text-tv-muted mt-0.5">{metric.hint}</div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] leading-relaxed text-tv-muted mt-3">{results.significance.note}</p>
+                </>
+              )}
+            </Card>
+          )}
+
           {/* Storytelling: empat angka di atas dibaca sendiri-sendiri tidak
               memberi tahu apakah strategi ini layak. Yang menentukan adalah
-              hubungan antar angka - terutama alpha terhadap drawdown, dan
-              apakah jumlah trade-nya cukup untuk disimpulkan sama sekali. */}
+              hubungan antar angka - terutama alpha terhadap drawdown. Soal
+              "jumlah trade cukup atau tidak" sudah dijawab lebih presisi oleh
+              kartu Signifikansi Statistik di atas (CI/p-value), jadi tidak
+              diulang di sini sebagai heuristik terpisah. */}
           {(() => {
             const alpha = parseSignedPct(results.alpha);
             const dd = Math.abs(parseSignedPct(results.maxDD) ?? 0);
-            const trades = Number(results.totalTrades) || 0;
             const notes: string[] = [];
 
-            if (trades > 0 && trades < 30) {
-              notes.push(`Hanya ${trades} trade dalam periode ini - terlalu sedikit untuk memisahkan keterampilan dari keberuntungan. Perpanjang periode atau kurangi jumlah filter.`);
-            }
             if (alpha != null && alpha > 0 && dd > 0) {
               notes.push(`Strategi unggul ${alpha.toFixed(1)} poin persen dari IHSG, dengan penurunan terdalam ${dd.toFixed(1)}%. Artinya untuk mengejar keunggulan itu, kamu harus sanggup menahan modal turun ${dd.toFixed(1)}% di tengah jalan tanpa menjual.`);
             } else if (alpha != null && alpha <= 0) {

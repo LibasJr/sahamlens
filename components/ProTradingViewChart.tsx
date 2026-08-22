@@ -16,6 +16,23 @@ import {
 import { Eye, EyeOff, Maximize2, RotateCcw, BarChart2, Layers } from 'lucide-react';
 import { formatRupiah } from '@/shared/config/pricing';
 import { computeVolumeProfile, type VolumeProfileResult } from '@/lib/utils/volume-profile';
+import { calculateBollingerBands } from '@/modules/technical/service/bollinger-bands';
+import {
+  adxSeriesForChart,
+  obvSeriesForChart,
+  stochasticSeriesForChart,
+  williamsRSeriesForChart,
+  type ChartCandle,
+} from '@/lib/chart-indicators';
+
+// Oscillator bawah (2026-08-22): satu pita sub-panel, satu indikator aktif sekaligus -
+// bukan 4 pita ditumpuk bersamaan. Chart ini punya tinggi tetap 420px (lihat JSX di
+// bawah); menumpuk Stochastic + Williams %R + ADX + OBV sekaligus di tinggi segitu
+// akan membuat masing-masing pita terlalu tipis untuk dibaca. Selector tunggal dipilih
+// secara sadar - lihat lib/chart-indicators.ts + TradingViewChart.tsx untuk versi yang
+// BISA menumpuk banyak oscillator (dipakai di /technical/[symbol] dan /backtest, yang
+// tinggi chart-nya menyesuaikan otomatis ke jumlah indikator aktif).
+type OscillatorKind = 'NONE' | 'STOCH' | 'WILLIAMS_R' | 'ADX' | 'OBV';
 
 export interface RawCandle {
   date?: string | number | Date;
@@ -56,6 +73,26 @@ function calculateEMA(data: { time: Time; close: number }[], period: number): Li
   return emaData;
 }
 
+/** Deret Bollinger Bands untuk chart - dihitung lewat calculateBollingerBands kanonis
+ * (modules/technical/service/bollinger-bands.ts) per bar, bukan ditulis ulang di sini
+ * (beda dengan calculateEMA di atas, yang formulanya sendiri sudah benar tapi memang
+ * salinan lokal - lihat catatan di lib/chart-indicators.ts soal kenapa indikator BARU
+ * sengaja tidak menambah salinan serupa). */
+function calculateBollingerBandsSeries(data: { time: Time; close: number }[], period = 20, k = 2): { upper: LineData[]; middle: LineData[]; lower: LineData[] } {
+  const closes = data.map((d) => d.close);
+  const upper: LineData[] = [];
+  const middle: LineData[] = [];
+  const lower: LineData[] = [];
+  for (let i = period - 1; i < closes.length; i++) {
+    const result = calculateBollingerBands(closes.slice(0, i + 1), closes[i]!, period, k);
+    if (!result) continue;
+    upper.push({ time: data[i]!.time, value: parseFloat(result.upper.toFixed(2)) });
+    middle.push({ time: data[i]!.time, value: parseFloat(result.middle.toFixed(2)) });
+    lower.push({ time: data[i]!.time, value: parseFloat(result.lower.toFixed(2)) });
+  }
+  return { upper, middle, lower };
+}
+
 function bacaPaletChart(): { latar: string; teks: string; kisi: string; garis: string; bidik: string } {
   if (typeof window === 'undefined') {
     return { latar: '#080D16', teks: '#94a3b8', kisi: 'rgba(255, 255, 255, 0.04)', garis: 'rgba(255, 255, 255, 0.08)', bidik: 'rgba(255, 255, 255, 0.25)' };
@@ -87,10 +124,23 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
   const ema20SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const ema50SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const ema200SeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbUpperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbMiddleSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+  // 3 slot generik dipakai bergantian tergantung oscillator aktif (Stochastic butuh 2,
+  // ADX butuh 3, Williams %R/OBV butuh 1) - bukan 1 ref per jenis oscillator, supaya
+  // tidak ada 4x(sampai 3) = 12 series nganggur setiap kali chart dibuat.
+  const oscLine1Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const oscLine2Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const oscLine3Ref = useRef<ISeriesApi<'Line'> | null>(null);
+  const oscGuideLowRef = useRef<ISeriesApi<'Line'> | null>(null);
+  const oscGuideHighRef = useRef<ISeriesApi<'Line'> | null>(null);
 
   const [showEMA20, setShowEMA20] = useState(true);
   const [showEMA50, setShowEMA50] = useState(true);
   const [showEMA200, setShowEMA200] = useState(true);
+  const [showBB, setShowBB] = useState(false);
+  const [oscillator, setOscillator] = useState<OscillatorKind>('NONE');
   const [showVolume, setShowVolume] = useState(true);
   const [showVPVR, setShowVPVR] = useState(true);
   const [activeRange, setActiveRange] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('6M');
@@ -113,7 +163,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
 
   // Parse and format data
   const formattedData = useMemo(() => {
-    if (!candles || candles.length === 0) return { candlesticks: [], volumes: [], emaSource: [] };
+    if (!candles || candles.length === 0) return { candlesticks: [], volumes: [], emaSource: [], chartCandles: [] as ChartCandle[] };
 
     const parsed: { time: Time; open: number; high: number; low: number; close: number; volume: number | null }[] = [];
 
@@ -161,7 +211,20 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
 
     const emaSource = sorted.map((c) => ({ time: c.time, close: c.close }));
 
-    return { candlesticks, volumes, emaSource };
+    // Bentuk ChartCandle (lib/chart-indicators.ts) untuk Bollinger/Stochastic/Williams
+    // %R/ADX/OBV - volume null (belum lengkap/tidak ada) jadi 0, konsisten dengan
+    // perlakuan "belum ada transaksi" di modules/technical/service/atr.ts (TR=0 tetap
+    // dihitung, bukan dibuang).
+    const chartCandles: ChartCandle[] = sorted.map((c) => ({
+      time: c.time as string,
+      open: c.open,
+      high: c.high,
+      low: c.low,
+      close: c.close,
+      volume: c.volume ?? 0,
+    }));
+
+    return { candlesticks, volumes, emaSource, chartCandles };
   }, [candles]);
 
   // Initialize chart
@@ -281,6 +344,41 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     });
     ema200SeriesRef.current = ema200Series;
 
+    // 4. Bollinger Bands - overlay di skala harga utama (default priceScaleId, sama
+    // seperti EMA di atas), bukan skala terpisah - band-nya memang berada di kisaran
+    // harga yang sama dengan candle.
+    const bbUpperSeries = chart.addLineSeries({
+      color: 'rgba(56, 189, 248, 0.55)', title: 'BB Upper', lineWidth: 1,
+      priceLineVisible: false, crosshairMarkerVisible: false, lastValueVisible: false,
+    });
+    bbUpperSeriesRef.current = bbUpperSeries;
+    const bbMiddleSeries = chart.addLineSeries({
+      color: 'rgba(56, 189, 248, 0.85)', title: 'BB Mid', lineWidth: 1, lineStyle: 2,
+      priceLineVisible: false, crosshairMarkerVisible: false, lastValueVisible: false,
+    });
+    bbMiddleSeriesRef.current = bbMiddleSeries;
+    const bbLowerSeries = chart.addLineSeries({
+      color: 'rgba(56, 189, 248, 0.55)', title: 'BB Lower', lineWidth: 1,
+      priceLineVisible: false, crosshairMarkerVisible: false, lastValueVisible: false,
+    });
+    bbLowerSeriesRef.current = bbLowerSeries;
+
+    // 5. Oscillator sub-panel - satu skala 'oscillator' dipaksa ke pita bawah lewat
+    // scaleMargins (lightweight-charts v4 tidak punya pane bawaan, lihat komentar
+    // OscillatorKind di atas). 3 slot generik + 2 garis panduan overbought/oversold,
+    // dipakai bergantian sesuai `oscillator` yang aktif - lihat efek update data.
+    const makeOscLine = (color: string, title: string, lineWidth: 1 | 2 = 2) => chart.addLineSeries({
+      color, title, lineWidth, priceScaleId: 'oscillator',
+      priceLineVisible: false, crosshairMarkerVisible: false, lastValueVisible: false,
+    });
+    oscLine1Ref.current = makeOscLine('#38bdf8', 'Osc 1');
+    oscLine2Ref.current = makeOscLine('#f0b90b', 'Osc 2', 1);
+    oscLine3Ref.current = makeOscLine('#ef4444', 'Osc 3', 1);
+    oscGuideLowRef.current = makeOscLine('rgba(148, 163, 184, 0.4)', 'Guide Low', 1);
+    oscGuideHighRef.current = makeOscLine('rgba(148, 163, 184, 0.4)', 'Guide High', 1);
+    oscGuideLowRef.current.applyOptions({ lineStyle: 2 });
+    oscGuideHighRef.current.applyOptions({ lineStyle: 2 });
+
     // Subscribe to crosshair moves for interactive HUD
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.seriesData || !candleSeriesRef.current) {
@@ -376,6 +474,74 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         ema200SeriesRef.current.setData(showEMA200 ? ema200 : []);
       }
 
+      if (bbUpperSeriesRef.current && bbMiddleSeriesRef.current && bbLowerSeriesRef.current) {
+        if (showBB) {
+          const bb = calculateBollingerBandsSeries(formattedData.emaSource, 20, 2);
+          bbUpperSeriesRef.current.setData(bb.upper);
+          bbMiddleSeriesRef.current.setData(bb.middle);
+          bbLowerSeriesRef.current.setData(bb.lower);
+        } else {
+          bbUpperSeriesRef.current.setData([]);
+          bbMiddleSeriesRef.current.setData([]);
+          bbLowerSeriesRef.current.setData([]);
+        }
+      }
+
+      // Oscillator sub-panel: satu indikator aktif sekaligus (lihat catatan OscillatorKind
+      // di atas). scaleMargins dari 'right'/'' (volume) dan 'oscillator' harus diubah
+      // BERSAMAAN supaya ketiga pita tidak saling tumpang tindih - lihat komentar di JSX
+      // toolbar untuk kenapa ini satu selector, bukan 4 toggle independen.
+      if (chartRef.current) {
+        const hasOscillator = oscillator !== 'NONE';
+        chartRef.current.priceScale('right').applyOptions({
+          scaleMargins: hasOscillator ? { top: 0.05, bottom: 0.32 } : { top: 0.1, bottom: 0.2 },
+        });
+        chartRef.current.priceScale('').applyOptions({
+          scaleMargins: hasOscillator ? { top: 0.85, bottom: 0 } : { top: 0.8, bottom: 0 },
+        });
+        if (hasOscillator) {
+          chartRef.current.priceScale('oscillator').applyOptions({ scaleMargins: { top: 0.68, bottom: 0.17 } });
+        }
+      }
+
+      const candles = formattedData.chartCandles;
+      const line1 = oscLine1Ref.current;
+      const line2 = oscLine2Ref.current;
+      const line3 = oscLine3Ref.current;
+      const guideLow = oscGuideLowRef.current;
+      const guideHigh = oscGuideHighRef.current;
+      const toLineData = (values: Array<number | null>): LineData[] =>
+        values.flatMap((value, index) => (value == null ? [] : [{ time: candles[index]!.time as Time, value: parseFloat(value.toFixed(2)) }]));
+      const guideLine = (value: number): LineData[] => candles.map((c) => ({ time: c.time as Time, value }));
+
+      if (line1 && line2 && line3 && guideLow && guideHigh) {
+        if (oscillator === 'NONE' || candles.length === 0) {
+          line1.setData([]); line2.setData([]); line3.setData([]); guideLow.setData([]); guideHigh.setData([]);
+        } else if (oscillator === 'STOCH') {
+          const { k, d } = stochasticSeriesForChart(candles, 14);
+          line1.applyOptions({ title: 'Stoch %K' }); line1.setData(toLineData(k));
+          line2.applyOptions({ title: 'Stoch %D' }); line2.setData(toLineData(d));
+          line3.setData([]);
+          guideLow.setData(guideLine(20)); guideHigh.setData(guideLine(80));
+        } else if (oscillator === 'WILLIAMS_R') {
+          const values = williamsRSeriesForChart(candles, 14);
+          line1.applyOptions({ title: 'Williams %R' }); line1.setData(toLineData(values));
+          line2.setData([]); line3.setData([]);
+          guideLow.setData(guideLine(-80)); guideHigh.setData(guideLine(-20));
+        } else if (oscillator === 'ADX') {
+          const { adx, plusDi, minusDi } = adxSeriesForChart(candles, 14);
+          line1.applyOptions({ title: 'ADX' }); line1.setData(toLineData(adx));
+          line2.applyOptions({ title: '+DI' }); line2.setData(toLineData(plusDi));
+          line3.applyOptions({ title: '-DI' }); line3.setData(toLineData(minusDi));
+          guideLow.setData(guideLine(25)); guideHigh.setData([]);
+        } else if (oscillator === 'OBV') {
+          const values = obvSeriesForChart(candles);
+          line1.applyOptions({ title: 'OBV' }); line1.setData(toLineData(values));
+          line2.setData([]); line3.setData([]);
+          guideLow.setData([]); guideHigh.setData([]);
+        }
+      }
+
       // Default view: last 120 bars (~6 months)
       const totalBars = formattedData.candlesticks.length;
       chartRef.current.timeScale().setVisibleLogicalRange({
@@ -383,7 +549,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         to: totalBars,
       });
     }
-  }, [formattedData, showEMA20, showEMA50, showEMA200, showVolume]);
+  }, [formattedData, showEMA20, showEMA50, showEMA200, showBB, oscillator, showVolume]);
 
   const handleRangeChange = (range: '1M' | '3M' | '6M' | '1Y' | 'ALL') => {
     setActiveRange(range);
@@ -512,6 +678,19 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
 
             <Button variant="bare" size="none"
               type="button"
+              onClick={() => setShowBB(!showBB)}
+              title="Toggle Bollinger Bands (20,2)"
+              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
+                showBB
+                  ? 'bg-sky-500/20 text-sky-500 dark:text-sky-400 border border-sky-500/40 shadow-[0_0_8px_rgba(56,189,248,0.2)]'
+                  : 'bg-tv-hover text-tv-muted/40 line-through'
+              }`}
+            >
+              BB
+            </Button>
+
+            <Button variant="bare" size="none"
+              type="button"
               onClick={() => setShowVPVR(!showVPVR)}
               title="Toggle Volume Profile (VPVR & POC)"
               className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
@@ -534,6 +713,34 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
             >
               <BarChart2 className="h-3 w-3" />
             </Button>
+          </div>
+
+          {/* Oscillator sub-panel selector - satu aktif sekaligus (lihat komentar
+              OscillatorKind di atas file). "Tidak ada" sengaja jadi pilihan eksplisit
+              di grup ini, bukan diwakili tombol terpisah, supaya jelas ini SATU pilihan
+              yang saling meniadakan, bukan checklist independen seperti EMA/BB. */}
+          <div className="flex items-center gap-1 bg-tv-hover/50 p-0.5 rounded-lg border border-tv-border">
+            {([
+              { value: 'NONE', label: 'Tanpa Osc' },
+              { value: 'STOCH', label: 'Stoch' },
+              { value: 'WILLIAMS_R', label: 'W%R' },
+              { value: 'ADX', label: 'ADX' },
+              { value: 'OBV', label: 'OBV' },
+            ] as const).map((opt) => (
+              <Button variant="bare" size="none"
+                key={opt.value}
+                type="button"
+                onClick={() => setOscillator(opt.value)}
+                title={opt.value === 'NONE' ? 'Sembunyikan sub-panel oscillator' : `Tampilkan ${opt.label} di sub-panel bawah`}
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                  oscillator === opt.value
+                    ? 'bg-tv-blue text-white shadow-sm'
+                    : 'text-tv-muted hover:text-tv-text'
+                }`}
+              >
+                {opt.label}
+              </Button>
+            ))}
           </div>
 
           {/* Range Selector */}
