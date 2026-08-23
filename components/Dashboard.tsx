@@ -256,8 +256,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   {/* P-1 trust disclaimer: Alat analisis, bukan nasihat investasi */}
                   <span className="font-bold text-tv-text">{t('common.disclaimerShort')}</span>{' '}
                   {t('hero.disclaimerBox')}
-                  {' '}<Link href="/transparency" className="font-bold text-tv-blue hover:underline">{t('common.transparencyLink')}</Link>
-                  {' '}·{' '}<Link href="/disclaimer" className="font-medium hover:text-tv-text hover:underline">{t('common.disclaimerLink')}</Link>
+                  {' '}<Link href="/disclaimer" className="font-bold text-tv-blue hover:underline">{t('common.disclaimerLink')}</Link>
                 </div>
               </div>
 

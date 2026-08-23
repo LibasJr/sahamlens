@@ -53,7 +53,7 @@ export default function PublicStatusPage() {
           </div>)}
         </div>
       </Card>
-      <p className="mt-6 text-xs leading-5 text-tv-muted">Status provider dipisahkan dari HTTP health utama: gangguan sumber tidak memicu restart otomatis yang tidak akan memperbaiki provider eksternal. Untuk metodologi data dan validasi model, lihat <Link className="text-tv-blue" href="/transparency">Transparansi</Link>.</p>
+      <p className="mt-6 text-xs leading-5 text-tv-muted">Status provider dipisahkan dari HTTP health utama: gangguan sumber tidak memicu restart otomatis yang tidak akan memperbaiki provider eksternal. Untuk prinsip dan batas penggunaan data, lihat <Link className="text-tv-blue" href="/about">Tentang</Link>.</p>
     </main>
   );
 }

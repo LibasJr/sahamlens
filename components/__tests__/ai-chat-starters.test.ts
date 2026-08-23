@@ -13,7 +13,7 @@ describe('simbol emiten dari URL', () => {
     expect(symbolFromPathname(pathname)).toBe(expected);
   });
 
-  it.each(['/', '/screener', '/dashboard', '/transparency', '/admin/calibration', '/market/energi'])(
+  it.each(['/', '/screener', '/dashboard', '/admin/transparency', '/admin/calibration', '/market/energi'])(
     '%s -> bukan halaman emiten',
     (pathname) => {
       // Logika lama ("segmen terakhir = simbol") mengubah /screener menjadi simbol

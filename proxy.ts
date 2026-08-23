@@ -109,8 +109,6 @@ function isPublicGuestPage(pathname: string): boolean {
     pathname.startsWith('/calendar/') ||
     pathname === '/breakout-radar' ||
     pathname.startsWith('/breakout-radar/') ||
-    pathname === '/transparency' ||
-    pathname.startsWith('/transparency/') ||
     pathname === '/technical' ||
     pathname.startsWith('/technical/') ||
     // BARU (2026-08-14) - sama seperti isPublicGuestApi di atas: semua halaman non-
@@ -416,7 +414,6 @@ export const config = {
     '/risk-calculator/:path*',
     '/recommendations/:path*',
     '/multi-agent/:path*',
-    '/transparency/:path*',
     '/dcf/:path*',
     '/macro/:path*',
     '/moat/:path*',
