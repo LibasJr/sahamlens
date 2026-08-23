@@ -99,13 +99,49 @@ function record(entry) {
 }
 
 /** Menjalankan satu perintah dan menyimpan seluruh keluarannya ke berkas log. */
-function runCommand({ id, stage, label, command, args, softFail = false, parse, env }) {
+// Variabel yang dipertahankan saat stage `quality` dijalankan tanpa .env.production:
+// hanya yang dibutuhkan node/npm untuk berjalan, plus konvensi guard checkout produksi.
+// Sisanya - kredensial, URL basis data, REDIS_URL - sengaja dibuang.
+const QUALITY_ENV_KEEP = [
+  'PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TERM', 'LANG', 'LC_ALL', 'TZ', 'TMPDIR',
+  'SAHAMLENS_PRODUCTION_CHECKOUT', 'ALLOW_VERIFY_IN_PRODUCTION',
+];
+
+/**
+ * Env untuk stage `quality`, tanpa warisan .env.production.
+ *
+ * Service memuat EnvironmentFile=.env.production karena stage `data` butuh CRON_SECRET,
+ * tapi env yang sama ikut terwarisi ke `npm test` di dalam verify:prod - dan di sana ia
+ * MENGUBAH hasil tes. Terukur 23 Agustus 2026 pada uji perdana: `REDIS_URL` terisi membuat
+ * getOrCompute(COMPUTED_CACHE_KEY.MARKET_NEWS, ...) membalas berita nyata dari cache
+ * produksi, jadi vi.mock('@/modules/news') tidak pernah terpanggil dan dua regresi chat
+ * gagal - untuk commit yang CI-nya hijau.
+ *
+ * Daftar putih, bukan daftar hitam: kunci baru di .env.production tidak boleh diam-diam
+ * bocor ke gerbang hanya karena tidak ada yang ingat memperbarui daftar buangnya.
+ * Gerbang yang merah karena lingkungan akan diabaikan dalam sebulan (CLAUDE.md §2).
+ */
+function scrubbedEnv() {
+  const keep = {};
+  for (const key of QUALITY_ENV_KEEP) {
+    if (process.env[key] !== undefined) keep[key] = process.env[key];
+  }
+  // npm menaruh konfigurasinya sendiri di npm_config_*; membuangnya membuat `npm run`
+  // kehilangan cache dan prefix yang sedang dipakai.
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith('npm_')) keep[key] = value;
+  }
+  return keep;
+}
+
+function runCommand({ id, stage, label, command, args, softFail = false, parse, env, cleanEnv = false }) {
   if (dryRun) {
     record({ id, stage, label, status: 'SKIP', summary: `dry-run: ${command} ${args.join(' ')}`, durationMs: 0, detail: '' });
     return null;
   }
   const begin = Date.now();
-  const child = spawnSync(command, args, { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ...env }, maxBuffer: 64 * 1024 * 1024 });
+  const baseEnv = cleanEnv ? scrubbedEnv() : process.env;
+  const child = spawnSync(command, args, { cwd: ROOT, encoding: 'utf8', env: { ...baseEnv, ...env }, maxBuffer: 64 * 1024 * 1024 });
   const durationMs = Date.now() - begin;
   const output = `${child.stdout ?? ''}${child.stderr ?? ''}`;
   fs.writeFileSync(path.join(logDir, `${stage}-${id}.log`), output || '(tanpa keluaran)', 'utf8');
@@ -143,13 +179,25 @@ function syncWorktree() {
 }
 
 // ----------------------------------------------------- stage 1: pembaruan data
+
+/** Method HTTP yang benar-benar di-export sebuah route.ts. */
+function exportedMethods(source) {
+  return new Set(
+    [...source.matchAll(/export\s+(?:async\s+function|function|const)\s+(GET|POST|PUT|PATCH|DELETE)\b/g)]
+      .map((match) => match[1]),
+  );
+}
+
 async function refreshData() {
   const secret = process.env.CRON_SECRET;
   const routeRoot = path.join(ROOT, 'app', 'api', 'cron');
-  const knownRoutes = new Set(
+  const knownRoutes = new Map(
     fs.readdirSync(routeRoot, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(routeRoot, entry.name, 'route.ts')))
-      .map((entry) => `/api/cron/${entry.name}`),
+      .map((entry) => [
+        `/api/cron/${entry.name}`,
+        exportedMethods(fs.readFileSync(path.join(routeRoot, entry.name, 'route.ts'), 'utf8')),
+      ]),
   );
 
   if (!secret) {
@@ -163,18 +211,29 @@ async function refreshData() {
 
   for (const job of config.dataRefresh ?? []) {
     const id = job.path.split('/').pop();
-    if (!knownRoutes.has(job.path)) {
+    const method = String(job.method ?? 'GET').toUpperCase();
+    const routeMethods = knownRoutes.get(job.path);
+    if (!routeMethods) {
       record({ id, stage: 'data', label: job.path, status: 'FAIL', durationMs: 0, detail: '',
         summary: 'route tidak ada di app/api/cron - config/weekly-maintenance.json drift dari kode' });
       continue;
     }
+    // Menembak method yang tidak di-export membalas 405, dan 405 di laporan terbaca
+    // seolah endpointnya menolak - padahal configlah yang salah. Tolak di depan.
+    if (!routeMethods.has(method)) {
+      const available = [...routeMethods].sort().join(', ') || 'tidak ada handler';
+      record({ id, stage: 'data', label: job.path, status: 'FAIL', durationMs: 0, detail: '',
+        summary: `route tidak meng-export ${method} (yang ada: ${available}) - perbaiki "method" di config/weekly-maintenance.json` });
+      continue;
+    }
     if (dryRun) {
-      record({ id, stage: 'data', label: job.path, status: 'SKIP', summary: `dry-run: GET ${baseUrl}${job.path}`, durationMs: 0, detail: '' });
+      record({ id, stage: 'data', label: job.path, status: 'SKIP', summary: `dry-run: ${method} ${baseUrl}${job.path}`, durationMs: 0, detail: '' });
       continue;
     }
     const begin = Date.now();
     try {
       const response = await fetch(`${baseUrl}${job.path}`, {
+        method,
         headers: { authorization: `Bearer ${secret}` },
         signal: AbortSignal.timeout((job.timeoutSec ?? 300) * 1000),
       });
@@ -260,7 +319,7 @@ function checkQuality() {
   }
   // Satu perintah, bukan salinan daftarnya: verify:prod adalah gerbang yang sama
   // yang dipakai CI dan deploy - 12 audit + typecheck + lint + test + build + bundle.
-  runCommand({ id: 'verify-prod', stage: 'quality', label: 'npm run verify:prod', command: 'npm', args: ['run', 'verify:prod'] });
+  runCommand({ id: 'verify-prod', stage: 'quality', label: 'npm run verify:prod', command: 'npm', args: ['run', 'verify:prod'], cleanEnv: true });
 }
 
 // ------------------------------------------------ stage 4: umur dependency
