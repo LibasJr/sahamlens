@@ -337,6 +337,9 @@ export interface ObservationRow {
   mae: number | null;
   exitReason: string;
   fillStatus: string;
+  /** Waktu eksekusi tersimpan - dipakai audit look-ahead di panel validasi. null = baris lama. */
+  entryTimestamp: string | null;
+  exitTimestamp: string | null;
   /** null = baris diarsipkan sebelum kolom ada. Bukan false. */
   tradable: boolean | null;
   spreadFloorBinding: boolean | null;
@@ -465,6 +468,8 @@ export async function loadIntradayObservations(filter: LoadObservationsFilter): 
     mae: string | null;
     exit_reason: string;
     fill_status: string;
+    entry_timestamp: Date | string | null;
+    exit_timestamp: Date | string | null;
     tradable: boolean | null;
     spread_floor_binding: boolean | null;
     slippage_bps_applied: string | null;
@@ -481,6 +486,7 @@ export async function loadIntradayObservations(filter: LoadObservationsFilter): 
             s.score_bucket, s.component_snapshot,
             o.horizon, o.net_return, o.gross_return, o.entry_price, o.exit_price,
             o.entry_price_raw, o.exit_price_raw, o.mfe, o.mae,
+            o.entry_timestamp, o.exit_timestamp,
             o.exit_reason, o.fill_status, o.tradable, o.spread_floor_binding, o.slippage_bps_applied,
             ls.yahoo_sector AS sector
      FROM intraday_signals s
@@ -511,6 +517,8 @@ export async function loadIntradayObservations(filter: LoadObservationsFilter): 
     mae: r.mae == null ? null : Number(r.mae),
     exitReason: r.exit_reason,
     fillStatus: r.fill_status,
+    entryTimestamp: r.entry_timestamp == null ? null : (r.entry_timestamp instanceof Date ? r.entry_timestamp.toISOString() : String(r.entry_timestamp)),
+    exitTimestamp: r.exit_timestamp == null ? null : (r.exit_timestamp instanceof Date ? r.exit_timestamp.toISOString() : String(r.exit_timestamp)),
     tradable: r.tradable,
     spreadFloorBinding: r.spread_floor_binding,
     slippageBpsApplied: r.slippage_bps_applied == null ? null : Number(r.slippage_bps_applied),
