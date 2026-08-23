@@ -190,3 +190,45 @@ direktori itu.
 sedang melayani pengguna. Itu menguntungkan (22 Agustus 2026 pemindaian data-nyata
 sekaligus mengisi `data/idx-financial/` produksi dengan 847 artefak TW1 2026), tapi
 artinya `--out-dir` wajib dipakai kalau yang diinginkan memang cuma percobaan.
+
+**`npm run verify:prod` dari sini menimpa `.next/` yang sedang dilayani.** Rantainya memuat
+`npm run build`, dan `next build` menulis ke `.next/` yang sama dengan yang dibaca proses
+`next start` yang sedang melayani pengguna. `BUILD_ID` berganti di disk sementara proses
+yang jalan masih memegang manifest lama, jadi permintaan chunk berhash lama membalas 404
+sampai ada yang me-restart servisnya.
+
+Terjadi 23 Agustus 2026. Tidak ada gejala, dan alasannya kebetulan: yang diverifikasi cuma
+perubahan `.gitignore`, yang tidak menyentuh bundle, jadi hash chunk-nya identik. Untuk
+perubahan kode sungguhan — yaitu keadaan normal — setiap pengguna yang sedang membuka
+aplikasi akan kena. Sekarang `scripts/guard-production-checkout.mjs` menolaknya di depan;
+pakai `git worktree` di luar direktori ini, atau `ALLOW_VERIFY_IN_PRODUCTION=1` kalau memang
+disengaja dan restart sudah disiapkan.
+
+**`git pull` di sini membuat deploy berikutnya jadi no-op yang MELAPOR SUKSES.** Ini yang
+paling berbahaya di seluruh bagian ini, karena tidak ada yang merah.
+
+Kejadiannya 23 Agustus 2026: `git pull` dijalankan di direktori ini untuk memeriksa penanda
+konflik seusai dua PR di-merge. Lima menit kemudian Deploy VPS berjalan, membandingkan
+`HEAD` dengan `origin/main`, mendapati keduanya sama — karena `pull` tadi — lalu keluar
+dengan "Sudah versi terbaru." tanpa `npm ci`, tanpa build, tanpa restart. Workflow-nya
+hijau. `git log` di VPS benar. Produksi tetap menyajikan build berumur dua belas jam, dan
+satu-satunya petunjuk ada di
+
+```bash
+systemctl show sahamlens --property=ActiveEnterTimestamp,NRestarts
+```
+
+Pelajarannya melampaui `git pull`: **workflow deploy yang hijau bukan bukti produksi
+berpindah versi.** Yang membuktikan hanya waktu restart servis dan `BUILD_ID` yang benar-benar
+disajikan:
+
+```bash
+curl -s http://127.0.0.1:3001/ | grep -o '"buildId":"[^"]*"'
+cat .next/BUILD_ID
+```
+
+Penentu kesegaran `deploy-sahamlens` sudah diperbaiki — ia sekarang membandingkan SHA yang
+benar-benar selesai di-deploy (dicatat di `/opt/sahamlens/deployed-sha` setelah restart dan
+health check lolos), bukan posisi `HEAD` — dan skripnya sendiri sekarang berversi di
+`deploy/vps-app/`. Tapi kalau versi lama masih terpasang di suatu mesin, aturan ini berlaku
+penuh: jangan `git pull` di sini, dan kalau terlanjur, jalankan `deploy-sahamlens --force`.
