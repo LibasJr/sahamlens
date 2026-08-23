@@ -53,6 +53,16 @@ export type BucketBacktest = {
 
 export type RadarColumnKey = 'symbol' | 'price' | 'changePct' | 'finalScore' | 'technicalScore' | 'fundamentalScore' | 'flowScore' | 'coverage';
 
+/**
+ * GEMBOK TAMU (2026-08-23). Jumlah kandidat yang tetap terbuka untuk pengunjung yang
+ * belum masuk - lengkap dengan skor, rincian per komponen, dan alasannya.
+ *
+ * Tiga, bukan nol: yang membuat orang mau mendaftar adalah bukti bahwa pemindaiannya
+ * nyata dan alasannya masuk akal, dan itu cuma bisa dibuktikan dengan menunjukkannya.
+ * Yang dikunci adalah CAKUPAN daftarnya, karena cakupan itulah yang dijual menu ini.
+ */
+export const GUEST_VISIBLE_RADAR_ROWS = 3;
+
 export interface RadarSortableColumn {
   key: RadarColumnKey;
   label: string;
