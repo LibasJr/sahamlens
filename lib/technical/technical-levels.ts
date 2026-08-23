@@ -5,6 +5,8 @@
  * Deterministic, rule-based mathematical calculations on historical OHLCV candles.
  */
 
+import { ATR_PERIOD, calculateWilderAtr } from '@/modules/technical/service/atr';
+
 export interface OHLCVCandle {
   time: string;
   open: number;
@@ -199,27 +201,32 @@ function calculateEMA(data: number[], period: number): number | null {
 }
 
 /**
- * Average True Range helper (14 periods).
+ * Average True Range (14 periode), Wilder.
+ *
+ * Ini pembungkus tipis di atas `calculateWilderAtr` - satu-satunya implementasi ATR yang
+ * boleh hidup di repo ini. Sampai 23 Agustus 2026 fungsi ini punya formulanya sendiri:
+ * rata-rata aritmatik sederhana dari 14 True Range terakhir. Itu persis temuan C-01 pada
+ * audit 11 Agustus 2026, yang saat itu ditutup di `modules/technical/service/atr.ts` untuk
+ * volatility-analyzer, breakout.service, dan tpcl-validation.service - tapi berkas ini
+ * terlewat, jadi bug yang dinyatakan selesai tetap hidup di satu tempat.
+ *
+ * Yang membuatnya terlihat: kartu ekspor teknikal mencetak KEDUA angka di satu halaman -
+ * `atr14` dari `calculateTradingPlan` di blok proyeksi, dan `raw.atr` milik
+ * volatility-analyzer di baris indikator. BBCA 23 Agustus 2026 menampilkan "ATR 14 Rp 120"
+ * bersebelahan dengan "ATR: 142 (2,21%)". Selisih 15% itu bukan pembulatan; itu dua
+ * definisi ATR yang berbeda pada data yang sama.
+ *
+ * Akibatnya bukan kosmetik: `atr14` masuk langsung ke stop `harga - 1,25 x ATR` dan target
+ * `harga + 2,5 x ATR`. ATR yang ~15% terlalu kecil berarti cut loss yang ~15% terlalu
+ * sempit - kena stop pada gerak harga yang sebetulnya masih di dalam volatilitas normal.
  */
-export function calculateATR(candles: OHLCVCandle[], period = 14): number | null {
-  // Zero Dummy Policy: ATR membutuhkan setidaknya dua candle untuk menghitung
-  // true range terhadap previous close. Jangan menciptakan rentang 100/90 saat
-  // input kosong atau tidak cukup.
-  if (candles.length < 2) return null;
-  const trs: number[] = [];
-  for (let i = 1; i < candles.length; i++) {
-    const current = candles[i];
-    const prevClose = candles[i - 1].close;
-    const tr = Math.max(
-      current.high - current.low,
-      Math.abs(current.high - prevClose),
-      Math.abs(current.low - prevClose)
-    );
-    trs.push(tr);
-  }
-  const slice = trs.slice(-period);
-  if (slice.length === 0) return null;
-  return slice.reduce((a, b) => a + b, 0) / slice.length;
+export function calculateATR(candles: OHLCVCandle[], period = ATR_PERIOD): number | null {
+  // Wilder butuh period + 1 bar (satu bar dipakai sebagai previous close untuk True Range
+  // pertama). Di bawah itu jawabannya "tidak tersedia", bukan angka seadanya.
+  return calculateWilderAtr(
+    candles.map((c) => ({ high: c.high, low: c.low, close: c.close })),
+    period
+  );
 }
 
 /**
@@ -447,11 +454,13 @@ export function calculateTradingPlan(
   // ATR harian harus memakai sesi yang sudah lengkap. Harga entry/reference boleh
   // menggunakan observasi live terbaru karena itu angka provider nyata, bukan estimasi.
   const completed = candles.filter((c) => c.sessionStatus !== 'PARTIAL');
-  if (completed.length < 14) return null;
+  // ATR_PERIOD + 1, bukan 14: Wilder memakai satu bar sebagai previous close untuk True
+  // Range pertama. Ambang 14 lolos di sini lalu jatuh diam-diam ke `atr == null` di bawah.
+  if (completed.length < ATR_PERIOD + 1) return null;
   const currentPrice = Number.isFinite(currentPriceOverride) && (currentPriceOverride ?? 0) > 0
     ? currentPriceOverride!
     : completed[completed.length - 1].close;
-  const atr = calculateATR(completed, 14);
+  const atr = calculateATR(completed, ATR_PERIOD);
   if (atr == null || !Number.isFinite(atr) || atr <= 0) return null;
   const atr14 = Math.round(atr);
 
