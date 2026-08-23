@@ -1,0 +1,34 @@
+# /etc/systemd/system/sahamlens-weekly-maintenance.service
+#
+# Perawatan mingguan: menyegarkan data yang lambat berubah, memeriksa keamanan
+# dependency, lalu menjalankan gerbang produksi penuh (`npm run verify:prod`).
+#
+# KENAPA WorkingDirectory BUKAN /opt/sahamlens/app. Rantai verify:prod memuat
+# `next build`, dan build di checkout produksi menimpa .next/ yang sedang dibaca
+# proses `next start` yang melayani pengguna - BUILD_ID berganti di disk sementara
+# proses lama masih memegang manifest lama, jadi chunk berhash lama membalas 404
+# sampai ada yang me-restart servisnya (CLAUDE.md §7). Job ini memakai worktree
+# perawatan sendiri yang disegarkan ke origin/main lewat stage `sync`.
+#
+# Job ini HANYA MELAPOR: tidak ada `npm audit fix`, migrasi, atau commit otomatis.
+
+[Unit]
+Description=SahamLens - perawatan mingguan (refresh data + audit keamanan, bug, optimasi)
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+WorkingDirectory=/opt/sahamlens/maintenance
+# Secret dibaca dari berkas env produksi; stage data menolak jalan tanpa CRON_SECRET.
+EnvironmentFile=/opt/sahamlens/app/.env.production
+ExecStart=/usr/bin/node scripts/weekly-maintenance.mjs --sync
+# 90 menit: verify:prod sendiri 8-15 menit, dan refresh data lambat (KSEI +
+# rekonsiliasi) masing-masing punya batas 15 menit.
+TimeoutStartSec=5400
+Nice=10
+IOSchedulingClass=idle
+
+[Install]
+WantedBy=multi-user.target

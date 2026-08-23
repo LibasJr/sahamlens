@@ -1,0 +1,13 @@
+[Unit]
+Description=Jadwal SahamLens - perawatan mingguan
+
+[Timer]
+# Minggu 03:30 WIB: bursa tutup, dan sengaja satu jam setelah privacy-cleanup
+# (Minggu 02:30) supaya dua job berat tidak berebut CPU dan koneksi database.
+OnCalendar=Sun *-*-* 03:30:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=600
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target

@@ -91,3 +91,7 @@ data/foreign-flow/
 # Penutupan harian IHSG dari Index Summary resmi BEI
 # (scripts/sync-idx-ihsg-eod.py). Jendela bergulir pendek, ditulis ulang tiap sync.
 data/idx-index/
+
+# Laporan job perawatan mingguan (scripts/weekly-maintenance.mjs). Artefak runtime di
+# VPS, di-rotate otomatis (keepReports), tidak untuk di-commit.
+/reports/

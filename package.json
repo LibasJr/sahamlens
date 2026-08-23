@@ -46,7 +46,10 @@
     "audit:bundle": "node scripts/audit-bundle-budget.mjs",
     "audit:adoption": "node scripts/audit-adoption-ratchet.mjs",
     "audit:frontend-only": "node scripts/audit-frontend-only.mjs",
-    "test:responsive": "vitest run components/ui/__tests__/workbench-fixture.test.tsx && playwright test"
+    "test:responsive": "vitest run components/ui/__tests__/workbench-fixture.test.tsx && playwright test",
+    "maintain:weekly": "node scripts/weekly-maintenance.mjs",
+    "maintain:weekly:audit": "node scripts/weekly-maintenance.mjs --no-data",
+    "maintain:weekly:dry": "node scripts/weekly-maintenance.mjs --dry-run --sync"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
