@@ -3,6 +3,12 @@ import { ATR_PERIOD, calculateWilderAtr, wilderAtrAt } from '../atr';
 import { analyze as analyzeVolatility } from '../analyzers/volatility-analyzer';
 import { buildLongTradingSetup, STRUCTURE_LOOKBACK_BARS } from '@/modules/recommendation/service/trading-setup';
 import { findStructuralZones } from '../analyzers/swing-levels';
+import {
+  calculateATR as calculateSuiteAtr,
+  calculatePivotPoints,
+  calculateTradingPlan,
+  type OHLCVCandle,
+} from '@/lib/technical/technical-levels';
 
 // GOLDEN TEST + INVARIAN LINTAS-JALUR untuk ATR (temuan C-01 audit kuantitatif 2026-08-11).
 //
@@ -101,6 +107,35 @@ describe('INVARIAN C-01 - satu ATR untuk produksi dan TP/CL Lab', () => {
     const produksi = analyzeVolatility(historyProduksi, bars[bars.length - 1]!.close).raw.atr!;
     const lab = wilderAtrAt(bars, bars.length - 1)!;
     expect(produksi).toBeCloseTo(lab, 10);
+  });
+
+  // Jalur ketiga, ditemukan 23 Agustus 2026 - dua tahun setelah C-01 dinyatakan ditutup.
+  // `lib/technical/technical-levels.ts` menyimpan salinan rata-rata sederhananya sendiri
+  // dan tidak pernah ikut dikoreksi, padahal dari sanalah TP/CL kartu ekspor teknikal dan
+  // menu Teknikal berasal. Yang membongkarnya adalah kartu itu sendiri: ia mencetak ATR
+  // versi trading plan DAN ATR versi volatility-analyzer di satu halaman, dan keduanya
+  // berbeda 15% pada BBCA.
+  it('suite teknikal (sumber TP/CL kartu & menu Teknikal) memakai Wilder yang sama', () => {
+    const candles: OHLCVCandle[] = bars.map((b, i) => ({
+      time: `2026-01-${String(i + 1).padStart(2, '0')}`,
+      open: b.close,
+      high: b.high,
+      low: b.low,
+      close: b.close,
+      volume: 1000,
+    }));
+
+    const suiteAtr = calculateSuiteAtr(candles)!;
+    expect(suiteAtr).toBeCloseTo(calculateWilderAtr(bars)!, 10);
+    expect(suiteAtr).not.toBeCloseTo(simpleMeanAtr(bars), 4);
+
+    // Bukan cuma helper-nya: angka yang benar-benar dicetak di kartu adalah
+    // `tradingPlan.atr14`, dan itu yang menentukan stop loss serta target harga.
+    const last = candles.at(-1)!;
+    const plan = calculateTradingPlan(candles, calculatePivotPoints(last.high, last.low, last.close));
+    expect(plan).not.toBeNull();
+    expect(plan!.atr14).toBe(Math.round(calculateWilderAtr(bars)!));
+    expect(plan!.atr14).not.toBe(Math.round(simpleMeanAtr(bars)));
   });
 });
 
