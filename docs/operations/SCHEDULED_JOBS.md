@@ -23,6 +23,19 @@ dibaca ulang dari `vercel.json` pada setiap deployment, dan Vercel masih ikut bu
 akan benar-benar menjalankan job kedua kalinya terhadap database Neon yang sama (kejadian nyata,
 commit `2a64988`). `npm run audit:cron` sekarang gagal kalau `vercel.json` berisi `crons`.
 
+## Job terjadwal yang BUKAN route cron
+
+`config/scheduled-jobs.json` hanya menginventarisasi route `/api/cron/*`. Ada satu timer
+systemd yang tidak punya route dan karena itu sengaja **tidak** dicatat di sana - menambahkannya
+akan membuat `npm run audit:cron` gagal karena tidak ada route pasangannya:
+
+| Unit | Jadwal | Menjalankan | Dokumen |
+| --- | --- | --- | --- |
+| `sahamlens-weekly-maintenance.timer` | Minggu 03:30 WIB (jeda acak hingga 600 detik) | `node scripts/weekly-maintenance.mjs --sync` di worktree `/opt/sahamlens/maintenance` | `deploy/weekly-maintenance/README.md` |
+
+Job itu sendiri memanggil sebagian route cron di atas (refresh akhir pekan). Guard konkurensi
+yang sama tetap berlaku, dan pemanggilan yang dilewati guard dilaporkan WARN - bukan PASS.
+
 ## Aturan sumber kebenaran
 
 - **Jangan menebak jam job.** Jam sebenarnya tidak ada di repo: QStash di dashboard Upstash,
