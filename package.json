@@ -5,6 +5,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev --webpack -H 0.0.0.0 -p 3001",
+    "preflight": "node scripts/preflight.mjs",
     "prebuild": "node scripts/check-deps-installed.mjs",
     "build": "next build --webpack",
     "start": "next start -H 0.0.0.0 -p 3001",
