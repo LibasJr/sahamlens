@@ -143,13 +143,25 @@ function syncWorktree() {
 }
 
 // ----------------------------------------------------- stage 1: pembaruan data
+
+/** Method HTTP yang benar-benar di-export sebuah route.ts. */
+function exportedMethods(source) {
+  return new Set(
+    [...source.matchAll(/export\s+(?:async\s+function|function|const)\s+(GET|POST|PUT|PATCH|DELETE)\b/g)]
+      .map((match) => match[1]),
+  );
+}
+
 async function refreshData() {
   const secret = process.env.CRON_SECRET;
   const routeRoot = path.join(ROOT, 'app', 'api', 'cron');
-  const knownRoutes = new Set(
+  const knownRoutes = new Map(
     fs.readdirSync(routeRoot, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && fs.existsSync(path.join(routeRoot, entry.name, 'route.ts')))
-      .map((entry) => `/api/cron/${entry.name}`),
+      .map((entry) => [
+        `/api/cron/${entry.name}`,
+        exportedMethods(fs.readFileSync(path.join(routeRoot, entry.name, 'route.ts'), 'utf8')),
+      ]),
   );
 
   if (!secret) {
@@ -163,18 +175,29 @@ async function refreshData() {
 
   for (const job of config.dataRefresh ?? []) {
     const id = job.path.split('/').pop();
-    if (!knownRoutes.has(job.path)) {
+    const method = String(job.method ?? 'GET').toUpperCase();
+    const routeMethods = knownRoutes.get(job.path);
+    if (!routeMethods) {
       record({ id, stage: 'data', label: job.path, status: 'FAIL', durationMs: 0, detail: '',
         summary: 'route tidak ada di app/api/cron - config/weekly-maintenance.json drift dari kode' });
       continue;
     }
+    // Menembak method yang tidak di-export membalas 405, dan 405 di laporan terbaca
+    // seolah endpointnya menolak - padahal configlah yang salah. Tolak di depan.
+    if (!routeMethods.has(method)) {
+      const available = [...routeMethods].sort().join(', ') || 'tidak ada handler';
+      record({ id, stage: 'data', label: job.path, status: 'FAIL', durationMs: 0, detail: '',
+        summary: `route tidak meng-export ${method} (yang ada: ${available}) - perbaiki "method" di config/weekly-maintenance.json` });
+      continue;
+    }
     if (dryRun) {
-      record({ id, stage: 'data', label: job.path, status: 'SKIP', summary: `dry-run: GET ${baseUrl}${job.path}`, durationMs: 0, detail: '' });
+      record({ id, stage: 'data', label: job.path, status: 'SKIP', summary: `dry-run: ${method} ${baseUrl}${job.path}`, durationMs: 0, detail: '' });
       continue;
     }
     const begin = Date.now();
     try {
       const response = await fetch(`${baseUrl}${job.path}`, {
+        method,
         headers: { authorization: `Bearer ${secret}` },
         signal: AbortSignal.timeout((job.timeoutSec ?? 300) * 1000),
       });

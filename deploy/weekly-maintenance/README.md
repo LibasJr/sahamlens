@@ -27,7 +27,7 @@ kalau mendapati dirinya berjalan di dalam checkout produksi.
 | Stage | Isi | Kenapa |
 | --- | --- | --- |
 | `sync` | `git fetch` + `checkout --detach origin/main` + `git clean` + `npm ci` | Mengaudit kode yang benar-benar dijalankan produksi, bukan salinan basi |
-| `data` | GET ke endpoint cron di `config/weekly-maintenance.json` + `npm run audit:integrity` | Sebagian besar jadwal harian hanya Senin–Jumat; tarikan akhir pekan menutup hari yang gagal tanpa menunggu Senin |
+| `data` | Panggil endpoint cron di `config/weekly-maintenance.json` (method per job) + `npm run audit:integrity` | Sebagian besar jadwal harian hanya Senin–Jumat; tarikan akhir pekan menutup hari yang gagal tanpa menunggu Senin |
 | `security` | `npm audit --omit=dev`, deteksi berkas `.env` ter-commit, cek izin berkas `.env` | CVE dependency dan secret bocor tidak akan muncul sendiri di log aplikasi |
 | `quality` | `npm run verify:prod` | Gerbang yang sama dengan CI: 12 audit + typecheck + lint + test + build + bundle budget |
 | `deps` | `npm outdated` | Dependency yang tertinggal jauh baru terasa saat terpaksa upgrade darurat |
@@ -86,6 +86,10 @@ Opsi: `--only=`/`--skip=` (`sync,data,security,quality,deps`), `--sync`, `--no-d
   Service memuatnya lewat `EnvironmentFile=/opt/sahamlens/app/.env.production`.
 - **Butuh devDependency terpasang.** Kalau laporan memuat exit 127, `node_modules` di
   worktree tidak lengkap — jalankan `npm ci` di sana.
+- **Tiap endpoint punya `"method"` sendiri di config.** Route `/api/cron` terbagi antara
+  `GET` dan `POST`; method yang salah membalas 405 dan terbaca seolah endpointnya rusak.
+  Runner menolak di depan kalau method-nya tidak di-export route-nya, dan tesnya mengunci
+  pasangan itu di CI.
 - **Jangan daftarkan job ini ke `config/scheduled-jobs.json`.** Manifest itu khusus route
   `/api/cron/*`; `npm run audit:cron` akan gagal karena tidak ada route pasangannya.
 - **Job dilewati guard konkurensi dilaporkan WARN, bukan PASS** — datanya belum tentu segar.

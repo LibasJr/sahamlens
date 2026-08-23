@@ -46,6 +46,24 @@ describe('config perawatan mingguan', () => {
     }
   });
 
+  it('memakai method HTTP yang benar-benar di-export route-nya', () => {
+    // Route /api/cron terbagi rata antara GET dan POST. Menembak yang salah membalas
+    // 405 tiap Minggu subuh, dan 405 di laporan terbaca seolah endpointnya rusak -
+    // bukan seolah config-nya yang salah. Kunci pasangannya di sini.
+    for (const job of config.dataRefresh) {
+      const route = path.join('app', 'api', 'cron', job.path.split('/').pop() as string, 'route.ts');
+      const exported = new Set(
+        [...readFileSync(route, 'utf8').matchAll(/export\s+(?:async\s+function|function|const)\s+(GET|POST|PUT|PATCH|DELETE)\b/g)]
+          .map((match) => match[1]),
+      );
+      expect(job.method, `${job.path} butuh "method" eksplisit di config`).toMatch(/^(GET|POST|PUT|PATCH|DELETE)$/);
+      expect(
+        exported.has(job.method),
+        `${job.path} dikonfigurasi ${job.method}, tapi route-nya hanya meng-export ${[...exported].sort().join(', ') || 'tidak ada handler'}`,
+      ).toBe(true);
+    }
+  });
+
   it('menyetel batas waktu dan alasan untuk tiap endpoint', () => {
     for (const job of config.dataRefresh) {
       expect(job.timeoutSec, `${job.path} butuh timeoutSec`).toBeGreaterThan(0);

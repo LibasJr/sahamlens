@@ -49,7 +49,7 @@ Lima stage berurutan:
 
 1. `sync` - `git fetch` + `checkout --detach origin/main` + `git clean` + `npm ci` di worktree
    perawatan.
-2. `data` - GET ke endpoint cron yang terdaftar di `config/weekly-maintenance.json`
+2. `data` - panggil endpoint cron yang terdaftar di `config/weekly-maintenance.json` (method per job)
    (`market-data-reconcile`, `fundamental-snapshot`, `ownership-flow-ksei-sync`, `macro`,
    `calendar-scan`, `dividend-scan`, `news`) memakai `CRON_SECRET`, lalu `npm run audit:integrity`.
    Sebagian besar jadwal harian hanya Senin-Jumat; tarikan akhir pekan menutup hari yang gagal
