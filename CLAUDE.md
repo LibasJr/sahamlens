@@ -4,6 +4,39 @@ Isinya bukan gaya penulisan kode, melainkan jebakan yang sudah pernah menjatuhka
 build produksi di repo ini. Semua yang tertulis di sini punya kejadiannya, bukan
 kehati-hatian teoretis. Baca sebelum menyunting.
 
+## 0. Jalankan ini dulu, sebelum menyunting apa pun
+
+```bash
+npm run preflight
+```
+
+Enam baris, dan ia menjawab pertanyaan yang menentukan apakah sisa dokumen ini relevan:
+
+| # | Pertanyaan | Kalau jawabannya buruk |
+|---|---|---|
+| 1 | Di mana saya? | `/opt/sahamlens/app` adalah checkout produksi (§7). Buat worktree dulu |
+| 2 | Branch apa? | Di checkout produksi harus `main`. Branch lain ditarik `reset --hard` saat deploy |
+| 3 | Ada yang belum di-commit? | Di checkout produksi, isinya hilang tanpa peringatan saat deploy |
+| 4-5 | `HEAD` == versi produksi? | Beda berarti produksi tidak menjalankan apa yang kamu kira (§4) |
+| 6 | CI `main` hijau? | `main` merah berarti tidak ada informasi tentang kesehatan di belakangnya (§5) |
+
+Keluar dengan kode 1 hanya untuk kombinasi yang bisa MENGHILANGKAN pekerjaan: berada di
+dalam checkout produksi sambil memegang perubahan belum ter-commit atau branch bukan `main`.
+Sisanya ditandai `<--` tapi tidak memerah — penjaga yang memerah untuk hal normal akan
+diabaikan dalam seminggu.
+
+**Kenapa ini ada di paling atas.** 23 Agustus 2026 satu sesi menabrak empat jebakan berbeda
+dalam tiga jam, dan keempatnya sudah tertulis di dokumen ini. Pola kegagalannya sama: prosa
+dibaca sekali di awal, lalu keadaan berubah di tengah jalan — direktori kerja berpindah,
+branch berganti, produksi bergeser — dan tidak ada yang memeriksa ulang. Jalankan lagi kapan
+pun ragu; biayanya satu detik.
+
+Dua aturan penutup yang tidak bisa dilihat preflight, dan paling sering dilewat:
+
+- **`npm run verify:prod` dari worktree sebelum mengklaim selesai** (§1). Dari checkout
+  produksi ia akan menolak jalan.
+- **`npm ci` kalau `package.json` berubah** (§4).
+
 ## 1. `npm run typecheck` TIDAK cukup untuk membuktikan tipe aman
 
 `tsc --noEmit` hanya melihat tipe route bikinan Next setelah ada build yang
