@@ -96,6 +96,13 @@ Opsi: `--only=`/`--skip=` (`sync,data,security,quality,deps`), `--sync`, `--no-d
   `GET` dan `POST`; method yang salah membalas 405 dan terbaca seolah endpointnya rusak.
   Runner menolak di depan kalau method-nya tidak di-export route-nya, dan tesnya mengunci
   pasangan itu di CI.
+- **`xlsx` sengaja diambil dari cdn.sheetjs.com, bukan registry npm.** SheetJS berhenti
+  menerbitkan ke npm sejak 0.19, jadi 0.18.5 - rilis terakhir di sana - memikul dua advisory
+  high yang `fixAvailable: false` selamanya. Selama ia terpasang, stage `security` FAIL tiap
+  Minggu tanpa ada yang bisa dilakukan. Artinya `npm ci` di CI dan di VPS ikut bergantung pada
+  cdn.sheetjs.com; kegagalannya keras (install berhenti), bukan diam-diam, dan integritas
+  tarball-nya terkunci di `package-lock.json`. `scripts/__tests__/dependency-sources.test.ts`
+  memerah kalau ada yang mengembalikannya ke registry.
 - **Jangan daftarkan job ini ke `config/scheduled-jobs.json`.** Manifest itu khusus route
   `/api/cron/*`; `npm run audit:cron` akan gagal karena tidak ada route pasangannya.
 - **Job dilewati guard konkurensi dilaporkan WARN, bukan PASS** — datanya belum tentu segar.
