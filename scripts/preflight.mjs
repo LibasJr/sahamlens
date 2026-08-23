@@ -30,13 +30,20 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
+// Direktori yang diperiksa. Default: repo tempat skrip ini tinggal - itu yang benar untuk
+// pemakaian sungguhan. Bisa ditunjuk ke tempat lain SUPAYA BISA DIUJI: tanpa ini test harus
+// menumpang branch yang kebetulan aktif saat CI berjalan, dan itu persis yang memerahkan
+// `main` pada 8060da6 - assertion 'bukan main' lulus di PR (branch fitur) lalu gagal di main
+// (branch-nya memang main). Test yang hasilnya ditentukan oleh keadaan di luar dirinya bukan
+// test.
+const REPO = process.env.SAHAMLENS_PREFLIGHT_REPO ?? ROOT;
 const PRODUCTION_CHECKOUT = process.env.SAHAMLENS_PRODUCTION_CHECKOUT ?? '/opt/sahamlens/app';
 const STATE_FILE = process.env.SAHAMLENS_DEPLOY_STATE ?? '/opt/sahamlens/deployed-sha';
 
 function sh(cmd, args, opts = {}) {
   try {
     return execFileSync(cmd, args, {
-      cwd: ROOT,
+      cwd: REPO,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'ignore'],
       ...opts,
@@ -54,7 +61,7 @@ function canonical(p) {
   }
 }
 
-const here = canonical(ROOT);
+const here = canonical(REPO);
 const inProduction = here === canonical(PRODUCTION_CHECKOUT);
 const branch = sh('git', ['branch', '--show-current']) || '(detached)';
 const dirty = sh('git', ['status', '--porcelain'])
