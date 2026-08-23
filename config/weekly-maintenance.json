@@ -1,0 +1,51 @@
+{
+  "timezone": "Asia/Jakarta",
+  "notes": "Konfigurasi job perawatan mingguan (scripts/weekly-maintenance.mjs). Job ini TIDAK punya route /api/cron/*, jadi sengaja tidak dicatat di scheduled-jobs.json - audit:cron gagal kalau ditambahkan ke sana. Endpoint di dataRefresh HARUS route yang sudah ada; runner memvalidasinya terhadap app/api/cron sebelum menembak apa pun, dan scripts/__tests__/weekly-maintenance.test.ts menguncinya di CI.",
+  "baseUrl": "http://127.0.0.1:3001",
+  "reportDir": "reports/weekly-maintenance",
+  "keepReports": 12,
+  "dataRefresh": [
+    {
+      "path": "/api/cron/market-data-reconcile",
+      "timeoutSec": 900,
+      "reason": "Rekonsiliasi harga penutupan lintas sumber. Timer harian hanya Senin-Jumat; jalan sekali lagi di akhir pekan menutup hari yang gagal tanpa menunggu Senin."
+    },
+    {
+      "path": "/api/cron/fundamental-snapshot",
+      "timeoutSec": 900,
+      "reason": "Snapshot fundamental. QStash hanya menjadwalkannya hari kerja 05:00 WIB."
+    },
+    {
+      "path": "/api/cron/ownership-flow-ksei-sync",
+      "timeoutSec": 900,
+      "reason": "Sinkronisasi kepemilikan KSEI; snapshot mingguan yang telat masuk baru terlihat kalau ditarik ulang."
+    },
+    {
+      "path": "/api/cron/macro",
+      "timeoutSec": 300,
+      "reason": "Cache asumsi makro (Rf/ERP/BI-Rate) supaya tidak basi saat pekan baru dibuka."
+    },
+    {
+      "path": "/api/cron/calendar-scan",
+      "timeoutSec": 300,
+      "reason": "Kalender emiten untuk pekan berikutnya."
+    },
+    {
+      "path": "/api/cron/dividend-scan",
+      "timeoutSec": 300,
+      "reason": "Jadwal dividen; cum/ex date sering direvisi di akhir pekan."
+    },
+    {
+      "path": "/api/cron/news",
+      "timeoutSec": 300,
+      "reason": "Pre-warm cache berita supaya menu News tidak dingin Senin pagi."
+    }
+  ],
+  "security": {
+    "npmAuditLevel": "high",
+    "failOnVulnerability": true
+  },
+  "performance": {
+    "runBuild": true
+  }
+}
