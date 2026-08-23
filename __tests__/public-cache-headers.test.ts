@@ -22,6 +22,20 @@ import { publicCacheHeaders, CDN_FRESHNESS_SEC } from '@/shared/cache/ttl-policy
 const REPO_ROOT = path.join(__dirname, '..');
 const API_ROOT = path.join(REPO_ROOT, 'app', 'api');
 
+/**
+ * Komentar dibuang sebelum pencocokan (CLAUDE.md §2). Tanpa ini, route yang MENJELASKAN
+ * kenapa ia tidak lagi memakai publicCacheHeaders terhitung sebagai pemakainya - persis
+ * yang terjadi 23 Agustus 2026 saat /api/transparency dipindah ke balik gerbang admin.
+ * Menghukum penjelasan membuat orang menghapus penjelasannya, bukan memperbaiki gerbangnya.
+ */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
+function code(file: string): string {
+  return stripComments(fs.readFileSync(path.join(REPO_ROOT, file), 'utf8'));
+}
+
 /** Route yang BOLEH memakai publicCacheHeaders. Isinya identik untuk semua pengunjung. */
 const PUBLIC_CACHEABLE = new Set([
   'app/api/market-summary/route.ts',
@@ -29,7 +43,6 @@ const PUBLIC_CACHEABLE = new Set([
   'app/api/macro/route.ts',
   'app/api/news/route.ts',
   'app/api/calendar/route.ts',
-  'app/api/transparency/route.ts',
   'app/api/ai-pick/route.ts',
   'app/api/daily-picks/route.ts',
   'app/api/public-chart/[ticker]/route.ts',
@@ -46,6 +59,11 @@ const SESSION_MARKERS = [
   'requireAuth',
   'getAuthRequestMeta',
   'verifyAdminToken',
+  // Ditambahkan 23 Agustus 2026 bersama pemindahan /api/transparency ke balik gerbang
+  // admin. Tanpa keduanya, route yang HANYA memeriksa keadminan lolos daftar ini -
+  // padahal itu justru respons yang paling tidak boleh disajikan Cloudflare ke publik.
+  'isAdminFromRequestCookies',
+  'isAdminServer',
 ];
 
 function listRouteFiles(dir: string): string[] {
@@ -67,9 +85,7 @@ describe('header cache CDN', () => {
 
   it('hanya route dalam daftar publik yang memakai publicCacheHeaders', () => {
     const offenders = routeFiles.filter(
-      (file) =>
-        fs.readFileSync(path.join(REPO_ROOT, file), 'utf8').includes('publicCacheHeaders') &&
-        !PUBLIC_CACHEABLE.has(file),
+      (file) => code(file).includes('publicCacheHeaders') && !PUBLIC_CACHEABLE.has(file),
     );
     expect(offenders).toEqual([]);
   });
@@ -77,7 +93,7 @@ describe('header cache CDN', () => {
   it('tidak ada route ter-cache publik yang membaca sesi pengguna', () => {
     const offenders: string[] = [];
     for (const file of PUBLIC_CACHEABLE) {
-      const source = fs.readFileSync(path.join(REPO_ROOT, file), 'utf8');
+      const source = code(file);
       const hit = SESSION_MARKERS.find((marker) => source.includes(marker));
       if (hit) offenders.push(`${file} memakai ${hit}`);
     }
@@ -88,9 +104,8 @@ describe('header cache CDN', () => {
     for (const file of PUBLIC_CACHEABLE) {
       const full = path.join(REPO_ROOT, file);
       expect(fs.existsSync(full), `${file} tidak ada`).toBe(true);
-      expect(fs.readFileSync(full, 'utf8'), `${file} tidak memasang header`).toContain(
-        'publicCacheHeaders',
-      );
+      // Juga tanpa komentar: route yang hanya MENYEBUT header di prosa belum memasangnya.
+      expect(code(file), `${file} tidak memasang header`).toContain('publicCacheHeaders');
     }
   });
 });

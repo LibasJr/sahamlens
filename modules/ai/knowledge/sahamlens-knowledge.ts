@@ -114,7 +114,7 @@ Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: *
 - **News & Sentiment**: Berita terkini dan klasifikasi sentimen pasar modal.
 - **Corporate Calendar**: Kalender terintegrasi dividen, earnings, dan aksi korporasi emiten IDX.
 - **Macro**: Analisis BI-Rate, inflasi, kurs USD/IDR, dan peta transmisi rule-based ke sektor. Mapping sektor bersifat heuristik/indikatif, bukan forecast return sektor.
-- **Transparansi**: Publikasi metodologi, bukti validasi empiris, dan akurasi model kuantitatif.
+- **Transparansi** (INTERNAL/Admin sejak 23 Agustus 2026, tidak ada di menu pengguna): Bukti validasi empiris dan akurasi model kuantitatif.
 - **Tentang**: Filosofi dan prinsip objektivitas SahamLens.
 - **Pattern**: Deteksi pola grafik teknikal dan konfirmasinya.
 

@@ -78,7 +78,7 @@ async function fetchDate(tradeDate: string): Promise<CloseObservation[]> {
       headers: {
         Accept: 'application/json,text/plain,*/*',
         Referer: 'https://www.idx.co.id/id/data-pasar/ringkasan-perdagangan/ringkasan-saham/',
-        'User-Agent': 'Mozilla/5.0 (compatible; SahamLens-DataIntegrity/1.0; +https://sahamlens.id/transparency)',
+        'User-Agent': 'Mozilla/5.0 (compatible; SahamLens-DataIntegrity/1.0; +https://sahamlens.id/about)',
       },
       cache: 'no-store',
       signal: controller.signal,

@@ -125,7 +125,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'news', name: 'News & Sentiment', subtitle: 'Berita pasar dan konteks sentimen terbaru', path: '/news', icon: Newspaper, guest: true },
       { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS, earnings, dan aksi korporasi', path: '/calendar', icon: CalendarDays, guest: true },
       { id: 'macro', name: 'Macro', subtitle: 'Konteks ekonomi makro Indonesia', path: '/macro', icon: Waves },
-      { id: 'transparency', name: 'Transparansi', subtitle: 'Cara skor, data, dan validasi bekerja', path: '/transparency', icon: ShieldCheck, guest: true },
       { id: 'about', name: 'Tentang', subtitle: 'Filosofi dan prinsip SahamLens', path: '/about', icon: Info, guest: true },
     ],
   },
@@ -191,6 +190,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin', name: 'Admin Panel', subtitle: 'User & subscription', path: '/admin', icon: ShieldAlert },
     { id: 'admin-jobs', name: 'Pemantau Cron', subtitle: 'Job terjadwal & kesehatannya', path: '/admin/jobs', icon: Activity },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
+    { id: 'admin-transparency', name: 'Transparansi LensRadar', subtitle: 'Bukti forward per bucket & rekonsiliasi harga', path: '/admin/transparency', icon: ShieldCheck },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
     { id: 'admin-financial-integrity', name: 'Financial Integrity', subtitle: 'Adoption gate & maturity', path: '/admin/financial-integrity', icon: ShieldCheck },
     { id: 'admin-market-data-integrity', name: 'Market Data Integrity', subtitle: 'Rekonsiliasi harga lintas sumber', path: '/admin/data-integrity', icon: ShieldCheck },
@@ -350,7 +350,6 @@ export default function Sidebar() {
       case 'news': return { name: t('nav.news'), subtitle: t('nav.newsSub') };
       case 'calendar': return { name: t('nav.calendar'), subtitle: t('nav.calendarSub') };
       case 'macro': return { name: t('nav.macro'), subtitle: t('nav.macroSub') };
-      case 'transparency': return { name: t('nav.transparency'), subtitle: t('nav.transparencySub') };
       case 'about': return { name: t('nav.about'), subtitle: t('nav.aboutSub') };
       default: return { name: defaultName, subtitle: defaultSub };
     }
