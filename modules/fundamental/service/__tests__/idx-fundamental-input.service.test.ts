@@ -22,8 +22,12 @@ import { buildIdxFundamentalInput } from '../idx-fundamental-input.service';
  */
 const AALI_CLOSE = closes.penutupan.AALI.close;
 const TLKM_CLOSE = closes.penutupan.TLKM.close;
+const BBCA_CLOSE = closes.penutupan.BBCA.close;
+const ADHI_CLOSE = closes.penutupan.ADHI.close;
 const opts = { dataDir: path.join(__dirname, 'fixtures') };
 const report = (t: string) => readIdxFinancialReport(t, 2026, 'TW1', opts)!;
+/** Laporan tahunan AUDITAN - periodenya dua belas bulan penuh, jadi ROE & PER boleh diisi. */
+const audit = (t: string) => readIdxFinancialReport(t, 2025, 'AUDIT', opts)!;
 
 function noteFor(notes: { field: string; available: boolean; reason: string }[], field: string) {
   return notes.find((n) => n.field === field)!;
@@ -61,7 +65,7 @@ describe('buildIdxFundamentalInput - field yang bisa dihitung dari satu laporan'
 });
 
 describe('buildIdxFundamentalInput - yang TIDAK boleh diisi', () => {
-  it('ROE dan PER selalu null, dengan alasan yang menyebut TTM', () => {
+  it('laporan KUARTALAN: ROE dan PER null, dengan alasan yang menyebut panjang periodenya', () => {
     const { input, notes } = buildIdxFundamentalInput(report('AALI'), { price: AALI_CLOSE });
     expect(input.roe).toBeNull();
     expect(input.per).toBeNull();
@@ -152,5 +156,96 @@ describe('hasil rakitan benar-benar diterima calculateScore', () => {
     // yang membuat hilangnya ROE/PER terbaca sebagai coverage turun, bukan skor buruk.
     expect(result.available_max.fundamental).toBeLessThan(LENS_SCORE_WEIGHTS.fundamental);
     expect(result.coverage_pct).toBeLessThan(100);
+  });
+});
+
+/**
+ * Jalur laporan TAHUNAN AUDITAN. Semua angka di bawah disalin dari fixture XBRL resmi
+ * BEI (`*-2025-AUDIT.json`, dipangkas dari artefak penuh tanpa mengubah satu nilai pun -
+ * dibuktikan identik lewat readIdxFinancialReport), dan harganya dari
+ * fixtures/idx-close-2026-08-21.json, salinan penutupan IDX_OFFICIAL_API.
+ *
+ * Empat emiten dipilih karena masing-masing mewakili cabang yang berbeda dan
+ * SEMUANYA kasus nyata, bukan susunan: BBCA & AALI laba, ADHI rugi dengan ekuitas
+ * positif, BATA rugi dengan ekuitas INDUK NEGATIF.
+ */
+describe('buildIdxFundamentalInput - laporan tahunan auditan mengisi ROE & PER', () => {
+  it('periodenya dibuktikan dari tanggal laporan, bukan dari label "AUDIT"', () => {
+    const r = audit('BBCA');
+    expect(r.periodStart).toBe('2025-01-01');
+    expect(r.periodEnd).toBe('2025-12-31');
+    const days = Math.round(
+      (Date.parse(`${r.periodEnd}T00:00:00Z`) - Date.parse(`${r.periodStart}T00:00:00Z`)) / 86_400_000,
+    ) + 1;
+    expect(days).toBe(365);
+  });
+
+  it('BBCA: ROE dari laba induk auditan, PER dari EPS yang DILAPORKAN emiten', () => {
+    const { input, notes } = buildIdxFundamentalInput(audit('BBCA'), { price: BBCA_CLOSE });
+
+    expect(input.roe).toBeCloseTo((57_537_287_000_000 / 281_466_478_000_000) * 100, 6);
+    expect(input.roe).toBeCloseTo(20.44, 2);
+    // EPS 467 adalah angka yang dilaporkan BBCA sendiri, bukan laba/lembar susunan kita.
+    expect(input.per).toBeCloseTo(BBCA_CLOSE / 467, 6);
+    expect(noteFor(notes, 'roe').available).toBe(true);
+    expect(noteFor(notes, 'per').available).toBe(true);
+    expect(noteFor(notes, 'roe').reason).toContain('365 hari');
+  });
+
+  it('AALI: ROE & PER terisi juga untuk emiten nonbank', () => {
+    const { input } = buildIdxFundamentalInput(audit('AALI'), { price: AALI_CLOSE });
+    expect(input.roe).toBeCloseTo((1_471_714_000_000 / 23_556_137_000_000) * 100, 6);
+    expect(input.per).toBeCloseTo(AALI_CLOSE / 764.65, 6);
+  });
+
+  it('ADHI: rugi TIDAK disembunyikan - ROE keluar negatif, dan PER null karena EPS negatif', () => {
+    const { input, notes } = buildIdxFundamentalInput(audit('ADHI'), { price: ADHI_CLOSE });
+
+    // Rugi induk Rp 5,40 T atas ekuitas induk Rp 2,87 T.
+    expect(input.roe).toBeCloseTo((-5_402_521_013_173 / 2_865_523_657_408) * 100, 6);
+    expect(input.roe).toBeLessThan(0);
+    // PER atas laba negatif tidak punya arti sebagai penilaian - null, bukan angka negatif
+    // yang akan tampil di UI seolah "murah".
+    expect(input.per).toBeNull();
+    expect(noteFor(notes, 'per').reason).toContain('negatif');
+  });
+
+  /**
+   * Penjaga terpenting di blok ini. BATA rugi Rp 116,2 M DAN ekuitas induknya negatif
+   * Rp 130,7 M. Kalau ROE tetap dihitung, kedua tanda minusnya saling meniadakan dan
+   * keluar +88,9% - emiten yang ekuitasnya sudah tergerus habis akan terbaca sebagai
+   * salah satu yang paling menguntungkan di seluruh bursa.
+   */
+  it('BATA: ekuitas induk negatif -> ROE null, BUKAN +88,9% palsu', () => {
+    const { input, notes } = buildIdxFundamentalInput(audit('BATA'));
+
+    const jebakan = (-116_227_279_000 / -130_745_070_000) * 100;
+    expect(jebakan).toBeCloseTo(88.9, 1);
+    expect(input.roe).toBeNull();
+    expect(noteFor(notes, 'roe').available).toBe(false);
+    expect(noteFor(notes, 'roe').reason).toContain('saling meniadakan');
+  });
+
+  it('tanpa harga: ROE tetap terisi, hanya PER yang null', () => {
+    const { input, notes } = buildIdxFundamentalInput(audit('BBCA'));
+    expect(input.roe).not.toBeNull();
+    expect(input.per).toBeNull();
+    expect(noteFor(notes, 'per').reason).toContain('Harga pasar tidak dipasok');
+  });
+
+  it('coverage LensScore naik dibanding jalur kuartalan', () => {
+    const tech = {
+      currentPrice: AALI_CLOSE,
+      ma20: null, ma50: null, ma200: null,
+      rsi: null, macdHist: null, macdLine: null, macdSignal: null,
+      volToday: null, volAvg20: null,
+    };
+    const flow = { cmf20: null, accumulationStatus: null, consecutiveBuyDays: 0, consecutiveSellDays: 0, volRatio: null };
+
+    const kuartalan = calculateScore('AALI', tech, buildIdxFundamentalInput(report('AALI'), { price: AALI_CLOSE }).input, flow);
+    const auditan = calculateScore('AALI', tech, buildIdxFundamentalInput(audit('AALI'), { price: AALI_CLOSE }).input, flow);
+
+    expect(auditan.available_max.fundamental).toBeGreaterThan(kuartalan.available_max.fundamental);
+    expect(auditan.coverage_pct).toBeGreaterThan(kuartalan.coverage_pct);
   });
 });

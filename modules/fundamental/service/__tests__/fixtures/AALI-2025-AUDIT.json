@@ -1,0 +1,97 @@
+{
+ "schemaVersion": 1,
+ "ticker": "AALI",
+ "entityName": "Astra Agro Lestari Tbk",
+ "year": 2025,
+ "period": "AUDIT",
+ "fileModified": "2026-02-21T18:40:25.077",
+ "fetchedAt": "2026-08-22T11:20:39.585309+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202025/Audit/AALI/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2024-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2024-01-01",
+   "endDate": "2024-12-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2024-12-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2023-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2024-01-01",
+   "endDate": "2024-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:CurrentAssets": {
+   "CurrentYearInstant": "8662790000000",
+   "PriorEndYearInstant": "8433638000000"
+  },
+  "idx-cor:NonCurrentAssets": {
+   "CurrentYearInstant": "18384314000000",
+   "PriorEndYearInstant": "20359587000000"
+  },
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "27047104000000",
+   "PriorEndYearInstant": "28793225000000"
+  },
+  "idx-cor:CurrentLiabilities": {
+   "CurrentYearInstant": "2000352000000",
+   "PriorEndYearInstant": "3237653000000"
+  },
+  "idx-cor:NonCurrentLiabilities": {
+   "CurrentYearInstant": "889118000000",
+   "PriorEndYearInstant": "2353510000000"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "2889470000000",
+   "PriorEndYearInstant": "5591163000000"
+  },
+  "idx-cor:CommonStocks": {
+   "CurrentYearInstant": "962344000000",
+   "PriorEndYearInstant": "962344000000"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "23556137000000",
+   "PriorEndYearInstant": "22641918000000"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "24157634000000",
+   "PriorEndYearInstant": "23202062000000"
+  },
+  "idx-cor:SalesAndRevenue": {
+   "CurrentYearDuration": "28654648000000",
+   "PriorYearDuration": "21815035000000"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "2226728000000",
+   "PriorYearDuration": "1707128000000"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "1537631000000",
+   "PriorYearDuration": "1186783000000"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "1471714000000",
+   "PriorYearDuration": "1147547000000"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "764.65",
+   "PriorYearDuration": "596.22"
+  }
+ },
+ "dimensionalContextCount": 3446,
+ "dimensionalFactsSkipped": 573,
+ "unexpectedPlainContexts": []
+}
