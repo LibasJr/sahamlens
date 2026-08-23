@@ -98,9 +98,6 @@ export const CDN_FRESHNESS_SEC = {
   // Daftar emiten hanya berubah saat all.csv diperbarui, yaitu saat deploy.
   EMITEN: 60 * 60,
 
-  // Angka validasi transparansi dihitung dari histori harian, bukan tick intraday.
-  TRANSPARENCY: 30 * 60,
-
   // Skor LensRadar diisi cron breakout-scan tiap 5 menit selama jam bursa.
   LENS_RADAR: 150,
 
@@ -337,7 +334,8 @@ export const CACHE_TTL_SEC = {
   // tidak ikut di-cache (beda per user/input).
   DIVIDEND_UNIVERSE: 30 * 60,
 
-  // Halaman publik transparansi LensRadar (app/api/transparency) - membaca Postgres
+  // Halaman transparansi LensRadar (app/admin/transparency, internal sejak 23 Agustus
+  // 2026) - membaca Postgres
   // + menghitung equity curve Top 5 vs IHSG dari histori point-in-time. Cukup di-cache
   // 30 menit karena angka validasi berubah harian/cron, bukan per tick intraday.
   LENS_TRANSPARENCY: 30 * 60,
