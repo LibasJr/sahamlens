@@ -28,6 +28,45 @@ function run(args: string[], env: Record<string, string> = {}) {
   });
 }
 
+describe('stage quality tidak mewarisi env produksi', () => {
+  const runner = readFileSync('scripts/weekly-maintenance.mjs', 'utf8');
+
+  /** Kunci yang dipertahankan runner saat menjalankan verify:prod. */
+  const allowlist = (() => {
+    const match = runner.match(/const QUALITY_ENV_KEEP = \[([\s\S]*?)\]/);
+    expect(match, 'QUALITY_ENV_KEEP tidak ditemukan - runner-nya berubah, perbarui test ini').toBeTruthy();
+    return [...(match?.[1] ?? '').matchAll(/'([^']+)'/g)].map((entry) => entry[1]);
+  })();
+
+  /** Kunci env yang dipakai aplikasi, menurut kontraknya sendiri. */
+  const appEnvKeys = readFileSync('.env.example', 'utf8')
+    .split('\n')
+    .filter((line) => !line.trimStart().startsWith('#'))
+    .map((line) => line.match(/^([A-Z_][A-Z0-9_]*)=/)?.[1])
+    .filter((key): key is string => Boolean(key));
+
+  it('membaca kontrak env yang cukup untuk diperiksa', () => {
+    // Penjaga jumlah: kalau .env.example gagal diurai, test di bawah lulus tanpa
+    // memeriksa apa pun - dan itu lebih buruk daripada merah (CLAUDE.md §2).
+    expect(appEnvKeys.length).toBeGreaterThan(20);
+    expect(allowlist.length).toBeGreaterThan(3);
+  });
+
+  it('menjalankan verify:prod dengan env bersih', () => {
+    const call = runner.match(/id: 'verify-prod'[^;]*?\}\);/s)?.[0] ?? '';
+    expect(call, "stage quality harus memakai cleanEnv - tanpa itu .env.production bocor ke npm test").toContain('cleanEnv: true');
+  });
+
+  it('tidak meloloskan satu pun kunci env aplikasi ke dalam gerbang', () => {
+    // 23 Agustus 2026: REDIS_URL yang terwarisi membuat getOrCompute() membalas berita
+    // nyata dari cache produksi, jadi vi.mock('@/modules/news') tidak pernah terpanggil
+    // dan dua regresi chat gagal - untuk commit yang CI-nya hijau. Daftar putih ini yang
+    // menahannya; kunci aplikasi apa pun di dalamnya membuka lagi jalur itu.
+    const bocor = allowlist.filter((key) => appEnvKeys.includes(key));
+    expect(bocor, `kunci env aplikasi tidak boleh ada di QUALITY_ENV_KEEP: ${bocor.join(', ')}`).toEqual([]);
+  });
+});
+
 describe('config perawatan mingguan', () => {
   const config = JSON.parse(readFileSync('config/weekly-maintenance.json', 'utf8'));
 
