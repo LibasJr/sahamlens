@@ -83,3 +83,11 @@ data/idx-financial/
 # Teks penuh media massa tidak disimpan lebih lama dari yang dibutuhkan untuk
 # menarik faktanya; artefaknya juga bisa dibuat ulang kapan saja dari URL-nya.
 data/news-articles/
+
+# Riwayat harga & aliran dana asing per emiten dari API resmi BEI
+# (scripts/sync-idx-foreign-flow.py, disegarkan app/api/cron/idx-flow-sync).
+# Data runtime yang diregenerasi tiap hari bursa dan besar: ~30MB untuk ~960 emiten.
+data/foreign-flow/
+# Penutupan harian IHSG dari Index Summary resmi BEI
+# (scripts/sync-idx-ihsg-eod.py). Jendela bergulir pendek, ditulis ulang tiap sync.
+data/idx-index/
