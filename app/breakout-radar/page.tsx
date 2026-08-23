@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Target, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown } from 'lucide-react';
+import { Target, Clock, TrendingUp, ChevronDown, ChevronUp, ArrowUpDown, Lock } from 'lucide-react';
 
 import PaywallModal from '@/components/PaywallModal';
 import { BucketBacktestCard, BucketBacktestPending } from '@/components/radar/BucketBacktestPanel';
@@ -12,6 +12,7 @@ import { trackJourneyEvent } from '@/shared/analytics/product-journey';
 import { Badge, Button, Card, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber, EmptyState } from '@/components/ui';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import {
+  GUEST_VISIBLE_RADAR_ROWS,
   RADAR_SORTABLE_COLUMNS,
   compareRadarValues,
   displayTicker,
@@ -42,7 +43,7 @@ export default function AiPickPage() {
   // Dua sumber status admin digabung persis seperti di components/Sidebar.tsx:
   // cookie admin HttpOnly (dibaca lewat /api/admin-status karena client tidak bisa
   // membacanya sendiri) ATAU role pada sesi login.
-  const { effectiveRole, resolved: authResolved } = useAuthUser();
+  const { effectiveRole, resolved: authResolved, loading: authLoading, user: authUser } = useAuthUser();
   const [hasAdminCookie, setHasAdminCookie] = useState(false);
   const canSeeBucketBacktest = hasAdminCookie || (authResolved && effectiveRole === 'admin');
 
@@ -84,6 +85,22 @@ export default function AiPickPage() {
     const col = RADAR_SORTABLE_COLUMNS.find((c) => c.key === radarSortKey)!;
     return [...items].sort((a, b) => compareRadarValues(col.getValue(a), col.getValue(b), radarSortDir));
   }, [items, radarSortKey, radarSortDir]);
+
+  // GEMBOK TAMU (2026-08-23). Menutup menu keenam dari survei halaman tanpa pemeriksaan
+  // auth. LensRadar sengaja digembok PALING BELAKANG karena ia pintu masuk utama dari
+  // beranda: menutupnya terlalu rapat menghapus satu-satunya bukti bahwa pemindaiannya
+  // nyata.
+  //
+  //   terbuka   tiga kandidat teratas UTUH - skor, rincian Tek/Fund/Flow, alasan utama,
+  //             cakupan data, sinyal hari ini, dan tautan ke analisis teknikalnya
+  //   dikunci   sisa peringkat, dengan jumlahnya disebutkan
+  //
+  // Kontrol urut sengaja TIDAK ikut dikunci. Pengunjung yang mengurutkan ulang tetap
+  // hanya melihat tiga baris; mematikannya cuma membuat tabel terasa rusak, bukan
+  // terkunci.
+  const lockForGuest = !authResolved || authLoading || !authUser;
+  const visibleItems = lockForGuest ? sortedItems.slice(0, GUEST_VISIBLE_RADAR_ROWS) : sortedItems;
+  const lockedCount = sortedItems.length - visibleItems.length;
 
   const fetchPicks = useCallback(() => {
     setLoading(true);
@@ -188,6 +205,9 @@ export default function AiPickPage() {
             "Periksa alasan tiap kandidat sebelum menindaklanjuti.",
             "Klik satu saham untuk membuka analisis teknikal lengkapnya.",
           ]}
+          freeAccess={`${GUEST_VISIBLE_RADAR_ROWS} kandidat teratas beserta skor, rinciannya, dan alasannya`}
+          afterSignup="seluruh peringkat hasil pemindaian sesi, bukan hanya puncaknya"
+          loginNext="/breakout-radar"
         />
           <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border">
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
@@ -308,7 +328,7 @@ export default function AiPickPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-tv-border text-sm">
-                      {sortedItems.map((it, idx) => {
+                      {visibleItems.map((it, idx) => {
                         const isExpanded = expandedSymbol === it.symbol;
                         return (
                         <React.Fragment key={it.symbol}>
@@ -438,6 +458,19 @@ export default function AiPickPage() {
                         </React.Fragment>
                         );
                       })}
+                      {lockedCount > 0 && (
+                        <tr>
+                          <td colSpan={11} className="p-0">
+                            <Link
+                              href="/login?next=/breakout-radar"
+                              className="flex items-center justify-center gap-2 px-4 py-6 text-sm font-bold text-tv-blue transition hover:bg-white/[0.03]"
+                            >
+                              <Lock className="h-4 w-4" />
+                              Masuk untuk melihat {lockedCount} kandidat lainnya
+                            </Link>
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -465,7 +498,7 @@ export default function AiPickPage() {
                   </div>
 
                   <div className="divide-y divide-tv-border">
-                    {sortedItems.map((it, idx) => {
+                    {visibleItems.map((it, idx) => {
                       const isExpanded = expandedSymbol === it.symbol;
                       return (
                         <div key={it.symbol} className={`border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}>
@@ -552,6 +585,16 @@ export default function AiPickPage() {
                       );
                     })}
                   </div>
+
+                  {lockedCount > 0 && (
+                    <Link
+                      href="/login?next=/breakout-radar"
+                      className="flex items-center justify-center gap-2 border-t border-tv-border px-4 py-6 text-sm font-bold text-tv-blue transition hover:bg-white/[0.03]"
+                    >
+                      <Lock className="h-4 w-4" />
+                      Masuk untuk melihat {lockedCount} kandidat lainnya
+                    </Link>
+                  )}
                 </div>
               </>
             )}
