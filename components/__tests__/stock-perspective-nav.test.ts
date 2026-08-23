@@ -1,7 +1,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { perspectiveTabsFor, stockCodeFor } from '../StockPerspectiveNav';
+import {
+  OPEN_TECHNICAL_SUMMARY_EVENT,
+  TECHNICAL_SUMMARY_ANCHOR_ID,
+  perspectiveTabsFor,
+  stockCodeFor,
+} from '../StockPerspectiveNav';
 
 /**
  * "Technical, Fundamental, Flow, dan Valuation terasa seperti satu produk" adalah salah
@@ -159,6 +164,39 @@ describe('tab aktif navigasi sudut pandang', () => {
       expect(flow.href).toBe('/technical/BBCA.JK#lens-flow');
       expect(flow.active).toBe(false);
     }
+  });
+
+  it('Summary jangkar ke kartu ringkasan di /dashboard, bukan rute tersendiri', () => {
+    // Kartu "Technical Summary" duduk di bawah chart + analyzer + bukti teknikal. Tab ini
+    // ada supaya pengguna tidak perlu menggulir sepanjang halaman untuk melihat skornya.
+    for (const pathname of ['/technical/BBCA.JK', '/dashboard', '/fundamental', '/dcf']) {
+      const summary = perspectiveTabsFor('BBCA', pathname).find((tab) => tab.id === 'summary')!;
+      expect(summary.href).toBe(`/dashboard?symbol=BBCA.JK#${TECHNICAL_SUMMARY_ANCHOR_ID}`);
+      expect(summary.active).toBe(false);
+    }
+  });
+
+  it('Summary berdiri tepat setelah Valuation', () => {
+    // Urutannya bagian dari permintaannya: jalan pintas ini diminta duduk di sebelah
+    // Valuation, bukan diselipkan di tengah empat sudut pandang.
+    expect(perspectiveTabsFor('BBCA', '/dashboard').map((tab) => tab.id)).toEqual([
+      'technical',
+      'fundamental',
+      'flow',
+      'valuation',
+      'summary',
+    ]);
+  });
+
+  it('/dashboard mendengarkan siaran tab Summary', () => {
+    // Kartunya cuma dirender saat viewMode 'full', jadi tautan jangkar saja mati untuk
+    // pengguna di mode ringkas. Tanpa gerbang ini, menghapus listener-nya tidak akan
+    // menggagalkan apa pun dan tabnya diam-diam menjadi tombol mati.
+    const hook = baca('components/dashboard/useDashboardAnalysis.ts');
+    expect(hook).toContain('OPEN_TECHNICAL_SUMMARY_EVENT');
+    expect(hook).toContain('openFullAnalysis');
+    expect(baca('components/StockPerspectiveNav.tsx')).toContain(OPEN_TECHNICAL_SUMMARY_EVENT);
+    expect(baca('app/dashboard/page.tsx')).toContain(`id="${TECHNICAL_SUMMARY_ANCHOR_ID}"`);
   });
 
   it('bukan emiten berarti tidak ada tab sama sekali', () => {
