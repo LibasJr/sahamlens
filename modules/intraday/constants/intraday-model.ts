@@ -342,7 +342,7 @@ export function isIntradayTradable(
 // ---------------------------------------------------------------------------
 
 export interface IntradayWeights {
-  /** Momentum harga 30 menit terakhir. */
+  /** Momentum harga 30 menit terakhir - lebih pendek di titik grid paling pagi, lihat fullLookback. */
   momentum: number;
   /** Posisi harga terhadap VWAP sesi berjalan. */
   vwapDeviation: number;
@@ -350,9 +350,18 @@ export interface IntradayWeights {
   volumeSurge: number;
   /** Posisi harga di dalam rentang high-low sesi berjalan. */
   rangePosition: number;
-  /** Konsistensi arah 12 bar terakhir. */
+  /** Konsistensi arah 12 bar terakhir - lebih pendek di titik grid paling pagi, lihat fullLookback. */
   trendPersistence: number;
 }
+
+/**
+ * Jendela yang DINIATKAN untuk momentum dan trendPersistence, dalam bar 5 menit.
+ * Di titik grid paling pagi belum ada cukup bar sejak pembukaan, jadi jendela yang
+ * benar-benar terpakai bisa lebih pendek - lihat intradayLookbackCoverage() dan field
+ * fullLookback pada snapshot komponen.
+ */
+export const MOMENTUM_DOC_BARS = 6; // 30 menit
+export const TREND_DOC_BARS = 12; // 60 menit
 
 export const INTRADAY_COMPONENT_KEYS: readonly (keyof IntradayWeights)[] = [
   'momentum',

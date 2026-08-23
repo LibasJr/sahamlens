@@ -24,6 +24,8 @@ import {
   intradayScoreBucket,
   isIntradayTradable,
   minHalfSpreadBps,
+  MOMENTUM_DOC_BARS,
+  TREND_DOC_BARS,
   type IntradayComponentMapping,
   type IntradayHorizon,
   type IntradayRunConfig,
@@ -49,6 +51,23 @@ export interface IntradayComponentSnapshot {
   scored: Record<keyof IntradayWeights, number>;
   /** Bar yang sudah selesai dan dipakai menghitung skor. */
   barsUsed: number;
+  /**
+   * Jendela yang BENAR-BENAR terpakai, bukan yang diniatkan.
+   *
+   * Di titik grid paling pagi belum ada cukup bar sejak pembukaan, jadi momentum dan
+   * trendPersistence terpaksa memakai jendela lebih pendek. Sebelumnya pemendekan itu
+   * tidak tercatat di mana pun: pukul 09:30 momentum diukur 25 menit dan tren 25 menit,
+   * sementara dokumentasinya menyebut 30 dan 60 - dan panel ini MENGIRIS hasil per jam
+   * sinyal, jadi perbedaan definisi fitur tidak bisa dibedakan dari efek jam pasar.
+   *
+   * Titik pagi TIDAK dibuang: pembukaan justru jam paling relevan untuk intraday, dan
+   * membuangnya mengubah populasi jauh lebih banyak daripada masalah yang diperbaikinya.
+   * Yang benar adalah membuat pemendekannya terlihat dan bisa diatribusikan.
+   */
+  momentumLookbackBars: number;
+  trendLookbackBars: number;
+  /** false = salah satu jendela di atas lebih pendek dari niatnya. */
+  fullLookback: boolean;
   /** Nilai transaksi kumulatif sesi berjalan sampai signal_timestamp, rupiah. */
   sessionTurnoverIdr: number;
   /** Volume kumulatif sesi berjalan sampai signal_timestamp. */
@@ -73,8 +92,8 @@ export interface IntradaySignal {
 
 /** Minimal bar selesai sebelum skor boleh dihitung sama sekali. */
 export const MIN_COMPLETED_BARS_FOR_SIGNAL = 6;
-const MOMENTUM_LOOKBACK_BARS = 6; // 30 menit
-const TREND_LOOKBACK_BARS = 12; // 60 menit
+const MOMENTUM_LOOKBACK_BARS = MOMENTUM_DOC_BARS;
+const TREND_LOOKBACK_BARS = TREND_DOC_BARS;
 const VOLUME_SURGE_BARS = 3;
 
 function clamp(value: number, min: number, max: number): number {
@@ -90,6 +109,45 @@ function linearScore(value: number, lo: number, hi: number): number {
 function round(value: number, digits = 6): number {
   const f = 10 ** digits;
   return Math.round(value * f) / f;
+}
+
+export interface IntradayLookbackCoverage {
+  completedBars: number;
+  momentumLookbackBars: number;
+  trendLookbackBars: number;
+  full: boolean;
+}
+
+/**
+ * Berapa panjang jendela fitur yang TERSEDIA di sebuah titik grid - dihitung dari
+ * kalender, tanpa perlu bar apa pun.
+ *
+ * Dipakai panel validasi supaya irisan per jam sinyal bisa menyebut sendiri bahwa
+ * titik pagi memakai jendela lebih pendek. Tanpa ini, perbedaan definisi fitur di
+ * 09:30 tidak bisa dibedakan dari efek jam pembukaan yang sesungguhnya.
+ */
+export function intradayLookbackCoverage(
+  signalMinute: number,
+  sessions: Array<{ startMinute: number; endMinute: number }>
+): IntradayLookbackCoverage {
+  const dayStart = sessions.length ? Math.min(...sessions.map((s) => s.startMinute)) : signalMinute;
+  // Bar yang SELESAI pada signalMinute, dengan asumsi bar rapat sejak pembukaan.
+  // Jeda sesi siang tidak menambah bar, jadi menit di dalam jeda tidak ikut dihitung.
+  let elapsed = 0;
+  for (const session of sessions) {
+    if (signalMinute <= session.startMinute) continue;
+    elapsed += Math.min(signalMinute, session.endMinute) - session.startMinute;
+  }
+  if (!sessions.length) elapsed = Math.max(0, signalMinute - dayStart);
+  const completedBars = Math.max(0, Math.floor(elapsed / INTRADAY_BAR_INTERVAL_MINUTES));
+  const momentumLookbackBars = Math.min(MOMENTUM_LOOKBACK_BARS, Math.max(0, completedBars - 1));
+  const trendLookbackBars = Math.min(TREND_LOOKBACK_BARS, Math.max(0, completedBars - 1));
+  return {
+    completedBars,
+    momentumLookbackBars,
+    trendLookbackBars,
+    full: momentumLookbackBars >= MOMENTUM_LOOKBACK_BARS && trendLookbackBars >= TREND_LOOKBACK_BARS,
+  };
 }
 
 export function computeIntradayComponents(
@@ -139,6 +197,7 @@ export function computeIntradayComponents(
     else if (trendWindow[i]! === trendWindow[i - 1]!) upScore += 0.5;
   }
   const trendPersistence = moves > 0 ? upScore / moves : 0.5;
+  const fullLookback = momentumBack >= MOMENTUM_LOOKBACK_BARS && moves >= TREND_LOOKBACK_BARS;
 
   const raw = {
     momentum: round(momentum),
@@ -167,6 +226,9 @@ export function computeIntradayComponents(
     raw,
     scored,
     barsUsed: completedBars.length,
+    momentumLookbackBars: momentumBack,
+    trendLookbackBars: moves,
+    fullLookback,
     sessionTurnoverIdr: Math.round(turnover),
     sessionVolume: volume,
     activeBars,
@@ -430,14 +492,23 @@ export function simulateIntradayOutcome(
   const effectiveWindow = stopIndex >= 0 ? window.slice(0, stopIndex + 1) : window;
   const effectiveExitBar = effectiveWindow[effectiveWindow.length - 1]!;
 
+  // Harga exit untuk pelaporan GROSS memakai basis MENTAH. Level TP/SL sendiri
+  // di-anchor ke harga ISI (entryPrice) karena itulah yang benar untuk trading -
+  // tapi memakai angka itu sebagai pembilang gross, di atas penyebut mentah, membuat
+  // grossReturn ikut terangkat slippage entry dan totalCost = gross - net salah.
+  // Gross di sini adalah tandingan tanpa-biaya dari strategi yang SAMA: persentase
+  // target yang sama, diterapkan pada harga bar mentah.
   let exitPriceRaw = effectiveExitBar.close;
+  let exitPriceGrossBasis = effectiveExitBar.close;
   if (exitReason === 'TAKE_PROFIT' && config.takeProfitPct != null) {
     exitPriceRaw = entryPrice * (1 + config.takeProfitPct / 100);
+    exitPriceGrossBasis = entryPriceRaw * (1 + config.takeProfitPct / 100);
   } else if ((exitReason === 'STOP_LOSS' || exitReason === 'TP_SL_SAME_BAR_CONSERVATIVE') && config.stopLossPct != null) {
     // Stop yang tersentuh setelah gap turun tidak dapat diasumsikan terjual pada
     // batas stop. Untuk posisi long, open yang lebih rendah adalah harga terbaik
     // yang realistis pada candle 5 menit itu; ini sengaja bias konservatif.
     exitPriceRaw = Math.min(effectiveExitBar.open, entryPrice * (1 - config.stopLossPct / 100));
+    exitPriceGrossBasis = Math.min(effectiveExitBar.open, entryPriceRaw * (1 - config.stopLossPct / 100));
   }
   // Lantai fraksi sisi jual harus memakai HARGA EXIT. Harga dapat melintasi pita
   // fraksi IDX antara entry dan exit; memakai harga entry di sini membuat biaya
@@ -446,7 +517,7 @@ export function simulateIntradayOutcome(
   const exitSpreadFloorBinding = minHalfSpreadBps(exitPriceRaw, config.priceFractions) > config.cost.slippageExitBps;
   const exitPrice = exitPriceRaw * (1 - bps(exitSlippageBps));
 
-  const grossReturn = exitPriceRaw / entryPriceRaw - 1;
+  const grossReturn = exitPriceGrossBasis / entryPriceRaw - 1;
   const buyCash = entryPrice * (1 + config.cost.buyFeePct / 100);
   const sellCash = exitPrice * (1 - config.cost.sellFeePct / 100);
   const netReturn = sellCash / buyCash - 1;
