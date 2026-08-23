@@ -49,7 +49,7 @@ Lima stage berurutan:
 
 1. `sync` - `git fetch` + `checkout --detach origin/main` + `git clean` + `npm ci` di worktree
    perawatan.
-2. `data` - GET ke endpoint cron yang terdaftar di `config/weekly-maintenance.json`
+2. `data` - panggil endpoint cron yang terdaftar di `config/weekly-maintenance.json` (method per job)
    (`market-data-reconcile`, `fundamental-snapshot`, `ownership-flow-ksei-sync`, `macro`,
    `calendar-scan`, `dividend-scan`, `news`) memakai `CRON_SECRET`, lalu `npm run audit:integrity`.
    Sebagian besar jadwal harian hanya Senin-Jumat; tarikan akhir pekan menutup hari yang gagal
@@ -58,7 +58,10 @@ Lima stage berurutan:
    `.env` (harus 0600).
 4. `quality` - `npm run verify:prod` apa adanya. **Bukan salinan daftar audit**: daftar yang
    disalin akan drift dari `verify:prod` dalam hitungan minggu, dan gerbang yang drift lulus
-   tanpa memeriksa apa pun (CLAUDE.md §2).
+   tanpa memeriksa apa pun (CLAUDE.md §2). Dijalankan dengan **env bersih** - daftar putih
+   kecil, tanpa warisan `.env.production` yang dimuat service untuk stage `data`. Kredensial
+   produksi di dalam `npm test` mengubah hasilnya: `REDIS_URL` terisi membuat cache produksi
+   menjawab lebih dulu, jadi mock tes tidak pernah terpanggil.
 5. `deps` - `npm outdated`.
 
 Hasilnya ditulis ke `reports/weekly-maintenance/<stempel>/` (`report.md`, `report.json`,
