@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TechnicalResearchCard from '@/components/export/TechnicalResearchCard';
-import FundamentalMoatEarningsExportCard3D from '@/components/export/FundamentalMoatEarningsExportCard3D';
+import FundamentalResearchCard from '@/components/export/FundamentalResearchCard';
 import {
   Card3DTheme,
   CARD_3D_THEMES,
@@ -211,8 +211,19 @@ export default function InfographicStudioClient() {
         },
         fundamental: {
           scoring: {
-            totalScore: fundamentalScore ?? totalScore,
-            breakdown: stockRes?.scoring?.breakdown,
+            // Kartu mencetak angka ini sebagai "LensScore ... / 100" DAN membariskan tiga
+            // komponennya persis di bawahnya. Mengirim skor fundamental ke slot itu membuat
+            // kop membantah barisnya sendiri: BBCA 23 Agustus 2026 tampil "15 / 100" di atas
+            // Fundamental 15/30 + Teknikal 17/40 + Arus dana 22/30 - yang berjumlah 54.
+            totalScore,
+            // `stockRes.scoring` TIDAK punya field `breakdown`. Komponennya datang sebagai
+            // technical_score / fundamental_score / flow_score, jadi baris ini sebelumnya
+            // selalu `undefined` dan ketiga barnya kosong tanpa ada yang memerah.
+            breakdown: {
+              fundamental: fundamentalScore,
+              technical: technicalScore,
+              moneyFlow: flowScore,
+            },
           },
           fundamentals: fundRes?.fundamentals || {},
           profile: fundRes?.profile || {
@@ -236,7 +247,7 @@ export default function InfographicStudioClient() {
             foreignPct: ownershipRes?.foreignPct ?? null,
             localPct: ownershipRes?.localPct ?? null,
             scriplessPct: ownershipRes?.scriplessPct ?? null,
-            delta: ownershipRes?.delta ?? null,
+            previous: ownershipRes?.previous ?? null,
             trend: ownershipRes?.trend ?? null,
             observedDate: ownershipRes?.observedDate ?? null,
           },
@@ -482,7 +493,7 @@ export default function InfographicStudioClient() {
                 }`}
               >
                 <Landmark className="w-4 h-4" />
-                <span>2. Fundamental + Moat + Earnings 3D</span>
+                <span>2. Catatan Fundamental</span>
               </Button>
             </div>
 
@@ -548,13 +559,12 @@ export default function InfographicStudioClient() {
             <div className="flex items-center gap-2">
               <ImageIcon className={`w-5 h-5 ${active3DTheme.accentText}`} />
               <span className="font-heading text-sm font-bold text-white">
-                {cardMode === 'technical'
-                  ? 'Pratinjau: Catatan Teknikal & Smart Money'
-                  : 'Live 3D Preview: Laporan Fundamental, Moat & Earnings'}
+                Pratinjau: {cardMode === 'technical'
+                  ? 'Catatan Teknikal & Smart Money'
+                  : 'Catatan Fundamental, Moat & Earnings'}
               </span>
               <span className="hidden md:inline text-[11px] font-mono text-slate-400">
-                • Tema Sektor: <b className={active3DTheme.accentText}>{active3DTheme.name}</b>
-                {cardMode === 'technical' ? ' (dipakai sebagai warna aksen)' : ''}
+                • Tema Sektor: <b className={active3DTheme.accentText}>{active3DTheme.name}</b> (dipakai sebagai warna aksen)
               </span>
             </div>
 
@@ -603,7 +613,7 @@ export default function InfographicStudioClient() {
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
                   ) : (
-                    <FundamentalMoatEarningsExportCard3D
+                    <FundamentalResearchCard
                       ticker={data.symbol}
                       stock={data.stock}
                       scoring={data.fundamental.scoring}
@@ -623,7 +633,7 @@ export default function InfographicStudioClient() {
                 ) : (
                   <div className="w-[1080px] h-[1420px] bg-[#030610] flex flex-col items-center justify-center text-slate-500 font-mono gap-3">
                     <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
-                    <span>Memuat data emiten dan merender visual 3D sektor...</span>
+                    <span>Memuat data emiten dan menyusun catatan riset...</span>
                   </div>
                 )}
               </div>

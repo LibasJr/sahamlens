@@ -3,6 +3,10 @@
 import React from 'react';
 import { getAnalyzerDirectionLabel } from '@/shared/presentation/signal-labels';
 import { Card3DTheme, getThemeById } from './card-3d-themes';
+import {
+  ABSENT, BULL, BEAR, FLAT, HIGHLIGHT, INK, INK_2, INK_3, RULE, RULE_SOFT, SERIF,
+  Absent, Eyebrow, Field, Rule, SectionTitle, Sheet, accentOf, pct, rp, toneColor,
+} from './research-paper';
 
 /**
  * Kartu ekspor Teknikal, bahasa visual "catatan riset".
@@ -92,59 +96,12 @@ export interface TechnicalResearchCardProps {
   exportedAt?: Date;
 }
 
-/* ── Palet kertas ─────────────────────────────────────────────────────────────── */
-
-const PAPER = '#F4F2EC';
-const SHEET = '#FFFFFF';
-const RULE = '#DDD8CC';
-const RULE_SOFT = '#EDEAE2';
-const INK = '#15181E';
-const INK_2 = '#535A66';
-const INK_3 = '#8B919B';
-const BULL = '#12673C';
-const BEAR = '#A02531';
-const FLAT = '#8A6A16';
-
-/** Tema sektor menyusut jadi satu warna aksen yang punya kontras cukup di atas kertas. */
-const ACCENT_BY_THEME: Record<string, string> = {
-  'sapphire-bank': '#1B3A6B',
-  'imperial-gold': '#7E6014',
-  'emerald-infra': '#12673C',
-  'solar-mining': '#9A4A20',
-  'rose-fmcg': '#8B3A59',
-  'ruby-health': '#A02531',
-  'tokyo-neon': '#463683',
-  'obsidian-cyber': '#1D4A54',
-};
-
-const SERIF = "Georgia, 'Iowan Old Style', 'Source Serif Pro', 'Times New Roman', serif";
-
-function rp(value?: number | null): string {
-  if (value == null || !Number.isFinite(value)) return '–';
-  return `Rp ${Math.round(value).toLocaleString('id-ID')}`;
-}
-
-function pct(value?: number | null, withSign = false, digits = 1): string {
-  if (value == null || !Number.isFinite(value)) return '–';
-  const factor = 10 ** digits;
-  const rounded = Math.round(value * factor) / factor;
-  return `${withSign && rounded > 0 ? '+' : ''}${rounded.toLocaleString('id-ID')}%`;
-}
-
 /** `getAnalyzerDirectionLabel` memetakan BUY/SELL/HOLD, tapi meloloskan 'NEUTRAL' apa
  *  adanya - satu-satunya kata Inggris yang tersisa di dokumen berbahasa Indonesia ini,
  *  padahal kosakata rumahnya sudah 'NETRAL' (lihat ANALYZER_DIRECTION_LABEL). */
 function arah(direction?: string | null): string {
   const label = getAnalyzerDirectionLabel(direction || 'NEUTRAL');
   return label === 'NEUTRAL' ? 'NETRAL' : label;
-}
-
-function toneColor(direction?: string | null): string {
-  const d = (direction || '').toUpperCase();
-  if (d === 'BULLISH' || d === 'BUY') return BULL;
-  if (d === 'BEARISH' || d === 'SELL') return BEAR;
-  if (d === 'NA') return INK_3;
-  return FLAT;
 }
 
 function getAnalyzerAnalyticalNote(a: TechnicalAnalyzerItem): string {
@@ -189,45 +146,6 @@ function getAnalyzerAnalyticalNote(a: TechnicalAnalyzerItem): string {
   return isBull ? 'Indikator mengarah beli' : isBear ? 'Indikator mengarah waspada' : 'Indikator dalam batas normal';
 }
 
-/* ── Potongan tata letak ──────────────────────────────────────────────────────── */
-
-function Rule({ strong = false }: { strong?: boolean }) {
-  return <div style={{ height: 1, backgroundColor: strong ? RULE : RULE_SOFT }} />;
-}
-
-function SectionTitle({ children, accent, note }: { children: React.ReactNode; accent: string; note?: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 mb-3">
-      <div className="flex items-baseline gap-2.5">
-        <span style={{ width: 18, height: 2, backgroundColor: accent, display: 'inline-block' }} />
-        <span
-          className="font-bold uppercase"
-          style={{ color: INK, fontSize: 12.5, letterSpacing: '0.14em' }}
-        >
-          {children}
-        </span>
-      </div>
-      {note ? (
-        <span style={{ color: INK_3, fontSize: 11.5, letterSpacing: '0.02em' }}>{note}</span>
-      ) : null}
-    </div>
-  );
-}
-
-function Field({ label, value, valueColor, sub }: { label: string; value: string; valueColor?: string; sub?: string }) {
-  return (
-    <div style={{ borderLeft: `2px solid ${RULE}`, paddingLeft: 12 }}>
-      <div style={{ color: INK_3, fontSize: 11, letterSpacing: '0.1em' }} className="uppercase font-semibold">
-        {label}
-      </div>
-      <div className="font-number font-bold" style={{ color: valueColor || INK, fontSize: 21, marginTop: 3 }}>
-        {value}
-      </div>
-      {sub ? <div style={{ color: INK_2, fontSize: 11.5, marginTop: 2 }}>{sub}</div> : null}
-    </div>
-  );
-}
-
 /* ── Kartu ────────────────────────────────────────────────────────────────────── */
 
 export default function TechnicalResearchCard({
@@ -257,13 +175,11 @@ export default function TechnicalResearchCard({
   exportedAt = new Date(),
 }: TechnicalResearchCardProps) {
   const activeTheme = theme || getThemeById(themeId || 'sapphire-bank');
-  const accent = ACCENT_BY_THEME[activeTheme.id] || '#1B3A6B';
+  const accent = accentOf(activeTheme);
 
   const upperSym = (symbol || '').toUpperCase();
   const isIndex = upperSym.includes('JKSE') || upperSym === 'IHSG';
   const displaySymbol = isIndex ? 'IHSG' : upperSym.replace('.JK', '');
-  const timeLabel =
-    exportedAt.toLocaleString('id-ID', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' WIB';
 
   const up = changePct != null ? changePct >= 0 : null;
   const priceColor = up == null ? INK : up ? BULL : BEAR;
@@ -300,33 +216,14 @@ export default function TechnicalResearchCard({
   ];
 
   return (
-    <div
-      className="w-[1080px] font-sans"
-      style={{ backgroundColor: PAPER, color: INK, padding: 26 }}
+    <Sheet
+      documentLabel="Catatan Teknikal"
+      accent={accent}
+      exportedAt={exportedAt}
+      sectorLabel={activeTheme.sectorLabel}
+      disclaimer="Seluruh angka dihitung dari data harga dan volume Bursa Efek Indonesia oleh mesin kuantitatif SahamLens. TP dan CL adalah proyeksi volatilitas ATR 14, bukan target harga dan bukan anjuran beli atau jual."
     >
-      <div style={{ backgroundColor: SHEET, border: `1px solid ${RULE}`, padding: '34px 40px 30px' }}>
-        {/* 1. KOP ─────────────────────────────────────────────────────────── */}
-        <div className="flex items-end justify-between">
-          <div className="flex items-baseline gap-3">
-            <span style={{ fontFamily: SERIF, fontSize: 26, fontWeight: 700, letterSpacing: '-0.01em' }}>
-              SahamLens
-            </span>
-            <span style={{ width: 1, height: 16, backgroundColor: RULE, display: 'inline-block' }} />
-            <span style={{ color: INK_2, fontSize: 13.5, letterSpacing: '0.16em' }} className="uppercase font-semibold">
-              Catatan Teknikal
-            </span>
-          </div>
-          <div className="text-right">
-            <div style={{ color: INK_2, fontSize: 12.5 }}>{timeLabel}</div>
-            <div style={{ color: INK_3, fontSize: 11.5, letterSpacing: '0.08em' }} className="uppercase">
-              Bursa Efek Indonesia
-            </div>
-          </div>
-        </div>
-
-        <div style={{ height: 3, backgroundColor: accent, marginTop: 14 }} />
-
-        {/* 2. IDENTITAS EMITEN ────────────────────────────────────────────── */}
+        {/* 1. IDENTITAS EMITEN ────────────────────────────────────────────── */}
         <div className="flex items-end justify-between" style={{ paddingTop: 22, paddingBottom: 20 }}>
           <div>
             <div className="flex items-center gap-3">
@@ -352,21 +249,19 @@ export default function TechnicalResearchCard({
           </div>
 
           <div className="text-right">
-            <div style={{ color: INK_3, fontSize: 11, letterSpacing: '0.1em' }} className="uppercase font-semibold">
-              Harga Terkini
-            </div>
+            <Eyebrow>Harga Terkini</Eyebrow>
             <div className="font-number" style={{ fontSize: 42, fontWeight: 700, lineHeight: 1.1, marginTop: 4 }}>
               {rp(currentPrice)}
             </div>
             <div className="font-number font-bold" style={{ color: priceColor, fontSize: 15, marginTop: 4 }}>
-              {up == null ? '–' : `${up ? '▲' : '▼'} ${pct(changePct, true, 2)}`}
+              {up == null ? ABSENT : `${up ? '▲' : '▼'} ${pct(changePct, true, 2)}`}
             </div>
           </div>
         </div>
 
         <Rule strong />
 
-        {/* 3. RINGKASAN ───────────────────────────────────────────────────── */}
+        {/* 2. RINGKASAN ───────────────────────────────────────────────────── */}
         <div style={{ paddingTop: 20, paddingBottom: 20 }}>
           <SectionTitle accent={accent} note="Skor kuantitatif, bukan rekomendasi transaksi">
             Ringkasan Penilaian
@@ -374,12 +269,10 @@ export default function TechnicalResearchCard({
 
           <div className="grid grid-cols-3 gap-7">
             <div>
-              <div style={{ color: INK_3, fontSize: 11, letterSpacing: '0.1em' }} className="uppercase font-semibold">
-                LensScore
-              </div>
+              <Eyebrow>LensScore</Eyebrow>
               <div className="flex items-baseline gap-1.5" style={{ marginTop: 4 }}>
                 <span className="font-number" style={{ fontSize: 40, fontWeight: 700, lineHeight: 1 }}>
-                  {score ?? '–'}
+                  {score ?? ABSENT}
                 </span>
                 <span style={{ color: INK_3, fontSize: 14 }}>/ 100</span>
               </div>
@@ -403,7 +296,7 @@ export default function TechnicalResearchCard({
                       />
                     </span>
                     <span className="font-number" style={{ color: INK, fontSize: 12, width: 46, textAlign: 'right' }}>
-                      {row.value != null ? `${row.value}/${row.max}` : '–'}
+                      {row.value != null ? `${row.value}/${row.max}` : ABSENT}
                     </span>
                   </div>
                 ))}
@@ -411,9 +304,7 @@ export default function TechnicalResearchCard({
             </div>
 
             <div>
-              <div style={{ color: INK_3, fontSize: 11, letterSpacing: '0.1em' }} className="uppercase font-semibold">
-                Konsensus Sinyal
-              </div>
+              <Eyebrow>Konsensus Sinyal</Eyebrow>
               <div style={{ fontFamily: SERIF, fontSize: 27, fontWeight: 700, color: consensusColor, marginTop: 6, lineHeight: 1.15 }}>
                 {consensusLabel}
               </div>
@@ -437,9 +328,7 @@ export default function TechnicalResearchCard({
             </div>
 
             <div>
-              <div style={{ color: INK_3, fontSize: 11, letterSpacing: '0.1em' }} className="uppercase font-semibold">
-                Rentang 52 Minggu
-              </div>
+              <Eyebrow>Rentang 52 Minggu</Eyebrow>
               {hasRange && pos52w != null ? (
                 <>
                   <div className="flex items-baseline justify-between" style={{ marginTop: 6 }}>
@@ -478,7 +367,7 @@ export default function TechnicalResearchCard({
 
         <Rule strong />
 
-        {/* 4. LEVEL & PROYEKSI ATR ────────────────────────────────────────── */}
+        {/* 3. LEVEL & PROYEKSI ATR ────────────────────────────────────────── */}
         <div style={{ paddingTop: 20, paddingBottom: 20 }}>
           <SectionTitle accent={accent} note="Classic floor pivot · stop 1,25× ATR · target 1:2 R:R">
             Level Kunci &amp; Proyeksi ATR
@@ -493,7 +382,7 @@ export default function TechnicalResearchCard({
                   style={{
                     padding: '11px 12px',
                     borderLeft: idx === 0 ? 'none' : `1px solid ${RULE}`,
-                    backgroundColor: isPivot ? '#F7F5EF' : 'transparent',
+                    backgroundColor: isPivot ? HIGHLIGHT : 'transparent',
                   }}
                 >
                   <div
@@ -516,7 +405,7 @@ export default function TechnicalResearchCard({
             <Field label="ATR 14" value={rp(atr14)} sub={atrPct != null ? `Volatilitas ${pct(atrPct)} per hari` : 'Butuh 14 sesi lengkap'} />
             <Field
               label="Arus Bandar"
-              value={flowDetails?.bandarmologyStatus ? arah(flowDetails.bandarmologyStatus) : '–'}
+              value={flowDetails?.bandarmologyStatus ? arah(flowDetails.bandarmologyStatus) : ABSENT}
               valueColor={toneColor(flowDetails?.bandarmologyStatus)}
               sub={flowDetails?.cmf20 != null ? `CMF 20: ${flowDetails.cmf20 > 0 ? '+' : ''}${flowDetails.cmf20}` : 'CMF belum tersedia'}
             />
@@ -525,7 +414,7 @@ export default function TechnicalResearchCard({
 
         <Rule strong />
 
-        {/* 5. TREN MULTI-TIMEFRAME ────────────────────────────────────────── */}
+        {/* 4. TREN MULTI-TIMEFRAME ────────────────────────────────────────── */}
         <div style={{ paddingTop: 20, paddingBottom: 18 }}>
           <SectionTitle accent={accent} note="Dibaca dari EMA 20, MA 50/100, dan MA 200">
             Tren Multi-Timeframe
@@ -559,13 +448,13 @@ export default function TechnicalResearchCard({
               ))}
             </div>
           ) : (
-            <div style={{ color: INK_3, fontSize: 12.5 }}>Deret timeframe belum tersedia.</div>
+            <Absent>Deret timeframe belum tersedia.</Absent>
           )}
         </div>
 
         <Rule strong />
 
-        {/* 6. POLA CANDLESTICK ────────────────────────────────────────────── */}
+        {/* 5. POLA CANDLESTICK ────────────────────────────────────────────── */}
         <div style={{ paddingTop: 20, paddingBottom: 18 }}>
           <SectionTitle
             accent={accent}
@@ -592,21 +481,19 @@ export default function TechnicalResearchCard({
                   </div>
                   <div style={{ color: INK_2, fontSize: 12.5, marginTop: 3, lineHeight: 1.5 }}>{p.description}</div>
                   <div style={{ color: INK_3, fontSize: 11.5, marginTop: 3 }}>
-                    Grade {p.reliability || '–'} · {p.volumeConfirmed ? 'terkonfirmasi volume' : 'tanpa konfirmasi volume'}
+                    Grade {p.reliability || ABSENT} · {p.volumeConfirmed ? 'terkonfirmasi volume' : 'tanpa konfirmasi volume'}
                   </div>
                 </div>
               ))}
             </div>
           ) : (
-            <div style={{ color: INK_3, fontSize: 12.5 }}>
-              Tidak ada pola candlestick terkonfirmasi pada sesi lengkap terakhir.
-            </div>
+            <Absent>Tidak ada pola candlestick terkonfirmasi pada sesi lengkap terakhir.</Absent>
           )}
         </div>
 
         <Rule strong />
 
-        {/* 7. INDIKATOR ───────────────────────────────────────────────────── */}
+        {/* 6. INDIKATOR ───────────────────────────────────────────────────── */}
         <div style={{ paddingTop: 20, paddingBottom: 6 }}>
           <SectionTitle accent={accent} note={`${shownAnalyzers.length} indikator dihitung`}>
             Indikator Teknikal &amp; Arus Dana
@@ -639,27 +526,10 @@ export default function TechnicalResearchCard({
               ))}
             </div>
           ) : (
-            <div style={{ color: INK_3, fontSize: 12.5 }}>Analyzer teknikal tidak tersedia pada instrumen ini.</div>
+            <Absent>Analyzer teknikal tidak tersedia pada instrumen ini.</Absent>
           )}
         </div>
 
-        <div style={{ height: 3, backgroundColor: accent, marginTop: 22 }} />
-
-        {/* 8. KAKI ─────────────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-8" style={{ paddingTop: 14 }}>
-          <div style={{ color: INK_2, fontSize: 11.5, lineHeight: 1.6, maxWidth: 720 }}>
-            Seluruh angka dihitung dari data harga dan volume Bursa Efek Indonesia oleh mesin kuantitatif
-            SahamLens. TP dan CL adalah proyeksi volatilitas ATR 14, bukan target harga dan bukan anjuran
-            beli atau jual.
-          </div>
-          <div className="text-right" style={{ whiteSpace: 'nowrap' }}>
-            <div style={{ fontFamily: SERIF, fontSize: 15, fontWeight: 700 }}>sahamlens.id</div>
-            <div style={{ color: INK_3, fontSize: 11, letterSpacing: '0.08em' }} className="uppercase">
-              {activeTheme.sectorLabel}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </Sheet>
   );
 }
