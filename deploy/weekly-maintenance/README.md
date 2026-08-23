@@ -96,6 +96,13 @@ Opsi: `--only=`/`--skip=` (`sync,data,security,quality,deps`), `--sync`, `--no-d
   `GET` dan `POST`; method yang salah membalas 405 dan terbaca seolah endpointnya rusak.
   Runner menolak di depan kalau method-nya tidak di-export route-nya, dan tesnya mengunci
   pasangan itu di CI.
+- **Perbaikan pada `scripts/weekly-maintenance.mjs` baru berlaku pada run BERIKUTNYA.** Node
+  membaca runner sekali, saat proses lahir; stage `sync` menimpanya di tengah jalan. Sejak
+  23 Agustus 2026 runner menyerahkan sisa stage ke versi barunya begitu ia mendapati dirinya
+  ikut tersegarkan - tapi yang memutuskan itu tetap salinan yang lahir bersama proses, jadi
+  run pertama sesudah runner-nya berubah masih dijalankan oleh kode lama. Kalau perbaikan
+  runner harus berlaku sekarang juga, segarkan worktree-nya lebih dulu:
+  `git -C /opt/sahamlens/maintenance fetch origin main && git -C /opt/sahamlens/maintenance checkout --detach --force origin/main`.
 - **`xlsx` sengaja diambil dari cdn.sheetjs.com, bukan registry npm.** SheetJS berhenti
   menerbitkan ke npm sejak 0.19, jadi 0.18.5 - rilis terakhir di sana - memikul dua advisory
   high yang `fixAvailable: false` selamanya. Selama ia terpasang, stage `security` FAIL tiap

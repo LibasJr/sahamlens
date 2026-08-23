@@ -30,10 +30,16 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 const ROOT = process.cwd();
 const STAGES = ['sync', 'data', 'security', 'quality', 'deps'];
+// Sidik jari berkas INI saat ia dibaca node. Stage `sync` menimpanya di tengah jalan;
+// perbandingannya nanti yang memutuskan perlu-tidaknya menyerahkan sisa run ke versi baru.
+const SELF_PATH = fileURLToPath(import.meta.url);
+const SELF_HASH_AT_START = createHash('sha1').update(fs.readFileSync(SELF_PATH)).digest('hex');
 const PRODUCTION_CHECKOUT = process.env.SAHAMLENS_PRODUCTION_CHECKOUT ?? '/opt/sahamlens/app';
 
 // ---------------------------------------------------------------- argumen CLI
@@ -54,6 +60,11 @@ const dryRun = flag('dry-run');
 const failOnWarn = value('fail-on', 'fail') === 'warn';
 const jsonOnly = flag('json');
 const configPath = value('config', 'config/weekly-maintenance.json');
+// Internal, bukan untuk dipakai manusia: berkas serah-terima yang ditulis proses induk
+// sebelum ia menyerahkan sisa run ke runner versi baru. Isinya langkah `sync` yang sudah
+// telanjur direkam, supaya laporannya tetap utuh satu berkas.
+const resumeFile = value('resumed-after-sync');
+const resumed = resumeFile ? JSON.parse(fs.readFileSync(resumeFile, 'utf8')) : null;
 
 for (const stage of [...only, ...skip]) {
   if (!STAGES.includes(stage)) {
@@ -63,7 +74,7 @@ for (const stage of [...only, ...skip]) {
 }
 // `sync` mengubah isi direktori kerja, jadi ia hanya jalan kalau diminta eksplisit.
 const activeStages = STAGES.filter((stage) => {
-  if (stage === 'sync' && !flag('sync') && !only.includes('sync')) return false;
+  if (stage === 'sync' && (resumed || (!flag('sync') && !only.includes('sync')))) return false;
   return (only.length ? only.includes(stage) : true) && !skip.includes(stage);
 });
 const dataEnabled = activeStages.includes('data') && !flag('no-data');
@@ -77,14 +88,15 @@ const canonical = (p) => { try { return fs.realpathSync(p); } catch { return pat
 const insideProductionCheckout = canonical(ROOT) === canonical(PRODUCTION_CHECKOUT);
 
 // -------------------------------------------------------------- wadah laporan
-const startedAt = new Date();
+const startedAt = resumed ? new Date(resumed.startedAt) : new Date();
 const stamp = startedAt.toISOString().replace(/[:.]/g, '-').slice(0, 19);
 // path.resolve, bukan join: reportDir absolut (dipakai test & operator) harus dihormati.
 const reportDir = path.resolve(ROOT, config.reportDir ?? 'reports/weekly-maintenance', stamp);
 const logDir = path.join(reportDir, 'logs');
 if (!dryRun) fs.mkdirSync(logDir, { recursive: true });
 
-const results = [];
+// Langkah induk tidak dicetak ulang - ia sudah muncul di log sebelum serah-terima.
+const results = resumed ? [...resumed.steps] : [];
 const say = (line) => { if (!jsonOnly) console.log(line); };
 
 function tail(text, lines = 25) {
@@ -176,6 +188,57 @@ function syncWorktree() {
   // CLAUDE.md §4: package.json berubah tanpa `npm ci` menghasilkan galat "Can't
   // resolve" yang terbaca seolah kodenya yang rusak.
   runCommand({ id: 'npm-ci', stage: 'sync', label: 'npm ci', command: 'npm', args: ['ci'] });
+}
+
+/**
+ * Serahkan sisa run ke runner versi baru kalau stage `sync` baru saja menimpanya.
+ *
+ * KENAPA ADA. Node membaca berkas ini SEKALI, saat proses lahir. Stage `sync` kemudian
+ * menarik `origin/main` ke worktree yang sama - termasuk berkas ini - tapi proses yang
+ * sedang berjalan tetap memegang salinan lama di memori. Akibatnya stage `sync` secara
+ * struktural TIDAK PERNAH bisa mempengaruhi run yang memuatnya: setiap perbaikan pada
+ * runner baru berlaku satu minggu kemudian.
+ *
+ * Terukur 23 Agustus 2026. #127 memperbaiki dua hal (method HTTP per job, env bersih untuk
+ * stage quality), ter-deploy, dan worktree perawatan tersegarkan ke commit yang memuatnya -
+ * lalu run yang sama tetap menembak GET ke tiga route POST dan tetap mewariskan
+ * .env.production ke `npm test`. Laporannya menampilkan empat FAIL yang semuanya sudah
+ * diperbaiki, di atas kode yang sudah benar di disk.
+ *
+ * Itu kegagalan yang lebih buruk daripada merah biasa: ia menyalahkan hal yang salah.
+ * Orang yang membaca laporan Senin pagi akan mengejar bug yang tidak ada, dan bukti bahwa
+ * perbaikannya berhasil justru tidak akan pernah muncul di laporan mana pun.
+ *
+ * Yang diserahkan hanya SISA stage-nya. Langkah `sync` yang sudah direkam ikut dititipkan
+ * lewat berkas serah-terima supaya laporannya tetap satu berkas utuh, dengan jam mulai dan
+ * direktori laporan milik induk - bukan dua laporan setengah-setengah.
+ */
+function handOffToUpdatedRunner() {
+  if (dryRun || resumed) return;
+  // Sync yang gagal berarti isi worktree tidak bisa dipercaya; jangan menjalankan apa pun
+  // dari sana, dan biarkan laporannya menyebut kegagalan sync-nya sendiri.
+  if (results.some((step) => step.stage === 'sync' && step.status === 'FAIL')) return;
+  // Tidak ada sisa pekerjaan = tidak ada yang perlu diserahkan.
+  if (!activeStages.some((stage) => stage !== 'sync')) return;
+
+  const hashNow = createHash('sha1').update(fs.readFileSync(SELF_PATH)).digest('hex');
+  if (hashNow === SELF_HASH_AT_START) return;
+
+  const handoffFile = path.join(logDir, 'handoff.json');
+  fs.writeFileSync(handoffFile, JSON.stringify({ startedAt: startedAt.toISOString(), steps: results }), 'utf8');
+  say('[maintenance] runner ikut tersegarkan oleh sync - sisa stage dijalankan dengan versi baru');
+
+  // argv diteruskan apa adanya kecuali `--sync` (sudah selesai) - anak tidak boleh
+  // menyentuh worktree lagi, dan `--resumed-after-sync` membuat rekursinya mustahil.
+  const childArgv = argv.filter((arg) => arg !== '--sync' && !arg.startsWith('--resumed-after-sync='));
+  childArgv.push(`--resumed-after-sync=${handoffFile}`);
+  // `--env-file` milik node, bukan skrip ini, jadi ia tidak ada di argv - tapi isinya sudah
+  // masuk process.env dan diwariskan ke anak. CRON_SECRET ikut terbawa.
+  const child = spawnSync(process.execPath, [SELF_PATH, ...childArgv], { cwd: ROOT, stdio: 'inherit', env: process.env });
+  const status = child.error ? 1 : (child.status ?? 1);
+  if (child.error) console.error(`[maintenance] gagal menjalankan runner baru: ${child.error.message}`);
+  fs.rmSync(handoffFile, { force: true });
+  process.exit(status);
 }
 
 // ----------------------------------------------------- stage 1: pembaruan data
@@ -409,7 +472,12 @@ function prune() {
 
 // ----------------------------------------------------------------- eksekusi
 say(`[maintenance] mulai ${startedAt.toISOString()} - stage: ${activeStages.join(', ')}${dryRun ? ' (DRY RUN)' : ''}`);
-if (activeStages.includes('sync')) syncWorktree();
+if (activeStages.includes('sync')) {
+  syncWorktree();
+  // Wajib SEBELUM stage mana pun sesudahnya: sisanya harus dijalankan oleh kode yang
+  // barusan ditarik, bukan oleh salinan lama yang masih dipegang proses ini.
+  handOffToUpdatedRunner();
+}
 if (activeStages.includes('data')) {
   if (dataEnabled) await refreshData();
   else record({ id: 'data', stage: 'data', label: 'pembaruan data', status: 'SKIP', summary: 'dimatikan lewat --no-data', durationMs: 0, detail: '' });
