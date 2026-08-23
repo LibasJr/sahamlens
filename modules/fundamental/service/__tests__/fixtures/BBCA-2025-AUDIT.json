@@ -1,0 +1,97 @@
+{
+ "schemaVersion": 1,
+ "ticker": "BBCA",
+ "entityName": "PT Bank Central Asia Tbk.",
+ "year": 2025,
+ "period": "AUDIT",
+ "fileModified": "2026-01-27T16:39:15.333",
+ "fetchedAt": "2026-08-22T11:23:45.807368+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202025/Audit/BBCA/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2024-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2024-01-01",
+   "endDate": "2024-12-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2024-12-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2023-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2024-01-01",
+   "endDate": "2024-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "1586828536000000",
+   "PriorEndYearInstant": "1449301328000000"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "1294508286000000",
+   "PriorEndYearInstant": "1176979424000000"
+  },
+  "idx-cor:TemporarySyirkahFunds": {
+   "CurrentYearInstant": "10632695000000",
+   "PriorEndYearInstant": "9486817000000"
+  },
+  "idx-cor:CommonStocks": {
+   "CurrentYearInstant": "1540938000000",
+   "PriorEndYearInstant": "1540938000000"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "281466478000000",
+   "PriorEndYearInstant": "262640621000000"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "281687555000000",
+   "PriorEndYearInstant": "262835087000000"
+  },
+  "idx-cor:LiabilitiesTemporarySyirkahFundsAndEquity": {
+   "CurrentYearInstant": "1586828536000000",
+   "PriorEndYearInstant": "1449301328000000"
+  },
+  "idx-cor:InterestIncome": {
+   "CurrentYearDuration": "98912652000000",
+   "PriorYearDuration": "94796454000000"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "71260876000000",
+   "PriorYearDuration": "68217850000000"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "57563093000000",
+   "PriorYearDuration": "54851274000000"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "57537287000000",
+   "PriorYearDuration": "54836305000000"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "467",
+   "PriorYearDuration": "445"
+  },
+  "idx-cor:SubtotalShariaIncome": {
+   "CurrentYearDuration": "948274000000",
+   "PriorYearDuration": "805105000000"
+  },
+  "idx-cor:TotalInterestAndShariaIncome": {
+   "CurrentYearDuration": "98912652000000",
+   "PriorYearDuration": "94796454000000"
+  }
+ },
+ "dimensionalContextCount": 1198,
+ "dimensionalFactsSkipped": 2240,
+ "unexpectedPlainContexts": []
+}
