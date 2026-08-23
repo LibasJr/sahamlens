@@ -42,6 +42,65 @@ GitHub Actions.**
 
 ## Status live
 
+### 2026-08-23 - Job perawatan mingguan (`sahamlens-weekly-maintenance`)
+
+Timer systemd baru, **Minggu 03:30 WIB**, menjalankan `scripts/weekly-maintenance.mjs`.
+Lima stage berurutan:
+
+1. `sync` - `git fetch` + `checkout --detach origin/main` + `git clean` + `npm ci` di worktree
+   perawatan.
+2. `data` - GET ke endpoint cron yang terdaftar di `config/weekly-maintenance.json`
+   (`market-data-reconcile`, `fundamental-snapshot`, `ownership-flow-ksei-sync`, `macro`,
+   `calendar-scan`, `dividend-scan`, `news`) memakai `CRON_SECRET`, lalu `npm run audit:integrity`.
+   Sebagian besar jadwal harian hanya Senin-Jumat; tarikan akhir pekan menutup hari yang gagal
+   tanpa menunggu Senin.
+3. `security` - `npm audit --omit=dev`, deteksi berkas `.env` yang ter-commit, cek izin berkas
+   `.env` (harus 0600).
+4. `quality` - `npm run verify:prod` apa adanya. **Bukan salinan daftar audit**: daftar yang
+   disalin akan drift dari `verify:prod` dalam hitungan minggu, dan gerbang yang drift lulus
+   tanpa memeriksa apa pun (CLAUDE.md §2).
+5. `deps` - `npm outdated`.
+
+Hasilnya ditulis ke `reports/weekly-maintenance/<stempel>/` (`report.md`, `report.json`,
+`logs/`), di-rotate otomatis sisa 12 minggu, tidak ikut git (`/reports/` di-ignore). Verdict
+`FAIL` = service exit 1, jadi merah di `systemctl status`.
+
+**Job ini hanya melapor.** Sengaja tidak ada `npm audit fix`, migrasi, atau commit otomatis:
+jam 03:30 tidak ada yang menunggu untuk mengoreksi kalau langkah otomatis salah.
+
+**`WorkingDirectory` job ini `/opt/sahamlens/maintenance`, bukan `/opt/sahamlens/app`.**
+Rantai `verify:prod` memuat `next build`, dan build di checkout produksi menimpa `.next/` yang
+sedang dibaca proses `next start` yang melayani pengguna - chunk berhash lama membalas 404
+sampai servisnya di-restart (CLAUDE.md §7). Runner menolak stage `sync` dan `quality` kalau
+mendapati dirinya berjalan di dalam checkout produksi; `SAHAMLENS_PRODUCTION_CHECKOUT` memakai
+konvensi yang sama dengan `scripts/guard-production-checkout.mjs`.
+
+**Pasang (tidak otomatis, seperti timer lain):**
+
+```bash
+cd /opt/sahamlens/app
+bash deploy/weekly-maintenance/install.sh   # membuat worktree /opt/sahamlens/maintenance + npm ci + unit
+systemctl list-timers --all sahamlens-weekly-maintenance.timer --no-pager
+```
+
+**Tidak ada env var baru.** Job memakai `CRON_SECRET` + `DATABASE_URL` yang sudah ada di
+`/opt/sahamlens/app/.env.production` lewat `EnvironmentFile=`.
+
+**Jebakan:**
+- Job ini **bukan** route `/api/cron/*`, jadi **jangan** didaftarkan ke
+  `config/scheduled-jobs.json` - `npm run audit:cron` akan gagal karena tidak ada route
+  pasangannya. Dokumentasinya di `deploy/weekly-maintenance/README.md`.
+- `--sync` menjalankan `git checkout --detach --force` dan `git clean -xdf` di
+  `/opt/sahamlens/maintenance`. Direktori itu disposable menurut desain - jangan menyimpan
+  pekerjaan di sana.
+- Jadwalnya sengaja 03:30, satu jam setelah `privacy-cleanup` (Minggu 02:30), supaya dua job
+  berat tidak berebut CPU dan koneksi database yang sama.
+- Endpoint di `config/weekly-maintenance.json` divalidasi ke `app/api/cron` sebelum ditembak,
+  dan dikunci di CI oleh `scripts/__tests__/weekly-maintenance.test.ts`.
+
+Manual: `npm run maintain:weekly:dry` (lihat rencana), `npm run maintain:weekly:audit` (audit
+saja, tanpa menyentuh data).
+
 ### 2026-08-21 - Remediasi CI dan identitas konfigurasi LensScore
 
 - PR #101 ter-merge saat CI run #732 masih merah. Kegagalan terjadi pada
