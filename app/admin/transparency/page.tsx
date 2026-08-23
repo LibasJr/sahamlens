@@ -1,5 +1,7 @@
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
+import { isAdminServer } from '@/modules/user';
 import TransparencyClient from './TransparencyClient';
 import { Card } from '@/components/ui/Card';
 
@@ -8,6 +10,13 @@ import { Card } from '@/components/ui/Card';
 // imported lazily at request time for the same reason.
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+// Layout root menyetel robots index:true untuk seluruh situs. Halaman ini dulu memang
+// ditujukan untuk dirayapi; sejak ia pindah ke balik gerbang admin, mengundang crawler
+// hanya menghasilkan entri indeks yang membalas /admin-login untuk semua orang.
+export const metadata = {
+  robots: { index: false, follow: false },
+};
 
 // BUG FIX (2026-08-22): SEBELUMNYA fungsi ini menangkap SEMUA error (termasuk query DB
 // yang gagal total) lalu mengembalikan array kosong - dari sisi pemanggil, itu tidak
@@ -28,7 +37,11 @@ async function loadReconciliationSummary(): Promise<{ runs: Array<Record<string,
   }
 }
 
-export default async function TransparencyPage() {
+export default async function AdminTransparencyPage() {
+  if (!(await isAdminServer())) {
+    redirect('/admin-login');
+  }
+
   const { runs: reconciliationRuns, failed: reconciliationFailed } = await loadReconciliationSummary();
   const latestRecon = reconciliationRuns[0];
   const compared = Number(latestRecon?.compared_count ?? 0);
@@ -42,23 +55,24 @@ export default async function TransparencyPage() {
     <div className="min-h-screen bg-tv-bg text-tv-text p-4 sm:p-8 font-sans">
       <div className="max-w-7xl mx-auto">
         <Link
-          href="/"
+          href="/admin"
           className="mb-4 inline-flex min-h-6 items-center gap-1.5 text-sm text-tv-muted transition-colors hover:text-tv-text"
         >
           <ArrowLeft className="w-4 h-4" />
-          Kembali ke Beranda
+          Kembali ke Admin Panel
         </Link>
 
         <div className="mb-8">
           <p className="text-xs text-tv-accent font-semibold uppercase tracking-[0.2em] mb-2">
-            Public Model Transparency
+            Internal Model Transparency
           </p>
           <h1 className="lens-page-title">
             Transparansi Validasi LensRadar
           </h1>
           <p className="text-sm text-tv-muted mt-2 max-w-3xl">
-            Halaman ini menampilkan performa historis LensScore secara point-in-time, agar
-            pengguna bisa melihat apakah bucket skor tinggi benar-benar punya edge setelah biaya.
+            Performa historis LensScore secara point-in-time: apakah bucket skor tinggi
+            benar-benar punya edge setelah biaya. Halaman internal - angkanya tidak
+            dipublikasikan ke pengguna.
           </p>
         </div>
 
