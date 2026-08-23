@@ -613,32 +613,44 @@ export function correctPValues(
     return tests.map((t) => ({ label: t.label, pValue: null, holm: null, benjaminiHochberg: null, significantAfterCorrection: false }));
   }
 
-  const ordered = [...valid].sort((a, b) => a.pValue - b.pValue);
+  // Dikunci POSISI, bukan label. Versi sebelumnya memakai Map<label, nilai>: dua uji
+  // berlabel sama membuat yang belakangan menimpa yang depan, dan KEDUANYA menerima
+  // p-value terkoreksi milik salah satu - diam-diam, tanpa error. Selama keluarga uji
+  // hanya empat horizon, label memang unik; begitu bucket dan irisan waktu ikut
+  // dikoreksi, tabrakan label menjadi wajar (mis. '60-69' pada dua horizon).
+  const ordered = valid
+    .map((test, position) => ({ ...test, position }))
+    .sort((a, b) => a.pValue - b.pValue);
 
-  const holmByLabel = new Map<string, number>();
+  const holmByPosition = new Array<number>(m);
   let holmRunningMax = 0;
   ordered.forEach((test, i) => {
     const adjusted = Math.min(1, (m - i) * test.pValue);
     holmRunningMax = Math.max(holmRunningMax, adjusted);
-    holmByLabel.set(test.label, holmRunningMax);
+    holmByPosition[test.position] = holmRunningMax;
   });
 
-  const bhByLabel = new Map<string, number>();
+  const bhByPosition = new Array<number>(m);
   let bhRunningMin = 1;
   for (let i = ordered.length - 1; i >= 0; i--) {
     const adjusted = Math.min(1, (m / (i + 1)) * ordered[i]!.pValue);
     bhRunningMin = Math.min(bhRunningMin, adjusted);
-    bhByLabel.set(ordered[i]!.label, bhRunningMin);
+    bhByPosition[ordered[i]!.position] = bhRunningMin;
   }
 
+  // Posisi dalam `valid` dipetakan kembali ke posisi dalam `tests` lewat urutan yang sama.
+  let validCursor = 0;
   return tests.map((test) => {
-    const holm = test.pValue == null ? null : round(holmByLabel.get(test.label) ?? null, 6);
-    const bh = test.pValue == null ? null : round(bhByLabel.get(test.label) ?? null, 6);
+    if (test.pValue == null) {
+      return { label: test.label, pValue: null, holm: null, benjaminiHochberg: null, significantAfterCorrection: false };
+    }
+    const position = validCursor++;
+    const holm = round(holmByPosition[position] ?? null, 6);
     return {
       label: test.label,
       pValue: round(test.pValue, 6),
       holm,
-      benjaminiHochberg: bh,
+      benjaminiHochberg: round(bhByPosition[position] ?? null, 6),
       significantAfterCorrection: holm != null && holm < alpha,
     };
   });

@@ -43,6 +43,7 @@ import {
   type IntradayRunConfig,
 } from '../constants/intraday-model';
 import { formatWibMinute } from './intraday-bars.service';
+import { intradayLookbackCoverage } from './intraday-signal.service';
 import {
   bucketMonotonicity,
   computePerformance,
@@ -147,6 +148,8 @@ export interface BucketReport {
   profitFactor: number | null;
   ci95Low: number | null;
   ci95High: number | null;
+  /** Ikut keluarga koreksi multiple testing - lihat catatan di perakitan multipleTesting. */
+  pValueOneTailed: number | null;
   status: 'INSUFFICIENT_SAMPLE' | 'REPORTED';
 }
 
@@ -159,6 +162,15 @@ export interface SliceReport {
   avgNetReturn: number | null;
   medianNetReturn: number | null;
   profitFactor: number | null;
+  pValueOneTailed: number | null;
+  /**
+   * Hanya terisi untuk irisan JAM SINYAL. false = titik grid ini memakai jendela fitur
+   * lebih pendek karena belum cukup bar sejak pembukaan, jadi selisihnya terhadap titik
+   * lain tidak boleh langsung dibaca sebagai efek jam pasar.
+   */
+  lookbackFull: boolean | null;
+  momentumLookbackBars: number | null;
+  trendLookbackBars: number | null;
   status: 'INSUFFICIENT_SAMPLE' | 'REPORTED';
 }
 
@@ -261,6 +273,7 @@ export interface IntradayValidationResult {
   spreadFloor: SpreadFloorReport;
   costSensitivity: CostSensitivityRow[];
   walkForward: WalkForwardResult | null;
+  leakageAudit: LeakageAudit | null;
   multipleTesting: CorrectedPValue[];
   acceptance: { criteria: AcceptanceCriteria; items: AcceptanceGateItem[]; passedAll: boolean; frozen: boolean };
   status: IntradayModelStatus;
@@ -289,9 +302,94 @@ function toObservations(rows: ObservationRow[]): IntradayObservation[] {
     }));
 }
 
-function sliceReport(key: string, label: string, observations: IntradayObservation[]): SliceReport {
+export interface LeakageAudit {
+  /** Baris FILLED yang punya kedua stempel waktu - hanya ini yang bisa diperiksa. */
+  checked: number;
+  /** Baris FILLED yang stempel waktunya tidak tersimpan (arsip lama). */
+  unverifiable: number;
+  entryBeforeSignal: number;
+  exitBeforeEntry: number;
+  exitAfterCutoff: number;
+  violations: number;
+  passed: boolean;
+  note: string;
+}
+
+/**
+ * Audit look-ahead SUNGGUHAN, atas stempel waktu yang benar-benar tersimpan.
+ *
+ * Versi sebelumnya adalah `gate('leakage', ..., true)` - argumen terakhirnya literal
+ * `true`, tanpa satu pun perhitungan di baliknya. Ia ikut menentukan passedAll, dan
+ * passedAll + protokol beku + mode OOS menghasilkan CANDIDATE_VALIDATED. Jadi baris
+ * paling meyakinkan di tabel penerimaan justru satu-satunya yang tidak memeriksa
+ * apa pun (CLAUDE.md §2).
+ *
+ * Tiga hal yang diperiksa, semuanya konsekuensi langsung dari aturan waktu modul ini:
+ *   - entry tidak boleh mendahului sinyal;
+ *   - exit tidak boleh mendahului entry;
+ *   - exit tidak boleh melewati batas EOD hari itu.
+ *
+ * Baris arsip tanpa stempel waktu dihitung sebagai TIDAK TERVERIFIKASI, bukan lolos.
+ * Kalau tidak ada satu pun baris yang bisa diperiksa, gerbangnya GAGAL - bukan lulus
+ * karena kebetulan tidak menemukan pelanggaran.
+ */
+export function buildLeakageAudit(rows: ObservationRow[], config: IntradayRunConfig): LeakageAudit {
+  const cutoffMs = config.calendar.eodExitCutoffMinute * 60_000;
+  let checked = 0;
+  let unverifiable = 0;
+  let entryBeforeSignal = 0;
+  let exitBeforeEntry = 0;
+  let exitAfterCutoff = 0;
+
+  for (const row of rows) {
+    if (row.fillStatus !== 'FILLED') continue;
+    if (!row.entryTimestamp || !row.exitTimestamp || !row.signalTimestamp) {
+      unverifiable++;
+      continue;
+    }
+    const signal = Date.parse(row.signalTimestamp);
+    const entry = Date.parse(row.entryTimestamp);
+    const exit = Date.parse(row.exitTimestamp);
+    if (!Number.isFinite(signal) || !Number.isFinite(entry) || !Number.isFinite(exit)) {
+      unverifiable++;
+      continue;
+    }
+    checked++;
+    if (entry < signal) entryBeforeSignal++;
+    if (exit < entry) exitBeforeEntry++;
+    // Menit WIB exit terhadap batas EOD. Tanggal hari bursa dipakai sebagai titik nol
+    // supaya perbandingannya tidak bergantung pada zona waktu tempat kode ini berjalan.
+    const dayStart = Date.parse(`${row.tradingDate}T00:00:00+07:00`);
+    if (Number.isFinite(dayStart) && exit - dayStart > cutoffMs) exitAfterCutoff++;
+  }
+
+  const violations = entryBeforeSignal + exitBeforeEntry + exitAfterCutoff;
+  return {
+    checked,
+    unverifiable,
+    entryBeforeSignal,
+    exitBeforeEntry,
+    exitAfterCutoff,
+    violations,
+    passed: checked > 0 && violations === 0,
+    note:
+      checked === 0
+        ? 'Tidak ada baris dengan stempel waktu entry/exit - audit tidak dapat dijalankan, jadi gerbang ini GAGAL.'
+        : `${checked} baris diperiksa, ${unverifiable} tidak punya stempel waktu.`,
+  };
+}
+
+function sliceReport(
+  key: string,
+  label: string,
+  observations: IntradayObservation[],
+  lookback?: { full: boolean; momentumLookbackBars: number; trendLookbackBars: number }
+): SliceReport {
   const effective = toEffectiveSample(observations);
   const perf = computePerformance(observations, effective);
+  // 600 iterasi, bukan 2000: irisan jauh lebih banyak daripada horizon, dan angka ini
+  // dipakai sebagai anggota keluarga koreksi - bukan sebagai kesimpulan sendiri.
+  const permutation = observations.length ? tradingDayBlockSignFlipTest(observations, 600) : null;
   return {
     key,
     label,
@@ -301,6 +399,10 @@ function sliceReport(key: string, label: string, observations: IntradayObservati
     avgNetReturn: perf.avgNetReturn,
     medianNetReturn: perf.medianNetReturn,
     profitFactor: perf.profitFactor,
+    pValueOneTailed: permutation?.pValueOneTailed ?? null,
+    lookbackFull: lookback ? lookback.full : null,
+    momentumLookbackBars: lookback ? lookback.momentumLookbackBars : null,
+    trendLookbackBars: lookback ? lookback.trendLookbackBars : null,
     status: effective.effective < MIN_EFFECTIVE_SAMPLE_PER_CELL ? 'INSUFFICIENT_SAMPLE' : 'REPORTED',
   };
 }
@@ -695,6 +797,7 @@ function buildBucketReports(rows: ObservationRow[]): BucketReport[] {
     const effective = toEffectiveSample(rowsForBucket);
     const perf = computePerformance(rowsForBucket, effective);
     const boot = rowsForBucket.length ? tradingDayBlockBootstrapMean(rowsForBucket, 800) : null;
+    const perm = rowsForBucket.length ? tradingDayBlockSignFlipTest(rowsForBucket, 600) : null;
     return {
       bucket: bucket.key,
       samplesRaw: rowsForBucket.length,
@@ -705,6 +808,7 @@ function buildBucketReports(rows: ObservationRow[]): BucketReport[] {
       profitFactor: perf.profitFactor,
       ci95Low: boot?.ci95Low ?? null,
       ci95High: boot?.ci95High ?? null,
+      pValueOneTailed: perm?.pValueOneTailed ?? null,
       status: effective.effective < MIN_EFFECTIVE_SAMPLE_PER_CELL ? 'INSUFFICIENT_SAMPLE' : 'REPORTED',
     };
   });
@@ -872,6 +976,7 @@ async function computeValidation(
     },
     costSensitivity: [],
     walkForward: null,
+    leakageAudit: null,
     multipleTesting: [],
     acceptance: { criteria, items: [], passedAll: false, frozen: Boolean(protocol) },
     status: 'DATA_NOT_READY',
@@ -909,7 +1014,10 @@ async function computeValidation(
     const horizonObs = toObservations(horizonRows);
     base.timeOfDay[horizon] = Array.from(groupBy(horizonObs, (o) => String(o.signalMinute)).entries())
       .sort(([a], [b]) => Number(a) - Number(b))
-      .map(([minute, obs]) => sliceReport(minute, `${formatWibMinute(Number(minute))} WIB`, obs));
+      .map(([minute, obs]) => {
+        const coverage = intradayLookbackCoverage(Number(minute), config.calendar.regularSessions);
+        return sliceReport(minute, `${formatWibMinute(Number(minute))} WIB`, obs, coverage);
+      });
 
     base.liquidity[horizon] = Array.from(groupBy(horizonObs, (o) => liquidityBand(o.turnoverIdr).key).entries())
       .sort(([a], [b]) => a.localeCompare(b))
@@ -954,7 +1062,33 @@ async function computeValidation(
     warnings.push(`Ekspektasi net menjadi <= 0 pada skenario biaya: ${failed.join(', ')}.`);
   }
 
+  const partialLookbackSlices = (base.timeOfDay[PRIMARY_HORIZON] ?? []).filter(
+    (slice) => slice.lookbackFull === false && slice.samplesRaw > 0
+  );
+  if (partialLookbackSlices.length) {
+    warnings.push(
+      `Titik grid ${partialLookbackSlices.map((s) => s.label).join(', ')} memakai jendela fitur lebih pendek ` +
+        'karena belum cukup bar sejak pembukaan (momentum dan tren tidak sepanjang titik lain). ' +
+        'Selisihnya terhadap jam lain TIDAK boleh langsung dibaca sebagai efek jam pasar.'
+    );
+  }
+
   base.walkForward = purgedWalkForward(primaryObs);
+
+  // Audit look-ahead atas SELURUH horizon, bukan hanya horizon utama: pelanggaran
+  // waktu adalah cacat data, dan cacat itu tidak berhenti di batas horizon.
+  base.leakageAudit = buildLeakageAudit(rows, config);
+  if (base.leakageAudit.violations > 0) {
+    warnings.push(
+      `Audit look-ahead menemukan ${base.leakageAudit.violations} pelanggaran waktu ` +
+        `(entry mendahului sinyal: ${base.leakageAudit.entryBeforeSignal}, exit mendahului entry: ${base.leakageAudit.exitBeforeEntry}, ` +
+        `exit melewati batas EOD: ${base.leakageAudit.exitAfterCutoff}). Seluruh angka di panel ini tidak dapat dipercaya sampai itu dibereskan.`
+    );
+  } else if (base.leakageAudit.checked === 0) {
+    warnings.push('Audit look-ahead tidak dapat dijalankan: tidak ada baris dengan stempel waktu entry/exit tersimpan.');
+  } else if (base.leakageAudit.unverifiable > 0) {
+    warnings.push(`${base.leakageAudit.unverifiable} baris tidak punya stempel waktu entry/exit dan tidak ikut teraudit.`);
+  }
 
   const regimeMap = await classifyRegimes(dates).catch(() => null);
   if (regimeMap) {
@@ -971,14 +1105,40 @@ async function computeValidation(
   }
 
   // ---- koreksi multiple testing ----
-  base.multipleTesting = correctPValues(
-    base.horizons.map((h) => ({ label: `${h.horizon}: net expectancy > 0`, pValue: h.permutation?.pValueOneTailed ?? null })),
-    criteria.alpha
-  );
+  //
+  // Keluarganya adalah SELURUH sel yang panel ini tampilkan, bukan empat horizon saja.
+  // Sebelumnya hanya horizon yang dikoreksi (m = 4), padahal halaman yang sama menyajikan
+  // 6 bucket x 4 horizon, 8 jam sinyal, 4 band likuiditas, dan beberapa regime - semuanya
+  // ikut dipandang mata yang sama. Mengoreksi sebagian keluarga membuat Holm terlalu
+  // longgar, dan gerbang q_value lebih mudah lolos daripada yang dijanjikan namanya.
+  const testFamily: Array<{ label: string; pValue: number | null }> = base.horizons.map((h) => ({
+    label: `${h.horizon}: net expectancy > 0`,
+    pValue: h.permutation?.pValueOneTailed ?? null,
+  }));
+  for (const horizon of INTRADAY_HORIZONS) {
+    for (const bucket of base.buckets[horizon] ?? []) {
+      testFamily.push({ label: `${horizon} bucket ${bucket.bucket}`, pValue: bucket.pValueOneTailed });
+    }
+  }
+  for (const slice of base.timeOfDay[PRIMARY_HORIZON] ?? []) {
+    testFamily.push({ label: `${PRIMARY_HORIZON} jam ${slice.label}`, pValue: slice.pValueOneTailed });
+  }
+  for (const slice of base.liquidity[PRIMARY_HORIZON] ?? []) {
+    testFamily.push({ label: `${PRIMARY_HORIZON} likuiditas ${slice.label}`, pValue: slice.pValueOneTailed });
+  }
+  for (const slice of base.regime.rows) {
+    testFamily.push({ label: `${PRIMARY_HORIZON} regime ${slice.label}`, pValue: slice.pValueOneTailed });
+  }
+  base.multipleTesting = correctPValues(testFamily, criteria.alpha);
 
   // ---- gerbang penerimaan ----
   const primary = base.horizons.find((h) => h.horizon === PRIMARY_HORIZON) ?? null;
-  const primaryCorrected = base.multipleTesting.find((t) => t.label.startsWith(PRIMARY_HORIZON));
+  // Cocok PERSIS, bukan startsWith: sejak keluarga uji memuat bucket dan irisan, label
+  // seperti `H30 bucket 60-69` juga berawalan PRIMARY_HORIZON. Yang pertama ditemukan
+  // kebetulan masih yang benar hari ini karena horizon disusun lebih dulu - "kebetulan
+  // masih benar" bukan dasar yang layak untuk gerbang penerimaan.
+  const primaryTestLabel = `${PRIMARY_HORIZON}: net expectancy > 0`;
+  const primaryCorrected = base.multipleTesting.find((t) => t.label === primaryTestLabel);
   const highSlippage = base.costSensitivity.find((c) => c.scenario === 'HIGH_SLIPPAGE');
 
   const items: AcceptanceGateItem[] = [
@@ -1003,7 +1163,15 @@ async function computeValidation(
       fmt(primary?.tradablePerformance?.avgNetReturn),
       (primary?.tradablePerformance?.avgNetReturn ?? 0) > 0
     ),
-    gate('leakage', 'Tanpa look-ahead terdeteksi', 'ya', 'entry bar berikutnya, skor hanya dari bar selesai', true),
+    gate(
+      'leakage',
+      'Audit look-ahead bersih',
+      '0 pelanggaran, minimal 1 baris teraudit',
+      base.leakageAudit
+        ? `${base.leakageAudit.violations} pelanggaran / ${base.leakageAudit.checked} baris diperiksa`
+        : 'tidak dijalankan',
+      Boolean(base.leakageAudit?.passed)
+    ),
   ];
   const passedAll = items.every((i) => i.passed);
   base.acceptance = { criteria, items, passedAll, frozen: Boolean(protocol) };
@@ -1052,8 +1220,17 @@ function resolveStatus(input: {
   // Bukti NEGATIF adalah kesimpulan yang sah dan harus terlihat, bukan disamarkan
   // jadi "belum cukup data".
   if (ciHigh != null && ciHigh < 0) return 'VALIDATION_FAILED';
-  if (expectancy != null && expectancy <= 0) return 'VALIDATION_FAILED';
+  // URUTAN INI PENTING. Sebelumnya `expectancy <= 0` diperiksa LEBIH DULU, sehingga
+  // rata-rata -0,0001 dengan CI [-0,010 .. +0,009] dilabeli VALIDATION_FAILED - padahal
+  // CI-nya melintasi nol, jadi datanya justru tidak menyimpulkan apa-apa.
+  //
+  // Standarnya jadi asimetris: untuk menyatakan BERHASIL modul ini menuntut batas bawah
+  // CI > 0 (benar), tapi untuk menyatakan GAGAL cukup satu titik estimasi. Klaim negatif
+  // butuh bukti setara dengan klaim positif; kalau tidak, "gagal" hanyalah kebisingan
+  // yang diberi nama.
   if (ciLow != null && ciHigh != null && ciLow <= 0 && ciHigh >= 0) return 'INCONCLUSIVE';
+  // Tanpa CI sama sekali, titik estimasi adalah satu-satunya yang ada.
+  if (expectancy != null && expectancy <= 0) return 'VALIDATION_FAILED';
 
   // Lolos seluruh gerbang HANYA berarti kandidat, dan hanya kalau protokol OOS sudah
   // dibekukan dan run ini memang berjalan dalam mode OOS. Tanpa itu, apa pun angkanya,
