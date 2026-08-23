@@ -58,7 +58,10 @@ Lima stage berurutan:
    `.env` (harus 0600).
 4. `quality` - `npm run verify:prod` apa adanya. **Bukan salinan daftar audit**: daftar yang
    disalin akan drift dari `verify:prod` dalam hitungan minggu, dan gerbang yang drift lulus
-   tanpa memeriksa apa pun (CLAUDE.md §2).
+   tanpa memeriksa apa pun (CLAUDE.md §2). Dijalankan dengan **env bersih** - daftar putih
+   kecil, tanpa warisan `.env.production` yang dimuat service untuk stage `data`. Kredensial
+   produksi di dalam `npm test` mengubah hasilnya: `REDIS_URL` terisi membuat cache produksi
+   menjawab lebih dulu, jadi mock tes tidak pernah terpanggil.
 5. `deps` - `npm outdated`.
 
 Hasilnya ditulis ke `reports/weekly-maintenance/<stempel>/` (`report.md`, `report.json`,
