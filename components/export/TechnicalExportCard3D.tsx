@@ -250,12 +250,20 @@ export default function TechnicalExportCard3D({
   const resolvedR1 = pivots?.r1 ?? (tradeSetup?.resistance?.price ?? null);
   const resolvedR2 = pivots?.r2 ?? null;
 
-  // Resolved Trading Plan (Entry, Stop, TP1, TP2, R:R)
-  const entryPrice = tradingPlan?.entryZone ? tradingPlan.entryZone[0] : (tradeSetup?.entry ?? null);
-  const stopLoss = tradingPlan?.stopLoss ?? (tradeSetup?.stop ?? null);
-  const tp1 = tradingPlan?.targetPrice1 ?? (tradeSetup?.tp1 ?? null);
-  const tp2 = tradingPlan?.targetPrice2 ?? (tradeSetup?.tp2 ?? null);
-  const rrRatio = tradingPlan?.riskRewardRatio ?? (tradeSetup?.rr ? `1 : ${tradeSetup.rr.toFixed(1)}` : null);
+  // Resolved Trading Plan - HANYA basis ATR 14 (lib/technical/technical-levels.ts).
+  // Fallback ke `tradeSetup` server sengaja dihapus: engine itu memakai struktur +
+  // fraksi harga IDX, jadi angkanya beda dengan proyeksi ATR dan kartu ekspor akan
+  // menampilkan dua definisi TP/CL yang bercampur tanpa keterangan sumbernya.
+  const stopLoss = tradingPlan?.stopLoss ?? null;
+  const tp1 = tradingPlan?.targetPrice1 ?? null;
+  const rewardPct1 = tradingPlan?.rewardPct1 ?? null;
+  const riskPct = tradingPlan?.riskPct ?? null;
+
+  // ATR 14 + volatilitas harian relatif terhadap harga berjalan
+  const atr14 = tradingPlan?.atr14 ?? null;
+  const atrPct = atr14 != null && currentPrice
+    ? Math.round((atr14 / currentPrice) * 1000) / 10
+    : null;
 
   // 52-Week Range Position
   const hasRange52w = range52w?.high52w != null && range52w?.low52w != null && range52w.high52w > range52w.low52w;
@@ -700,29 +708,59 @@ export default function TechnicalExportCard3D({
               </div>
             </div>
 
-            {/* Trading Plan Row */}
-            <div className="mt-3 pt-2.5 border-t border-slate-800 grid grid-cols-4 gap-2 text-center text-xs font-mono">
-              <div className="bg-[#01050d] border border-slate-800 rounded-lg p-2">
-                <span className="text-[8.5px] text-slate-400 uppercase font-bold">Entry Zone</span>
-                <div className="text-white font-black text-[11.5px] mt-0.5">
-                  {entryPrice ? `Rp ${entryPrice.toLocaleString('id-ID')}` : '-'}
-                </div>
+            {/* Proyeksi ATR Row: TP1 & CL murni ATR, dua tile sisanya konteks teknikal */}
+            <div className="mt-3 pt-2.5 border-t border-slate-800">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[8.5px] font-mono font-black uppercase tracking-wider text-slate-400">
+                  Proyeksi Level (Basis ATR 14)
+                </span>
+                <span className="text-[8.5px] font-mono font-bold text-slate-500">
+                  Stop 1.25x ATR &bull; Target 1:2 R:R
+                </span>
               </div>
-              <div className="bg-[#01050d] border border-emerald-500/30 rounded-lg p-2">
-                <span className="text-[8.5px] text-emerald-400 uppercase font-bold">Target (TP1)</span>
-                <div className="text-emerald-400 font-black text-[11.5px] mt-0.5">
-                  {tp1 ? `Rp ${tp1.toLocaleString('id-ID')}` : '-'}
+
+              <div className="grid grid-cols-4 gap-2 text-center text-xs font-mono">
+                <div className="bg-[#01050d] border border-emerald-500/30 rounded-lg p-2">
+                  <span className="text-[8.5px] text-emerald-400 uppercase font-bold">Target (TP1)</span>
+                  <div className="text-emerald-400 font-black text-[11.5px] mt-0.5">
+                    {tp1 ? `Rp ${tp1.toLocaleString('id-ID')}` : '-'}
+                  </div>
+                  <div className="text-[8px] text-slate-400 mt-0.5">
+                    {rewardPct1 != null ? `+${rewardPct1}% dari harga` : 'ATR belum tersedia'}
+                  </div>
                 </div>
-              </div>
-              <div className="bg-[#01050d] border border-rose-500/30 rounded-lg p-2">
-                <span className="text-[8.5px] text-rose-400 uppercase font-bold">Cut Loss (CL)</span>
-                <div className="text-rose-400 font-black text-[11.5px] mt-0.5">
-                  {stopLoss ? `Rp ${stopLoss.toLocaleString('id-ID')}` : '-'}
+
+                <div className="bg-[#01050d] border border-rose-500/30 rounded-lg p-2">
+                  <span className="text-[8.5px] text-rose-400 uppercase font-bold">Cut Loss (CL)</span>
+                  <div className="text-rose-400 font-black text-[11.5px] mt-0.5">
+                    {stopLoss ? `Rp ${stopLoss.toLocaleString('id-ID')}` : '-'}
+                  </div>
+                  <div className="text-[8px] text-slate-400 mt-0.5">
+                    {riskPct != null ? `-${riskPct}% dari harga` : 'ATR belum tersedia'}
+                  </div>
                 </div>
-              </div>
-              <div className="bg-[#01050d] border border-cyan-500/30 rounded-lg p-2">
-                <span className="text-[8.5px] text-cyan-400 uppercase font-bold">Risk : Reward</span>
-                <div className="text-cyan-400 font-black text-[11.5px] mt-0.5">{rrRatio || '-'}</div>
+
+                <div className={`bg-[#01050d] border ${activeTheme.accentBorder} rounded-lg p-2`}>
+                  <span className={`text-[8.5px] ${activeTheme.accentText} uppercase font-bold`}>ATR 14</span>
+                  <div className="text-white font-black text-[11.5px] mt-0.5">
+                    {atr14 != null ? `Rp ${atr14.toLocaleString('id-ID')}` : '-'}
+                  </div>
+                  <div className="text-[8px] text-slate-400 mt-0.5">
+                    {atrPct != null ? `Volatilitas ${atrPct}%/hari` : 'Data < 14 sesi'}
+                  </div>
+                </div>
+
+                <div className="bg-[#01050d] border border-amber-500/30 rounded-lg p-2">
+                  <span className="text-[8.5px] text-amber-400 uppercase font-bold">Posisi 52M</span>
+                  <div className="text-amber-400 font-black text-[11.5px] mt-0.5">
+                    {pos52w != null ? `${pos52w}%` : '-'}
+                  </div>
+                  <div className="text-[8px] text-slate-400 mt-0.5">
+                    {pos52w != null
+                      ? pos52w >= 80 ? 'Dekat puncak 52M' : pos52w <= 20 ? 'Dekat dasar 52M' : 'Zona tengah rentang'
+                      : 'Rentang 52M belum lengkap'}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -739,16 +777,49 @@ export default function TechnicalExportCard3D({
               </div>
 
               {trends.length > 0 ? (
-                <div className="grid grid-cols-3 gap-2 text-center text-xs font-mono">
-                  {trends.slice(0, 3).map((tr, idx) => (
-                    <div key={idx} className="bg-[#020712] border border-slate-800 rounded-xl p-2.5">
-                      <div className="text-[9px] text-slate-400 uppercase font-bold">{tr.label.split(' ')[0]}</div>
-                      <div className={`font-black text-xs mt-1 ${tr.status === 'BULLISH' ? 'text-emerald-400' : tr.status === 'BEARISH' ? 'text-rose-400' : 'text-amber-400'}`}>
-                        {tr.status}
+                <div className="space-y-2 font-mono">
+                  {trends.slice(0, 3).map((tr, idx) => {
+                    const isBullTrend = tr.status === 'BULLISH';
+                    const isBearTrend = tr.status === 'BEARISH';
+                    const isNaTrend = tr.status === 'NA';
+                    const statusColor = isBullTrend
+                      ? 'text-emerald-400'
+                      : isBearTrend
+                      ? 'text-rose-400'
+                      : isNaTrend
+                      ? 'text-slate-400'
+                      : 'text-amber-400';
+                    const statusBadge = isBullTrend
+                      ? 'bg-emerald-500/15 border-emerald-500/50'
+                      : isBearTrend
+                      ? 'bg-rose-500/15 border-rose-500/50'
+                      : isNaTrend
+                      ? 'bg-slate-500/10 border-slate-600/60'
+                      : 'bg-amber-500/15 border-amber-500/50';
+
+                    return (
+                      <div key={idx} className="bg-[#020712] border border-slate-800 rounded-xl px-2.5 py-2">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="text-[10px] text-slate-200 font-black leading-tight">
+                              {tr.label}
+                            </div>
+                            <div className="text-[8.5px] text-slate-500 font-bold uppercase tracking-wide mt-0.5">
+                              {tr.benchmark}
+                            </div>
+                          </div>
+                          <span
+                            className={`shrink-0 px-1.5 py-0.5 rounded border text-[8.5px] font-black uppercase ${statusBadge} ${statusColor}`}
+                          >
+                            {isNaTrend ? 'DATA N/A' : tr.status}
+                          </span>
+                        </div>
+                        <div className="text-[8.5px] text-slate-300 font-medium leading-snug mt-1.5 pt-1.5 border-t border-slate-800/80">
+                          {tr.detail}
+                        </div>
                       </div>
-                      <div className="text-[8.5px] text-slate-300 mt-0.5 truncate font-medium">{tr.detail}</div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="bg-[#020712] border border-slate-800 rounded-xl p-3 text-center text-xs text-slate-400 font-mono">

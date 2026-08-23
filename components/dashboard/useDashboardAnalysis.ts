@@ -13,6 +13,10 @@ import {
   isIndexTicker,
   normalizeDashboardTicker,
 } from '@/components/dashboard/dashboard-analysis';
+import {
+  OPEN_TECHNICAL_SUMMARY_EVENT,
+  TECHNICAL_SUMMARY_ANCHOR_ID,
+} from '@/components/StockPerspectiveNav';
 
 export function useDashboardAnalysis() {
   const searchParams = useSearchParams();
@@ -65,6 +69,31 @@ export function useDashboardAnalysis() {
       detail?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   };
+
+  /**
+   * Tab "Summary" di bar sudut pandang menunjuk ke #analysis-detail, tetapi kartunya cuma
+   * ada di DOM saat mode penuh. Dua jalur masuk yang harus sama-sama bekerja:
+   *
+   * - dari halaman LAIN, Link membawa hash-nya ke sini dan yang membaca adalah pemeriksaan
+   *   saat pasang di bawah;
+   * - dari `/dashboard` sendiri, App Router mengganti URL lewat `pushState` yang TIDAK
+   *   memicu `hashchange`, jadi yang dipakai adalah event yang disiarkan navigasinya.
+   */
+  useEffect(() => {
+    const bukaRingkasan = () => openFullAnalysis();
+    const bukaKalauDijangkar = () => {
+      if (window.location.hash === `#${TECHNICAL_SUMMARY_ANCHOR_ID}`) openFullAnalysis();
+    };
+
+    bukaKalauDijangkar();
+    window.addEventListener(OPEN_TECHNICAL_SUMMARY_EVENT, bukaRingkasan);
+    window.addEventListener('hashchange', bukaKalauDijangkar);
+    return () => {
+      window.removeEventListener(OPEN_TECHNICAL_SUMMARY_EVENT, bukaRingkasan);
+      window.removeEventListener('hashchange', bukaKalauDijangkar);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const collapseAnalysis = () => {
     changeViewMode('compact');

@@ -1,5 +1,6 @@
 'use client';
 
+import type React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -23,6 +24,25 @@ import { usePathname } from 'next/navigation';
  */
 
 const FLOW_ANCHOR_ID = 'lens-flow';
+
+/**
+ * "Technical Summary" (breakdown LensScore + alasan teratas) duduk jauh di bawah chart,
+ * analyzer, dan bukti teknikal di `/dashboard`. Pengguna yang cuma ingin melihat skornya
+ * harus menggulir melewati seluruh halaman untuk sampai ke sana.
+ *
+ * Karena itu ia ikut ke bar sudut pandang sebagai tab jangkar - sama pola dengan Flow:
+ * bukan rute baru, cuma jalan pintas ke bagian yang memang sudah ada.
+ */
+export const TECHNICAL_SUMMARY_ANCHOR_ID = 'analysis-detail';
+
+/**
+ * Kartu ringkasan itu HANYA dirender saat `viewMode === 'full'` (lihat
+ * `useDashboardAnalysis`). Tautan jangkar biasa akan mati persis untuk pengguna yang
+ * paling butuh jalan pintasnya: yang sedang di mode ringkas, tempat kartunya belum ada
+ * di DOM. Jadi tab ini juga menyiarkan event; `/dashboard` yang mendengarkannya membuka
+ * mode penuh lalu menggulir sendiri.
+ */
+export const OPEN_TECHNICAL_SUMMARY_EVENT = 'sahamlens:open-technical-summary';
 
 type Perspective = {
   id: string;
@@ -66,6 +86,11 @@ const PERSPECTIVES: Perspective[] = [
   { id: 'fundamental', label: 'Fundamental', href: (code) => `/fundamental?symbol=${code}.JK`, activePaths: ['/fundamental'] },
   { id: 'flow', label: 'Flow', href: (code) => `/technical/${code}.JK#${FLOW_ANCHOR_ID}` },
   { id: 'valuation', label: 'Valuation', href: (code) => `/dcf?symbol=${code}.JK`, activePaths: ['/dcf'] },
+  {
+    id: 'summary',
+    label: 'Summary',
+    href: (code) => `${DASHBOARD_PATH}?symbol=${code}.JK#${TECHNICAL_SUMMARY_ANCHOR_ID}`,
+  },
 ];
 
 function isUnder(pathname: string, route: string): boolean {
@@ -119,6 +144,16 @@ export function stockCodeFor(symbol: string | null | undefined): string | null {
   return raw;
 }
 
+/** Kalau `/dashboard` belum terpasang, tidak ada yang mendengarkan dan Link tetap
+ *  melakukan navigasinya seperti biasa.
+ *
+ *  Klik yang membuka tab baru sengaja dilewati: halaman yang ditinggalkan tidak ikut
+ *  berpindah, jadi membuka kartu ringkasannya di situ cuma menggeser layar tanpa diminta. */
+function announceSummaryIntent(event: React.MouseEvent<HTMLAnchorElement>) {
+  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
+  window.dispatchEvent(new CustomEvent(OPEN_TECHNICAL_SUMMARY_EVENT));
+}
+
 export default function StockPerspectiveNav({ symbol }: { symbol: string | null | undefined }) {
   const pathname = usePathname();
   const code = stockCodeFor(symbol);
@@ -135,6 +170,7 @@ export default function StockPerspectiveNav({ symbol }: { symbol: string | null 
           <Link
             key={id}
             href={href}
+            onClick={id === 'summary' ? announceSummaryIntent : undefined}
             aria-current={active ? 'page' : undefined}
             // 44px di SEMUA lebar, tanpa varian yang mengecilkannya di md+. Tablet
             // mewarisi ukuran kontrol desktop sementara alat masukannya tetap jari -
