@@ -99,13 +99,49 @@ function record(entry) {
 }
 
 /** Menjalankan satu perintah dan menyimpan seluruh keluarannya ke berkas log. */
-function runCommand({ id, stage, label, command, args, softFail = false, parse, env }) {
+// Variabel yang dipertahankan saat stage `quality` dijalankan tanpa .env.production:
+// hanya yang dibutuhkan node/npm untuk berjalan, plus konvensi guard checkout produksi.
+// Sisanya - kredensial, URL basis data, REDIS_URL - sengaja dibuang.
+const QUALITY_ENV_KEEP = [
+  'PATH', 'HOME', 'USER', 'LOGNAME', 'SHELL', 'TERM', 'LANG', 'LC_ALL', 'TZ', 'TMPDIR',
+  'SAHAMLENS_PRODUCTION_CHECKOUT', 'ALLOW_VERIFY_IN_PRODUCTION',
+];
+
+/**
+ * Env untuk stage `quality`, tanpa warisan .env.production.
+ *
+ * Service memuat EnvironmentFile=.env.production karena stage `data` butuh CRON_SECRET,
+ * tapi env yang sama ikut terwarisi ke `npm test` di dalam verify:prod - dan di sana ia
+ * MENGUBAH hasil tes. Terukur 23 Agustus 2026 pada uji perdana: `REDIS_URL` terisi membuat
+ * getOrCompute(COMPUTED_CACHE_KEY.MARKET_NEWS, ...) membalas berita nyata dari cache
+ * produksi, jadi vi.mock('@/modules/news') tidak pernah terpanggil dan dua regresi chat
+ * gagal - untuk commit yang CI-nya hijau.
+ *
+ * Daftar putih, bukan daftar hitam: kunci baru di .env.production tidak boleh diam-diam
+ * bocor ke gerbang hanya karena tidak ada yang ingat memperbarui daftar buangnya.
+ * Gerbang yang merah karena lingkungan akan diabaikan dalam sebulan (CLAUDE.md §2).
+ */
+function scrubbedEnv() {
+  const keep = {};
+  for (const key of QUALITY_ENV_KEEP) {
+    if (process.env[key] !== undefined) keep[key] = process.env[key];
+  }
+  // npm menaruh konfigurasinya sendiri di npm_config_*; membuangnya membuat `npm run`
+  // kehilangan cache dan prefix yang sedang dipakai.
+  for (const [key, value] of Object.entries(process.env)) {
+    if (key.startsWith('npm_')) keep[key] = value;
+  }
+  return keep;
+}
+
+function runCommand({ id, stage, label, command, args, softFail = false, parse, env, cleanEnv = false }) {
   if (dryRun) {
     record({ id, stage, label, status: 'SKIP', summary: `dry-run: ${command} ${args.join(' ')}`, durationMs: 0, detail: '' });
     return null;
   }
   const begin = Date.now();
-  const child = spawnSync(command, args, { cwd: ROOT, encoding: 'utf8', env: { ...process.env, ...env }, maxBuffer: 64 * 1024 * 1024 });
+  const baseEnv = cleanEnv ? scrubbedEnv() : process.env;
+  const child = spawnSync(command, args, { cwd: ROOT, encoding: 'utf8', env: { ...baseEnv, ...env }, maxBuffer: 64 * 1024 * 1024 });
   const durationMs = Date.now() - begin;
   const output = `${child.stdout ?? ''}${child.stderr ?? ''}`;
   fs.writeFileSync(path.join(logDir, `${stage}-${id}.log`), output || '(tanpa keluaran)', 'utf8');
@@ -283,7 +319,7 @@ function checkQuality() {
   }
   // Satu perintah, bukan salinan daftarnya: verify:prod adalah gerbang yang sama
   // yang dipakai CI dan deploy - 12 audit + typecheck + lint + test + build + bundle.
-  runCommand({ id: 'verify-prod', stage: 'quality', label: 'npm run verify:prod', command: 'npm', args: ['run', 'verify:prod'] });
+  runCommand({ id: 'verify-prod', stage: 'quality', label: 'npm run verify:prod', command: 'npm', args: ['run', 'verify:prod'], cleanEnv: true });
 }
 
 // ------------------------------------------------ stage 4: umur dependency
