@@ -11,7 +11,7 @@ import {
   LineChart, Landmark, ZoomIn, ZoomOut, Maximize2, Zap, Dices, Palette
 } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
-import TechnicalExportCard3D from '@/components/export/TechnicalExportCard3D';
+import TechnicalResearchCard from '@/components/export/TechnicalResearchCard';
 import FundamentalMoatEarningsExportCard3D from '@/components/export/FundamentalMoatEarningsExportCard3D';
 import {
   Card3DTheme,
@@ -202,7 +202,11 @@ export default function InfographicStudioClient() {
           range52w: technicalSuite?.range52w || null,
           trends: technicalSuite?.trends || [],
           tradingPlan: technicalSuite?.tradingPlan || null,
-          tradeSetup: stockRes?.tradeSetup || null,
+          // Pola candlestick sudah dihitung buildTechnicalSuite dan sudah tampil di menu
+          // Teknikal, tapi kartu ekspor tidak pernah menerimanya - satu-satunya bagian
+          // suite yang dihitung lalu dibuang.
+          patterns: technicalSuite?.patterns || [],
+          patternAsOf: technicalSuite?.dataQuality?.patternAsOf || null,
           flowDetails,
         },
         fundamental: {
@@ -268,7 +272,7 @@ export default function InfographicStudioClient() {
   const handleShuffleTheme = () => {
     const random = getRandomTheme();
     setSelectedThemeId(random.id);
-    showToast(`Tema 3D diacak: ${random.name}`, 'info');
+    showToast(`Tema sektor diacak: ${random.name}`, 'info');
   };
 
   const handleDownloadImage = async () => {
@@ -465,7 +469,7 @@ export default function InfographicStudioClient() {
                 }`}
               >
                 <LineChart className="w-4 h-4" />
-                <span>1. Output Teknikal 3D</span>
+                <span>1. Catatan Teknikal</span>
               </Button>
 
               <Button variant="bare" size="none"
@@ -486,7 +490,7 @@ export default function InfographicStudioClient() {
             <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
               <div className="flex items-center gap-1.5 bg-[#030612] border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
                 <Palette className={`w-3.5 h-3.5 ${active3DTheme.accentText}`} />
-                <span className="text-slate-400 text-[11px] hidden sm:inline">Tema 3D:</span>
+                <span className="text-slate-400 text-[11px] hidden sm:inline">Tema sektor:</span>
                 <select
                   value={selectedThemeId}
                   onChange={(e) => setSelectedThemeId(e.target.value)}
@@ -507,7 +511,7 @@ export default function InfographicStudioClient() {
               <Button variant="bare" size="none"
                 type="button"
                 onClick={handleShuffleTheme}
-                title="Acak Tema Warna & Pencahayaan 3D"
+                title="Acak tema sektor"
                 className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors shadow-sm"
               >
                 <Dices className="w-4 h-4 text-cyan-400" />
@@ -544,10 +548,13 @@ export default function InfographicStudioClient() {
             <div className="flex items-center gap-2">
               <ImageIcon className={`w-5 h-5 ${active3DTheme.accentText}`} />
               <span className="font-heading text-sm font-bold text-white">
-                Live 3D Preview: {cardMode === 'technical' ? 'Laporan Teknikal & Smart Money' : 'Laporan Fundamental, Moat & Earnings'}
+                {cardMode === 'technical'
+                  ? 'Pratinjau: Catatan Teknikal & Smart Money'
+                  : 'Live 3D Preview: Laporan Fundamental, Moat & Earnings'}
               </span>
               <span className="hidden md:inline text-[11px] font-mono text-slate-400">
                 • Tema Sektor: <b className={active3DTheme.accentText}>{active3DTheme.name}</b>
+                {cardMode === 'technical' ? ' (dipakai sebagai warna aksen)' : ''}
               </span>
             </div>
 
@@ -571,7 +578,7 @@ export default function InfographicStudioClient() {
               <div ref={canvasRef} style={{ width: '1080px' }}>
                 {data ? (
                   cardMode === 'technical' ? (
-                    <TechnicalExportCard3D
+                    <TechnicalResearchCard
                       symbol={data.symbol}
                       stockName={data.stock.name}
                       currentPrice={data.stock.current_price}
@@ -589,7 +596,8 @@ export default function InfographicStudioClient() {
                       range52w={data.technical.range52w}
                       trends={data.technical.trends}
                       tradingPlan={data.technical.tradingPlan}
-                      tradeSetup={data.technical.tradeSetup}
+                      patterns={data.technical.patterns}
+                      patternAsOf={data.technical.patternAsOf}
                       flowDetails={data.technical.flowDetails}
                       theme={active3DTheme}
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
