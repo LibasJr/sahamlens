@@ -25,7 +25,26 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // Kepala ruangnya sengaja tipis (~4%): anggaran yang longgar tidak menahan apa pun, dan
 // angka inilah yang membuat penurunan tadi tidak pelan-pelan kembali.
 const TOTAL_BUDGET_KB = 6_000;
-const LARGEST_CHUNK_BUDGET_KB = 440;
+// Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
+// registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
+// 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
+// paket yang dulu terpisah (cfb, codepage, crc-32, ssf, ...), jadi pertumbuhannya perpindahan
+// tempat, bukan fitur baru.
+//
+// Kenapa dibayar, bukan diakali: chunk ini di-import dinamis dan hanya dimuat saat tombol
+// Ekspor diklik, jadi ia tidak menyentuh muatan awal satu halaman pun.
+//
+// TOTAL_BUDGET_KB SENGAJA TIDAK IKUT DINAIKKAN, dan itu perlu diketahui siapa pun yang
+// membaca ini berikutnya: perpindahan yang sama menaikkan total 5.903 -> 5.970 KB, jadi
+// sisa kepala ruang tinggal 30 KB (0,5%). Tambahan sekecil apa pun sesudah ini akan
+// memerahkan gerbang total - dan itu memang maksudnya. Yang TIDAK boleh dilakukan saat itu
+// terjadi adalah menaikkan angkanya supaya hijau; yang benar adalah membuat dinamis satu
+// impor berat lagi, atau memakai tuas di bawah.
+//
+// Tuas kalau suatu saat 480 pun terlampaui: `xlsx/dist/xlsx.mini.min.js` (273 KB terminifikasi
+// vs 930 KB build penuh) membuang parser format yang tidak dipakai repo ini - repo ini hanya
+// MENULIS .xlsx. Harganya build UMD tanpa tipe di dua pemanggil; belum dibayar karena belum perlu.
+const LARGEST_CHUNK_BUDGET_KB = 480;
 
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
