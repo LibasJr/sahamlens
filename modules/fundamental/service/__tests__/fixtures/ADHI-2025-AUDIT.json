@@ -1,0 +1,97 @@
+{
+ "schemaVersion": 1,
+ "ticker": "ADHI",
+ "entityName": "PT Adhi Karya (Persero) Tbk.",
+ "year": 2025,
+ "period": "AUDIT",
+ "fileModified": "2026-04-07T01:10:50.037",
+ "fetchedAt": "2026-08-22T11:22:09.374093+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202025/Audit/ADHI/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2024-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2024-01-01",
+   "endDate": "2024-12-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2024-12-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2023-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2024-01-01",
+   "endDate": "2024-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:CurrentAssets": {
+   "CurrentYearInstant": "16617869977869",
+   "PriorEndYearInstant": "22156250798723"
+  },
+  "idx-cor:NonCurrentAssets": {
+   "CurrentYearInstant": "12176069633344",
+   "PriorEndYearInstant": "12489341178631"
+  },
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "28793939611213",
+   "PriorEndYearInstant": "34645591977354"
+  },
+  "idx-cor:CurrentLiabilities": {
+   "CurrentYearInstant": "19458102720117",
+   "PriorEndYearInstant": "20211807979119"
+  },
+  "idx-cor:NonCurrentLiabilities": {
+   "CurrentYearInstant": "6038493752724",
+   "PriorEndYearInstant": "5459909762034"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "25496596472841",
+   "PriorEndYearInstant": "25671717741153"
+  },
+  "idx-cor:CommonStocks": {
+   "CurrentYearInstant": "840760897900",
+   "PriorEndYearInstant": "840760897900"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "2865523657408",
+   "PriorEndYearInstant": "8352321002998"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "3297343138372",
+   "PriorEndYearInstant": "8973874236201"
+  },
+  "idx-cor:SalesAndRevenue": {
+   "CurrentYearDuration": "9666049684419",
+   "PriorYearDuration": "13351717203356"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "-5381476817737",
+   "PriorYearDuration": "271336696804"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "-5596721765412",
+   "PriorYearDuration": "-60096255615"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "-5402521013173",
+   "PriorYearDuration": "-86752036681"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "-642.58",
+   "PriorYearDuration": "-10.32"
+  }
+ },
+ "dimensionalContextCount": 3750,
+ "dimensionalFactsSkipped": 493,
+ "unexpectedPlainContexts": []
+}

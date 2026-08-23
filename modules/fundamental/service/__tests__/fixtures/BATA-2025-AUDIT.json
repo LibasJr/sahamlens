@@ -1,0 +1,97 @@
+{
+ "schemaVersion": 1,
+ "ticker": "BATA",
+ "entityName": "Sepatu Bata Tbk",
+ "year": 2025,
+ "period": "AUDIT",
+ "fileModified": "2026-06-07T16:42:27.087",
+ "fetchedAt": "2026-08-22T11:23:40.965882+00:00",
+ "sourceUrl": "https://www.idx.co.id/Portals/0/StaticData/ListedCompanies/Corporate_Actions/New_Info_JSX/Jenis_Informasi/01_Laporan_Keuangan/02_Soft_Copy_Laporan_Keuangan//Laporan%20Keuangan%20Tahun%202025/Audit/BATA/instance.zip",
+ "contexts": {
+  "CurrentYearInstant": {
+   "instant": "2025-12-31"
+  },
+  "PriorEndYearInstant": {
+   "instant": "2024-12-31"
+  },
+  "CurrentYearDuration": {
+   "startDate": "2025-01-01",
+   "endDate": "2025-12-31"
+  },
+  "PriorYearDuration": {
+   "startDate": "2024-01-01",
+   "endDate": "2024-12-31"
+  },
+  "PriorYearInstant": {
+   "instant": "2024-12-31"
+  },
+  "Prior2YearsInstant": {
+   "instant": "2023-12-31"
+  },
+  "PriorEndYearDuration": {
+   "startDate": "2024-01-01",
+   "endDate": "2024-12-31"
+  }
+ },
+ "facts": {
+  "idx-cor:CurrentAssets": {
+   "CurrentYearInstant": "184348542000",
+   "PriorEndYearInstant": "270263408000"
+  },
+  "idx-cor:NonCurrentAssets": {
+   "CurrentYearInstant": "98208235000",
+   "PriorEndYearInstant": "135397681000"
+  },
+  "idx-cor:Assets": {
+   "CurrentYearInstant": "282556777000",
+   "PriorEndYearInstant": "405661089000"
+  },
+  "idx-cor:CurrentLiabilities": {
+   "CurrentYearInstant": "382242261000",
+   "PriorEndYearInstant": "385636274000"
+  },
+  "idx-cor:NonCurrentLiabilities": {
+   "CurrentYearInstant": "31968297000",
+   "PriorEndYearInstant": "35951707000"
+  },
+  "idx-cor:Liabilities": {
+   "CurrentYearInstant": "414210558000",
+   "PriorEndYearInstant": "421587981000"
+  },
+  "idx-cor:CommonStocks": {
+   "CurrentYearInstant": "13000000000",
+   "PriorEndYearInstant": "13000000000"
+  },
+  "idx-cor:EquityAttributableToEquityOwnersOfParentEntity": {
+   "CurrentYearInstant": "-130745070000",
+   "PriorEndYearInstant": "-15247709000"
+  },
+  "idx-cor:Equity": {
+   "CurrentYearInstant": "-131653781000",
+   "PriorEndYearInstant": "-15926892000"
+  },
+  "idx-cor:SalesAndRevenue": {
+   "CurrentYearDuration": "298246813000",
+   "PriorYearDuration": "459980798000"
+  },
+  "idx-cor:ProfitLossBeforeIncomeTax": {
+   "CurrentYearDuration": "-118562625000",
+   "PriorYearDuration": "-160646650000"
+  },
+  "idx-cor:ProfitLoss": {
+   "CurrentYearDuration": "-116456807000",
+   "PriorYearDuration": "-148165448000"
+  },
+  "idx-cor:ProfitLossAttributableToParentEntity": {
+   "CurrentYearDuration": "-116227279000",
+   "PriorYearDuration": "-147966304000"
+  },
+  "idx-cor:BasicEarningsLossPerShareFromContinuingOperations": {
+   "CurrentYearDuration": "-89.41",
+   "PriorYearDuration": "-113.82"
+  }
+ },
+ "dimensionalContextCount": 3430,
+ "dimensionalFactsSkipped": 271,
+ "unexpectedPlainContexts": []
+}

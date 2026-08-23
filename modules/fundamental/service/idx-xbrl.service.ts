@@ -146,6 +146,12 @@ export interface IdxFinancialReport {
    * angka historis diam-diam). */
   fileModified: string | null;
   sourceUrl: string;
+  /** Awal periode pelaporan, dari konteks `CurrentYearDuration`. Ada supaya panjang
+   * periode bisa DIBUKTIKAN dari datanya sendiri: laporan auditan memuat laba dua belas
+   * bulan, laporan kuartalan tidak, dan perbedaan itu menentukan boleh-tidaknya ROE dan
+   * PER dihitung. Label `period` sengaja TIDAK dipakai untuk keputusan itu - ia bagian
+   * nama berkas, bukan pernyataan tentang rentang waktunya. */
+  periodStart: string | null;
   periodEnd: string | null;
   priorPeriodEnd: string | null;
   current: IdxFinancialFigures;
@@ -425,6 +431,7 @@ export function mapIdxFinancialReport(artifact: IdxXbrlArtifact): IdxFinancialRe
     period: artifact.period,
     fileModified: artifact.fileModified,
     sourceUrl: artifact.sourceUrl,
+    periodStart: artifact.contexts.CurrentYearDuration?.startDate ?? null,
     periodEnd: artifact.contexts.CurrentYearInstant?.instant ?? null,
     priorPeriodEnd: artifact.contexts.PriorEndYearInstant?.instant ?? null,
     current,

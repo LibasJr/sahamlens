@@ -4,25 +4,32 @@
  "sumber": "IDX_OFFICIAL_API",
  "penutupan": {
   "AALI": {
-   "close": 7900.0,
-   "open": 8000.0,
-   "high": 8025.0,
-   "low": 7900.0,
-   "volume": 1169100.0
+   "close": 7900,
+   "open": 8000,
+   "high": 8025,
+   "low": 7900,
+   "volume": 1169100
+  },
+  "ADHI": {
+   "close": 133,
+   "open": 137,
+   "high": 138,
+   "low": 132,
+   "volume": 35346200
   },
   "BBCA": {
-   "close": 6450.0,
-   "open": 6400.0,
-   "high": 6475.0,
-   "low": 6400.0,
-   "volume": 100684300.0
+   "close": 6450,
+   "open": 6400,
+   "high": 6475,
+   "low": 6400,
+   "volume": 100684300
   },
   "TLKM": {
-   "close": 2610.0,
-   "open": 2610.0,
-   "high": 2640.0,
-   "low": 2610.0,
-   "volume": 72276500.0
+   "close": 2610,
+   "open": 2610,
+   "high": 2640,
+   "low": 2610,
+   "volume": 72276500
   }
  }
 }
