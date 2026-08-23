@@ -14,7 +14,7 @@ export const fmtKali = (v: number | null | undefined): string =>
 // (47.2 = 0,47x). Konvensi itu dipatuhi lima pemanggil - screener.service.ts:209,
 // recommendation.service.ts:274, api/stock/[ticker]:247, cron/fundamental-snapshot:37,
 // dan fundamental-pit-adapter.ts:31 yang menulis balik `pit.der * 100` - tetapi
-// FundamentalMoatEarningsExportCard3D merendernya lewat `fmtKali()` yang TIDAK membagi
+// kartu ekspor Fundamental merendernya lewat `fmtKali()` yang TIDAK membagi
 // 100. Akibatnya kartu ekspor Fundamental & Moat, aset yang memang dibuat untuk
 // dibagikan ke luar aplikasi, menampilkan emiten ber-DER 0,47x sebagai "47,20x" -
 // angka yang menyiratkan kebangkrutan pada neraca yang sehat.
