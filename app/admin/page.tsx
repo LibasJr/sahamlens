@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Activity, ArrowLeft, BarChart3, Building2, FileSpreadsheet, MessageSquare, RefreshCw, Sparkles, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, Building2, FileSpreadsheet, MessageSquare, RefreshCw, ShieldCheck, Sparkles, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -186,6 +186,25 @@ export default async function AdminPage() {
             <h2 className="font-heading text-lg font-bold text-tv-text">LensRadar Calibration Lab</h2>
             <p className="text-sm text-tv-muted mt-1">
               Audit bucket LensScore, t-test edge T+20, simulasi threshold, dan rekomendasi ambang AI (saat ini dibekukan).
+            </p>
+          </div>
+        </Link>
+
+        {/* Bertetangga dengan Calibration Lab: keduanya menjawab pertanyaan yang sama -
+            apakah LensScore benar-benar punya edge - dari sisi yang berbeda. Halaman ini
+            DULU publik di /transparency; sejak 23 Agustus 2026 ia internal, dan alamat
+            lamanya dialihkan ke sini lewat next.config.mjs. */}
+        <Link
+          href="/admin/transparency"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-yellow/10 p-2 text-tv-yellow">
+            <ShieldCheck className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Transparansi Validasi LensRadar</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Bukti forward per bucket LensScore, uji signifikansi, dan rekonsiliasi harga penutupan lintas sumber.
             </p>
           </div>
         </Link>

@@ -76,7 +76,13 @@ requireCheck('O-1', fs.existsSync('scripts/verify-restore-drill-target.mjs') && 
 requireCheck('O-2', file('.github/workflows/deploy-vps.yml').includes('VPS_CF_SSH_HOST') && fs.existsSync('docs/production/CLOUDFLARE_SSH_DEPLOY.md'), 'tunnel-capable deploy; cutover remains operator action');
 requireCheck('P-1', (file('components/Dashboard.tsx').includes('Alat analisis, bukan nasihat investasi') || file('lib/i18n/locales/id.ts').includes('Alat analisis, bukan nasihat investasi')), 'visible trust disclaimer');
 requireCheck('P-2', fs.existsSync('shared/auth/__tests__/entitlement-production.test.ts') && fs.existsSync('docs/production/PAYWALL_STAGING_DRILL.md'), 'policy tests + staging matrix; live drill remains operator evidence');
-requireCheck('P-3', file('app/transparency/page.tsx').includes('Apa arti “belum tervalidasi”?'), 'plain-language validation status');
+// P-3 DIPINDAH dari app/transparency/page.tsx ke app/disclaimer/page.tsx pada 23 Agustus
+// 2026, saat Transparansi pindah ke balik gerbang admin. Sekadar mengganti path ke halaman
+// admin akan membuat audit ini HIJAU sambil menjaga kalimat yang tidak akan pernah dibaca
+// pengguna mana pun - gerbang yang lulus tanpa melindungi apa pun (CLAUDE.md §2). Yang
+// dijaga P-3 adalah pengguna tahu modelnya belum tervalidasi, bukan halaman tertentu, jadi
+// kalimatnya yang ikut pindah ke halaman publik - bukan gerbangnya yang ikut masuk admin.
+requireCheck('P-3', file('app/disclaimer/page.tsx').includes('Apa arti &ldquo;belum tervalidasi&rdquo;?'), 'plain-language validation status');
 requireCheck('S-1 residue', file('modules/user/repository/admin-audit.repository.ts').includes("'LOGIN_FAILED'"), 'failed admin login audit event');
 
 let fail = 0;
