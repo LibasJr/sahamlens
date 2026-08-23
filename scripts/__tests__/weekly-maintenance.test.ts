@@ -181,3 +181,112 @@ describe('runner perawatan mingguan', () => {
     expect(remaining).not.toContain('2000-01-01T00-00-00');
   }, 30_000);
 });
+
+describe('runner yang ikut tersegarkan oleh sync menyerahkan sisa run ke versi barunya', () => {
+  /**
+   * Node membaca scripts/weekly-maintenance.mjs sekali, saat proses lahir. Stage `sync`
+   * menimpanya di tengah jalan, tapi proses yang berjalan tetap memegang salinan lama -
+   * jadi tanpa serah-terima, stage `sync` TIDAK PERNAH bisa mempengaruhi run yang
+   * memuatnya, dan setiap perbaikan pada runner baru berlaku satu minggu kemudian.
+   *
+   * 23 Agustus 2026 itu terjadi sungguhan: worktree perawatan sudah berpindah ke commit
+   * yang memuat #127, tapi run yang sama tetap menembak GET ke tiga route POST dan tetap
+   * mewariskan .env.production ke `npm test`. Laporannya menuduh empat hal yang sudah
+   * diperbaiki - kegagalan yang lebih buruk daripada merah biasa, karena ia menyalahkan
+   * hal yang salah.
+   *
+   * Test ini membangun kejadian itu apa adanya: origin memegang runner yang berbeda dari
+   * yang ada di disk saat proses lahir, lalu menuntut sisa stage-nya dijalankan oleh
+   * versi origin - dalam SATU laporan yang tetap memuat langkah sync-nya.
+   */
+  function git(cwd: string, args: string[]) {
+    const out = spawnSync('git', args, { cwd, encoding: 'utf8' });
+    if (out.status !== 0) throw new Error(`git ${args.join(' ')} gagal: ${out.stderr}`);
+    return out;
+  }
+
+  function buildRepo() {
+    const dir = mkdtempSync(path.join(tmpdir(), 'weekly-maintenance-sync-'));
+    tempDirs.push(dir);
+    const origin = path.join(dir, 'origin.git');
+    const work = path.join(dir, 'work');
+    const reportDir = path.join(dir, 'out');
+    git(dir, ['init', '--bare', '--initial-branch=main', origin]);
+    mkdirSync(path.join(work, 'scripts'), { recursive: true });
+    mkdirSync(path.join(work, 'config'), { recursive: true });
+
+    const runner = readFileSync('scripts/weekly-maintenance.mjs', 'utf8');
+    writeFileSync(path.join(work, 'scripts', 'weekly-maintenance.mjs'), runner, 'utf8');
+    writeFileSync(path.join(work, 'package.json'), JSON.stringify({ name: 'tmp-maintenance', version: '1.0.0', private: true }), 'utf8');
+    // npm ci menolak jalan tanpa lockfile, dan stage sync memanggilnya.
+    writeFileSync(path.join(work, 'package-lock.json'), JSON.stringify({
+      name: 'tmp-maintenance', version: '1.0.0', lockfileVersion: 3, requires: true,
+      packages: { '': { name: 'tmp-maintenance', version: '1.0.0' } },
+    }), 'utf8');
+    writeFileSync(path.join(work, 'config', 'weekly-maintenance.json'), JSON.stringify({
+      baseUrl: 'http://127.0.0.1:1', reportDir, keepReports: 5, dataRefresh: [],
+    }), 'utf8');
+
+    git(work, ['init', '--initial-branch=main']);
+    git(work, ['config', 'user.email', 'test@example.com']);
+    git(work, ['config', 'user.name', 'test']);
+    git(work, ['remote', 'add', 'origin', origin]);
+    git(work, ['add', '-A']);
+    git(work, ['commit', '-m', 'runner versi lama']);
+    git(work, ['push', '-q', 'origin', 'main']);
+
+    // Versi baru HANYA di origin. Setelah reset, disk memegang versi lama - persis keadaan
+    // saat timer systemd melahirkan prosesnya, sebelum stage sync berjalan.
+    writeFileSync(path.join(work, 'scripts', 'weekly-maintenance.mjs'), `${runner}\n// penanda versi baru\n`, 'utf8');
+    git(work, ['commit', '-am', 'runner versi baru']);
+    git(work, ['push', '-q', 'origin', 'main']);
+    git(work, ['reset', '--hard', 'HEAD~1']);
+
+    return { work, reportDir };
+  }
+
+  function runIn(cwd: string, args: string[]) {
+    return spawnSync(process.execPath, ['scripts/weekly-maintenance.mjs', ...args], {
+      cwd, encoding: 'utf8', env: { ...process.env, CRON_SECRET: '' },
+    });
+  }
+
+  it('menjalankan sisa stage dengan runner dari origin, dalam satu laporan utuh', () => {
+    const { work, reportDir } = buildRepo();
+    const before = readFileSync(path.join(work, 'scripts', 'weekly-maintenance.mjs'), 'utf8');
+    expect(before).not.toContain('penanda versi baru');
+
+    const result = runIn(work, ['--only=sync,deps', '--sync']);
+
+    // Sync benar-benar menarik versi baru ke disk...
+    expect(readFileSync(path.join(work, 'scripts', 'weekly-maintenance.mjs'), 'utf8')).toContain('penanda versi baru');
+    // ...dan sisa run diserahkan kepadanya, bukan dijalankan oleh salinan lama di memori.
+    expect(result.stdout, result.stdout + result.stderr).toContain('sisa stage dijalankan dengan versi baru');
+
+    // Satu laporan, bukan dua setengah-setengah: langkah sync milik induk harus ikut.
+    const stamps = readdirSync(reportDir);
+    expect(stamps).toHaveLength(1);
+    const report = JSON.parse(readFileSync(path.join(reportDir, stamps[0], 'report.json'), 'utf8'));
+    const stages = report.steps.map((step: { stage: string }) => step.stage);
+    expect(stages).toContain('sync');
+    expect(stages).toContain('deps');
+    expect(report.steps.filter((step: { id: string }) => step.id === 'npm-ci')).toHaveLength(1);
+    // Berkas serah-terima tidak boleh tertinggal di laporan.
+    expect(existsSync(path.join(reportDir, stamps[0], 'logs', 'handoff.json'))).toBe(false);
+  }, 180_000);
+
+  it('tidak menyerahkan apa pun kalau runner-nya tidak berubah', () => {
+    const { work, reportDir } = buildRepo();
+    // Samakan disk dengan origin lebih dulu: sync tidak akan mengubah berkas runner.
+    git(work, ['fetch', '-q', 'origin', 'main']);
+    git(work, ['reset', '--hard', 'origin/main']);
+
+    const result = runIn(work, ['--only=sync,deps', '--sync']);
+    expect(result.stdout).not.toContain('sisa stage dijalankan dengan versi baru');
+
+    const stamps = readdirSync(reportDir);
+    expect(stamps).toHaveLength(1);
+    const report = JSON.parse(readFileSync(path.join(reportDir, stamps[0], 'report.json'), 'utf8'));
+    expect(report.steps.filter((step: { id: string }) => step.id === 'npm-ci')).toHaveLength(1);
+  }, 180_000);
+});
