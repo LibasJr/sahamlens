@@ -140,8 +140,16 @@ export function RadialScoreGauge({
             <span className="text-xs font-bold text-tv-muted font-number">/100</span>
           </div>
 
+          {/* Kotak gauge berlebar MATI (`size`, 150px di DecisionScoreCard) sementara
+              label terpanjang yang benar-benar bisa muncul - 'NETRAL / PANTAU' dari
+              getSimpleDecisionLabel() - terukur 149px di harness e2e. Sisa satu piksel,
+              dan harness itu memakai font sistem sedangkan produksi memakai Inter: di
+              perangkat sungguhan selisih semacam itu bisa berbalik jadi minus tanpa ada
+              yang berubah di kode. Karena itu chip ini diberi cadangan, bukan dipaskan:
+              padding lebih rapat, dibatasi lebar induknya, dan boleh membungkus - lebih
+              baik dua baris daripada menonjol keluar kartu. */}
           {category && (
-            <div className={`lens-chip mt-1 px-2.5 py-0.5 rounded-full font-black uppercase tracking-wider border ${theme.bg} ${theme.text} border-current/30 shadow-sm`}>
+            <div className={`lens-chip mt-1 max-w-full px-2 py-0.5 rounded-full text-center font-black uppercase tracking-wider break-words border ${theme.bg} ${theme.text} border-current/30 shadow-sm`}>
               {category}
             </div>
           )}

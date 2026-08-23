@@ -205,4 +205,104 @@ test.describe('kontrak responsif, diukur bukan dibaca', () => {
       }
     }
   });
+  /**
+   * Label status yang keluar dari kotaknya di ponsel (dilaporkan pengguna 2026-08-23).
+   *
+   * Dua kotak di aplikasi ini berlebar TETAP sementara isinya label yang panjangnya
+   * ditentukan mesin keputusan, bukan oleh yang menulis markupnya:
+   *
+   *   - gauge DecisionScoreCard: `size={150}` mati, sedangkan getSimpleDecisionLabel()
+   *     bisa mengembalikan 'NETRAL / PANTAU'
+   *   - kartu Valuasi Harga: separuh layar (grid-cols-2), sedangkan computeValuationLabel()
+   *     bisa mengembalikan 'UNDERVALUED' - satu kata yang tidak bisa dipenggal
+   *
+   * Terukur sebelum diperbaiki: 'UNDERVALUED' menonjol keluar kartu di 320px, dan chip
+   * gauge menyisakan 1px dari 150px. Yang kedua belum luber, tapi harness ini memakai
+   * font sistem sedangkan produksi memakai Inter - sisa satu piksel bukan lulus, itu
+   * kebetulan. Karena itu yang dijaga di sini BUKAN "tidak luber" melainkan ada CADANGAN.
+   *
+   * Daftar labelnya sengaja disalin dari kedua service-nya. Kalau di sana ditambahkan
+   * label yang lebih panjang tanpa menambahkannya ke sini, test ini lulus tanpa memeriksa
+   * yang baru - jadi kalau menambah label, tambahkan juga di bawah.
+   */
+  const CADANGAN_MIN = 4;
+
+  test('chip putusan gauge tidak menghabiskan lebar kotaknya yang mati', async ({ page }) => {
+    const gauge = readSource('components/ui/RadialScoreGauge.tsx');
+    // Fragmen ditulis UTUH beserta spasinya. `classNameContaining` mencocokkan SUBSTRING,
+    // jadi 'rounded' ikut cocok dengan 'rounded-full' - probe pertama untuk temuan ini
+    // mengukur chip yang sama sekali lain gara-gara itu, dan hasilnya terbaca meyakinkan.
+    const kelasReadout = classNameContaining(gauge, ['absolute inset-x-0 bottom-1']);
+    const kelasChip = classNameContaining(gauge, ['lens-chip mt-1 max-w-full px-2 py-0.5 rounded-full']);
+
+    // SimpleDecisionLabel di modules/eligibility/service/decision-presentation.service.ts
+    const label = ['INFORMASI', 'DATA TERBATAS', 'TIDAK LAYAK', 'SINYAL POSITIF', 'SINYAL NEGATIF', 'NETRAL / PANTAU'];
+    // Lebar kotak gauge di DecisionScoreCard - dikunci di sini supaya perubahan `size`
+    // di sana tidak diam-diam melewati pemeriksaan ini.
+    const LEBAR_GAUGE = 150;
+
+    for (const [nama, lebar] of Object.entries(LEBAR)) {
+      await page.setViewportSize({ width: lebar, height: TINGGI });
+      for (const teks of label) {
+        await page.setContent(pageHtml(`
+          <div id="kotak" class="relative" style="width:${LEBAR_GAUGE}px;height:110px">
+            <div class="${kelasReadout}">
+              <div class="flex items-baseline justify-center gap-0.5"><span class="font-heading text-3xl font-black font-number tracking-tight">72</span></div>
+              <div id="chip" class="${kelasChip}">${teks}</div>
+            </div>
+          </div>
+        `));
+        const chip = await page.locator('#chip').boundingBox();
+        expect(chip, `chip "${teks}" tidak terukur di ${nama}`).not.toBeNull();
+        expect(
+          LEBAR_GAUGE - chip!.width,
+          `chip "${teks}" di ${nama} (${lebar}px) menyisakan ${Math.round(LEBAR_GAUGE - chip!.width)}px dari ${LEBAR_GAUGE}px - terlalu mepet untuk font produksi yang berbeda dari font harness`,
+        ).toBeGreaterThanOrEqual(CADANGAN_MIN);
+      }
+    }
+  });
+
+  test('label valuasi tetap di dalam kartunya sampai 320px', async ({ page }) => {
+    const fundamental = readSource('components/fundamental/FundamentalOverview.tsx');
+    const kelasGrid = classNameContaining(fundamental, ['grid w-full grid-cols-2 gap-3']);
+    const kelasKartu = classNameContaining(fundamental, ['min-h-[64px] w-full rounded-xl border px-2 py-2 sm:px-3']);
+    const kelasBaris = classNameContaining(fundamental, ['flex min-w-0 flex-wrap items-center justify-center gap-1.5']);
+    const kelasTeks = classNameContaining(fundamental, ['min-w-0 break-words text-sm font-bold leading-tight']);
+
+    // computeValuationLabel() di modules/fundamental/service/consensus-labels.service.ts
+    const label = ['UNDERVALUED', 'OVERVALUED', 'FAIR VALUE', 'DATA TIDAK CUKUP'];
+
+    // 320px ikut diuji dan BUKAN bagian dari LEBAR: di situlah satu-satunya kegagalan
+    // terukur, dan menghapusnya dari daftar membuat test ini hijau tanpa arti.
+    for (const lebar of [320, LEBAR.ponsel, LEBAR.ponselBesar, LEBAR.tablet]) {
+      await page.setViewportSize({ width: lebar, height: TINGGI });
+      for (const teks of label) {
+        await page.setContent(pageHtml(`
+          <div style="padding:20px">
+            <div class="${kelasGrid}">
+              <div class="min-w-0">
+                <div id="kartu" class="${kelasKartu}">
+                  <div class="${kelasBaris}">
+                    <svg class="h-4 w-4 shrink-0"></svg>
+                    <span id="teks" class="${kelasTeks}">${teks}</span>
+                  </div>
+                  <div class="mt-1 text-[11px] font-semibold opacity-80">MOS +25%</div>
+                </div>
+              </div>
+              <div class="min-w-0"><div class="${kelasKartu}"><span class="${kelasTeks}">BAGUS</span></div></div>
+            </div>
+          </div>
+        `));
+        const kartu = await page.locator('#kartu').boundingBox();
+        const label_ = await page.locator('#teks').boundingBox();
+        expect(kartu, `kartu tidak terukur di ${lebar}px`).not.toBeNull();
+        expect(label_, `label "${teks}" tidak terukur di ${lebar}px`).not.toBeNull();
+        expect(label_!.x, `label "${teks}" keluar ke kiri kartunya di ${lebar}px`).toBeGreaterThanOrEqual(kartu!.x - 0.5);
+        expect(
+          label_!.x + label_!.width,
+          `label "${teks}" keluar ke kanan kartunya di ${lebar}px`,
+        ).toBeLessThanOrEqual(kartu!.x + kartu!.width + 0.5);
+      }
+    }
+  });
 });
