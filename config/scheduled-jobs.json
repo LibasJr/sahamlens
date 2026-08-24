@@ -125,9 +125,9 @@
     {
       "path": "/api/cron/news",
       "provider": "systemd",
-      "schedule": "*/5 9-15 * * 1-5",
+      "schedule": "*/5 6-22 * * *",
       "scheduleStatus": "known",
-      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta - didaftarkan pengguna 2026-08-14 mengikuti instruksi docs/operations/DEPLOYMENT.md, dikonfirmasi sama persis dengan market-summary/market-pulse/breakout-scan."
+      "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta - didaftarkan pengguna 2026-08-14 mengikuti instruksi docs/operations/DEPLOYMENT.md, dikonfirmasi sama persis dengan market-summary/market-pulse/breakout-scan. DIUBAH 2026-08-24 atas permintaan pengguna ('biar berita up to date') dari '*/5 9-15 * * 1-5' ke '*/5 6-22 * * *' - interval tetap 5 menit, yang melebar adalah cakupannya: 7 hari (bukan Mon-Fri) dan 06:00-22:55 (bukan 09:00-15:55). Alasannya jalur fallback, bukan jam bursa: /api/news memakai getOrCompute(MARKET_NEWS, getMarketAwareTtlSec()), dan di luar jam bursa getMarketAwareTtlSec() mengembalikan MARKET_CLOSED_TTL_SEC = 6 JAM. Jadi begitu cron berhenti (malam dan akhir pekan), pengunjung pertama menulis cache berumur 6 jam dan berita membeku selama itu - berita akhir pekan serta keterbukaan informasi yang terbit sesudah penutupan tidak pernah tampil tepat waktu. Saat cron jalan, cache selalu ditulis ulang dengan CACHE_TTL_SEC.MARKET_NEWS (6 menit), sehingga cakupan yang lebih lebar inilah yang menutup lubang tersebut. Biaya: ~204 run/hari (dari ~84 pada hari kerja saja), tiap run ~10 fetch RSS + 1 panggilan AI klasifikasi di getMarketNews()."
     },
     {
       "path": "/api/cron/ownership-flow-ksei-sync",
