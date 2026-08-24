@@ -8,6 +8,7 @@ import { writeAiPickScores } from '@/shared/cache/ai-pick-cache';
 import { archiveLensRadarHistory } from '@/modules/lens-radar/service/history-archive.service';
 import { getAiPickScanWindow } from '@/shared/calendar/idx-trading-calendar';
 import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
+import { runDecisionAgentScan } from '@/modules/decision-agent';
 
 export const maxDuration = 300;
 
@@ -53,13 +54,26 @@ async function handlePOST(req: NextRequest) {
       const { scores, bearishSymbols } = await scanAiPickScores();
 
       stage = 'cache:start';
-      await writeAiPickScores({ computedAt: new Date().toISOString(), scores, bearishSymbols });
+      const computedAt = new Date().toISOString();
+      const scoreSnapshot = { computedAt, scores, bearishSymbols };
+      await writeAiPickScores(scoreSnapshot);
 
       stage = 'archive:start';
       const archived = await archiveLensRadarHistory(scores);
 
+      // Shadow agent memakai snapshot persis yang baru ditulis. Kegagalannya terisolasi
+      // agar tidak mengubah status sukses scan/historical archive yang sudah selesai.
+      let decisionAgent: { runId: string; signals: number; paperReady: number } | null = null;
+      try {
+        stage = 'decision-agent:start';
+        const run = await runDecisionAgentScan({ trigger: 'SCHEDULED', scores: scoreSnapshot });
+        if (run) decisionAgent = { runId: run.id, signals: run.summary.total, paperReady: run.summary.paperReady };
+      } catch (err) {
+        logger.error('Shadow decision agent gagal setelah AI Pick scan', { stage, err });
+      }
+
       stage = 'job:complete';
-      return { scored: scores.length, bearish: bearishSymbols.length, archived };
+      return { scored: scores.length, bearish: bearishSymbols.length, archived, decisionAgent };
     }));
     if (!guarded.executed) {
       return NextResponse.json({ success: true, skipped: true, reason: guarded.reason, scanWindow }, { status: 202 });
