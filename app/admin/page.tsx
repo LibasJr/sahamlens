@@ -430,7 +430,7 @@ export default async function AdminPage() {
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">Kesehatan Operasional</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Pantau cron, koneksi cache/database, error provider pada job terakhir, dan petunjuk verifikasi deploy.
+              Pantau cron, update data mingguan, koneksi cache/database, error provider, dan hasil audit terakhir.
             </p>
           </div>
         </Link>
