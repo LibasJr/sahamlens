@@ -63,14 +63,28 @@ describe('komponen skor', () => {
     expect(computeIntradayComponents(bars)).toBeNull();
   });
 
-  it('memberi skor netral 50 saat harga benar-benar datar', () => {
+  it('komponen HARGA netral 50 saat harga benar-benar datar', () => {
     const bars = Array.from({ length: 12 }, (_, i) => makeBar(9 * 60 + i * 5, 100));
     const components = computeIntradayComponents(bars)!;
     expect(components.raw.momentum).toBe(0);
     expect(components.raw.vwapDeviation).toBe(0);
     // High == low sepanjang sesi: posisi rentang tidak terdefinisi, dijawab 0,5 bukan NaN.
     expect(components.scored.rangePosition).toBe(50);
-    expect(intradayScoreFromComponents(components, LENS_INTRADAY_WEIGHTS)).toBe(50);
+    expect(components.scored.momentum).toBe(50);
+    expect(components.scored.vwapDeviation).toBe(50);
+    expect(components.scored.trendPersistence).toBe(50);
+
+    // TOTALNYA SENGAJA TIDAK 50, dan versi sebelumnya menuntut 50 di sini.
+    //
+    // Bar sintetis ini volumenya rata, jadi volumeSurge = 1,0 persis. Pemetaan lama
+    // berpusat di 1,0 sehingga itu berskor 50 - tapi pemusatan itulah yang salah:
+    // diukur dari 26.606 sinyal produksi, median rasio ini 0,7169 dan 1,0 berada di
+    // persentil 67,7. Volume 3 bar terakhir yang menyamai rata-rata sesi bukan keadaan
+    // netral; ia di atas median, dan sekarang berskor di atas 50.
+    //
+    // Menuntut total 50 di sini sama dengan menuntut pusatnya kembali ke 1,0.
+    expect(components.scored.volumeSurge).toBeGreaterThan(50);
+    expect(intradayScoreFromComponents(components, LENS_INTRADAY_WEIGHTS)).toBeGreaterThan(50);
   });
 
   it('skor naik saat harga menanjak dengan volume membesar', () => {
@@ -102,7 +116,12 @@ describe('bebas look-ahead', () => {
     const signals = buildIntradaySignals(bars, CONFIG);
     const at0930 = signals.find((s) => s.signalMinute === 9 * 60 + 30)!;
     expect(at0930.components.lastClose).toBe(100);
-    expect(at0930.score).toBe(50);
+
+    // Dibandingkan dengan sesi yang bar 09:30-nya TIDAK diutak-atik, bukan dengan angka
+    // ajaib. Kalau bar 09:30 sampai ikut terhitung, skornya akan berbeda jauh - dan
+    // pembanding ini tetap tajam walau pemetaan komponennya berubah di kemudian hari.
+    const bersih = buildIntradaySignals(flatSession(100), CONFIG).find((s) => s.signalMinute === 9 * 60 + 30)!;
+    expect(at0930.score).toBe(bersih.score);
   });
 
   it('entry memakai harga OPEN bar BERIKUTNYA, bukan close bar sinyal', () => {
@@ -372,8 +391,8 @@ describe('penandaan kelayakan transaksi', () => {
 describe('pemetaan komponen configurable', () => {
   it('rentang lebih sempit membuat momentum yang sama mencapai ujung skala', () => {
     const rising = Array.from({ length: 12 }, (_, i) => makeBar(9 * 60 + i * 5, 100 + i * 0.1));
-    const wide = computeIntradayComponents(rising, { momentumAbs: 0.05, vwapDeviationAbs: 0.01, volumeSurgeSpan: 2.5 })!;
-    const narrow = computeIntradayComponents(rising, { momentumAbs: 0.001, vwapDeviationAbs: 0.01, volumeSurgeSpan: 2.5 })!;
+    const wide = computeIntradayComponents(rising, { momentumAbs: 0.05, vwapDeviationAbs: 0.01, volumeSurgeCenter: 0.72, volumeSurgeSpan: 3.5 })!;
+    const narrow = computeIntradayComponents(rising, { momentumAbs: 0.001, vwapDeviationAbs: 0.01, volumeSurgeCenter: 0.72, volumeSurgeSpan: 3.5 })!;
     expect(narrow.scored.momentum).toBe(100);
     expect(wide.scored.momentum).toBeLessThan(100);
     // Nilai MENTAH-nya identik - yang berubah hanya pemetaannya, bukan datanya.
