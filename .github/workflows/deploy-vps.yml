@@ -159,8 +159,15 @@ jobs:
         run: |
           set +e
           proxy=()
+          deploy_args=()
           if [ "$DEPLOY_VIA_TUNNEL" = "true" ]; then
             proxy=(-o "ProxyCommand=$HOME/bin/cloudflared access ssh --hostname %h")
+          fi
+          # workflow_dispatch juga dipakai untuk memuat ulang perubahan konfigurasi
+          # produksi. Commit bisa tetap sama, jadi deploy manual harus melewati
+          # pemeriksaan SHA agar build/restart benar-benar dijalankan.
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            deploy_args=(--force)
           fi
           ssh \
             -v \
@@ -171,7 +178,7 @@ jobs:
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             -o ConnectTimeout=20 \
             "${proxy[@]}" \
-            lens@"$DEPLOY_HOST" deploy > /tmp/ssh-deploy.log 2>&1
+            lens@"$DEPLOY_HOST" deploy "${deploy_args[@]}" > /tmp/ssh-deploy.log 2>&1
           code=$?
           set -e
           cat /tmp/ssh-deploy.log
