@@ -6,6 +6,7 @@ import { touchPresence } from './presence';
 import { fetchLiveProFields } from './pro-status';
 import { TESTING_OPEN_ACCESS } from '../constants/access';
 import { evaluateEntitlement } from './entitlement';
+import { SYNTHETIC_ADMIN_SESSION_ID } from '../constants/identity';
 
 export type { SessionPayload };
 
@@ -38,7 +39,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   // client-side: hanya ADMIN_COOKIE HttpOnly yang JWT-nya lolos verifyAdminToken().
   if (await verifyAdminTokenLive(cookieStore.get(ADMIN_COOKIE)?.value)) {
     return {
-      id: '__sahamlens_admin__',
+      id: SYNTHETIC_ADMIN_SESSION_ID,
       email: 'admin@sahamlens.local',
       role: 'admin',
       is_pro: true,
