@@ -23,6 +23,7 @@ function formatTime(value: string | null | undefined): string {
 }
 
 function SignalRow({ signal, busy, onPropose }: { signal: PersistedDecisionSignal; busy: boolean; onPropose: (id: string) => void }) {
+  const hybridConfirmed = signal.hybridStatus === 'CONFIRMED' && signal.hybridReview?.verdict === 'CONFIRM';
   return (
     <tr className="border-t border-tv-border align-top">
       <td className="px-3 py-3 font-bold">{signal.ticker}</td>
@@ -36,10 +37,18 @@ function SignalRow({ signal, busy, onPropose }: { signal: PersistedDecisionSigna
         <div>{signal.news.basis === 'HEADLINE_ONLY' ? `Headline: +${signal.news.positive} / netral ${signal.news.neutral} / -${signal.news.negative}` : 'Berita tidak tersedia'}</div>
         <div className="mt-1">{[...signal.supportingReasons, ...signal.opposingReasons, ...signal.invalidationReasons].join(' · ') || 'Tidak ada alasan tambahan.'}</div>
       </td>
+      <td className="max-w-xs px-3 py-3 text-xs">
+        <div className="font-bold">{signal.hybridStatus}</div>
+        {signal.hybridReview ? <>
+          <div className="mt-1 text-tv-muted">{signal.hybridReview.model} · confidence {signal.hybridReview.confidence}</div>
+          {signal.hybridReview.concerns.length > 0 && <div className="mt-1 text-tv-muted">Concern: {signal.hybridReview.concerns.join(', ')}</div>}
+          <div className="mt-1 text-tv-muted" title={signal.hybridReview.evidenceRefs.join('\n')}>{signal.hybridReview.evidenceRefs.length} evidence refs</div>
+        </> : <div className="mt-1 text-tv-muted">Belum ada second opinion terstruktur.</div>}
+      </td>
       <td className="px-3 py-3">
-        {signal.paperReadiness === 'PAPER_READY' && (signal.action === 'BUY_CANDIDATE' || signal.action === 'EXIT_REVIEW') ? (
+        {signal.paperReadiness === 'PAPER_READY' && hybridConfirmed && (signal.action === 'BUY_CANDIDATE' || signal.action === 'EXIT_REVIEW') ? (
           <Button size="sm" disabled={busy} onClick={() => onPropose(signal.id)}>Usulkan paper</Button>
-        ) : <span className="text-xs text-tv-muted">{signal.paperReadiness}</span>}
+        ) : <span className="text-xs text-tv-muted">{signal.paperReadiness} · hybrid {signal.hybridStatus}</span>}
       </td>
     </tr>
   );
@@ -113,10 +122,10 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
 
     <Card as="section" className="p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="font-heading text-lg font-bold">Snapshot keputusan aktual</h2><p className="text-xs text-tv-muted">As of {formatTime(dashboard.latestRun?.dataAsOf)} · model validated: {dashboard.latestRun?.modelValidated ? 'YA' : 'BELUM'}</p></div>
+        <div><h2 className="font-heading text-lg font-bold">Snapshot keputusan aktual</h2><p className="text-xs text-tv-muted">As of {formatTime(dashboard.latestRun?.dataAsOf)} · model validated: {dashboard.latestRun?.modelValidated ? 'YA' : 'BELUM'} · hybrid: {dashboard.latestRun?.hybrid.status ?? '—'} {dashboard.latestRun?.hybrid.model ? `(${dashboard.latestRun.hybrid.model})` : ''}</p></div>
         <div className="flex gap-2"><Button variant="secondary" disabled={busy} onClick={() => void load()}><RefreshCw className="h-4 w-4" /> Muat ulang</Button><Button disabled={busy} onClick={() => void act({ action: 'scan' }, 'Scan aktual tersimpan.')}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Jalankan scan</Button></div>
       </div>
-      <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="text-xs text-tv-muted"><tr><th className="px-3 py-2">Ticker</th><th className="px-3 py-2">Aksi</th><th className="px-3 py-2">Harga</th><th className="px-3 py-2">Score / Coverage</th><th className="px-3 py-2">Risiko aktual</th><th className="px-3 py-2">Evidence</th><th className="px-3 py-2">Paper</th></tr></thead><tbody>{dashboard.signals.map((signal) => <SignalRow key={signal.id} signal={signal} busy={busy} onPropose={(signalId) => void act({ action: 'propose-paper-order', signalId }, 'Paper order diusulkan; belum dieksekusi.')} />)}</tbody></table></div>
+      <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="text-xs text-tv-muted"><tr><th className="px-3 py-2">Ticker</th><th className="px-3 py-2">Aksi rule</th><th className="px-3 py-2">Harga</th><th className="px-3 py-2">Score / Coverage</th><th className="px-3 py-2">Risiko aktual</th><th className="px-3 py-2">Evidence aktual</th><th className="px-3 py-2">Hybrid analyst</th><th className="px-3 py-2">Paper</th></tr></thead><tbody>{dashboard.signals.map((signal) => <SignalRow key={signal.id} signal={signal} busy={busy} onPropose={(signalId) => void act({ action: 'propose-paper-order', signalId }, 'Paper order diusulkan; belum dieksekusi.')} />)}</tbody></table></div>
       {!busy && dashboard.signals.length === 0 && <p className="py-6 text-center text-sm text-tv-muted">Belum ada run tersimpan.</p>}
     </Card>
 

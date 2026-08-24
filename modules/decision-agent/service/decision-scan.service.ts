@@ -4,10 +4,11 @@ import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 import { readAiPickScores, type AiPickScores } from '@/shared/cache/ai-pick-cache';
 import { getLensScoreValidationStatus } from '@/modules/validation';
 import type { NewsItem } from '@/modules/news';
-import { insertDecisionRun } from '../repository/decision-agent.repository';
+import { getOpenPaperPositionTickers, insertDecisionRun } from '../repository/decision-agent.repository';
 import { logger } from '@/shared/logger/logger';
 import { buildDecisionSignal } from './decision-engine';
 import { notifyDecisionSignalTransitions } from './decision-notification.service';
+import { applyHybridAnalysis } from './hybrid-analyst.service';
 import {
   DECISION_AGENT_VERSION,
   type DecisionAgentRun,
@@ -22,6 +23,8 @@ export interface DecisionScanOptions {
   news?: CachedMarketNews | null;
   now?: Date;
   persist?: boolean;
+  heldTickers?: ReadonlySet<string>;
+  hybrid?: boolean;
 }
 
 function summarize(signals: DecisionAgentRun['signals']): DecisionAgentRunSummary {
@@ -32,7 +35,8 @@ function summarize(signals: DecisionAgentRun['signals']): DecisionAgentRunSummar
     hold: signals.filter((signal) => signal.action === 'HOLD').length,
     exitReview: signals.filter((signal) => signal.action === 'EXIT_REVIEW').length,
     noSignal: signals.filter((signal) => signal.action === 'NO_SIGNAL').length,
-    paperReady: signals.filter((signal) => signal.paperReadiness === 'PAPER_READY').length,
+    paperReady: signals.filter((signal) => signal.paperReadiness === 'PAPER_READY' && signal.hybridStatus === 'CONFIRMED').length,
+    rulePaperReady: signals.filter((signal) => signal.paperReadiness === 'PAPER_READY').length,
     liveReady: 0,
   };
 }
@@ -49,7 +53,7 @@ export async function runDecisionAgentScan(options: DecisionScanOptions): Promis
   const bearish = new Set(scores.bearishSymbols);
   const now = options.now ?? new Date();
 
-  const signals = scores.scores
+  const ruleSignals = scores.scores
     .map((stock) => buildDecisionSignal({
       stock,
       bearish: bearish.has(stock.symbol),
@@ -60,6 +64,14 @@ export async function runDecisionAgentScan(options: DecisionScanOptions): Promis
     }))
     .sort((a, b) => b.lensScore - a.lensScore || a.ticker.localeCompare(b.ticker));
 
+  const heldTickers = options.heldTickers ?? (options.persist === false ? new Set<string>() : await getOpenPaperPositionTickers());
+  const hybrid = options.hybrid === false
+    ? {
+        signals: ruleSignals,
+        meta: { status: 'SKIPPED_NOT_CONFIGURED' as const, model: null, reviewedCount: 0, inputTokens: null, outputTokens: null, errorCode: 'DISABLED' },
+      }
+    : await applyHybridAnalysis({ signals: ruleSignals, heldTickers, now });
+
   const run: DecisionAgentRun = {
     id: crypto.randomUUID(),
     createdAt: now.toISOString(),
@@ -67,8 +79,9 @@ export async function runDecisionAgentScan(options: DecisionScanOptions): Promis
     trigger: options.trigger,
     modelValidated: validation.validated,
     version: DECISION_AGENT_VERSION,
-    summary: summarize(signals),
-    signals,
+    summary: summarize(hybrid.signals),
+    hybrid: hybrid.meta,
+    signals: hybrid.signals,
   };
 
   if (options.persist === false) return run;
@@ -78,6 +91,7 @@ export async function runDecisionAgentScan(options: DecisionScanOptions): Promis
     modelValidated: run.modelValidated,
     version: run.version,
     summary: run.summary,
+    hybrid: run.hybrid,
     signals: run.signals,
   });
   if (options.trigger === 'SCHEDULED') {

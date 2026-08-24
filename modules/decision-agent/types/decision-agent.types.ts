@@ -1,7 +1,53 @@
-export const DECISION_AGENT_VERSION = 'decision-agent-v1-shadow' as const;
+export const DECISION_AGENT_VERSION = 'decision-agent-v2-hybrid' as const;
 
 export type DecisionAction = 'BUY_CANDIDATE' | 'WATCH' | 'HOLD' | 'EXIT_REVIEW' | 'NO_SIGNAL';
 export type PaperReadiness = 'PAPER_READY' | 'RESEARCH_ONLY';
+export type HybridVerdict = 'CONFIRM' | 'CHALLENGE' | 'INSUFFICIENT_EVIDENCE';
+export type HybridConfidence = 'LOW' | 'MEDIUM' | 'HIGH';
+export type HybridSignalStatus = 'NOT_REVIEWED' | 'CONFIRMED' | 'CHALLENGED' | 'INSUFFICIENT' | 'PROVIDER_FAILED';
+export type HybridConcern =
+  | 'NEGATIVE_NEWS_DOMINANCE'
+  | 'LOW_COVERAGE_MARGIN'
+  | 'MODEL_UNVALIDATED'
+  | 'STALE_DATA'
+  | 'RISK_REWARD_THIN'
+  | 'TECHNICAL_BEARISH'
+  | 'FUNDAMENTAL_WEAK'
+  | 'FLOW_WEAK'
+  | 'CONFLICTING_SIGNALS'
+  | 'NEWS_UNAVAILABLE';
+export type HybridNextEvidence =
+  | 'NEED_FRESH_SNAPSHOT'
+  | 'NEED_FULL_ARTICLE_SENTIMENT'
+  | 'NEED_POINT_IN_TIME_VALIDATION'
+  | 'NEED_FUNDAMENTAL_DETAIL'
+  | 'NEED_FLOW_DETAIL';
+
+export interface HybridSignalReview {
+  verdict: HybridVerdict;
+  confidence: HybridConfidence;
+  evidenceRefs: string[];
+  concerns: HybridConcern[];
+  nextEvidence: HybridNextEvidence[];
+  model: string;
+  reviewedAt: string;
+}
+
+export type HybridRunStatus =
+  | 'COMPLETED'
+  | 'SKIPPED_NO_ELIGIBLE_SIGNALS'
+  | 'SKIPPED_NOT_CONFIGURED'
+  | 'PROVIDER_FAILED'
+  | 'INVALID_OUTPUT';
+
+export interface HybridRunMeta {
+  status: HybridRunStatus;
+  model: string | null;
+  reviewedCount: number;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  errorCode: string | null;
+}
 export type LiveReadiness =
   | 'BLOCKED_MODEL_UNVALIDATED'
   | 'BLOCKED_STALE_DATA'
@@ -43,6 +89,8 @@ export interface DecisionAgentSignal {
   opposingReasons: string[];
   invalidationReasons: string[];
   eligibilityReasons: string[];
+  hybridStatus: HybridSignalStatus;
+  hybridReview: HybridSignalReview | null;
   version: typeof DECISION_AGENT_VERSION;
 }
 
@@ -54,6 +102,7 @@ export interface DecisionAgentRunSummary {
   exitReview: number;
   noSignal: number;
   paperReady: number;
+  rulePaperReady: number;
   liveReady: 0;
 }
 
@@ -65,6 +114,7 @@ export interface DecisionAgentRun {
   modelValidated: boolean;
   version: typeof DECISION_AGENT_VERSION;
   summary: DecisionAgentRunSummary;
+  hybrid: HybridRunMeta;
   signals: DecisionAgentSignal[];
 }
 
