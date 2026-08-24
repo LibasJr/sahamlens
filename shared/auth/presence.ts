@@ -1,6 +1,7 @@
 import { cacheGet, cacheSet, scanKeys, cacheMGet } from '../cache/redis-cache';
 import { pool } from '../database/postgres.client';
 import type { SessionPayload } from './jwt';
+import { isSyntheticAdminSession } from '../constants/identity';
 
 // "Siapa yang sedang aktif login" untuk panel admin - TANPA query database manual
 // (permintaan eksplisit: admin lihat lewat UI, bukan buka Supabase sendiri). Disimpan
@@ -27,7 +28,7 @@ export type PresenceEntry = {
 /** Menyimpan aktivitas lebih tahan lama dari Redis presence. Map proses membatasi
  * penulisan DB saat user memicu banyak request; kegagalan sengaja tidak mengganggu sesi. */
 async function recordPersistedActivity(session: SessionPayload): Promise<void> {
-  if (!session.id || session.id === '__sahamlens_admin__') return;
+  if (!session.id || isSyntheticAdminSession(session.id)) return;
   const now = Date.now();
   const previous = persistedActivityAt.get(session.id) ?? 0;
   if (now - previous < PERSISTED_ACTIVITY_INTERVAL_MS) return;

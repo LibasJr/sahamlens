@@ -3,14 +3,22 @@ import { parseOrThrow } from '../../../shared/validation/parse-or-throw';
 import { getPortfolioSummary, getTransactionHistory } from '../service/portfolio.service';
 import { executeBuy, executeSell } from '../service/trade.service';
 import { verifyTradePrice } from '../service/price-guard.service';
-import { UnrealisticTradePriceError } from '../types/portfolio.errors';
+import { AdminSessionHasNoPortfolioError, UnrealisticTradePriceError } from '../types/portfolio.errors';
 import { tradeSchema, listTransactionsQuerySchema, createTransactionSchema } from '../validator/trade.validator';
+import { isSyntheticAdminSession } from '../../../shared/constants/identity';
 import type { HttpResult } from '../../../shared/types/http-result.types';
 
 export async function handleGetPortfolio(): Promise<HttpResult> {
   const session = await requireUser();
   const summary = await getPortfolioSummary(session.id);
   return { status: 200, body: summary };
+}
+
+// Semua jalur tulis (buy/sell, lama maupun /v1) melewati ini lebih dulu: menulis
+// transaksi untuk sesi admin-secret akan menabrak portfolios_user_id_fkey dan
+// muncul ke pengguna sebagai 500 tanpa penjelasan.
+function assertOwnsPortfolio(userId: string): void {
+  if (isSyntheticAdminSession(userId)) throw new AdminSessionHasNoPortfolioError();
 }
 
 // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-11): `input.price` datang
@@ -26,6 +34,7 @@ async function assertRealisticPrice(symbol: string, price: number): Promise<void
 
 export async function handleBuy(rawBody: unknown): Promise<HttpResult> {
   const session = await requireUser();
+  assertOwnsPortfolio(session.id);
   const input = parseOrThrow(tradeSchema, rawBody);
   await assertRealisticPrice(input.symbol, input.price);
   const transaction = await executeBuy(session.id, input);
@@ -34,6 +43,7 @@ export async function handleBuy(rawBody: unknown): Promise<HttpResult> {
 
 export async function handleSell(rawBody: unknown): Promise<HttpResult> {
   const session = await requireUser();
+  assertOwnsPortfolio(session.id);
   const input = parseOrThrow(tradeSchema, rawBody);
   await assertRealisticPrice(input.symbol, input.price);
   const transaction = await executeSell(session.id, input);
@@ -56,6 +66,7 @@ export async function handleListTransactions(rawQuery: unknown): Promise<HttpRes
 // terpisah (handleBuy/handleSell di atas) untuk kompatibilitas mundur.
 export async function handleCreateTransaction(rawBody: unknown): Promise<HttpResult> {
   const session = await requireUser();
+  assertOwnsPortfolio(session.id);
   const input = parseOrThrow(createTransactionSchema, rawBody);
   await assertRealisticPrice(input.symbol, input.price);
   const transaction = input.type === 'BUY' ? await executeBuy(session.id, input) : await executeSell(session.id, input);

@@ -7,6 +7,7 @@ import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
 import { runController } from '@/shared/http/next-response.adapter';
 import { ForbiddenError, UnauthorizedError, ValidationError } from '@/shared/errors/app-error';
 import { SESSION_COOKIE } from '@/shared/constants/cookie-names';
+import { isSyntheticAdminSession } from '@/shared/constants/identity';
 
 const schema=z.object({ confirmation:z.literal('HAPUS AKUN') });
 export async function POST(req: NextRequest) {
@@ -14,7 +15,7 @@ export async function POST(req: NextRequest) {
     assertTrustedSameOrigin(req);
     const session=await getSession();
     if(!session) throw new UnauthorizedError();
-    if(session.role==='admin' || session.id==='__sahamlens_admin__') throw new ForbiddenError('Akun admin tidak dapat dihapus dari self-service.');
+    if(session.role==='admin' || isSyntheticAdminSession(session.id)) throw new ForbiddenError('Akun admin tidak dapat dihapus dari self-service.');
     const parsed=schema.safeParse(await req.json().catch(()=>null));
     if(!parsed.success) throw new ValidationError('Ketik HAPUS AKUN untuk konfirmasi.');
     await deleteUserAccountData(session.id,session.email);
