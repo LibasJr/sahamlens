@@ -407,8 +407,15 @@ export const CACHE_TTL_SEC = {
   // menanggung ~10 fetch RSS + 1 panggilan AI klasifikasi. 6 menit = interval cron
   // pre-warm baru (app/api/cron/news, 5 menit) + buffer 1 run telat, pola sama persis
   // dengan MARKET_SUMMARY. Dipakai KHUSUS oleh cron untuk menulis cache - route
-  // /api/news sendiri TETAP pakai getMarketAwareTtlSec() untuk fallback live-nya
-  // (jarang kepakai selama cron jalan normal), supaya di luar jam bursa (cron
-  // berhenti) cache tetap bisa refresh cepat kalau memang ada perubahan berita.
+  // /api/news sendiri TETAP pakai getMarketAwareTtlSec() untuk fallback live-nya.
+  //
+  // KOREKSI (2026-08-24): kalimat lama di sini berbunyi fallback itu membuat cache
+  // "tetap bisa refresh cepat" di luar jam bursa. Itu keliru dan menyesatkan -
+  // getMarketAwareTtlSec() justru mengembalikan MARKET_CLOSED_TTL_SEC (6 jam) saat
+  // bursa tutup, jadi begitu cron berhenti berita justru MEMBEKU sampai 6 jam.
+  // Keyakinan palsu itulah yang membuat jadwal cron sempit (dulu Mon-Fri 09-15)
+  // terlihat aman selama berbulan-bulan. Cron sekarang 7 hari 06:00-22:55 sehingga
+  // jalur fallback ini praktis tidak terpakai; di luar jendela itu berita memang
+  // hanya sesegar TTL pasar-tutup.
   MARKET_NEWS: 6 * 60,
 } as const;
