@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Activity, ArrowLeft, BarChart3, Building2, FileSpreadsheet, MessageSquare, RefreshCw, ShieldCheck, Sparkles, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, Bot, Building2, FileSpreadsheet, MessageSquare, RefreshCw, ShieldCheck, Sparkles, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -187,6 +187,17 @@ export default async function AdminPage() {
             <p className="text-sm text-tv-muted mt-1">
               Audit bucket LensScore, t-test edge T+20, simulasi threshold, dan rekomendasi ambang AI (saat ini dibekukan).
             </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/decision-lab"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 transition-colors hover:border-tv-borderLight hover:bg-tv-hover"
+        >
+          <div className="rounded-lg bg-tv-green/10 p-2 text-tv-green"><Bot className="h-5 w-5" /></div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">AI Decision Lab</h2>
+            <p className="mt-1 text-sm text-tv-muted">Shadow signal, sizing berbasis risiko, paper order dengan konfirmasi manusia, dan audit trail internal.</p>
           </div>
         </Link>
 
