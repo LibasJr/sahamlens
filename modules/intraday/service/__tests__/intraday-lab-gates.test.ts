@@ -12,6 +12,7 @@ import {
   defaultIntradayRunConfig,
   MOMENTUM_DOC_BARS,
   TREND_DOC_BARS,
+  DEFAULT_INTRADAY_COMPONENT_MAPPING,
 } from '../../constants/intraday-model';
 
 const ROOT = path.join(__dirname, '..', '..', '..', '..');
@@ -217,5 +218,71 @@ describe('#6 grossReturn memakai basis mentah walau exit lewat TP/SL', () => {
     expect(withTp.grossReturn!).toBeCloseTo(0.005, 6);
     expect(withTp.netReturn!).toBeLessThan(withTp.grossReturn!);
     expect(withTp.totalCost!).toBeCloseTo(withTp.grossReturn! - withTp.netReturn!, 9);
+  });
+});
+
+describe('#7 pemetaan volumeSurge berpusat pada sebaran fiturnya', () => {
+  /**
+   * Diukur dari 26.606 sinyal produksi (60 emiten, 57 hari bursa, 2 Juni - 21 Agustus
+   * 2026): median rasio volumeSurge 0,7169, dan 1,0 justru di persentil 67,7. Pemetaan
+   * lama berpusat di 1,0, jadi observasi MEDIAN berskor ~41 - bias turun sistematis yang
+   * menular ke setiap skor.
+   *
+   * Yang dikunci di sini BENTUK pemetaannya, bukan hasilnya: rasio yang sama dengan
+   * pusat harus berskor tepat 50, dan pusatnya tidak boleh diam-diam kembali ke 1,0.
+   */
+  const mapping = DEFAULT_INTRADAY_COMPONENT_MAPPING;
+  const N = 18;
+
+  /**
+   * Bar dengan volumeSurge yang diketahui persis.
+   * surge = mean(3 bar terakhir) / mean(seluruh bar). Dengan `a` untuk (N-3) bar awal
+   * dan `b` untuk 3 bar akhir: b = surge(N-3) / (N - 3*surge).
+   */
+  function barsWithSurge(surge: number) {
+    const b = (surge * (N - 3)) / (N - 3 * surge);
+    return Array.from({ length: N }, (_, i) => ({
+      ticker: 'T.JK', tradingDate: '2026-08-20', unixSeconds: 0,
+      wibMinute: 9 * 60 + i * 5,
+      open: 100, high: 100, low: 100, close: 100,
+      volume: (i < N - 3 ? 1 : b) * 1000,
+    })) as never[];
+  }
+
+  function snapshot(surge: number) {
+    return computeIntradayComponents(barsWithSurge(surge), mapping)!;
+  }
+
+  it('konstruksi barnya benar-benar menghasilkan rasio yang diminta', () => {
+    // Penjaga: kalau helper ini meleset, seluruh test di bawah menguji hal lain.
+    for (const s of [0.3, 0.72, 1.0, 2.0, 4.0]) {
+      expect(snapshot(s).raw.volumeSurge, `surge ${s}`).toBeCloseTo(s, 4);
+    }
+  });
+
+  it('pusatnya diukur, bukan diasumsikan 1,0', () => {
+    expect(mapping.volumeSurgeCenter).toBeCloseTo(0.72, 6);
+    expect(mapping.volumeSurgeCenter, 'pusat kembali ke asumsi lama 1,0').not.toBe(1);
+    expect(mapping.volumeSurgeSpan, 'span kembali menyempit').toBeGreaterThan(2.5);
+  });
+
+  it('rasio tepat di pusat berskor 50', () => {
+    expect(snapshot(mapping.volumeSurgeCenter).scored.volumeSurge).toBeCloseTo(50, 1);
+  });
+
+  it('rasio 1,0 berskor DI ATAS 50 - ia memang di atas median, bukan netral', () => {
+    const s = snapshot(1.0).scored.volumeSurge;
+    expect(s).toBeGreaterThan(50);
+    // Pemetaan lama memberi tepat 50 di sini; itu yang membuat median jadi ~41.
+    expect(s).toBeLessThan(70);
+  });
+
+  it('skor naik monoton terhadap rasio volume', () => {
+    const nilai = [0.2, 0.5, 0.72, 1.0, 2.0, 4.0].map((x) => snapshot(x).scored.volumeSurge);
+    for (let i = 1; i < nilai.length; i++) {
+      expect(nilai[i]!, `tidak monoton di indeks ${i}: ${nilai.join(', ')}`).toBeGreaterThanOrEqual(nilai[i - 1]!);
+    }
+    expect(nilai[0]!).toBeLessThan(50);
+    expect(nilai[nilai.length - 1]!).toBeGreaterThan(50);
   });
 });

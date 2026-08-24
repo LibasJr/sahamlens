@@ -411,14 +411,39 @@ export interface IntradayComponentMapping {
   momentumAbs: number;
   /** Deviasi terhadap VWAP sesi yang dipetakan ke ujung skala. */
   vwapDeviationAbs: number;
-  /** Rasio lonjakan volume (dan kebalikannya) yang dipetakan ke ujung skala. */
+  /**
+   * Rasio lonjakan volume yang dianggap NETRAL - titik tengah skala 0-100.
+   *
+   * DULU tidak ada, dan skalanya diasumsikan berpusat di 1,0 dengan alasan "volume
+   * normal". Diukur dari 26.606 sinyal (60 emiten, 57 hari bursa, 2 Juni - 21 Agustus
+   * 2026), asumsi itu salah: median rasio ini 0,7169, dan 1,0 justru berada di
+   * persentil 67,7. Akibatnya observasi MEDIAN mendapat skor ~41, bukan 50 - bias turun
+   * sistematis yang menular ke setiap skor.
+   *
+   * Sebabnya struktural, bukan kebetulan: penyebut rasio ini adalah rata-rata volume
+   * sesi berjalan yang SUDAH memuat bar pembukaan yang berat, jadi volume 3 bar terakhir
+   * memang lazim berada di bawahnya sepanjang hari.
+   *
+   * Angka 0,72 adalah median empiris dibulatkan. Ia menyangkut SEBARAN FITUR, bukan
+   * hubungan fitur dengan keuntungan - tidak satu pun net return dilihat saat memilihnya.
+   */
+  volumeSurgeCenter: number;
+  /**
+   * Setengah lebar skala dalam kelipatan, relatif terhadap `volumeSurgeCenter`.
+   *
+   * 2,5 membuat 26,05% observasi mentok di ujung skala (23,25% di bawah, 2,80% di atas) -
+   * di atas ambang MAX_HEALTHY_COMPONENT_SATURATION, dan komponen yang mentok kehilangan
+   * daya bedanya. 3,5 dipilih karena setara persentil ke-90 dari |log(surge / pusat)|
+   * pada sebaran yang sama (3,466), dan menurunkan saturasi ke 9,76% (7,01% / 2,75%).
+   */
   volumeSurgeSpan: number;
 }
 
 export const DEFAULT_INTRADAY_COMPONENT_MAPPING: IntradayComponentMapping = {
   momentumAbs: 0.015,
   vwapDeviationAbs: 0.01,
-  volumeSurgeSpan: 2.5,
+  volumeSurgeCenter: 0.72,
+  volumeSurgeSpan: 3.5,
 };
 
 /**
