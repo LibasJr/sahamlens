@@ -9,8 +9,11 @@
 //   - Protokol OOS di-INSERT, tidak pernah di-UPDATE. Formula berubah = protokol baru.
 
 import {
+  INTRADAY_BAR_INTERVAL_MINUTES,
   INTRADAY_COMPONENT_KEYS,
   INTRADAY_WEIGHT_BOUNDS,
+  MOMENTUM_DOC_BARS,
+  TREND_DOC_BARS,
   LENS_INTRADAY_WEIGHTS,
   MIN_EFFECTIVE_SAMPLE_PER_CELL,
   defaultIntradayRunConfig,
@@ -522,11 +525,21 @@ export async function freezeIntradayOosProtocol(input: FreezeOosInput): Promise<
       // dideskripsikan, mengubahnya tidak akan pernah ketahuan dari baris protokol ini.
       componentMapping: config.componentMapping,
       mapping: {
-        momentum: `return 30 menit dipetakan linear dari [-${config.componentMapping.momentumAbs}, +${config.componentMapping.momentumAbs}] ke [0,100]`,
+        momentum: `return hingga ${MOMENTUM_DOC_BARS} bar (${MOMENTUM_DOC_BARS * INTRADAY_BAR_INTERVAL_MINUTES} menit) dipetakan linear dari [-${config.componentMapping.momentumAbs}, +${config.componentMapping.momentumAbs}] ke [0,100]`,
         vwapDeviation: `deviasi terhadap VWAP sesi dipetakan linear dari [-${config.componentMapping.vwapDeviationAbs}, +${config.componentMapping.vwapDeviationAbs}] ke [0,100]`,
-        volumeSurge: `volume 3 bar terakhir / rata-rata sesi, skala log dengan span ${config.componentMapping.volumeSurgeSpan}x ke [0,100]`,
+        // PUSAT skala ikut disebut. Sampai 24 Agustus 2026 kalimat ini hanya menyebut
+        // span, dan pembacanya wajar menyimpulkan skalanya berpusat di 1,0 - persis
+        // asumsi yang ternyata salah (median empiris 0,7169; 1,0 ada di persentil 67,7).
+        volumeSurge: `volume 3 bar terakhir / rata-rata sesi berjalan, skala log berpusat di ${config.componentMapping.volumeSurgeCenter} dengan span ${config.componentMapping.volumeSurgeSpan}x ke [0,100]`,
         rangePosition: 'posisi close dalam rentang high-low sesi, 0-1 dikali 100',
-        trendPersistence: 'porsi bar naik dalam 12 bar terakhir (bar datar dihitung 0,5), 0-1 dikali 100',
+        trendPersistence: `porsi bar naik dalam hingga ${TREND_DOC_BARS} bar terakhir (bar datar dihitung 0,5), 0-1 dikali 100`,
+        // Kata "hingga" di atas bukan kelonggaran bahasa. Di titik grid paling pagi belum
+        // ada cukup bar sejak pembukaan, jadi momentum dan trendPersistence memakai
+        // jendela lebih pendek - 09:30 memakai 5 bar untuk keduanya, 10:00 memakai 6 dan
+        // 11. Tiap sinyal mencatat panjang sebenarnya di momentumLookbackBars,
+        // trendLookbackBars, dan fullLookback.
+        lookbackCaveat:
+          'jendela momentum dan trendPersistence lebih pendek di titik grid paling pagi; panjang sebenarnya tercatat per sinyal',
       },
     },
     weights: config.weights,
