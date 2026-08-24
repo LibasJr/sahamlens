@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "backfill:lens-history": "node scripts/backfill-lens-history.mjs",
+    "validate:premarkup": "node scripts/backfill-premarkup-history.mjs",
     "backfill:fundamental-history": "node scripts/backfill-fundamental-history.mjs",
     "audit:ui": "node scripts/audit-ui-consistency.mjs",
     "audit:ksei-ownership": "node scripts/audit-ksei-ownership-source.mjs",
@@ -52,7 +53,6 @@
     "maintain:weekly:dry": "node scripts/weekly-maintenance.mjs --dry-run --sync"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.24.1",
     "@sentry/nextjs": "^10.69.0",
     "@upstash/qstash": "^2.11.3",
     "bcryptjs": "^3.0.3",
