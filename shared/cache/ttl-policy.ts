@@ -2,6 +2,8 @@
 // bursa tutup/libur/malam hari. Dihitung dalam zona Asia/Jakarta agar tidak bergantung timezone server.
 export const MARKET_OPEN_TTL_SEC = 60;
 export const MARKET_CLOSED_TTL_SEC = 6 * 60 * 60;
+export const MARKET_OPEN_HOUR = 9;
+export const MARKET_CLOSE_HOUR = 16;
 
 export function isIdxMarketOpen(now: Date = new Date()): boolean {
   const parts = new Intl.DateTimeFormat('en-US', {
@@ -15,11 +17,58 @@ export function isIdxMarketOpen(now: Date = new Date()): boolean {
   const hour = Number(parts.find((part) => part.type === 'hour')?.value);
   const isWeekday = weekday != null && !['Sat', 'Sun'].includes(weekday);
 
-  return isWeekday && Number.isFinite(hour) && hour >= 9 && hour < 16;
+  return isWeekday && Number.isFinite(hour) && hour >= MARKET_OPEN_HOUR && hour < MARKET_CLOSE_HOUR;
+}
+
+/**
+ * Detik menuju pembukaan bursa berikutnya (09:00 WIB pada hari kerja).
+ *
+ * Dihitung dari jam dinding Asia/Jakarta supaya tidak bergantung timezone server, sama
+ * seperti isIdxMarketOpen(). WIB tidak mengenal DST, jadi selisih jam dinding sama persis
+ * dengan selisih waktu nyata.
+ */
+export function secondsUntilNextMarketOpen(now: Date = new Date()): number {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(now);
+
+  const at = (type: string) => Number(parts.find((part) => part.type === type)?.value);
+  const [year, month, day] = [at('year'), at('month'), at('day')];
+  if (![year, month, day].every(Number.isFinite)) return MARKET_CLOSED_TTL_SEC;
+
+  // Jam dinding Jakarta diperlakukan sebagai UTC supaya aritmetika tanggalnya murni
+  // kalender - offset +7 batal dengan sendirinya karena kedua sisi memakai basis sama.
+  const nowMs = Date.UTC(year, month - 1, day, at('hour'), at('minute'), at('second'));
+
+  for (let offset = 0; offset <= 7; offset += 1) {
+    const openMs = Date.UTC(year, month - 1, day + offset, MARKET_OPEN_HOUR, 0, 0);
+    if (openMs <= nowMs) continue;
+    const weekday = new Date(openMs).getUTCDay();
+    if (weekday === 0 || weekday === 6) continue;
+    return Math.ceil((openMs - nowMs) / 1000);
+  }
+
+  return MARKET_CLOSED_TTL_SEC;
 }
 
 export function getMarketAwareTtlSec(now: Date = new Date()): number {
-  return isIdxMarketOpen(now) ? MARKET_OPEN_TTL_SEC : MARKET_CLOSED_TTL_SEC;
+  if (isIdxMarketOpen(now)) return MARKET_OPEN_TTL_SEC;
+
+  // BUG FIX (2026-08-24): dulu di sini MARKET_CLOSED_TTL_SEC polos, dan 6 jam itu HIDUP
+  // TERUS MELEWATI JAM BUKA. Cache teknikal yang dihangatkan pra-bursa pukul 04:00 baru
+  // kedaluwarsa 10:01 - Lens Teknikal menyajikan harga pukul 04:00 sepanjang jam pertama
+  // perdagangan, sementara Lens Fundamental (jalur cache lain) sudah bergerak. Dibuktikan
+  // 2026-08-24: 344 kunci `computed:technical:*` ber-computedAt 03:57-04:01 dengan TTL
+  // tersisa ~2400 detik. Dibatasi supaya TTL tidak pernah menembus pembukaan berikutnya:
+  // begitu bursa buka, permintaan pertama menghitung ulang dan kembali ke TTL 60 detik.
+  return Math.min(MARKET_CLOSED_TTL_SEC, secondsUntilNextMarketOpen(now));
 }
 
 export function getMarketAwareTtlMs(now: Date = new Date()): number {
