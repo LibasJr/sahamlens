@@ -14,6 +14,7 @@ import { inspectAiPickScoresCache } from '@/shared/cache/ai-pick-cache';
 import { isTradingDay, isTradingHours } from '@/shared/calendar/idx-trading-calendar';
 import scheduledJobs from '@/config/scheduled-jobs.json';
 import { listDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
+import { getWeeklyMaintenanceStatus } from '@/shared/scheduler/weekly-maintenance-status';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,12 +84,13 @@ export async function GET() {
     if (!await isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
 
     const now = new Date();
-    const [overview, redisStatus, cacheTtls, radarSnapshot, sourceHealth] = await Promise.all([
+    const [overview, redisStatus, cacheTtls, radarSnapshot, sourceHealth, weeklyMaintenance] = await Promise.all([
       getJobRunOverview(),
       pingRedis(),
       Promise.all(CACHE_TARGETS.map((target) => getCacheTtlRemaining(target.key))),
       inspectAiPickScoresCache(),
       listDataSourceHealth(),
+      getWeeklyMaintenanceStatus(),
     ]);
     const byName = new Map(overview.map((row) => [row.job_name, row]));
 
@@ -174,6 +176,6 @@ export async function GET() {
       };
     });
 
-    return { status: 200, body: { asOf: new Date().toISOString(), jobs, caches, sourceHealth } };
+    return { status: 200, body: { asOf: new Date().toISOString(), jobs, caches, sourceHealth, weeklyMaintenance } };
   });
 }

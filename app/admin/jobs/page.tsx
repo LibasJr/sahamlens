@@ -26,9 +26,9 @@ export default async function AdminJobsPage() {
             Kesehatan Operasional
           </h1>
           <p className="text-sm text-tv-muted mt-2 max-w-4xl">
-            Status aplikasi, cache/database, dan setiap job terjadwal ditampilkan dari pemeriksaan
-            yang sudah ada. Error provider terlihat pada hasil job terakhir. Status deploy harus
-            tetap diverifikasi dari GitHub Actions karena VPS tidak menyimpan riwayat deploy di database.
+            Status aplikasi, cache/database, setiap job terjadwal, dan perawatan mingguan ditampilkan
+            dari systemd serta laporan aktual. Error provider terlihat pada hasil job terakhir. Status
+            deploy tetap diverifikasi dari GitHub Actions karena VPS tidak menyimpan riwayat deploy di database.
           </p>
         </div>
 
