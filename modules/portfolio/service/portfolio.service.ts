@@ -2,12 +2,36 @@ import { getPortfolioByUserId, createPortfolio } from '../repository/portfolio.r
 import { getHoldings } from '../repository/holdings.repository';
 import { listTransactions, type PaginatedTransactions } from '../repository/transaction.repository';
 import { INITIAL_CASH, LOT_SIZE, TRANSACTIONS_MAX_PAGE_SIZE } from '../constants/portfolio.constants';
+import { isSyntheticAdminSession, SYNTHETIC_ADMIN_SESSION_ID } from '../../../shared/constants/identity';
 import type { PortfolioSummary, HoldingDto } from '../types/portfolio.types';
+
+// Sesi admin-secret tidak punya baris `users` (lihat shared/constants/identity.ts),
+// jadi portfolios.user_id_fkey MUSTAHIL dipenuhi untuknya. Sebelum pengecualian ini
+// halaman Akun Demo memaksa insert itu lewat fallback provisioning di bawah, gagal
+// FK, dan berbalik jadi 500 - UI menampilkan error, bukan portofolio. Ringkasan
+// EFEMERAL ini bikin halaman tetap terbaca apa adanya (kas awal, tanpa posisi);
+// pencatatan transaksi tetap ditolak dengan pesan jelas di controller, bukan 500,
+// karena tidak ada tempat menyimpannya.
+function ephemeralAdminSummary(): PortfolioSummary {
+  return {
+    portfolio: {
+      id: `pf_${SYNTHETIC_ADMIN_SESSION_ID}`,
+      user_id: SYNTHETIC_ADMIN_SESSION_ID,
+      name: 'Portfolio Virtual',
+      cash: INITIAL_CASH,
+      initial_cash: INITIAL_CASH,
+      created_at: new Date().toISOString(),
+    },
+    holdings: [],
+    transactions: [],
+  };
+}
 
 // Dipanggil dari modules/user/service/auth.service.ts saat verifikasi akun -
 // menggantikan reach-through langsung ke lib/dbLocal yang sebelumnya ada di sana
 // (temuan M4 code review, sekarang tertutup karena modules/portfolio sudah ada).
 export async function provisionPortfolio(userId: string): Promise<void> {
+  if (isSyntheticAdminSession(userId)) return;
   const existing = await getPortfolioByUserId(userId);
   if (existing) return;
   await createPortfolio({
@@ -21,6 +45,7 @@ export async function provisionPortfolio(userId: string): Promise<void> {
 }
 
 export async function getPortfolioSummary(userId: string): Promise<PortfolioSummary> {
+  if (isSyntheticAdminSession(userId)) return ephemeralAdminSummary();
   // Fallback cold-start: kalau provisioning saat verifikasi gagal/terlewat, buat
   // portfolio on-demand di sini juga - lebih baik daripada 404 yang bikin UI blank
   // (perilaku ini dipertahankan dari app/api/portfolio/route.ts sebelumnya, tapi
@@ -58,6 +83,7 @@ export async function getTransactionHistory(
   userId: string,
   opts: { cursor?: string; limit?: number }
 ): Promise<PaginatedTransactions> {
+  if (isSyntheticAdminSession(userId)) return { items: [], nextCursor: null, hasMore: false };
   const portfolio = await getPortfolioByUserId(userId);
   if (!portfolio) return { items: [], nextCursor: null, hasMore: false };
   return listTransactions(portfolio.id, opts);

@@ -31,6 +31,7 @@ export default function SymbolAutocomplete({
   containerClassName = 'relative w-full',
   className,
   onFocus,
+  onBlur,
   onKeyDown,
   showSearchIcon = false,
   endAdornment,
@@ -46,6 +47,17 @@ export default function SymbolAutocomplete({
   useEffect(() => {
     if (value.length >= 2 && showDropdown) {
       const match = value.toUpperCase().replace('.JK', '').trim();
+      // Begitu yang diketik SUDAH persis satu kode emiten, daftar saran ditutup.
+      // Daftar ini melayang (absolute) menutupi kolom di bawahnya - pada tiket order
+      // itu berarti kolom Harga dan Lot. Saat pengguna selesai mengetik "BBCA" lalu
+      // menyentuh kolom Harga, sentuhannya mendarat di saran yang menutupinya, bukan
+      // di kolom yang dituju: fokus balik ke pencarian emiten dan isian terasa
+      // "melompat sendiri" (laporan pengguna 2026-08-24). Saran hanya berguna selama
+      // kodenya belum lengkap, jadi tidak ada yang hilang dengan menutupnya di sini.
+      if (TICKERS.some((ticker) => ticker.symbol.replace('.JK', '') === match)) {
+        setSuggestions([]);
+        return;
+      }
       const filtered = TICKERS
         .filter((ticker) => ticker.symbol.replace('.JK', '').startsWith(match) || ticker.name.toUpperCase().includes(match))
         .sort((a, b) => {
@@ -106,6 +118,13 @@ export default function SymbolAutocomplete({
           setShowDropdown(true);
           onFocus?.(event);
         }}
+        onBlur={(event) => {
+          // Pindah fokus ke DALAM daftar saran tidak boleh menutupnya - memilih salah
+          // satu item justru yang sedang dikerjakan pengguna.
+          if (dropdownRef.current?.contains(event.relatedTarget as Node | null)) return;
+          setShowDropdown(false);
+          onBlur?.(event);
+        }}
         onKeyDown={(event) => {
           if (!showDropdown || suggestions.length === 0) {
             onKeyDown?.(event);
@@ -155,7 +174,14 @@ export default function SymbolAutocomplete({
               aria-selected={index === activeIndex}
               key={item.symbol}
               onMouseEnter={() => setActiveIndex(index)}
-              onClick={() => handleSelect(item.symbol)}
+              // Dipilih pada mousedown, BUKAN click: mousedown mendahului blur, jadi
+              // pilihan tetap terbaca di perangkat sentuh yang tidak memberi fokus ke
+              // tombol (relatedTarget null -> daftar keburu tertutup sebelum click).
+              // preventDefault menahan perpindahan fokus supaya kursor tetap di kolom.
+              onMouseDown={(event) => {
+                event.preventDefault();
+                handleSelect(item.symbol);
+              }}
               className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left transition-colors ${index === activeIndex ? 'bg-tv-blue/10' : 'hover:bg-tv-hover'}`}
             >
               <TickerAvatar symbol={item.symbol} size="sm" />

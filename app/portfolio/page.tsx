@@ -9,7 +9,7 @@ import { TrendingUp, TrendingDown, Trophy, Download, FileText, ArrowUpRight, Arr
 // ketiganya berat dan cuma dipakai saat tombol Export diklik; di-import dinamis di
 // dalam downloadExcel()/downloadPDF() supaya tidak ikut terunduh & ter-parse di setiap
 // kunjungan /portfolio. Lihat pola sama di app/dashboard/page.tsx.
-import SymbolAutocomplete from '@/components/SymbolAutocomplete';
+import OrderTicket from '@/components/portfolio/OrderTicket';
 import { Card, Input, Button, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, AnimatedNumber } from '@/components/ui';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { PortfolioAuthGate } from '@/components/portfolio/PortfolioAuthGate';
@@ -68,42 +68,13 @@ export default function PortfolioPage() {
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [orderType, setOrderType] = useState<'BUY' | 'SELL'>('BUY');
   const [orderSymbol, setOrderSymbol] = useState('');
-  const [orderPrice, setOrderPrice] = useState('');
-  const [orderLots, setOrderLots] = useState('');
-  const [orderLoading, setOrderLoading] = useState(false);
-  // BUG FIX (2026-08-22): modal order ini di-hand-roll langsung di halaman tanpa
-  // role="dialog"/aria-modal dan tanpa Escape/focus-trap - lima dialog lain di app ini
-  // (PaywallModal, PromoUpgradeModal, StockNewsModal, UserProfileModal, CommandPalette)
-  // sudah memakai hook bersama untuk perilaku ini, lihat lib/hooks/useModalBehavior.ts.
-  const orderModalRef = useRef<HTMLElement>(null);
-  useModalBehavior({ open: showOrderModal, onClose: () => setShowOrderModal(false), containerRef: orderModalRef });
 
-  const submitOrder = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setOrderLoading(true);
-    try {
-      const endpoint = orderType === 'BUY' ? '/api/portfolio/buy' : '/api/portfolio/sell';
-      await apiRequest(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: orderSymbol.toUpperCase(),
-          price: Number(orderPrice),
-          lots: Number(orderLots),
-          note: 'Manual ' + orderType,
-        }),
-      });
-      setShowOrderModal(false);
-      setOrderSymbol('');
-      setOrderPrice('');
-      setOrderLots('');
-      showToast(`Order ${orderType} virtual berhasil dicatat.`, 'success');
-      void loadData();
-    } catch (error) {
-      showToast(apiErrorMessage(error, 'Order virtual gagal dikirim. Coba lagi.', true), 'error');
-    } finally {
-      setOrderLoading(false);
-    }
+  // Perilaku dialog (Escape, focus-trap, kunci gulir) dan pengiriman order kini jadi
+  // tanggung jawab OrderTicket - lihat components/portfolio/OrderTicket.tsx.
+  const openOrder = (type: 'BUY' | 'SELL', symbol = '') => {
+    setOrderType(type);
+    setOrderSymbol(symbol);
+    setShowOrderModal(true);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -362,8 +333,8 @@ export default function PortfolioPage() {
             <p className="mt-0.5 text-xs text-tv-muted">Simulasikan posisi, pantau P/L, dan evaluasi disiplin trading tanpa dana riil.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="bare" size="none" onClick={() => { setOrderType('BUY'); setShowOrderModal(true); }} className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-4 py-2 text-xs font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]">BUY Virtual</Button>
-            <Button variant="bare" size="none" onClick={() => { setOrderType('SELL'); setShowOrderModal(true); }} className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-4 py-2 text-xs font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white">SELL Virtual</Button>
+            <Button variant="bare" size="none" onClick={() => openOrder('BUY')} className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-4 py-2 text-xs font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]">BUY Virtual</Button>
+            <Button variant="bare" size="none" onClick={() => openOrder('SELL')} className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-4 py-2 text-xs font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white">SELL Virtual</Button>
           </div>
         </div>
       </header>
@@ -494,7 +465,7 @@ export default function PortfolioPage() {
                 illustration="collecting"
                 title="Belum ada posisi terbuka"
                 description={`Saldo virtual ${formatIDR(portfolio.cash)} siap dipakai. Semua transaksi di sini simulasi - tidak ada uang sungguhan yang berpindah, jadi ini tempat yang tepat untuk menguji strategi sebelum memakainya di akun asli.`}
-                action={{ label: 'Buat order pertama', onClick: () => { setOrderType('BUY'); setShowOrderModal(true); } }}
+                action={{ label: 'Buat order pertama', onClick: () => openOrder('BUY') }}
               />
             ) : (
               <div className="divide-y divide-tv-border/60">
@@ -552,6 +523,28 @@ export default function PortfolioPage() {
                           Value: <span className="font-semibold text-tv-text font-number tabular-nums">{formatIDR(h.currentValue)}</span>
                         </div>
                       </div>
+
+                      {/* Aksi langsung dari posisinya - menambah atau menutup posisi
+                          tidak lagi berarti membuka tiket kosong lalu mengetik ulang
+                          kode emiten yang sudah terpampang di baris ini. */}
+                      <div className="mt-3 flex gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          variant="bare"
+                          size="none"
+                          onClick={() => openOrder('BUY', h.symbol)}
+                          className="flex-1 rounded-lg border border-tv-green/20 bg-tv-green/10 py-1.5 text-[11px] font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]"
+                        >
+                          Beli lagi
+                        </Button>
+                        <Button
+                          variant="bare"
+                          size="none"
+                          onClick={() => openOrder('SELL', h.symbol)}
+                          className="flex-1 rounded-lg border border-tv-red/20 bg-tv-red/10 py-1.5 text-[11px] font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white"
+                        >
+                          Jual
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -608,44 +601,24 @@ export default function PortfolioPage() {
         </div>
       </PageContainer>
 
-      {/* Order Modal */}
-      {showOrderModal && (
-        <div
-          className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4"
-          onMouseDown={(e) => { if (e.target === e.currentTarget) setShowOrderModal(false); }}
-        >
-          <Card
-            ref={orderModalRef}
-            as="div"
-            role="dialog"
-            aria-modal="true"
-            aria-label={`${orderType === 'BUY' ? 'Beli' : 'Jual'} Saham`}
-            padding="none" radius="xl" elevation="none" overflow="visible" highlight={false}
-            className="border-tv-border w-full max-w-sm p-6"
-          >
-            <h2 className={`font-heading text-xl font-bold mb-4 ${orderType === 'BUY' ? 'text-tv-blue' : 'text-tv-red'}`}>{orderType === 'BUY' ? 'Beli' : 'Jual'} Saham</h2>
-            <form onSubmit={submitOrder} className="space-y-4">
-              <div>
-                <label className="text-xs text-tv-muted block mb-1.5">Simbol (mis. BBCA)</label>
-                <SymbolAutocomplete
-                  required
-                  value={orderSymbol}
-                  onChange={(val)=>setOrderSymbol(val)}
-                  className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md p-2 focus:outline-none focus:border-tv-blue transition-colors"
-                />
-              </div>
-              <Input label="Harga (Rp)" required type="number" value={orderPrice} onChange={e=>setOrderPrice(e.target.value)} className="font-number" />
-              <Input label="Lot" required type="number" value={orderLots} onChange={e=>setOrderLots(e.target.value)} className="font-number" />
-              <div className="flex gap-3 mt-6">
-                <Button type="button" variant="secondary" onClick={() => setShowOrderModal(false)} className="flex-1">Batal</Button>
-                <Button type="submit" variant={orderType === 'BUY' ? 'primary' : 'danger'} loading={orderLoading} className="flex-1">
-                  {orderLoading ? 'Memproses...' : 'Konfirmasi'}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
+      {/* Tiket order - lihat components/portfolio/OrderTicket.tsx. Form lama di sini
+          cuma tiga kotak kosong (simbol, harga, lot) tanpa harga pasar, sisa kas, atau
+          jumlah lot yang dimiliki sebagai acuan, sehingga order gampang ditolak server
+          dan alasannya baru muncul setelah dikirim. */}
+      <OrderTicket
+        open={showOrderModal}
+        type={orderType}
+        onTypeChange={setOrderType}
+        cash={portfolio.cash}
+        holdings={holdings}
+        initialSymbol={orderSymbol}
+        onClose={() => setShowOrderModal(false)}
+        onDone={(message) => {
+          setShowOrderModal(false);
+          showToast(message, 'success');
+          void loadData();
+        }}
+      />
     </div>
   );
 }
