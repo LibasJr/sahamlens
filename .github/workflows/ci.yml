@@ -11,7 +11,14 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Di branch PR, run lama layak dibatalkan run baru - hemat menit CI dan tidak ada
+  # konsekuensi lain. Di `main` TIDAK: run CI di main adalah satu-satunya pemicu Deploy
+  # VPS, jadi run yang dibatalkan = deploy yang hilang diam-diam. Terukur 2026-08-24:
+  # CI main untuk 62e1d8a dan 35b9d02 sama-sama berakhir `cancelled` dua detik setelah
+  # dibuat, dan Deploy VPS ikut ter-skip. 35b9d02 baru mendarat di produksi setelah
+  # dipicu manual; 62e1d8a cuma selamat karena kebetulan terbawa deploy commit
+  # sesudahnya. Keduanya tidak memunculkan satu pun tanda merah.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   typecheck-lint-test:
