@@ -210,14 +210,22 @@ export function computeIntradayComponents(
   // Rentang pemetaan dipilih dari besaran wajar gerakan 5-30 menit saham IDX likuid.
   // Ia BELUM dikalibrasi terhadap hasil - kalibrasi dilakukan terpisah di
   // intraday-validation.service dan boleh saja menolak pemetaan ini.
-  // volumeSurge dipetakan pada skala LOG supaya rasio 1,0 (volume normal) jatuh tepat
-  // di tengah. Peta linear [0.5, 2.5] akan memberi 25 untuk volume yang sama sekali
-  // biasa - bias turun yang menular ke setiap skor.
+  // volumeSurge dipetakan pada skala LOG, berpusat di `volumeSurgeCenter`. Peta linear
+  // akan memberi skor rendah untuk volume yang sama sekali biasa - bias turun yang
+  // menular ke setiap skor.
+  //
+  // Pusatnya DULU dipatok 1,0 dengan alasan "volume normal". Diukur dari 26.606 sinyal,
+  // median rasio ini 0,7169 dan 1,0 justru di persentil 67,7 - jadi patokan lama membuat
+  // observasi median berskor ~41, bukan 50. Lihat catatan panjang di konstanta.
+  const surgeCenter = Math.log(Math.max(1e-6, mapping.volumeSurgeCenter));
   const surgeSpan = Math.log(mapping.volumeSurgeSpan);
   const scored = {
     momentum: round(linearScore(momentum, -mapping.momentumAbs, mapping.momentumAbs), 2),
     vwapDeviation: round(linearScore(vwapDeviation, -mapping.vwapDeviationAbs, mapping.vwapDeviationAbs), 2),
-    volumeSurge: round(linearScore(Math.log(Math.max(1e-6, volumeSurge)), -surgeSpan, surgeSpan), 2),
+    volumeSurge: round(
+      linearScore(Math.log(Math.max(1e-6, volumeSurge)) - surgeCenter, -surgeSpan, surgeSpan),
+      2
+    ),
     rangePosition: round(rangePosition * 100, 2),
     trendPersistence: round(trendPersistence * 100, 2),
   };
