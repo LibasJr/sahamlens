@@ -53,6 +53,34 @@ interface CacheRow {
   snapshotSource: 'active' | 'last-successful' | 'legacy' | null;
 }
 
+interface WeeklyMaintenanceStatus {
+  unit: string;
+  scheduleLabel: string;
+  timerActive: boolean;
+  timerEnabled: boolean;
+  serviceRunning: boolean;
+  serviceResult: string | null;
+  nextRunAt: string | null;
+  diagnostics: Array<'SYSTEMD_UNAVAILABLE' | 'REPORT_UNAVAILABLE'>;
+  lastReport: {
+    startedAt: string;
+    finishedAt: string;
+    durationMs: number;
+    verdict: 'PASS' | 'WARN' | 'FAIL';
+    counts: Record<'PASS' | 'WARN' | 'FAIL' | 'SKIP', number>;
+    stages: string[];
+    commit: string | null;
+    steps: Array<{
+      id: string;
+      stage: string;
+      label: string;
+      status: 'PASS' | 'WARN' | 'FAIL' | 'SKIP';
+      summary: string;
+      durationMs: number;
+    }>;
+  } | null;
+}
+
 // Diagnosis ditulis sebagai kalimat, bukan cuma badge status. Perbedaan antara "tidak
 // pernah dipanggil", "dipanggil lalu ditolak", dan "dipanggil lalu dilewati" menentukan
 // tindakan yang sama sekali berbeda - dan itulah persis yang dulu tidak bisa dibedakan.
@@ -110,6 +138,17 @@ function duration(seconds: number | null): string {
   return `${Math.floor(hours / 24)} hari`;
 }
 
+function dateTime(iso: string | null): string {
+  if (!iso) return 'belum tersedia';
+  const date = new Date(iso);
+  if (!Number.isFinite(date.getTime())) return 'belum tersedia';
+  return new Intl.DateTimeFormat('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'Asia/Jakarta',
+  }).format(date);
+}
+
 const TONE_CLASS = {
   ok: 'border-tv-green/30 bg-tv-green/[0.05]',
   warn: 'border-tv-yellow/30 bg-tv-yellow/[0.05]',
@@ -137,6 +176,7 @@ export default function JobsMonitorClient() {
   const [health, setHealth] = useState<HealthPayload | null>(null);
   const [caches, setCaches] = useState<CacheRow[]>([]);
   const [sourceHealth, setSourceHealth] = useState<SourceHealthRow[]>([]);
+  const [weeklyMaintenance, setWeeklyMaintenance] = useState<WeeklyMaintenanceStatus | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -149,6 +189,7 @@ export default function JobsMonitorClient() {
       setJobs(json.jobs ?? []);
       setCaches(json.caches ?? []);
       setSourceHealth(json.sourceHealth ?? []);
+      setWeeklyMaintenance(json.weeklyMaintenance ?? null);
       setHealth(healthJson);
     } catch (error) {
       setError(apiErrorMessage(error, 'Gagal memuat status job', true));
@@ -203,6 +244,89 @@ export default function JobsMonitorClient() {
           <div className="mt-1 text-[11px] leading-relaxed text-tv-muted">Riwayat deploy tidak direka dari data aplikasi.</div>
         </Card>
       </div>
+
+      {weeklyMaintenance && (() => {
+        const report = weeklyMaintenance.lastReport;
+        const findings = report?.steps.filter((step) => step.status === 'WARN' || step.status === 'FAIL') ?? [];
+        const systemdUnavailable = weeklyMaintenance.diagnostics.includes('SYSTEMD_UNAVAILABLE');
+        const tone = report?.verdict === 'FAIL' || systemdUnavailable
+          ? 'bad'
+          : report?.verdict === 'WARN' || !weeklyMaintenance.timerActive || !weeklyMaintenance.timerEnabled
+            ? 'warn'
+            : 'ok';
+        const badge = weeklyMaintenance.serviceRunning
+          ? 'SEDANG BERJALAN'
+          : systemdUnavailable
+            ? 'STATUS TIMER TIDAK TERBACA'
+            : weeklyMaintenance.timerActive && weeklyMaintenance.timerEnabled
+              ? 'JADWAL AKTIF'
+              : 'JADWAL TIDAK AKTIF';
+
+        return (
+          <Card as="section" className={`p-4 ${TONE_CLASS[tone]}`} padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h2 className="font-heading text-base font-bold text-tv-text">Update Mingguan</h2>
+                <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+                  Refresh data lambat berubah, audit keamanan, verifikasi produksi, dan pemeriksaan dependency. Job hanya melapor; tidak mengubah dependency atau commit otomatis.
+                </p>
+              </div>
+              <span className={`rounded-full border px-3 py-1 text-xs font-bold ${BADGE_CLASS[tone]}`}>{badge}</span>
+            </div>
+
+            <div className="mt-4 grid gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
+              <div className="rounded-lg border border-tv-border p-3">
+                <div className="text-tv-muted">Jadwal</div>
+                <div className="mt-1 font-bold text-tv-text">{weeklyMaintenance.scheduleLabel}</div>
+              </div>
+              <div className="rounded-lg border border-tv-border p-3">
+                <div className="text-tv-muted">Berikutnya</div>
+                <div className="mt-1 font-bold text-tv-text">{dateTime(weeklyMaintenance.nextRunAt)}</div>
+              </div>
+              <div className="rounded-lg border border-tv-border p-3">
+                <div className="text-tv-muted">Laporan terakhir</div>
+                <div className="mt-1 font-bold text-tv-text">{dateTime(report?.finishedAt ?? null)}</div>
+                <div className="mt-1 text-[11px] text-tv-muted">Durasi {report ? duration(report.durationMs / 1_000) : 'belum tersedia'}</div>
+              </div>
+              <div className="rounded-lg border border-tv-border p-3">
+                <div className="text-tv-muted">Versi yang diaudit</div>
+                <div className="mt-1 font-mono font-bold text-tv-text">{report?.commit ?? 'belum tersedia'}</div>
+                <div className="mt-1 text-[11px] text-tv-muted">systemd: {weeklyMaintenance.serviceResult ?? 'belum tersedia'}</div>
+              </div>
+            </div>
+
+            {report ? (
+              <>
+                <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {(['PASS', 'WARN', 'FAIL', 'SKIP'] as const).map((status) => (
+                    <div key={status} className="rounded-lg border border-tv-border p-3 text-center">
+                      <div className="font-number text-lg font-bold text-tv-text">{report.counts[status]}</div>
+                      <div className="text-[10px] font-bold text-tv-muted">{status}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-3 text-xs text-tv-muted">Tahap aktual: {report.stages.join(' → ') || 'tidak tercatat'}</div>
+                {findings.length > 0 ? (
+                  <div className="mt-4 space-y-2">
+                    <div className="text-xs font-bold text-tv-text">Temuan yang perlu dilihat</div>
+                    {findings.map((step) => (
+                      <div key={`${step.stage}:${step.id}`} className={`rounded-lg border p-3 text-xs ${step.status === 'FAIL' ? 'border-tv-red/30 bg-tv-red/[0.04]' : 'border-tv-yellow/30 bg-tv-yellow/[0.04]'}`}>
+                        <span className={`font-bold ${step.status === 'FAIL' ? 'text-tv-red' : 'text-tv-yellow'}`}>{step.status}</span>
+                        <span className="ml-2 font-semibold text-tv-text">{step.label}</span>
+                        <p className="mt-1 leading-relaxed text-tv-muted">{step.summary}</p>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="mt-4 text-xs font-semibold text-tv-green">Laporan terakhir tidak memiliki WARN atau FAIL.</p>
+                )}
+              </>
+            ) : (
+              <p className="mt-4 text-xs text-tv-yellow">Laporan mingguan belum tersedia atau belum dapat dibaca.</p>
+            )}
+          </Card>
+        );
+      })()}
 
       {sourceHealth.length > 0 && (
         <Card as="section" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
