@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 
 // Council AI multi-provider - sebelumnya SELURUH app cuma bisa pakai Gemini, dan kuota
@@ -9,26 +8,17 @@ import { recordDataSourceHealth } from '@/modules/observability/service/data-sou
 //
 // REWRITE (2026-08-05): sebelumnya tiap provider punya cabang if/else sendiri di
 // generateAI() - nambah provider baru berarti menyalin ulang seluruh blok
-// callOpenAICompatible() dengan resiko salah tempel URL/header. Sekarang provider
-// (kecuali Gemini, yang API-nya beda bentuk total - lihat callGemini()) didaftarkan
+// callOpenAICompatible() dengan resiko salah tempel URL/header. Provider didaftarkan
 // sebagai DATA di OPENAI_COMPATIBLE_PROVIDERS - nambah provider baru = nambah 1 entri,
 // bukan nambah cabang kode.
-
-// BUG FIX (audit logika & algoritma 2026-08-05, temuan L-2): tiga nama model terakhir di
-// daftar lama ('gemini-3.5-flash', 'gemini-3.6-flash', 'gemini-3.1-flash-lite') tidak
-// merujuk model yang benar-benar ada. Karena urutan combo diacak, tiap panggilan AI
-// berpeluang membuang beberapa percobaan (dan waktu timeout) ke model yang PASTI gagal
-// sebelum sampai ke yang berfungsi - biaya latensi murni, tanpa manfaat. Disisakan hanya
-// nama model yang terverifikasi.
 //
-// BUG FIX (2026-08-05, diagnostik log produksi): 'gemini-2.5-flash' DIHAPUS - log
-// menunjukkan [404 Not Found] untuk model ini secara konsisten. TIDAK diganti nama lain
-// tanpa verifikasi (itu justru masalah yang barusan diperbaiki di atas) - disisakan
-// 'gemini-2.0-flash' yang terkonfirmasi ADA (responsnya 429 kuota, bukan 404 tidak
-// ditemukan - beda jelas: nama modelnya benar, cuma jatah harian yang habis).
-const GEMINI_MODELS = [
-  'gemini-2.0-flash',
-];
+// GEMINI LANGSUNG DIHAPUS (2026-08-24, keputusan operator): provider Gemini terpisah
+// (callGemini/streamGemini, API key sendiri di luar 9Router) berulang kali basi -
+// 'gemini-2.5-flash' 404 pada 2026-08-05, lalu satu-satunya sisa 'gemini-2.0-flash'
+// juga 404 pada 2026-08-24 ("model ini telah mencapai akhir masa pakainya"). Akses ke
+// model Gemini TIDAK hilang - 9Router (lihat buildNineRouterProvider() di bawah) sudah
+// merutekannya sendiri lewat NINEROUTER_MODELS (mis. 'gemini/gemini-3.5-flash-lite'),
+// jadi operator cukup menjaga satu katalog model (dashboard 9Router), bukan dua.
 
 interface OpenAICompatibleProvider {
   /** Dipakai sebagai key env var (`${envPrefix}_API_KEY`) DAN label log. */
@@ -213,9 +203,7 @@ const OPENAI_COMPATIBLE_PROVIDERS: OpenAICompatibleProvider[] = [
   },
 ];
 
-type Combo =
-  | { kind: 'gemini'; model: string; envVar: string }
-  | { kind: 'openai-compatible'; provider: OpenAICompatibleProvider; model: string };
+type Combo = { kind: 'openai-compatible'; provider: OpenAICompatibleProvider; model: string };
 
 
 type FailureKind = 'rate-limit' | 'auth' | 'not-found' | 'timeout' | 'server' | 'other';
@@ -239,9 +227,7 @@ function healthStore(): Map<string, ComboHealth> {
 }
 
 function comboKey(combo: Combo): string {
-  return combo.kind === 'gemini'
-    ? `gemini:${combo.model}`
-    : `${combo.provider.name}:${combo.model}`;
+  return `${combo.provider.name}:${combo.model}`;
 }
 
 function cooldownMs(kind: FailureKind, consecutiveFailures: number): number {
@@ -345,7 +331,6 @@ const MODEL_PRIORITY: string[] = [
   'kimi-k2.6',                                    // Moonshot Kimi K2 - kelas frontier
   'nvidia/nemotron-3-super-120b-a12b:free',       // 120B total (MoE, 12B aktif)
   'llama-3.3-70b-versatile',                      // 70B dense
-  'gemini-2.0-flash',                             // flash-tier Google, seimbang
   'openai/gpt-oss-20b:free',                      // 20B open-weight OpenAI
   'google/gemma-4-31b-it:free',                   // 31B
   'meta/llama-3.1-8b-instruct',                   // 8B
@@ -368,27 +353,8 @@ function comboRank(combo: Combo): number {
   return priorityRank(combo.model);
 }
 
-const GEMINI_API_KEY_ENV_VARS = [
-  'GEMINI_API_KEY',
-  'GEMINI_API_KEY_2',
-  'GEMINI_API_KEY_3',
-  'GEMINI_API_KEY_4',
-  'GEMINI_API_KEY_5',
-] as const;
 export function buildCombos(): Combo[] {
 const combos: Combo[] = [];
-
-for (const envVar of GEMINI_API_KEY_ENV_VARS) {
-  if (!process.env[envVar]) continue;
-
-  combos.push(
-    ...GEMINI_MODELS.map((model) => ({
-      kind: 'gemini' as const,
-      model,
-      envVar,
-    })),
-  );
-}
 
 const nineRouter = buildNineRouterProvider();
 const providers = nineRouter
@@ -410,10 +376,6 @@ for (const provider of providers) {
 return combos.sort((a, b) => comboRank(a) - comboRank(b));
 }
 export function hasAnyAIProvider(): boolean {
-if (GEMINI_API_KEY_ENV_VARS.some((envVar) => !!process.env[envVar])) {
-  return true;
-}
-
 if (buildNineRouterProvider()) return true;
 
 return OPENAI_COMPATIBLE_PROVIDERS.some(
@@ -433,27 +395,6 @@ function classifyErrorMessage(message: string): FailureKind {
   if (lower.includes('timeout') || lower.includes('abort')) return 'timeout';
   if (/\b5\d\d\b/.test(lower)) return 'server';
   return 'other';
-}
-
-async function callGemini(apiKey: string, model: string, system: string | undefined, prompt: string, json: boolean, timeoutMs: number): Promise<AICallResult> {
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const gModel = genAI.getGenerativeModel({
-      model,
-      systemInstruction: system,
-      ...(json ? { generationConfig: { responseMimeType: 'application/json' } } : {}),
-    });
-    const result = await Promise.race([
-      gModel.generateContent(prompt),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
-    ]);
-    const text = (result as Awaited<ReturnType<typeof gModel.generateContent>>).response.text();
-    return { text: text || null, ...(text ? {} : { failureKind: 'other' as const }) };
-  } catch (e: any) {
-    const message = e?.message || String(e);
-    console.warn(`[Gemini] Model "${model}" gagal: ${message}`);
-    return { text: null, failureKind: classifyErrorMessage(message) };
-  }
 }
 
 /**
@@ -560,8 +501,7 @@ async function callOpenAICompatible(
     // "LensAI tidak tersedia atau kena limit", tidak ada cara membedakan penyebabnya dari
     // log produksi: 429 (kuota habis) vs 401 (key salah) vs 404 (nama model sudah
     // dihapus penyedianya) menghasilkan pesan yang persis sama ke pengguna, padahal
-    // tindakan perbaikannya benar-benar berbeda. callGemini() sudah punya log serupa
-    // (temuan M-05) - ini menyamakannya untuk seluruh provider OpenAI-compatible.
+    // tindakan perbaikannya benar-benar berbeda (temuan M-05).
     if (!res.ok) {
       // Body dibaca sebagai teks (bukan .json()) supaya halaman HTML error/rate-limit
       // dari proxy pun tetap terbaca, dan dipotong 200 karakter supaya log tidak banjir.
@@ -649,32 +589,23 @@ export async function generateAIResult(opts: { system?: string; prompt: string; 
   const failures: FailureKind[] = [];
 
   for (const combo of combos) {
-    const result = combo.kind === 'gemini'
-      ? await callGemini(
-          process.env[combo.envVar]!,
-          combo.model,
-          system,
-          prompt,
-          json,
-          timeoutMs,
-        )
-      : await callOpenAICompatible(
-          combo.provider,
-          process.env[combo.provider.envVar]!,
-          combo.model,
-          system,
-          prompt,
-          json,
-          // Router yang punya fallback internal (9Router) butuh lantai timeout sendiri;
-          // budget caller tetap dipakai kalau memang sudah lebih longgar. Seluruh route
-          // pemanggil AI memakai maxDuration >= 60 detik, jadi lantai ini tidak bisa
-          // menghabiskan anggaran eksekusi route.
-          Math.max(timeoutMs, combo.provider.minTimeoutMs ?? 0),
-        );
+    const result = await callOpenAICompatible(
+      combo.provider,
+      process.env[combo.provider.envVar]!,
+      combo.model,
+      system,
+      prompt,
+      json,
+      // Router yang punya fallback internal (9Router) butuh lantai timeout sendiri;
+      // budget caller tetap dipakai kalau memang sudah lebih longgar. Seluruh route
+      // pemanggil AI memakai maxDuration >= 60 detik, jadi lantai ini tidak bisa
+      // menghabiskan anggaran eksekusi route.
+      Math.max(timeoutMs, combo.provider.minTimeoutMs ?? 0),
+    );
 
     if (result.text) {
       markSuccess(combo);
-      if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: true, latencyMs: Date.now() - startedAt, detail: { provider: combo.kind === 'gemini' ? 'gemini' : combo.provider.name, model: combo.model } });
+      if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: true, latencyMs: Date.now() - startedAt, detail: { provider: combo.provider.name, model: combo.model } });
       return { text: result.text, errorCode: null, failureKinds: failures };
     }
 
@@ -842,46 +773,6 @@ async function streamOpenAICompatible(
   }
 }
 
-async function streamGemini(
-  apiKey: string,
-  model: string,
-  system: string | undefined,
-  prompt: string,
-  timeoutMs: number,
-  onDelta: AIStreamDelta,
-): Promise<AICallResult> {
-  let text = '';
-  try {
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const gModel = genAI.getGenerativeModel({ model, systemInstruction: system });
-
-    // Timeout dipasang sebagai perlombaan terhadap PEMBUKAAN stream saja. Setelah
-    // potongan pertama tiba, batas waktu tidak lagi relevan: aliran yang sedang berjalan
-    // memang boleh berlangsung lama, dan memutusnya di tengah hanya menghasilkan
-    // jawaban terpotong tanpa alasan yang bisa dijelaskan ke pengguna.
-    const started = await Promise.race([
-      gModel.generateContentStream(prompt),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), timeoutMs)),
-    ]);
-
-    for await (const chunk of (started as Awaited<ReturnType<typeof gModel.generateContentStream>>).stream) {
-      const piece = typeof chunk.text === 'function' ? chunk.text() : '';
-      if (piece) {
-        text += piece;
-        onDelta(piece);
-      }
-    }
-
-    if (!text.trim()) return { text: null, failureKind: 'other' };
-    return { text };
-  } catch (e: any) {
-    const message = e?.message || String(e);
-    console.warn(`[Gemini] stream "${model}" gagal: ${message}`);
-    if (text.trim()) return { text };
-    return { text: null, failureKind: classifyErrorMessage(message) };
-  }
-}
-
 /**
  * Versi streaming generateAIResult(). `onDelta` dipanggil tiap potongan teks tiba;
  * nilai kembaliannya tetap teks UTUH supaya pemanggil bisa memverifikasi hasil akhir.
@@ -911,21 +802,19 @@ export async function generateAIStream(opts: {
       onDelta(chunk);
     };
 
-    const result = combo.kind === 'gemini'
-      ? await streamGemini(process.env[combo.envVar]!, combo.model, system, prompt, timeoutMs, guardedDelta)
-      : await streamOpenAICompatible(
-          combo.provider,
-          process.env[combo.provider.envVar]!,
-          combo.model,
-          system,
-          prompt,
-          Math.max(timeoutMs, combo.provider.minTimeoutMs ?? 0),
-          guardedDelta,
-        );
+    const result = await streamOpenAICompatible(
+      combo.provider,
+      process.env[combo.provider.envVar]!,
+      combo.model,
+      system,
+      prompt,
+      Math.max(timeoutMs, combo.provider.minTimeoutMs ?? 0),
+      guardedDelta,
+    );
 
     if (result.text) {
       markSuccess(combo);
-      if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: true, latencyMs: Date.now() - startedAt, detail: { provider: combo.kind === 'gemini' ? 'gemini' : combo.provider.name, model: combo.model } });
+      if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: true, latencyMs: Date.now() - startedAt, detail: { provider: combo.provider.name, model: combo.model } });
       return { text: result.text, errorCode: null, failureKinds: failures };
     }
 

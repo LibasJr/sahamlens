@@ -11,7 +11,6 @@ import {
 } from '../aiProviders';
 
 const ALL_KEYS = [
-  'GEMINI_API_KEY',
   'GROQ_API_KEY',
   'OPENROUTER_API_KEY',
   'KIMI_API_KEY',
@@ -108,17 +107,16 @@ describe('buildCombos', () => {
   // urutan combo sekarang TETAP (ranking model), bukan diacak.
   it('urutan combo dari model paling mumpuni ke paling ringan, bukan acak', () => {
     clearAllKeys();
-    vi.stubEnv('GEMINI_API_KEY', 'g-test');
     vi.stubEnv('GROQ_API_KEY', 'gsk-test');
     vi.stubEnv('KIMI_API_KEY', 'sk-test');
 
     const combos = buildCombos();
     const models = combos.map((c) => c.model);
 
-    // kimi-k2.6 (paling mumpuni di antara ketiganya) harus di depan gemini-2.0-flash,
+    // kimi-k2.6 (paling mumpuni di antara ketiganya) harus di depan llama-3.3-70b-versatile,
     // yang harus di depan llama-3.1-8b-instant (paling ringan).
-    expect(models.indexOf('kimi-k2.6')).toBeLessThan(models.indexOf('gemini-2.0-flash'));
-    expect(models.indexOf('gemini-2.0-flash')).toBeLessThan(models.indexOf('llama-3.1-8b-instant'));
+    expect(models.indexOf('kimi-k2.6')).toBeLessThan(models.indexOf('llama-3.3-70b-versatile'));
+    expect(models.indexOf('llama-3.3-70b-versatile')).toBeLessThan(models.indexOf('llama-3.1-8b-instant'));
   });
 
   it('hasil deterministik - dua panggilan berturut-turut menghasilkan urutan yang sama', () => {
@@ -354,7 +352,6 @@ describe('buildSmartAttemptOrder', () => {
 
   it('gateway tryFirst tetap di depan di SETIAP request, tidak ikut dirotasi', () => {
     clearAllKeys();
-    vi.stubEnv('GEMINI_API_KEY', 'g-test');
     vi.stubEnv('GROQ_API_KEY', 'gsk-test');
     vi.stubEnv('KIMI_API_KEY', 'sk-test');
     vi.stubEnv('NINEROUTER_BASE_URL', 'https://router.example.com');
@@ -379,7 +376,6 @@ describe('buildSmartAttemptOrder', () => {
 
   it('merotasi combo sehat antar request tanpa mengacak ranking dasar buildCombos()', () => {
     clearAllKeys();
-    vi.stubEnv('GEMINI_API_KEY', 'g-test');
     vi.stubEnv('GROQ_API_KEY', 'gsk-test');
     vi.stubEnv('KIMI_API_KEY', 'sk-test');
 
