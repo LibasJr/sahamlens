@@ -27,12 +27,29 @@ export async function insertDecisionRun(run: Omit<DecisionAgentRun, 'id' | 'crea
     await client.query('BEGIN');
     await client.query(
       `INSERT INTO decision_agent_runs
-        (id, trigger_type, data_as_of, model_validated, engine_version, summary, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7)`,
-      [id, run.trigger, run.dataAsOf, run.modelValidated, run.version, JSON.stringify(run.summary), createdAt],
+        (id, trigger_type, data_as_of, model_validated, engine_version, summary, created_at,
+         hybrid_status, hybrid_model, hybrid_reviewed_count, hybrid_input_tokens, hybrid_output_tokens, hybrid_error_code)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, $9, $10, $11, $12, $13)`,
+      [
+        id, run.trigger, run.dataAsOf, run.modelValidated, run.version, JSON.stringify(run.summary), createdAt,
+        run.hybrid.status, run.hybrid.model, run.hybrid.reviewedCount, run.hybrid.inputTokens,
+        run.hybrid.outputTokens, run.hybrid.errorCode,
+      ],
     );
     for (const signal of run.signals) {
-      await insertSignal(client, id, signal, createdAt);
+      const signalId = await insertSignal(client, id, signal, createdAt);
+      if (signal.hybridReview) {
+        await client.query(
+          `INSERT INTO decision_agent_hybrid_reviews
+            (id, signal_id, verdict, confidence, evidence_refs, concerns, next_evidence, model, reviewed_at)
+           VALUES ($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7::jsonb,$8,$9)`,
+          [
+            crypto.randomUUID(), signalId, signal.hybridReview.verdict, signal.hybridReview.confidence,
+            JSON.stringify(signal.hybridReview.evidenceRefs), JSON.stringify(signal.hybridReview.concerns),
+            JSON.stringify(signal.hybridReview.nextEvidence), signal.hybridReview.model, signal.hybridReview.reviewedAt,
+          ],
+        );
+      }
       // Mark-to-market memakai harga dari snapshot AI Pick yang sama dengan run ini.
       // Tidak ada interpolasi atau harga pengganti ketika simbol tidak ada di snapshot.
       await client.query(
@@ -57,7 +74,8 @@ async function insertSignal(
   runId: string,
   signal: DecisionAgentSignal,
   createdAt: string,
-): Promise<void> {
+): Promise<string> {
+  const signalId = crypto.randomUUID();
   await client.query(
     `INSERT INTO decision_agent_signals
       (id, run_id, ticker, action, price, lens_score, coverage_pct,
@@ -65,16 +83,20 @@ async function insertSignal(
        live_readiness, data_as_of, stale, payload, created_at)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13)`,
     [
-      crypto.randomUUID(), runId, signal.ticker, signal.action, signal.price,
+      signalId, runId, signal.ticker, signal.action, signal.price,
       signal.lensScore, signal.coveragePct, signal.paperReadiness, signal.liveReadiness,
       signal.dataAsOf, signal.stale, JSON.stringify(signal), createdAt,
     ],
   );
+  return signalId;
 }
 
 function mapSignal(row: Record<string, unknown>): PersistedDecisionSignal {
+  const payload = row.payload as DecisionAgentSignal;
   return {
-    ...(row.payload as DecisionAgentSignal),
+    ...payload,
+    hybridStatus: payload.hybridStatus ?? 'NOT_REVIEWED',
+    hybridReview: payload.hybridReview ?? null,
     id: String(row.id),
     runId: String(row.run_id),
   };
@@ -137,12 +159,28 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
       modelValidated: Boolean(runRow.model_validated),
       version: runRow.engine_version as DecisionAgentRun['version'],
       summary: runRow.summary as DecisionAgentRun['summary'],
+      hybrid: {
+        status: (runRow.hybrid_status ?? 'SKIPPED_NOT_CONFIGURED') as DecisionAgentRun['hybrid']['status'],
+        model: runRow.hybrid_model ? String(runRow.hybrid_model) : null,
+        reviewedCount: number(runRow.hybrid_reviewed_count ?? 0),
+        inputTokens: runRow.hybrid_input_tokens == null ? null : number(runRow.hybrid_input_tokens),
+        outputTokens: runRow.hybrid_output_tokens == null ? null : number(runRow.hybrid_output_tokens),
+        errorCode: runRow.hybrid_error_code ? String(runRow.hybrid_error_code) : null,
+      },
     } : null,
     signals: signalRows.map(mapSignal),
     paperAccount,
     positions,
     orders: orderResult.rows.map(mapOrder),
   };
+}
+
+export async function getOpenPaperPositionTickers(): Promise<Set<string>> {
+  await ensureSharedSchema();
+  const { rows } = await pool.query(
+    `SELECT ticker FROM decision_agent_paper_positions WHERE account_id = 'internal-paper' AND lots > 0`,
+  );
+  return new Set(rows.map((row) => String(row.ticker)));
 }
 
 export interface DecisionSignalTransition {

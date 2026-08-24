@@ -7,8 +7,10 @@ export {
   executePaperOrder,
   rejectPaperOrder,
   executeLiveOrder,
+  assertHybridConfirmed,
 } from './service/paper-execution.service';
 export { decisionAgentActionSchema } from './validator/decision-agent.validator';
+export { applyHybridAnalysis, buildSignalEvidence, resolveHybridModel } from './service/hybrid-analyst.service';
 export type {
   DecisionAgentDashboard,
   DecisionAction,
@@ -21,4 +23,8 @@ export type {
   PaperAccount,
   PaperPosition,
   PersistedDecisionSignal,
+  HybridRunMeta,
+  HybridSignalReview,
+  HybridSignalStatus,
+  HybridVerdict,
 } from './types/decision-agent.types';

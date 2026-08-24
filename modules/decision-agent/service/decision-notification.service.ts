@@ -17,6 +17,8 @@ function number(value: number, digits = 0): string {
 export async function notifyDecisionSignalTransitions(runId: string): Promise<number> {
   const transitions = (await getDecisionSignalTransitions(runId)).filter(({ signal }) =>
     signal.paperReadiness === 'PAPER_READY'
+    && signal.hybridStatus === 'CONFIRMED'
+    && signal.hybridReview?.verdict === 'CONFIRM'
     && (signal.action === 'BUY_CANDIDATE' || signal.action === 'EXIT_REVIEW'),
   );
   let sent = 0;

@@ -27,6 +27,12 @@ function mapOrder(row: Record<string, unknown>): PaperOrder {
   };
 }
 
+export function assertHybridConfirmed(signal: DecisionAgentSignal): void {
+  if (signal.hybridStatus !== 'CONFIRMED' || signal.hybridReview?.verdict !== 'CONFIRM') {
+    throw new ConflictError('Paper order membutuhkan konfirmasi hybrid analyst yang valid');
+  }
+}
+
 export async function configurePaperAccount(input: ConfigurePaperAccountInput): Promise<void> {
   await ensureSharedSchema();
   await pool.query(
@@ -60,6 +66,7 @@ export async function proposePaperOrder(signalId: string): Promise<PaperOrder> {
     if (!signalRow) throw new NotFoundError('Sinyal tidak ditemukan');
     const signal = signalRow.payload as DecisionAgentSignal;
     if (signal.paperReadiness !== 'PAPER_READY') throw new ConflictError('Sinyal belum siap untuk paper order');
+    assertHybridConfirmed(signal);
 
     const accountResult = await client.query(`SELECT * FROM decision_agent_paper_accounts WHERE id = $1 FOR UPDATE`, [ACCOUNT_ID]);
     const account = accountResult.rows[0] as Record<string, unknown> | undefined;
