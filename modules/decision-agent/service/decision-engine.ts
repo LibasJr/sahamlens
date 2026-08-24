@@ -131,6 +131,8 @@ export function buildDecisionSignal(input: BuildDecisionInput): DecisionAgentSig
     opposingReasons,
     invalidationReasons,
     eligibilityReasons: stock.eligibilityReasons ?? [],
+    hybridStatus: 'NOT_REVIEWED',
+    hybridReview: null,
     version: DECISION_AGENT_VERSION,
   };
 }
