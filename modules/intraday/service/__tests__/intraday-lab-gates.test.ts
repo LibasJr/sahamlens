@@ -286,3 +286,37 @@ describe('#7 pemetaan volumeSurge berpusat pada sebaran fiturnya', () => {
     expect(nilai[nilai.length - 1]!).toBeGreaterThan(50);
   });
 });
+
+describe('#8 protokol OOS beku menyebut pemetaan apa adanya', () => {
+  /**
+   * Protokol beku adalah artefak yang paling lama hidup di modul ini - ia dibaca
+   * berbulan-bulan kemudian oleh orang yang tidak membuka kode. Sampai 24 Agustus 2026
+   * deskripsi volumeSurge-nya hanya menyebut span, sehingga pembacanya wajar
+   * menyimpulkan skalanya berpusat di 1,0 - persis asumsi yang ternyata salah.
+   *
+   * Angkanya sendiri memang ikut dibekukan lewat `componentMapping`, jadi tidak ada yang
+   * hilang. Yang diperbaiki adalah kalimatnya, supaya bukti numerik dan penjelasannya
+   * tidak saling membantah.
+   */
+  const researchSource = stripComments(
+    readFileSync(path.join(ROOT, 'modules/intraday/service/intraday-research.service.ts'), 'utf8')
+  );
+
+  it('deskripsi volumeSurge menyebut pusat skalanya, bukan hanya span', () => {
+    const baris = researchSource.match(/volumeSurge: `[^`]*`/)?.[0] ?? '';
+    expect(baris, 'deskripsi volumeSurge di protokol tidak ditemukan').not.toBe('');
+    expect(baris, 'pusat skala tidak disebut - pembaca akan mengira 1,0').toContain('volumeSurgeCenter');
+    expect(baris).toContain('volumeSurgeSpan');
+  });
+
+  it('jendela momentum dan tren tidak diklaim tetap', () => {
+    expect(researchSource).toContain('MOMENTUM_DOC_BARS');
+    expect(researchSource).toContain('TREND_DOC_BARS');
+    expect(researchSource, 'panjang jendela ditulis sebagai angka mati').not.toMatch(/return 30 menit dipetakan/);
+    expect(researchSource).toContain('lookbackCaveat');
+  });
+
+  it('componentMapping tetap dibekukan sebagai angka, bukan hanya kalimat', () => {
+    expect(researchSource).toContain('componentMapping: config.componentMapping');
+  });
+});
