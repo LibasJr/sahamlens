@@ -5,6 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+# User=lens: /opt/sahamlens/app dimiliki `lens`, dan tanpa User= unit ini berjalan
+# sebagai root secara default. UID berbeda dari pemilik repo membuat
+# `git -C /opt/sahamlens/app rev-parse HEAD` (poin 4 uptime-monitor.sh) ditolak dengan
+# "fatal: detected dubious ownership in repository" - pemeriksaan deployed-sha vs HEAD
+# lalu dilewati diam-diam (ditemukan & diperbaiki 2026-08-26, lihat komentar di skrip).
+User=lens
 # SAHAMLENS_ALERT_WEBHOOK opsional - tanpa itu peringatan tetap masuk journal.
 EnvironmentFile=-/opt/sahamlens/app/.env.production
 ExecStart=/opt/sahamlens/scripts/uptime-monitor.sh
