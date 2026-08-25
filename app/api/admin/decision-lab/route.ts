@@ -54,7 +54,7 @@ export async function POST(request: Request) {
         await configurePaperAccount(input.config);
         break;
       case 'propose-paper-order':
-        result = await proposePaperOrder(input.signalId);
+        result = await proposePaperOrder(input.signalId, input.thesis);
         break;
       case 'execute-paper-order':
         result = await executePaperOrder(input.orderId);

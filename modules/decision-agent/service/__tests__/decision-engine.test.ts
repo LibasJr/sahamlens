@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { ScoredStock } from '@/modules/recommendation/service/ai-pick.service';
 import { buildDecisionSignal } from '../decision-engine';
+import type { NewsItem } from '@/modules/news';
 
 function stock(overrides: Partial<ScoredStock> = {}): ScoredStock {
   return {
@@ -16,6 +17,7 @@ function stock(overrides: Partial<ScoredStock> = {}): ScoredStock {
     kategori: 'BUY',
     eligibilityStatus: 'ELIGIBLE',
     eligibilityReasons: [],
+    avgValue20d: 500_000_000_000,
     tradeSetup: { tp1: 11_000, tp2: 11_500, cl1: 9_500, cl2: 9_000, rr: 2 },
     ...overrides,
   };
@@ -59,5 +61,23 @@ describe('buildDecisionSignal', () => {
   it('sinyal bearish menjadi EXIT_REVIEW, bukan short recommendation', () => {
     const result = buildDecisionSignal({ stock: stock(), bearish: true, newsItems: [], dataAsOf, now, modelValidated: false });
     expect(result.action).toBe('EXIT_REVIEW');
+  });
+
+  it('membawa sektor, ADV, sumber, waktu, dan basis RSS tanpa mengarang artikel', () => {
+    const news: NewsItem = {
+      title: 'BBCA melaporkan laba kuartal', link: 'https://example.com/bbca', source: 'Sumber RSS',
+      pubDate: '2026-08-24T02:00:00.000Z', sentiment: 'POSITIF', reason: 'Laba meningkat',
+      summary: 'Ringkasan RSS menyebut laba dan pendapatan yang dilaporkan.', evidenceBasis: 'RSS_SUMMARY',
+      intelligence: {
+        eventType: 'EARNINGS', eventLabel: 'Kinerja keuangan', affectedMetrics: ['Laba bersih'],
+        horizon: 'SHORT_TERM', expectedImpact: { direction: 'POSITIVE', magnitude: 'HIGH', summary: 'Laba meningkat.' },
+        confidence: 80, evidenceBasis: 'RSS_SUMMARY',
+      },
+    };
+    const result = buildDecisionSignal({ stock: stock(), bearish: false, newsItems: [news], dataAsOf, now, modelValidated: false, sector: 'Financial Services' });
+    expect(result.sector).toBe('Financial Services');
+    expect(result.avgValue20d).toBe(500_000_000_000);
+    expect(result.news.basis).toBe('RSS_SUMMARY');
+    expect(result.news.matchedArticles).toEqual([expect.objectContaining({ source: 'Sumber RSS', eventType: 'EARNINGS', basis: 'RSS_SUMMARY' })]);
   });
 });

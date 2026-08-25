@@ -85,6 +85,8 @@ export function buildSignalEvidence(signal: DecisionAgentSignal): EvidenceItem[]
   add(items, ticker, 'dataAsOf', signal.dataAsOf);
   add(items, ticker, 'stale', signal.stale);
   add(items, ticker, 'modelValidated', signal.modelValidated);
+  add(items, ticker, 'sector', signal.sector);
+  add(items, ticker, 'avgValue20d', signal.avgValue20d);
   if (signal.scoreBreakdown) {
     add(items, ticker, 'technicalScore', signal.scoreBreakdown.technical);
     add(items, ticker, 'fundamentalScore', signal.scoreBreakdown.fundamental);
@@ -103,6 +105,13 @@ export function buildSignalEvidence(signal: DecisionAgentSignal): EvidenceItem[]
   add(items, ticker, 'newsNeutral', signal.news.neutral);
   add(items, ticker, 'newsNegative', signal.news.negative);
   signal.news.matchedHeadlines.forEach((headline, index) => add(items, ticker, `headline${index + 1}`, headline));
+  (signal.news.matchedArticles ?? []).forEach((article, index) => {
+    add(items, ticker, `newsSource${index + 1}`, article.source);
+    add(items, ticker, `newsPublishedAt${index + 1}`, article.publishedAt);
+    add(items, ticker, `newsEventType${index + 1}`, article.eventType);
+    add(items, ticker, `newsEvidenceBasis${index + 1}`, article.basis);
+    add(items, ticker, `newsUrl${index + 1}`, article.url);
+  });
   signal.supportingReasons.forEach((reason, index) => add(items, ticker, `supportingReason${index + 1}`, reason));
   signal.opposingReasons.forEach((reason, index) => add(items, ticker, `opposingReason${index + 1}`, reason));
   signal.invalidationReasons.forEach((reason, index) => add(items, ticker, `invalidationReason${index + 1}`, reason));

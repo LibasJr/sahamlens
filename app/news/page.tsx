@@ -18,6 +18,8 @@ interface NewsItemDto {
   sentiment: string;
   reason: string;
   pubDate: string;
+  summary?: string | null;
+  evidenceBasis?: 'HEADLINE_ONLY' | 'RSS_SUMMARY';
   intelligence?: {
     eventType: string;
     eventLabel: string;
@@ -29,7 +31,7 @@ interface NewsItemDto {
       summary: string;
     };
     confidence: number;
-    evidenceBasis: 'HEADLINE_ONLY';
+    evidenceBasis: 'HEADLINE_ONLY' | 'RSS_SUMMARY';
   };
 }
 
