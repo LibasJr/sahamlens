@@ -830,10 +830,11 @@ VPS benar, dan pengguna dilayani build berumur dua belas jam.
 vs HEAD, status `/api/health`, dan umur/jumlah restart servis. Ia hanya memberi peringatan
 - tidak me-restart apa pun, karena tak satu pun keadaan di atas bisa diperbaiki restart.
 
-Pemantau ini berjalan di mesin yang sama, jadi ia TIDAK menggantikan pemantau eksternal
-(Uptime Kuma / healthchecks.io): mesin yang mati tidak bisa melaporkan dirinya mati.
-Keduanya menangkap kelas kegagalan berbeda - tabel lengkapnya di
-`deploy/uptime-monitor/README.md`.
+Pemantau ini berjalan di mesin yang sama, jadi ia TIDAK menggantikan probe eksternal yang
+sudah ada (`.github/workflows/external-health-watch.yml`, tiap 15 menit dari runner
+GitHub): mesin yang mati tidak bisa melaporkan dirinya mati, dan probe eksternal tidak bisa
+melihat build basi karena responsnya 200 sempurna. Keduanya saling melengkapi - tabel
+pembagian tugasnya di `deploy/uptime-monitor/README.md`.
 
 **BELUM AKTIF sampai dipasang manual di VPS**: `bash deploy/uptime-monitor/install.sh`.
 

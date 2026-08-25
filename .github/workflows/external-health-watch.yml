@@ -65,16 +65,38 @@ jobs:
             const healthRes = await fetchWithRetry(`${base}/api/health`, { headers: { ...headers, Accept: 'application/json' } });
             const healthText = await healthRes.text();
 
-            if (healthRes.ok) {
+            // 503 BUKAN "endpoint rusak" - itu jawaban health yang sah dan justru yang
+            // paling perlu dibaca isinya. Sejak 2026-08-25 /api/health membalas 503 kalau
+            // Redis tidak tersedia di produksi (kuota harian & rate limit fail-open tanpa
+            // Redis - lihat app/api/health/route.ts). Kalau 503 jatuh ke cabang terakhir
+            // di bawah, probe ini gagal dengan "HTTP 503" mentah yang tidak menyebut
+            // penyebabnya, dan operator harus membuka endpoint-nya sendiri untuk tahu apa
+            // yang rusak. Payload-nya sudah menyebutkan itu; tinggal dibaca.
+            if (healthRes.ok || healthRes.status === 503) {
+              let health;
               try {
-                const health = JSON.parse(healthText);
+                health = JSON.parse(healthText);
+              } catch {
+                // Non-JSON pada 503 berarti yang menjawab bukan aplikasi (proxy/WAF),
+                // dan itu tetap kegagalan - beda dari non-JSON pada 200 yang sudah lama
+                // diperlakukan informatif saja.
+                if (!healthRes.ok) throw new Error(`/api/health HTTP ${healthRes.status} non-JSON: ${healthText.slice(0, 200)}`);
+                console.log(`[INFO] /api/health non-JSON response: ${healthText.slice(0, 100)}`);
+                health = null;
+              }
+
+              if (health) {
                 if (health?.checks?.database !== 'ok') throw new Error('database health bukan ok');
                 const down = (health?.sources?.items ?? []).filter((x) => x.status === 'DOWN');
                 if (down.length) throw new Error(`data source DOWN: ${down.map((x) => x.sourceId).join(', ')}`);
-                console.log(`[PASS] /api/health PASS; database=${health?.checks?.database}; sources=${(health?.sources?.items ?? []).length}`);
-              } catch (e) {
-                if (e.message.includes('database health') || e.message.includes('data source DOWN')) throw e;
-                console.log(`[INFO] /api/health non-JSON response: ${healthText.slice(0, 100)}`);
+
+                // Sampai di sini database sehat dan tidak ada sumber DOWN, jadi 503 hanya
+                // bisa datang dari komponen lain yang didaftar `degraded` - hari ini Redis.
+                const degraded = health?.degraded ?? [];
+                if (!healthRes.ok) {
+                  throw new Error(`/api/health HTTP ${healthRes.status} - terganggu: ${degraded.length ? degraded.join(', ') : 'penyebab tidak disebutkan payload'}`);
+                }
+                console.log(`[PASS] /api/health PASS; database=${health?.checks?.database}; redis=${health?.checks?.redis}; sources=${(health?.sources?.items ?? []).length}`);
               }
             } else if (healthRes.status === 403 && (healthText.includes('Just a moment...') || healthText.includes('Cloudflare') || healthText.includes('challenge'))) {
               console.log(`[INFO] /api/health HTTP 403 Cloudflare challenge dari IP runner eksternal (Cloudflare WAF aktif). Akses publik / terverifikasi normal.`);
