@@ -41,28 +41,34 @@ afterEach(() => {
  * `incrWithExpiry()` sengaja TIDAK punya cadangan cache memori (lihat catatannya di
  * shared/cache/redis-cache.ts): tanpa Redis ia mengembalikan `null` dan pemanggilnya
  * fail-open. Jadi Redis mati = kuota harian dan rate limit berhenti berlaku, tanpa
- * gejala. Sebelum perbaikan ini `/api/health` tetap membalas 200 "ok" untuk keadaan itu,
- * dan halaman /status ikut melaporkannya sehat.
+ * gejala. `/api/health` harus MELAPORKANNYA (body.status='degraded', body.degraded)
+ * - tapi (revisi 2026-08-26, lihat komentar di route.ts) TIDAK LAGI lewat kode status
+ * HTTP. 503 untuk gangguan cache membuat deploy-vps.yml (yang menuntut HTTP 200 persis)
+ * gagal walau kode sudah live, dan memaksa setiap konsumen endpoint ini menambal
+ * penanganan error satu per satu (JobsMonitorClient, dll). Body tetap membawa sinyal
+ * lengkap; yang berubah cuma status code yang dipakai infra untuk "kirim trafik atau
+ * tidak" - dan Redis mati bukan alasan untuk berhenti melayani.
  */
-describe('GET /api/health - Redis ikut menentukan sehat, hanya di produksi', () => {
-  it('produksi tanpa REDIS_URL => 503 degraded, bukan 200 ok', async () => {
+describe('GET /api/health - Redis terlihat di body, TIDAK menurunkan kode status HTTP', () => {
+  it('produksi tanpa REDIS_URL => 200 tapi status=degraded, bukan 503', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.mocked(pingRedis).mockResolvedValue('not_configured');
 
     const { status, body } = await callHealth();
 
-    expect(status).toBe(503);
+    expect(status).toBe(200);
     expect(body.status).toBe('degraded');
     expect(body.degraded).toEqual(['redis:not_configured']);
   });
 
-  it('produksi dengan Redis error => 503 degraded', async () => {
+  it('produksi dengan Redis error => 200 tapi status=degraded', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.mocked(pingRedis).mockResolvedValue('error');
 
     const { status, body } = await callHealth();
 
-    expect(status).toBe(503);
+    expect(status).toBe(200);
+    expect(body.status).toBe('degraded');
     expect(body.degraded).toEqual(['redis:error']);
   });
 
@@ -89,7 +95,7 @@ describe('GET /api/health - Redis ikut menentukan sehat, hanya di produksi', () 
   });
 });
 
-describe('GET /api/health - database tetap penentu utama', () => {
+describe('GET /api/health - database satu-satunya alasan 503', () => {
   it('database mati => 503, dan alasannya disebut', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.mocked(pool.query).mockRejectedValue(new Error('connection refused'));
@@ -102,14 +108,26 @@ describe('GET /api/health - database tetap penentu utama', () => {
     expect(body.degraded).toEqual(['database']);
   });
 
-  it('database DAN Redis mati => keduanya dilaporkan, bukan cuma yang pertama', async () => {
+  it('database DAN Redis mati => keduanya dilaporkan, bukan cuma yang pertama, tetap 503 (dari database)', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.mocked(pool.query).mockRejectedValue(new Error('connection refused'));
     vi.mocked(pingRedis).mockResolvedValue('error');
 
-    const { body } = await callHealth();
+    const { status, body } = await callHealth();
 
+    expect(status).toBe(503);
     expect(body.degraded).toEqual(['database', 'redis:error']);
+  });
+
+  it('database ok TAPI Redis mati => 200, bukan 503 - inilah kontrak yang direvisi', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.mocked(pingRedis).mockResolvedValue('error');
+
+    const { status, body } = await callHealth();
+
+    expect(status).toBe(200);
+    expect(body.checks.database).toBe('ok');
+    expect(body.status).toBe('degraded');
   });
 
   it('telemetry sumber data yang gagal diambil tidak ikut menggagalkan health', async () => {

@@ -107,12 +107,35 @@ else
 fi
 
 # --- 4. SHA yang benar-benar ter-deploy vs HEAD repo -----------------------------------
+#
+# `git -C "$APP" rev-parse HEAD` GAGAL diam-diam kalau UID yang menjalankan skrip ini
+# beda dari pemilik $APP dan direktori itu belum didaftar sebagai `safe.directory` -
+# git menolak dengan "fatal: detected dubious ownership in repository", stderr biasanya
+# dibuang oleh caller, dan `head_sha` jadi string kosong. Penjaga `[ -n "$head_sha" ]`
+# lama menganggap itu sama dengan "state file belum ada" dan MELEWATI pemeriksaan tanpa
+# suara - persis kelas kegagalan yang diperingatkan CLAUDE.md §2: gerbang yang lulus
+# tanpa memeriksa apa pun, lebih buruk daripada merah. Direproduksi & dikonfirmasi
+# 2026-08-26: unit ini berjalan tanpa `User=` (root secara default), sementara
+# /opt/sahamlens/app dimiliki `lens`.
+#
+# Perbaikan dua lapis, bukan satu:
+#   1) unit systemd (sahamlens-uptime-monitor.service) diset `User=lens` supaya UID
+#      cocok dengan pemilik repo - kasus normal tidak pernah menyentuh masalah ini lagi.
+#   2) skrip ini TETAP memeriksa exit code git secara eksplisit dan melaporkan sebagai
+#      MASALAH kalau gagal karena alasan lain (mis. lupa redeploy unit file, atau
+#      ownership berubah lagi di masa depan) - supaya lapis pertama gagal pun, yang
+#      terjadi adalah alarm berisik, bukan pemeriksaan yang diam-diam kosong.
 if [ -f "$STATE_FILE" ] && [ -d "$APP/.git" ]; then
   deployed_sha="$(cat "$STATE_FILE" 2>/dev/null | tr -d '[:space:]')"
-  head_sha="$(git -C "$APP" rev-parse HEAD 2>/dev/null)"
-  if [ -n "$deployed_sha" ] && [ -n "$head_sha" ] && [ "$deployed_sha" != "$head_sha" ]; then
+  git_stderr="$(mktemp)"
+  head_sha="$(git -C "$APP" rev-parse HEAD 2>"$git_stderr")"
+  git_exit=$?
+  if [ "$git_exit" -ne 0 ]; then
+    problem "tidak bisa membaca HEAD repo produksi ($APP): git keluar dengan kode $git_exit - $(tr '\n' ' ' < "$git_stderr" | head -c 200)"
+  elif [ -n "$deployed_sha" ] && [ -n "$head_sha" ] && [ "$deployed_sha" != "$head_sha" ]; then
     problem "checkout produksi ada di $head_sha tapi yang benar-benar ter-deploy $deployed_sha - jalankan deploy-sahamlens --force"
   fi
+  rm -f "$git_stderr"
 fi
 
 # --- 5. Restart loop -------------------------------------------------------------------
