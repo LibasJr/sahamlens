@@ -36,28 +36,42 @@ export async function GET(request: NextRequest) {
       acc[row.status] += 1;
       return acc;
     }, { HEALTHY: 0, DEGRADED: 0, DOWN: 0, UNKNOWN: 0 } as Record<'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN', number>);
-    // Redis IKUT menentukan sehat/tidak, dan HANYA di produksi. Alasannya bukan
-    // performa cache - `cacheGet`/`cacheSet` memang sengaja degrade diam-diam ke cache
-    // memori dan itu benar. Yang tidak punya cadangan adalah `incrWithExpiry()`
-    // (shared/cache/redis-cache.ts): tanpa Redis ia mengembalikan `null`, dan pemanggilnya
-    // FAIL-OPEN. Artinya kuota harian dan rate limit berhenti berlaku tanpa satu pun
-    // gejala yang terlihat - persis kelas kegagalan diam yang paling mahal di repo ini
-    // (CLAUDE.md §7). Sebelum ini `/status` melapor "ok" untuk keadaan itu.
+    // Redis TERLIHAT lewat body.degraded, dan HANYA dianggap degradasi di produksi -
+    // tapi TIDAK LAGI menentukan kode status HTTP. Alasannya bukan performa cache -
+    // `cacheGet`/`cacheSet` memang sengaja degrade diam-diam ke cache memori dan itu
+    // benar. Yang tidak punya cadangan adalah `incrWithExpiry()` (shared/cache/redis-cache.ts):
+    // tanpa Redis ia mengembalikan `null`, dan pemanggilnya FAIL-OPEN. Artinya kuota
+    // harian dan rate limit berhenti berlaku tanpa satu pun gejala yang terlihat -
+    // persis kelas kegagalan diam yang paling mahal di repo ini (CLAUDE.md §7).
+    // Sebelum PR #152 `/status` melapor "ok" untuk keadaan itu.
     //
-    // SENGAJA di /api/health, bukan throw saat boot: Redis di sini murni cache, jadi
-    // mematikan seluruh aplikasi saat Redis mati justru menukar degradasi dengan
-    // pemadaman. Yang dibutuhkan cuma satu hal - keadaan itu harus TERLIHAT.
+    // KENAPA REDIS TIDAK LAGI MEMICU 503 (2026-08-26, revisi PR #152): 503 dari
+    // endpoint ini berarti "jangan kirim trafik ke sini" bagi siapa pun yang
+    // membacanya - Cloudflare/load balancer, dan deploy-vps.yml yang menuntut HTTP 200
+    // persis sebelum menyatakan deploy sukses (10 percobaan lalu MERAH). Redis di sini
+    // murni cache; aplikasi TETAP BISA melayani tanpanya. Membalas 503 untuk itu
+    // memblokir pengiriman kode - termasuk perbaikan untuk gangguan Redis itu sendiri -
+    // dan memaksa setiap konsumen endpoint ini (JobsMonitorClient, dll) menambal
+    // penanganan error satu per satu. Redis mati tetap harus TERLIHAT (body.degraded,
+    // body.status='degraded'), tapi lewat body, bukan kode status: pemantau yang
+    // peduli (external-health-watch.yml, deploy/uptime-monitor/) membaca body.degraded,
+    // bukan HTTP status, persis supaya perbedaan ini tidak menyembunyikan apa pun.
+    //
+    // Database TETAP satu-satunya alasan 503: kalau database mati, aplikasi memang
+    // tidak bisa melayani permintaan nyata - itulah bedanya dengan cache yang sengaja
+    // degrade dengan aman.
     const redisDegraded = isProduction() && checks.redis !== 'ok';
-    const healthy = checks.database === 'ok' && !redisDegraded;
+    const databaseDown = checks.database !== 'ok';
+    const degraded = [
+      ...(databaseDown ? ['database'] : []),
+      ...(redisDegraded ? [`redis:${checks.redis}`] : []),
+    ];
     return {
-      status: healthy ? 200 : 503,
+      status: databaseDown ? 503 : 200,
       body: {
-        status: healthy ? 'ok' : 'degraded',
+        status: degraded.length > 0 ? 'degraded' : 'ok',
         checks,
-        degraded: [
-          ...(checks.database === 'ok' ? [] : ['database']),
-          ...(redisDegraded ? [`redis:${checks.redis}`] : []),
-        ],
+        degraded,
         sources: { summary: sourceSummary, items: dataSources },
         timestamp: new Date().toISOString(),
       },
