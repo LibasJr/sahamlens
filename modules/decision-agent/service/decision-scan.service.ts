@@ -1,11 +1,12 @@
 import crypto from 'node:crypto';
 import { cacheGet } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
-import { readAiPickScores, readFundamentalSnapshot, type AiPickScores } from '@/shared/cache/ai-pick-cache';
+import { readAiPickScores, type AiPickScores } from '@/shared/cache/ai-pick-cache';
 import { getLensScoreValidationStatus } from '@/modules/validation';
 import type { NewsItem } from '@/modules/news';
-import { getOpenPaperPositionTickers, insertDecisionRun } from '../repository/decision-agent.repository';
+import { getIdxIcSectorMap, getOpenPaperPositionTickers, hasActivePilotProtocol, insertDecisionRun } from '../repository/decision-agent.repository';
 import { logger } from '@/shared/logger/logger';
+import { isTradingDay } from '@/shared/calendar/idx-trading-calendar';
 import { buildDecisionSignal } from './decision-engine';
 import { notifyDecisionSignalTransitions } from './decision-notification.service';
 import { applyHybridAnalysis } from './hybrid-analyst.service';
@@ -42,14 +43,16 @@ function summarize(signals: DecisionAgentRun['signals']): DecisionAgentRunSummar
 }
 
 export async function runDecisionAgentScan(options: DecisionScanOptions): Promise<DecisionAgentRun | null> {
+  const scheduledAt = options.now ?? new Date();
+  if (options.trigger === 'SCHEDULED' && (!isTradingDay(scheduledAt) || !(await hasActivePilotProtocol(scheduledAt)))) return null;
   const scores = options.scores === undefined ? await readAiPickScores() : options.scores;
   if (!scores || !Array.isArray(scores.scores) || scores.scores.length === 0) return null;
 
-  const [news, fundamentals] = await Promise.all([
+  const [news, sectorMap] = await Promise.all([
     options.news === undefined
       ? cacheGet<CachedMarketNews>(COMPUTED_CACHE_KEY.MARKET_NEWS)
       : Promise.resolve(options.news),
-    readFundamentalSnapshot(),
+    getIdxIcSectorMap(scores.scores.map((stock) => stock.symbol)),
   ]);
   const newsItems = Array.isArray(news?.items) ? news.items : [];
   const validation = getLensScoreValidationStatus();
@@ -64,7 +67,7 @@ export async function runDecisionAgentScan(options: DecisionScanOptions): Promis
       dataAsOf: scores.computedAt,
       now,
       modelValidated: validation.validated,
-      sector: fundamentals?.[stock.symbol]?.sector?.yahooSector ?? null,
+      sector: sectorMap.get(stock.symbol.replace(/\.JK$/i, '').toUpperCase()) ?? null,
     }))
     .sort((a, b) => b.lensScore - a.lensScore || a.ticker.localeCompare(b.ticker));
 

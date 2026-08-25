@@ -12,7 +12,7 @@ function candidate() {
   };
   return buildDecisionSignal({
     stock, bearish: false, newsItems: [], dataAsOf: '2026-08-24T03:00:00.000Z',
-    now: new Date('2026-08-24T03:10:00.000Z'), modelValidated: false,
+    now: new Date('2026-08-24T03:10:00.000Z'), modelValidated: false, sector: 'Financials',
   });
 }
 
