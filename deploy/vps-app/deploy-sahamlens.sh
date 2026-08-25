@@ -36,6 +36,7 @@ STATE_FILE="${SAHAMLENS_DEPLOY_STATE:-/opt/sahamlens/deployed-sha}"
 # di luar produksi hanya bisa dibuktikan dengan cara mencobanya di produksi - dan itulah
 # sebabnya cacat penentu kesegaran di atas bertahan begitu lama tanpa ketahuan.
 NPM_BIN="${SAHAMLENS_NPM_BIN:-/usr/bin/npm}"
+NODE_BIN="${SAHAMLENS_NODE_BIN:-/usr/bin/node}"
 SUDO="${SAHAMLENS_SUDO:-sudo}"
 HEALTH_URL="${SAHAMLENS_HEALTH_URL:-http://127.0.0.1:3001/}"
 
@@ -114,6 +115,13 @@ fi
 echo "Building..."
 if ! "$NPM_BIN" run build; then
   echo "BUILD GAGAL."
+  restore_previous
+  exit 1
+fi
+
+echo "Applying additive database migrations..."
+if ! "$NODE_BIN" --env-file=.env.production scripts/migrate-database.mjs --confirm; then
+  echo "DATABASE MIGRATION GAGAL. Service lama tetap berjalan; source dikembalikan."
   restore_previous
   exit 1
 fi

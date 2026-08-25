@@ -21,6 +21,7 @@ export interface BuildDecisionInput {
   dataAsOf: string;
   now?: Date;
   modelValidated: boolean;
+  sector?: string | null;
 }
 
 function finite(value: unknown): value is number {
@@ -34,13 +35,22 @@ function dataAgeMinutes(dataAsOf: string, now: Date): number | null {
 }
 
 function newsEvidence(ticker: string, items: NewsItem[]): DecisionNewsEvidence {
-  const matched = items.filter((item) => matchesCompany(item.title, ticker));
+  const matched = items.filter((item) => matchesCompany(`${item.title} ${item.summary ?? ''}`, ticker));
+  const hasSummary = matched.some((item) => item.evidenceBasis === 'RSS_SUMMARY');
   return {
     positive: matched.filter((item) => item.sentiment === 'POSITIF').length,
     neutral: matched.filter((item) => item.sentiment === 'NETRAL').length,
     negative: matched.filter((item) => item.sentiment === 'NEGATIF').length,
     matchedHeadlines: matched.slice(0, 3).map((item) => item.title),
-    basis: matched.length > 0 ? 'HEADLINE_ONLY' : 'UNAVAILABLE',
+    matchedArticles: matched.slice(0, 3).map((item) => ({
+      title: item.title,
+      source: item.source,
+      url: item.link,
+      publishedAt: item.pubDate,
+      eventType: item.intelligence?.eventType ?? 'OTHER',
+      basis: item.evidenceBasis === 'RSS_SUMMARY' ? 'RSS_SUMMARY' : 'HEADLINE_ONLY',
+    })),
+    basis: matched.length === 0 ? 'UNAVAILABLE' : hasSummary ? 'RSS_SUMMARY' : 'HEADLINE_ONLY',
   };
 }
 
@@ -125,6 +135,8 @@ export function buildDecisionSignal(input: BuildDecisionInput): DecisionAgentSig
     stale,
     modelValidated: input.modelValidated,
     scoreBreakdown: breakdownAvailable ? stock.breakdown : null,
+    sector: input.sector?.trim() || null,
+    avgValue20d: finite(stock.avgValue20d) && stock.avgValue20d > 0 ? stock.avgValue20d : null,
     riskSetup: setup,
     news,
     supportingReasons: (stock.topReasons ?? []).slice(0, 3),

@@ -24,7 +24,7 @@ export interface StructuredNewsCardItem {
       summary: string;
     };
     confidence: number;
-    evidenceBasis: 'HEADLINE_ONLY';
+    evidenceBasis: 'HEADLINE_ONLY' | 'RSS_SUMMARY';
   };
 }
 

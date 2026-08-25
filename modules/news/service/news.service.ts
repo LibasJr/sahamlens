@@ -3,6 +3,7 @@ import { generateAI } from '@/lib/aiProviders';
 import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 import {
   classifyEventByRules,
+  type NewsEvidenceBasis,
   type StructuredEventIntelligence,
 } from './structured-event-intelligence.service';
 import { classifyStructuredWithCouncilAI } from './news-intelligence-ai.service';
@@ -57,15 +58,28 @@ export type NewsItem = {
   pubDate: string;
   sentiment: Sentiment;
   reason: string;
+  summary: string | null;
+  evidenceBasis: NewsEvidenceBasis;
   intelligence: StructuredEventIntelligence;
 };
+
+function cleanRssSummary(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const clean = value
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return clean.length >= 20 ? clean.slice(0, 1_500) : null;
+}
 
 async function fetchFeed(feed: { name: string; url: string }, limit = 15) {
   const startedAt = Date.now();
   const sourceId = `RSS_${new URL(feed.url).hostname.replace(/^www\./, '').replace(/[^a-z0-9]+/gi, '_').toUpperCase()}`;
   try {
     const parsed = await parser.parseURL(feed.url);
-    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({
+    if (process.env.NODE_ENV !== 'test') await recordDataSourceHealth({
       sourceId,
       ok: true,
       latencyMs: Date.now() - startedAt,
@@ -76,11 +90,12 @@ async function fetchFeed(feed: { name: string; url: string }, limit = 15) {
       title: (item.title || '').trim(),
       link: item.link || '',
       source: feed.name,
-      pubDate: item.pubDate || item.isoDate || new Date().toISOString(),
+      pubDate: item.pubDate || item.isoDate || '',
+      summary: cleanRssSummary(item.contentSnippet ?? item.content ?? item.summary),
     }));
   } catch (e) {
     console.warn(`[news] Gagal fetch RSS ${feed.name}:`, e);
-    if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId, ok: false, latencyMs: Date.now() - startedAt, detail: { feed: feed.name, error: e instanceof Error ? e.message : String(e) } });
+    if (process.env.NODE_ENV !== 'test') await recordDataSourceHealth({ sourceId, ok: false, latencyMs: Date.now() - startedAt, detail: { feed: feed.name, error: e instanceof Error ? e.message : String(e) } });
     return [];
   }
 }
@@ -157,7 +172,7 @@ export async function getMarketNews(): Promise<{
   items: NewsItem[];
   sentimentSource: 'council-ai' | 'keyword-fallback';
   intelligenceSource: 'council-ai' | 'rule-fallback';
-  intelligenceBasis: 'headline-only';
+  intelligenceBasis: 'rss-summary-when-available';
 }> {
   // limit 30 (bukan default 15) - filter isMarketRelevant() di bawah cukup ketat
   // (istilah pasar saham spesifik), jadi dari 15 judul/sumber sering cuma segelintir
@@ -196,22 +211,29 @@ export async function getMarketNews(): Promise<{
   // lebih murah daripada dua cache/panggilan AI terpisah untuk hal yang sama.
   const pool = deduped.filter((item) => isMarketRelevant(item.title));
 
-  pool.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+  pool.sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0));
   const top = pool.slice(0, 40);
 
-  const aiClassifications = await classifyStructuredWithCouncilAI(top.map((t) => t.title));
+  const evidence = top.map((item) => ({
+    title: item.title,
+    summary: item.summary,
+    basis: item.summary ? 'RSS_SUMMARY' as const : 'HEADLINE_ONLY' as const,
+  }));
+  const aiClassifications = await classifyStructuredWithCouncilAI(evidence);
   const sentimentSource: 'council-ai' | 'keyword-fallback' = aiClassifications ? 'council-ai' : 'keyword-fallback';
   const intelligenceSource: 'council-ai' | 'rule-fallback' = aiClassifications ? 'council-ai' : 'rule-fallback';
 
   const items: NewsItem[] = top.map((item, i) => {
-    const sentiment = aiClassifications ? aiClassifications[i] : keywordSentiment(item.title);
+    const basis = item.summary ? 'RSS_SUMMARY' as const : 'HEADLINE_ONLY' as const;
+    const evidenceText = item.summary ? `${item.title} ${item.summary}` : item.title;
+    const sentiment = aiClassifications ? aiClassifications[i] : keywordSentiment(evidenceText);
     const intelligence = aiClassifications
       ? aiClassifications[i].intelligence
-      : classifyEventByRules(item.title);
-    return { ...item, sentiment: sentiment.sentiment, reason: sentiment.reason, intelligence };
+      : classifyEventByRules(item.title, basis, item.summary);
+    return { ...item, evidenceBasis: basis, sentiment: sentiment.sentiment, reason: sentiment.reason, intelligence };
   });
 
-  return { items, sentimentSource, intelligenceSource, intelligenceBasis: 'headline-only' };
+  return { items, sentimentSource, intelligenceSource, intelligenceBasis: 'rss-summary-when-available' };
 }
 
 // `sentiment: null` = saham TIDAK disebut media dalam siklus data ini (tidak ada
@@ -341,7 +363,7 @@ export async function getStockNews(symbol: string, companyName?: string): Promis
   items: NewsItem[];
   sentimentSource: 'council-ai' | 'keyword-fallback';
   intelligenceSource: 'council-ai' | 'rule-fallback';
-  intelligenceBasis: 'headline-only';
+  intelligenceBasis: 'rss-summary-when-available';
 }> {
   const results = await Promise.all(RSS_FEEDS.map((f) => fetchFeed(f, 40)));
   const merged = results.flat();
@@ -357,20 +379,27 @@ export async function getStockNews(symbol: string, companyName?: string): Promis
     seen.add(item.title);
     return true;
   });
-  deduped.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+  deduped.sort((a, b) => (Date.parse(b.pubDate) || 0) - (Date.parse(a.pubDate) || 0));
   const top = deduped.slice(0, 8);
 
-  const aiClassifications = await classifyStructuredWithCouncilAI(top.map((t) => t.title));
+  const evidence = top.map((item) => ({
+    title: item.title,
+    summary: item.summary,
+    basis: item.summary ? 'RSS_SUMMARY' as const : 'HEADLINE_ONLY' as const,
+  }));
+  const aiClassifications = await classifyStructuredWithCouncilAI(evidence);
   const sentimentSource: 'council-ai' | 'keyword-fallback' = aiClassifications ? 'council-ai' : 'keyword-fallback';
   const intelligenceSource: 'council-ai' | 'rule-fallback' = aiClassifications ? 'council-ai' : 'rule-fallback';
 
   const items: NewsItem[] = top.map((item, i) => {
-    const sentiment = aiClassifications ? aiClassifications[i] : keywordSentiment(item.title);
+    const basis = item.summary ? 'RSS_SUMMARY' as const : 'HEADLINE_ONLY' as const;
+    const evidenceText = item.summary ? `${item.title} ${item.summary}` : item.title;
+    const sentiment = aiClassifications ? aiClassifications[i] : keywordSentiment(evidenceText);
     const intelligence = aiClassifications
       ? aiClassifications[i].intelligence
-      : classifyEventByRules(item.title);
-    return { ...item, sentiment: sentiment.sentiment, reason: sentiment.reason, intelligence };
+      : classifyEventByRules(item.title, basis, item.summary);
+    return { ...item, evidenceBasis: basis, sentiment: sentiment.sentiment, reason: sentiment.reason, intelligence };
   });
 
-  return { items, sentimentSource, intelligenceSource, intelligenceBasis: 'headline-only' };
+  return { items, sentimentSource, intelligenceSource, intelligenceBasis: 'rss-summary-when-available' };
 }
