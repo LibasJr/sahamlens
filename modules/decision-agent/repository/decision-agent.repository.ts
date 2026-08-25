@@ -184,11 +184,11 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
         WHERE s.action='BUY_CANDIDATE' AND s.paper_readiness='PAPER_READY'
         ORDER BY s.ticker,(s.data_as_of AT TIME ZONE 'Asia/Jakarta')::date,s.created_at
       ), signal_prices AS (
-        SELECT signal.id,signal.verdict,calendar.offset,
+        SELECT signal.id,signal.verdict,calendar.horizon_offset,
                calendar.price
         FROM daily_signals signal
         CROSS JOIN LATERAL (
-          SELECT observed.price,ROW_NUMBER() OVER (ORDER BY observed.date)::int AS offset
+          SELECT observed.price,ROW_NUMBER() OVER (ORDER BY observed.date)::int AS horizon_offset
           FROM (
             SELECT history.date,
                    COALESCE(history.adjusted_close_price,history.raw_close_price,history.close_price)::numeric AS price
@@ -197,12 +197,12 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
             ORDER BY history.date LIMIT 20
           ) observed
         ) calendar
-        WHERE calendar.offset IN (1,5,20)
+        WHERE calendar.horizon_offset IN (1,5,20)
       )
       SELECT id,verdict,
-             MAX(price) FILTER (WHERE offset=1) AS entry_price,
-             MAX(price) FILTER (WHERE offset=5) AS t5_price,
-             MAX(price) FILTER (WHERE offset=20) AS t20_price
+             MAX(price) FILTER (WHERE horizon_offset=1) AS entry_price,
+             MAX(price) FILTER (WHERE horizon_offset=5) AS t5_price,
+             MAX(price) FILTER (WHERE horizon_offset=20) AS t20_price
       FROM signal_prices GROUP BY id,verdict
     `),
   ]);
