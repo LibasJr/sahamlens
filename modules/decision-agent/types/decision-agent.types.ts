@@ -166,6 +166,7 @@ export interface PaperAccount {
   maxOpenPositions: number;
   maxTotalExposurePct: number | null;
   maxSectorExposurePct: number | null;
+  maxPositionsPerSector: number | null;
   maxAdvParticipationPct: number | null;
   maxDrawdownPct: number | null;
   buyFeePct: number | null;
