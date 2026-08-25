@@ -8,6 +8,9 @@ import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 type ActionBody =
   | { action: 'scan' }
+  | { action: 'freeze-pilot-protocol' }
+  | { action: 'import-idx-ic'; csvText: string; sourceUrl: string; sourceAsOf: string }
+  | { action: 'import-stockbit'; csvText: string; filename: string; sourceType: 'TRANSACTION_HISTORY' | 'E_STATEMENT' }
   | { action: 'configure-paper-account'; config: {
       initialCash: number; riskBudgetPct: number; maxPositionPct: number; maxOpenPositions: number;
       maxTotalExposurePct: number; maxSectorExposurePct: number; maxAdvParticipationPct: number;
@@ -104,6 +107,20 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
   const [invalidation, setInvalidation] = useState('');
   const [catalyst, setCatalyst] = useState('');
   const [reviewAt, setReviewAt] = useState('');
+  const [idxSourceUrl, setIdxSourceUrl] = useState('');
+  const [idxSourceAsOf, setIdxSourceAsOf] = useState('');
+
+  async function importFile(file: File | undefined, kind: 'IDX_IC' | 'STOCKBIT') {
+    if (!file) return;
+    if (file.size > 5_000_000) { setError('File maksimal 5 MB.'); return; }
+    const csvText = await file.text();
+    if (kind === 'IDX_IC') {
+      if (!idxSourceUrl || !idxSourceAsOf) { setError('URL sumber resmi IDX dan tanggal as-of wajib diisi.'); return; }
+      await act({ action: 'import-idx-ic', csvText, sourceUrl: idxSourceUrl, sourceAsOf: idxSourceAsOf }, 'Klasifikasi IDX-IC resmi diimpor.');
+    } else {
+      await act({ action: 'import-stockbit', csvText, filename: file.name, sourceType: 'TRANSACTION_HISTORY' }, 'Transaction History Stockbit diimpor dan direkonsiliasi.');
+    }
+  }
 
   async function load() {
     setBusy(true); setError(null);
@@ -182,6 +199,7 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
         <div>Unrealized P/L<br/><b className="font-number">Rp {formatNumber(dashboard.performance.unrealizedPnl)}</b></div>
         <div>Max drawdown<br/><b className="font-number">{dashboard.performance.maxDrawdownPct == null ? '—' : `${formatNumber(dashboard.performance.maxDrawdownPct, 2)}%`}</b></div>
         <div>Avg MAE / MFE<br/><b className="font-number">{dashboard.performance.averageMaePct == null ? '—' : `${formatNumber(dashboard.performance.averageMaePct, 2)}% / ${formatNumber(dashboard.performance.averageMfePct, 2)}%`}</b></div>
+        <div>Biaya eksternal<br/><b className="font-number">Rp {formatNumber(dashboard.performance.externalCosts)}</b></div>
       </div>
       <div className="mt-4 border-t border-tv-border pt-4">
         <div className="text-sm font-bold">Konteks risiko portofolio</div>
@@ -193,6 +211,23 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
         <div className="text-sm font-bold">Shadow evaluation rule vs hybrid</div>
         <p className="mt-1 text-xs text-tv-muted">Entry = penutupan perdagangan teramati berikutnya; T+5/T+20 memakai kalender tanggal pasar yang tersedia di database. Baris tanpa horizon lengkap tidak dihitung.</p>
         <div className="mt-3 overflow-x-auto"><table className="min-w-full text-left text-xs"><thead className="text-tv-muted"><tr><th className="px-2 py-2">Cohort</th><th className="px-2 py-2">N T+5</th><th className="px-2 py-2">Avg T+5</th><th className="px-2 py-2">Hit T+5</th><th className="px-2 py-2">N T+20</th><th className="px-2 py-2">Avg T+20</th><th className="px-2 py-2">Hit T+20</th></tr></thead><tbody>{dashboard.shadowEvaluation.cohorts.map((item) => <tr key={item.cohort} className="border-t border-tv-border"><td className="px-2 py-2 font-bold">{item.cohort}</td><td className="px-2 py-2">{item.t5Count}</td><td className="px-2 py-2">{item.t5AverageReturnPct == null ? '—' : `${formatNumber(item.t5AverageReturnPct, 2)}%`}</td><td className="px-2 py-2">{item.t5HitRatePct == null ? '—' : `${formatNumber(item.t5HitRatePct, 1)}%`}</td><td className="px-2 py-2">{item.t20Count}</td><td className="px-2 py-2">{item.t20AverageReturnPct == null ? '—' : `${formatNumber(item.t20AverageReturnPct, 2)}%`}</td><td className="px-2 py-2">{item.t20HitRatePct == null ? '—' : `${formatNumber(item.t20HitRatePct, 1)}%`}</td></tr>)}</tbody></table></div>
+      </div>
+    </Card>
+
+    <Card as="section" className="p-5">
+      <h2 className="font-heading text-lg font-bold">Kontrol data & protokol</h2>
+      <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
+        <div>Protokol pilot<br/><b>{dashboard.pilotProtocol ? `${dashboard.pilotProtocol.status} sampai ${formatTime(dashboard.pilotProtocol.endsAt)}` : 'BELUM DIBEKUKAN'}</b></div>
+        <div>IDX-IC resmi<br/><b>{dashboard.dataControls.idxIcCount} ticker · as-of {dashboard.dataControls.idxIcLatestAsOf ?? '—'}</b></div>
+        <div>Telegram<br/><b>{dashboard.dataControls.telegramConfigured ? 'TERKONFIGURASI' : 'BELUM TERKONFIGURASI'}</b></div>
+        <div>Impor Stockbit<br/><b>{dashboard.dataControls.brokerImportCount} file · {dashboard.dataControls.brokerTransactionCount} transaksi</b></div>
+        <div>Belum cocok<br/><b>{dashboard.dataControls.unmatchedBrokerTransactions} transaksi</b></div>
+        <div>Live order<br/><b>TERKUNCI</b></div>
+      </div>
+      {!dashboard.pilotProtocol && <Button className="mt-4" disabled={busy || !account} onClick={() => void act({ action: 'freeze-pilot-protocol' }, 'Protokol 90 hari dibekukan dan diaktifkan.')}>Bekukan protokol 90 hari</Button>}
+      <div className="mt-5 grid gap-4 border-t border-tv-border pt-4 md:grid-cols-2">
+        <div className="space-y-2"><b className="text-sm">Impor klasifikasi IDX-IC resmi</b><input className="w-full rounded border border-tv-border bg-tv-bg px-3 py-2 text-sm" placeholder="URL dokumen resmi IDX" value={idxSourceUrl} onChange={(event)=>setIdxSourceUrl(event.target.value)}/><input type="date" className="w-full rounded border border-tv-border bg-tv-bg px-3 py-2 text-sm" value={idxSourceAsOf} onChange={(event)=>setIdxSourceAsOf(event.target.value)}/><input aria-label="File CSV IDX-IC" type="file" accept=".csv,text/csv" disabled={busy} onChange={(event)=>void importFile(event.target.files?.[0], 'IDX_IC')}/><p className="text-xs text-tv-muted">Header minimal: ticker,sector_name. BUY fail-closed bila ticker belum ada.</p></div>
+        <div className="space-y-2"><b className="text-sm">Impor Transaction History Stockbit</b><input aria-label="File CSV Stockbit" type="file" accept=".csv,text/csv" disabled={busy} onChange={(event)=>void importFile(event.target.files?.[0], 'STOCKBIT')}/><p className="text-xs text-tv-muted">Transaksi: trade_date,ticker,side,lots,price,gross_value,fee_value. Biaya aktual: record_type=COST,cost_type,amount. Tidak memakai PIN, cookie, atau scraping.</p></div>
       </div>
     </Card>
 

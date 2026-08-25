@@ -166,7 +166,7 @@ function average(values: number[]): number | null {
 
 export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboard> {
   await ensureSharedSchema();
-  const [runResult, accountResult, positionResult, orderResult, roundTripResult, navSnapshotResult, thesisResult, shadowResult] = await Promise.all([
+  const [runResult, accountResult, positionResult, orderResult, roundTripResult, navSnapshotResult, thesisResult, shadowResult, protocolResult, controlsResult] = await Promise.all([
     pool.query(`SELECT * FROM decision_agent_runs ORDER BY created_at DESC LIMIT 1`),
     pool.query(`SELECT * FROM decision_agent_paper_accounts WHERE id = 'internal-paper'`),
     pool.query(`SELECT * FROM decision_agent_paper_positions WHERE account_id = 'internal-paper' AND lots > 0 ORDER BY ticker`),
@@ -205,6 +205,15 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
              MAX(price) FILTER (WHERE horizon_offset=20) AS t20_price
       FROM signal_prices GROUP BY id,verdict
     `),
+    pool.query(`SELECT * FROM decision_agent_pilot_protocols WHERE account_id='internal-paper' ORDER BY frozen_at DESC LIMIT 1`),
+    pool.query(`SELECT
+      (SELECT COUNT(*)::int FROM idx_ic_classifications) AS idx_ic_count,
+      (SELECT MAX(source_as_of) FROM idx_ic_classifications) AS idx_ic_latest_as_of,
+      (SELECT source_url FROM idx_ic_classifications ORDER BY source_as_of DESC,imported_at DESC LIMIT 1) AS idx_ic_source_url,
+      (SELECT COUNT(*)::int FROM decision_agent_broker_imports) AS broker_import_count,
+      (SELECT COUNT(*)::int FROM decision_agent_broker_transactions) AS broker_transaction_count,
+      (SELECT COUNT(*)::int FROM decision_agent_broker_transactions WHERE reconciliation_status='UNMATCHED') AS unmatched_broker_transactions,
+      (SELECT COALESCE(SUM(amount),0) FROM decision_agent_paper_costs WHERE account_id='internal-paper') AS external_costs`),
   ]);
 
   const runRow = runResult.rows[0] as Record<string, unknown> | undefined;
@@ -284,6 +293,7 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
     maxDrawdownPct,
     averageMaePct: average(closedTrips.map((row) => number(row.observed_mae_pct))),
     averageMfePct: average(closedTrips.map((row) => number(row.observed_mfe_pct))),
+    externalCosts: number(controlsResult.rows[0]?.external_costs ?? 0),
   };
   const shadowRows = shadowResult.rows.map((row) => {
     const entry = row.entry_price == null ? null : number(row.entry_price);
@@ -323,6 +333,8 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
     if (breachedSector) blockers.push(`Batas exposure sektor ${breachedSector.sector} tercapai.`);
   }
 
+  const protocolRow = protocolResult.rows[0] as Record<string, unknown> | undefined;
+  const controlsRow = controlsResult.rows[0] as Record<string, unknown>;
   return {
     latestRun: runRow ? {
       id: String(runRow.id),
@@ -359,7 +371,46 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
       reviewAt: new Date(String(row.review_at)).toISOString(), sourceType: 'USER_APPROVED' as const,
       createdAt: new Date(String(row.created_at)).toISOString(), updatedAt: new Date(String(row.updated_at)).toISOString(),
     })),
+    pilotProtocol: protocolRow ? {
+      status: protocolRow.status as 'ACTIVE' | 'COMPLETED',
+      startedAt: new Date(String(protocolRow.started_at)).toISOString(),
+      endsAt: new Date(String(protocolRow.ends_at)).toISOString(),
+      frozenAt: new Date(String(protocolRow.frozen_at)).toISOString(),
+      engineVersion: String(protocolRow.engine_version),
+      policySnapshot: protocolRow.policy_snapshot as Record<string, unknown>,
+    } : null,
+    dataControls: {
+      idxIcCount: number(controlsRow.idx_ic_count ?? 0),
+      idxIcLatestAsOf: controlsRow.idx_ic_latest_as_of ? String(controlsRow.idx_ic_latest_as_of).slice(0, 10) : null,
+      idxIcSourceUrl: controlsRow.idx_ic_source_url == null ? null : String(controlsRow.idx_ic_source_url),
+      brokerImportCount: number(controlsRow.broker_import_count ?? 0),
+      brokerTransactionCount: number(controlsRow.broker_transaction_count ?? 0),
+      unmatchedBrokerTransactions: number(controlsRow.unmatched_broker_transactions ?? 0),
+      externalCosts: number(controlsRow.external_costs ?? 0),
+      telegramConfigured: Boolean(process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID),
+    },
   };
+}
+
+export async function getIdxIcSectorMap(tickers: readonly string[]): Promise<Map<string, string>> {
+  await ensureSharedSchema();
+  if (tickers.length === 0) return new Map();
+  const normalized = [...new Set(tickers.map((ticker) => ticker.replace(/\.JK$/i, '').toUpperCase()))];
+  const { rows } = await pool.query(
+    `SELECT ticker,sector_name FROM idx_ic_classifications WHERE ticker = ANY($1::text[])`,
+    [normalized],
+  );
+  return new Map(rows.map((row) => [String(row.ticker), String(row.sector_name)]));
+}
+
+export async function hasActivePilotProtocol(now = new Date()): Promise<boolean> {
+  await ensureSharedSchema();
+  const { rows } = await pool.query(
+    `SELECT 1 FROM decision_agent_pilot_protocols
+     WHERE account_id='internal-paper' AND status='ACTIVE' AND started_at <= $1 AND ends_at > $1`,
+    [now.toISOString()],
+  );
+  return Boolean(rows[0]);
 }
 
 export async function getOpenPaperPositionTickers(): Promise<Set<string>> {

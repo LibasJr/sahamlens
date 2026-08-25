@@ -84,7 +84,10 @@ export function buildDecisionSignal(input: BuildDecisionInput): DecisionAgentSig
     && finite(stock.breakdown.flow);
   const eligible = stock.eligibilityStatus === 'ELIGIBLE';
   const categoryKnown = stock.kategori != null && stock.kategori !== 'DATA TIDAK CUKUP';
-  const dataQualityOk = coverageOk && eligible && categoryKnown && breakdownAvailable;
+  // Portfolio diversification is enforced against official IDX-IC only. Missing
+  // classification is data-quality failure, never silently replaced by Yahoo taxonomy.
+  const officialSectorAvailable = Boolean(input.sector?.trim());
+  const dataQualityOk = coverageOk && eligible && categoryKnown && breakdownAvailable && officialSectorAvailable;
 
   let action: DecisionAction = 'HOLD';
   const opposingReasons: string[] = [];
@@ -93,6 +96,7 @@ export function buildDecisionSignal(input: BuildDecisionInput): DecisionAgentSig
   if (!dataQualityOk) {
     action = 'NO_SIGNAL';
     invalidationReasons.push('Kualitas atau kelayakan data belum memenuhi gerbang internal.');
+    if (!officialSectorAvailable) invalidationReasons.push('Klasifikasi sektor resmi IDX-IC belum tersedia.');
   } else if (input.bearish || stock.kategori?.includes('SELL')) {
     action = 'EXIT_REVIEW';
     opposingReasons.push('Tren atau kategori teknikal berada pada sisi bearish.');

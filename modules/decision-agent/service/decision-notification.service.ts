@@ -16,25 +16,23 @@ function number(value: number, digits = 0): string {
  */
 export async function notifyDecisionSignalTransitions(runId: string): Promise<number> {
   const transitions = (await getDecisionSignalTransitions(runId)).filter(({ signal }) =>
-    signal.paperReadiness === 'PAPER_READY'
-    && signal.hybridStatus === 'CONFIRMED'
-    && signal.hybridReview?.verdict === 'CONFIRM'
-    && (signal.action === 'BUY_CANDIDATE' || signal.action === 'EXIT_REVIEW'),
+    ['BUY_CANDIDATE', 'HOLD', 'EXIT_REVIEW'].includes(signal.action),
   );
-  let sent = 0;
-  for (const { signal, previousAction } of transitions) {
-    const risk = signal.riskSetup
-      ? `\nEntry snapshot: ${number(signal.riskSetup.entry)} | Stop: ${number(signal.riskSetup.stop)} | Target 1: ${number(signal.riskSetup.target1)} | RR: ${number(signal.riskSetup.riskReward, 2)}`
-      : '';
-    const message = [
-      '<b>SahamLens Internal Decision Alert</b>',
-      `<b>${escapeHtml(signal.ticker)}</b>: ${previousAction} → ${signal.action}`,
-      `LensScore: ${number(signal.lensScore, 1)} | Coverage: ${signal.coveragePct == null ? 'tidak tersedia' : `${number(signal.coveragePct, 1)}%`}${risk}`,
-      `Data as-of: ${escapeHtml(signal.dataAsOf)}`,
-      'Status: paper review only; bukan eksekusi broker.',
-    ].join('\n');
-    if (await sendTelegramMessage(message)) sent += 1;
-    else logger.warn('Notifikasi decision agent tidak terkirim', { module: 'decision-agent', ticker: signal.ticker, runId });
-  }
-  return sent;
+  if (transitions.length === 0) return 0;
+  const lines = transitions.slice(0, 20).map(({ signal, previousAction }) => {
+    const executable = signal.paperReadiness === 'PAPER_READY'
+      && signal.hybridStatus === 'CONFIRMED' && signal.hybridReview?.verdict === 'CONFIRM';
+    const blocker = executable ? 'siap ditinjau admin' : signal.invalidationReasons[0] || signal.opposingReasons[0] || `hybrid ${signal.hybridStatus}`;
+    return `<b>${escapeHtml(signal.ticker)}</b> ${previousAction} → ${signal.action} | score ${number(signal.lensScore, 1)} | ${escapeHtml(blocker)}`;
+  });
+  const latest = transitions[0]!.signal;
+  const message = [
+    '<b>SahamLens Internal Decision Update</b>',
+    ...lines,
+    `Data as-of: ${escapeHtml(latest.dataAsOf)} | ${latest.stale ? 'STALE' : 'FRESH'}`,
+    'Tidak ada order otomatis. Paper order tetap memerlukan persetujuan admin; live broker terkunci.',
+  ].join('\n');
+  if (await sendTelegramMessage(message)) return 1;
+  logger.warn('Notifikasi decision agent tidak terkirim', { module: 'decision-agent', runId });
+  return 0;
 }

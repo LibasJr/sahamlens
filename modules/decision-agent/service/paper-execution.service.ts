@@ -44,6 +44,8 @@ export function assertHybridConfirmed(signal: DecisionAgentSignal): void {
 
 export async function configurePaperAccount(input: ConfigurePaperAccountInput): Promise<void> {
   await ensureSharedSchema();
+  const frozen = await pool.query(`SELECT 1 FROM decision_agent_pilot_protocols WHERE account_id=$1 AND status='ACTIVE'`, [ACCOUNT_ID]);
+  if (frozen.rows[0]) throw new ConflictError('Kebijakan sedang dibekukan selama pilot 90 hari');
   await pool.query(
     `INSERT INTO decision_agent_paper_accounts
       (id, name, cash, initial_cash, risk_budget_pct, max_position_pct, max_open_positions,
@@ -480,6 +482,29 @@ export async function executePaperOrder(
         WHERE id=$1 RETURNING *`,
       [orderId, price, fill.grossValue, fill.feeValue, asNumber(account.slippage_bps), priceSource, priceAsOf, freshness],
     );
+    // Stockbit mengenakan satu bea materai Rp10.000 untuk Trade Confirmation jika
+    // total nilai transaksi bursa pada hari tersebut > Rp10 juta. Aturan ini berasal
+    // dari dokumentasi broker; datafeed tidak dihitung otomatis karena tarifnya
+    // bertingkat dan harus berasal dari statement aktual.
+    const dailyGross = await client.query(
+      `SELECT COALESCE(SUM(gross_value),0) AS total FROM decision_agent_orders
+       WHERE account_id=$1 AND status='EXECUTED'
+         AND (executed_at AT TIME ZONE 'Asia/Jakarta')::date=(NOW() AT TIME ZONE 'Asia/Jakarta')::date`,
+      [ACCOUNT_ID],
+    );
+    if (asNumber(dailyGross.rows[0]?.total) > 10_000_000) {
+      const stamp = await client.query(
+        `INSERT INTO decision_agent_paper_costs
+         (id,account_id,cost_type,amount,observed_date,source_type,source_reference)
+         VALUES ($1,$2,'STAMP_DUTY',10000,(NOW() AT TIME ZONE 'Asia/Jakarta')::date,'STOCKBIT_RULE',$3)
+         ON CONFLICT DO NOTHING RETURNING amount`,
+        [crypto.randomUUID(),ACCOUNT_ID,'https://help.stockbit.com/id/article/apa-itu-biaya-bea-materai-p08y2z/'],
+      );
+      if (stamp.rows[0]) {
+        const cashUpdate = await client.query(`UPDATE decision_agent_paper_accounts SET cash=cash-10000,updated_at=NOW() WHERE id=$1 AND cash>=10000 RETURNING id`, [ACCOUNT_ID]);
+        if (!cashUpdate.rows[0]) throw new ConflictError('Kas paper tidak cukup untuk bea materai Stockbit');
+      }
+    }
     const navResult = await client.query(
       `SELECT a.cash,COALESCE(SUM(p.lots*100*p.last_price),0) AS positions_value
          FROM decision_agent_paper_accounts a
