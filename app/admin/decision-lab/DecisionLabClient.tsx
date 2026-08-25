@@ -11,6 +11,7 @@ type ActionBody =
   | { action: 'configure-paper-account'; config: {
       initialCash: number; riskBudgetPct: number; maxPositionPct: number; maxOpenPositions: number;
       maxTotalExposurePct: number; maxSectorExposurePct: number; maxAdvParticipationPct: number;
+      maxPositionsPerSector: number;
       maxDrawdownPct: number; buyFeePct: number; sellFeePct: number; slippageBps: number;
     } }
   | { action: 'propose-paper-order'; signalId: string; thesis?: {
@@ -95,6 +96,7 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
   const [policy, setPolicy] = useState({
     initialCash: '', riskBudgetPct: '', maxPositionPct: '', maxOpenPositions: '',
     maxTotalExposurePct: '', maxSectorExposurePct: '', maxAdvParticipationPct: '',
+    maxPositionsPerSector: '',
     maxDrawdownPct: '', buyFeePct: '', sellFeePct: '', slippageBps: '',
   });
   const [selectedSignal, setSelectedSignal] = useState<PersistedDecisionSignal | null>(null);
@@ -217,13 +219,14 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
 
     <Card as="section" className="p-5">
       <h2 className="font-heading text-lg font-bold">Akun paper terisolasi</h2>
-      {account ? <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><div>Kas<br/><b className="font-number">Rp {formatNumber(account.cash)}</b></div><div>NAV mark-to-market<br/><b className="font-number">Rp {formatNumber(nav)}</b></div><div>Risk/order<br/><b>{formatNumber(account.riskBudgetPct, 2)}%</b></div><div>Maks posisi<br/><b>{formatNumber(account.maxPositionPct, 2)}% · {account.maxOpenPositions} saham</b></div><div>Total exposure<br/><b>{formatNumber(account.maxTotalExposurePct, 2)}%</b></div><div>Exposure sektor<br/><b>{formatNumber(account.maxSectorExposurePct, 2)}%</b></div><div>Partisipasi ADV20<br/><b>{formatNumber(account.maxAdvParticipationPct, 2)}%</b></div><div>Kill-switch drawdown<br/><b>{formatNumber(account.maxDrawdownPct, 2)}%</b></div></div> : <p className="mt-2 text-sm text-tv-muted">Belum dikonfigurasi. Tidak ada saldo awal, fee, atau batas risiko otomatis.</p>}
+      {account ? <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><div>Kas<br/><b className="font-number">Rp {formatNumber(account.cash)}</b></div><div>NAV mark-to-market<br/><b className="font-number">Rp {formatNumber(nav)}</b></div><div>Risk/order<br/><b>{formatNumber(account.riskBudgetPct, 2)}%</b></div><div>Maks posisi<br/><b>{formatNumber(account.maxPositionPct, 2)}% · {account.maxOpenPositions} saham</b></div><div>Total exposure<br/><b>{formatNumber(account.maxTotalExposurePct, 2)}%</b></div><div>Exposure sektor<br/><b>{formatNumber(account.maxSectorExposurePct, 2)}% · {formatNumber(account.maxPositionsPerSector)} saham/sektor</b></div><div>Partisipasi ADV20<br/><b>{formatNumber(account.maxAdvParticipationPct, 2)}%</b></div><div>Kill-switch drawdown<br/><b>{formatNumber(account.maxDrawdownPct, 2)}%</b></div></div> : <p className="mt-2 text-sm text-tv-muted">Belum dikonfigurasi. Tidak ada saldo awal, fee, atau batas risiko otomatis.</p>}
       <p className="mt-4 text-xs text-tv-muted">Masukkan kebijakan aktual yang akan dipakai selama pilot. Sistem tidak mengisi asumsi broker atau toleransi risiko secara otomatis.</p>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {([
           ['initialCash', 'Modal awal paper (Rp)'], ['riskBudgetPct', 'Risk/order % (maks 5)'],
           ['maxPositionPct', 'Maks posisi tunggal %'], ['maxOpenPositions', 'Maks jumlah saham'],
           ['maxTotalExposurePct', 'Maks total exposure %'], ['maxSectorExposurePct', 'Maks exposure sektor %'],
+          ['maxPositionsPerSector', 'Maks saham per sektor'],
           ['maxAdvParticipationPct', 'Maks partisipasi ADV20 %'], ['maxDrawdownPct', 'Kill-switch drawdown %'],
           ['buyFeePct', 'Fee beli broker %'], ['sellFeePct', 'Fee jual broker %'], ['slippageBps', 'Slippage (bps)'],
         ] as const).map(([key, label]) => (
