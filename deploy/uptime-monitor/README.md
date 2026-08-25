@@ -49,10 +49,29 @@ Untuk kirim ke Slack/Discord/webhook lain, isi `SAHAMLENS_ALERT_WEBHOOK` di
 
 ## Ini BUKAN pengganti pemantau eksternal
 
-Pemantau yang berjalan di mesin yang sama tidak bisa melaporkan mesin itu mati. Pasang juga
-Uptime Kuma / healthchecks.io / Better Stack yang mengetuk `https://sahamlens.id/api/health`
-dari luar. Keduanya menangkap kelas kegagalan yang berbeda dan tidak saling menggantikan —
-lihat tabel di atas.
+Pemantau yang berjalan di mesin yang sama tidak bisa melaporkan mesin itu mati.
+
+Pemantau eksternalnya **sudah ada**: `.github/workflows/external-health-watch.yml`, jadwal
+tiap 15 menit dari runner GitHub, mengetuk `https://sahamlens.id/` dan
+`https://sahamlens.id/api/health`. Ia memeriksa hal yang berbeda dari timer di sini:
+
+| | External Health Watch | uptime-monitor (berkas ini) |
+|---|---|---|
+| Dijalankan dari | Runner GitHub, di luar VPS | VPS itu sendiri |
+| VPS mati total | **terlihat** | tidak (ikut mati) |
+| Tunnel/Cloudflare putus | **terlihat** | tidak (ia memakai 127.0.0.1) |
+| DB mati / sumber data DOWN | terlihat | terlihat |
+| Redis mati (503 sejak 2026-08-25) | terlihat | terlihat |
+| **buildId disajikan ≠ `.next/BUILD_ID`** | tidak — responsnya 200 sempurna | **terlihat** |
+| **`deployed-sha` ≠ HEAD** | tidak | **terlihat** |
+| Restart loop servis | tidak | terlihat |
+
+Dua baris tebal itulah alasan timer lokal ini ada; sisanya memang wilayah probe eksternal.
+Keduanya saling melengkapi, bukan menggantikan.
+
+Menambah Uptime Kuma / healthchecks.io / Better Stack tetap berguna kalau ingin peringatan
+yang tidak bergantung pada ketersediaan GitHub Actions — tapi ia akan menangkap kelas
+kegagalan yang sama dengan External Health Watch, bukan kelas yang baru.
 
 ## Kalau timer ini yang berisik
 
