@@ -65,17 +65,30 @@ else
   # bergantung pada JSON yang dirapatkan tanpa spasi - ia membaca string kosong (dan
   # melaporkan MASALAH palsu) begitu ada yang menyisipkan pretty-printer di depan
   # endpoint ini. Pemantau yang memberi alarm palsu akan dimatikan orang dalam seminggu.
+  #
+  # `sources.items` DIURAI DI SINI JUGA (2026-08-26) - sebelumnya skrip ini cuma membaca
+  # `status`/`degraded` level atas body dan tidak pernah melihat isi `sources.items` sama
+  # sekali. Karena kontrak /api/health TIDAK menandai sumber data DOWN sebagai degradasi
+  # level atas (lihat app/api/health/route.ts - degraded hanya berisi database/redis),
+  # sumber data DOWN lolos sebagai "seluruh pemeriksaan lolos" tanpa pernah diperiksa.
+  # Ditemukan & diperbaiki 2026-08-26 (celah terpisah dari PR #155, ditandai known-gap
+  # di sana). external-health-watch.yml SUDAH memeriksa ini dari luar; baris ini
+  # menutup blind spot yang sama di sisi lokal (VPS bisa mati tanpa GitHub Actions).
   parsed="$(printf '%s' "$health_body" | python3 -c '
 import json, sys
 try:
     d = json.load(sys.stdin)
 except Exception:
-    print("PARSE_ERROR\t")
+    print("PARSE_ERROR		")
 else:
-    print("%s\t%s" % (d.get("status", ""), ",".join(d.get("degraded", []) or [])))
+    sources = d.get("sources", {}) or {}
+    items = sources.get("items", []) or []
+    down_ids = [s.get("sourceId", "?") for s in items if isinstance(s, dict) and s.get("status") == "DOWN"]
+    print("%s	%s	%s" % (d.get("status", ""), ",".join(d.get("degraded", []) or []), ",".join(down_ids)))
 ' 2>/dev/null)"
-  app_status="${parsed%%	*}"
-  degraded="${parsed#*	}"
+  app_status="$(printf '%s' "$parsed" | cut -f1)"
+  degraded="$(printf '%s' "$parsed" | cut -f2)"
+  down_sources="$(printf '%s' "$parsed" | cut -f3)"
 
   if [ "$app_status" = "PARSE_ERROR" ] || [ -z "$app_status" ]; then
     problem "balasan /api/health bukan JSON yang bisa diurai (HTTP $health_code)"
@@ -83,6 +96,13 @@ else:
     problem "health melaporkan status='$app_status' (HTTP $health_code)${degraded:+ - terganggu: $degraded}"
   else
     note "health ok (HTTP $health_code)"
+  fi
+
+  # Diperiksa TERPISAH dari app_status: sumber data DOWN tidak menurunkan status/degraded
+  # level atas by design (lihat komentar di atas), jadi ini pemeriksaan tambahan, bukan
+  # cabang dari if/elif di atas - keduanya bisa terjadi bersamaan atau sendiri-sendiri.
+  if [ -n "$down_sources" ]; then
+    problem "sumber data DOWN: $down_sources"
   fi
 fi
 
