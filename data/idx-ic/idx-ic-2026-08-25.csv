@@ -1,0 +1,963 @@
+ticker,sector_name,subsector_name,industry_name,subindustry_name
+AADI,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+AALI,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+ABBA,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penerbitan
+ABDA,Keuangan,Asuransi,Asuransi,Asuransi Umum
+ABMM,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+ACES,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Barang Rumah Tangga
+ACRO,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+ACST,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+ADCP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+ADES,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Ringan
+ADHI,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+ADMF,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+ADMG,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+ADMR,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+ADRO,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+AEGS,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+AGAR,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+AGII,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+AGRO,Keuangan,Bank,Bank,Bank
+AGRS,Keuangan,Bank,Bank,Bank
+AHAP,Keuangan,Asuransi,Asuransi,Asuransi Umum
+AIMS,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+AISA,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+AKKU,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+AKPI,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Khusus
+AKRA,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+AKSI,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+ALDO,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+ALII,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+ALKA,Barang Baku,Barang Baku,Logam & Mineral,Alumunium
+ALMI,Barang Baku,Barang Baku,Logam & Mineral,Alumunium
+ALTO,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Ringan
+AMAG,Keuangan,Asuransi,Asuransi,Asuransi Umum
+AMAN,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+AMAR,Keuangan,Bank,Bank,Bank
+AMFG,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+AMIN,Perindustrian,Barang Perindustrian,Mesin,Mesin & Komponen Perindustrian
+AMMN,Barang Baku,Barang Baku,Logam & Mineral,Tembaga
+AMMS,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+AMOR,Keuangan,Jasa Investasi,Jasa Investasi,Manajemen Investasi
+AMRT,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Supermarket
+ANDI,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+ANJT,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+ANTM,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+APEX,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara",Jasa Pengeboran Minyak & Gas
+APIC,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+APII,Perindustrian,Barang Perindustrian,Mesin,Mesin & Komponen Perindustrian
+APLI,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Khusus
+APLN,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+ARCI,Barang Baku,Barang Baku,Logam & Mineral,Emas
+AREA,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+ARGO,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+ARII,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+ARKA,Perindustrian,Barang Perindustrian,Mesin,Mesin & Komponen Perindustrian
+ARKO,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+ARMY,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+ARNA,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+ARTA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+ARTI,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+ARTO,Keuangan,Bank,Bank,Bank
+ASBI,Keuangan,Asuransi,Asuransi,Asuransi Umum
+ASDM,Keuangan,Asuransi,Asuransi,Asuransi Umum
+ASGR,Perindustrian,Jasa Perindustrian,Jasa Komersial,Jasa Pendukung Bisnis
+ASHA,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+ASII,Perindustrian,Perusahaan Holding Multi Sektor,Perusahaan Holding Multi-sektor,Perusahaan Holding Multi-sektor
+ASJT,Keuangan,Asuransi,Asuransi,Asuransi Umum
+ASLC,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Otomotif
+ASLI,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+ASMI,Keuangan,Asuransi,Asuransi,Asuransi Umum
+ASPI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+ASPR,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+ASRI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+ASRM,Keuangan,Asuransi,Asuransi,Asuransi Umum
+ASSA,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+ATAP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+ATIC,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+ATLA,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+AUTO,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+AVIA,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Khusus
+AWAN,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+AXIO,Teknologi,Perangkat Keras & Peralatan Teknologi,Perangkat Komputer,Perangkat Komputer
+AYAM,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+AYLS,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+BABP,Keuangan,Bank,Bank,Bank
+BABY,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Pakaian & Tekstil
+BACA,Keuangan,Bank,Bank,Bank
+BACH,Perindustrian,Jasa Perindustrian,Perdagangan Aneka Barang Perindustrian,Perdagangan Aneka Barang Perindustrian
+BAIK,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+BAJA,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+BALI,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+BANK,Keuangan,Bank,Bank,Bank
+BAPA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BAPI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BATA,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Alas Kaki
+BATR,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+BAUT,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Barang Rumah Tangga
+BAYU,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Agen Perjalanan
+BBCA,Keuangan,Bank,Bank,Bank
+BBHI,Keuangan,Bank,Bank,Bank
+BBKP,Keuangan,Bank,Bank,Bank
+BBLD,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+BBMD,Keuangan,Bank,Bank,Bank
+BBNI,Keuangan,Bank,Bank,Bank
+BBRI,Keuangan,Bank,Bank,Bank
+BBRM,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+BBSI,Keuangan,Bank,Bank,Bank
+BBSS,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BBTN,Keuangan,Bank,Bank,Bank
+BBYB,Keuangan,Bank,Bank,Bank
+BCAP,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+BCIC,Keuangan,Bank,Bank,Bank
+BCIP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BDKR,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+BDMN,Keuangan,Bank,Bank,Bank
+BEBS,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+BEEF,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+BEER,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Keras
+BEKS,Keuangan,Bank,Bank,Bank
+BELI,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+BELL,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+BESS,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+BEST,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BFIN,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+BGTG,Keuangan,Bank,Bank,Bank
+BHAT,Keuangan,Asuransi,Asuransi,Asuransi Jiwa
+BHIT,Perindustrian,Perusahaan Holding Multi Sektor,Perusahaan Holding Multi-sektor,Perusahaan Holding Multi-sektor
+BIKA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BIKE,Barang Konsumen Non-Primer,Barang Rekreasi,Peralatan Olah Raga & Barang Hobi,Peralatan Olah Raga & Barang Hobi
+BIMA,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Alas Kaki
+BINA,Keuangan,Bank,Bank,Bank
+BINO,Perindustrian,Jasa Perindustrian,Jasa Komersial,Peralatan Kantor
+BIPI,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+BIPP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BIRD,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+BISI,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+BJBR,Keuangan,Bank,Bank,Bank
+BJTM,Keuangan,Bank,Bank,Bank
+BKDP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BKSL,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BKSW,Keuangan,Bank,Bank,Bank
+BLES,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+BLOG,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+BLTA,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+BLTZ,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Fasilitas Rekreasi & Olah Raga
+BLUE,Perindustrian,Jasa Perindustrian,Jasa Komersial,Peralatan Kantor
+BMAS,Keuangan,Bank,Bank,Bank
+BMBL,Barang Konsumen Non-Primer,Jasa Konsumen,Pendidikan & Jasa Penunjang,Jasa Pendidikan
+BMHS,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+BMRI,Keuangan,Bank,Bank,Bank
+BMSR,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+BMTR,Barang Konsumen Non-Primer,Media & Hiburan,Media,Periklanan
+BNBA,Keuangan,Bank,Bank,Bank
+BNBR,Perindustrian,Perusahaan Holding Multi Sektor,Perusahaan Holding Multi-sektor,Perusahaan Holding Multi-sektor
+BNGA,Keuangan,Bank,Bank,Bank
+BNII,Keuangan,Bank,Bank,Bank
+BNLI,Keuangan,Bank,Bank,Bank
+BOAT,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+BOBA,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+BOGA,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Otomotif
+BOLA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Fasilitas Rekreasi & Olah Raga
+BOLT,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+BOSS,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+BPFI,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+BPII,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+BPTR,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+BRAM,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Ban
+BREN,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+BRIS,Keuangan,Bank,Bank,Bank
+BRMS,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+BRNA,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+BRPT,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+BRRC,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+BSBK,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BSDE,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+BSIM,Keuangan,Bank,Bank,Bank
+BSML,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+BSSR,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+BSWD,Keuangan,Bank,Bank,Bank
+BTEK,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+BTEL,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+BTON,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+BTPN,Keuangan,Bank,Bank,Bank
+BTPS,Keuangan,Bank,Bank,Bank
+BUAH,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Ritel & Distributor Makanan
+BUDI,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+BUKA,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+BUKK,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+BULL,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+BUMI,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+BUVA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+BVIC,Keuangan,Bank,Bank,Bank
+BWPT,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+BYAN,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+CAKK,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+CAMP,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Produk Susu Olahan
+CANI,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+CARE,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+CARS,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Otomotif
+CASA,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+CASH,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+CASS,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Bandar Udara
+CBDK,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+CBMF,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+CBPE,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+CBRE,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+CBUT,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+CCSI,Perindustrian,Barang Perindustrian,Kelistrikan,Komponen & Peralatan Kelistrikan
+CDIA,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+CEKA,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+CENT,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+CFIN,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+CGAS,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+CHEK,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+CHEM,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+CHIP,Teknologi,Perangkat Keras & Peralatan Teknologi,"Perangkat, Instrumen & Komponen Elektronik",Perangkat & Instrumen Elektronik
+CINT,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+CITA,Barang Baku,Barang Baku,Logam & Mineral,Alumunium
+CITY,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+CLAY,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+CLEO,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Ringan
+CLPI,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Khusus
+CMNP,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Jalan Tol & Rel
+CMNT,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+CMPP,Transportasi & Logistik,Transportasi,Maskapai Penerbangan,Maskapai Penerbangan
+CMRY,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Produk Susu Olahan
+CNKO,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+CNMA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Fasilitas Rekreasi & Olah Raga
+COAL,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+COCO,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+COIN,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+COWL,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+CPIN,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+CPRI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+CPRO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+CRAB,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+CRSN,Perindustrian,Jasa Perindustrian,Jasa Profesional,Jasa Penelitian & Konsultasi
+CSAP,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Barang Rumah Tangga
+CSIS,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+CSMI,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+CSRA,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+CTBN,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+CTRA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+CTTH,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+CUAN,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+CYBR,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+DAAZ,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+DADA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+DART,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+DATA,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi,Jasa Telekomunikasi Kabel
+DAYA,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Ritel & Distributor Obat-obatan
+DCII,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+DEAL,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+DEFI,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Investasi
+DEPO,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Barang Rumah Tangga
+DEWA,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+DEWI,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+DFAM,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+DGIK,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+DGNS,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+DGWG,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Pertanian
+DIGI,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penerbitan
+DILD,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+DIVA,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+DKFT,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+DKHH,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+DLTA,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Keras
+DMAS,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+DMMX,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+DMND,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Ritel & Distributor Makanan
+DNAR,Keuangan,Bank,Bank,Bank
+DNET,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Investasi
+DOID,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+DOOH,Barang Konsumen Non-Primer,Media & Hiburan,Media,Periklanan
+DOSS,Barang Konsumen Non-Primer,Barang Rekreasi,Barang Elektronik Konsumen,Barang Elektronik Konsumen
+DPNS,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Khusus
+DPUM,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+DRMA,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+DSFI,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+DSNG,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+DSSA,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+DUCK,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+DUTI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+DVLA,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+DWGL,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+DYAN,Perindustrian,Jasa Perindustrian,Jasa Komersial,Jasa Pendukung Bisnis
+EAST,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+ECII,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Elektronik
+EDGE,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Jasa & Konsultan TI
+EKAD,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Khusus
+ELIT,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+ELPI,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+ELSA,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara",Jasa Pengeboran Minyak & Gas
+ELTY,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+EMAS,Barang Baku,Barang Baku,Logam & Mineral,Emas
+EMDE,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+EMMI,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Peralatan Kesehatan
+EMTK,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+ENAK,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+ENRG,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Produksi & Penyulingan Minyak & Gas
+ENVY,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+ENZO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+EPAC,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+EPMT,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Ritel & Distributor Obat-obatan
+ERAA,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Elektronik
+ERAL,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Elektronik
+ERTX,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,"Pakaian, Aksesoris, & Tas"
+ESIP,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+ESSA,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+ESTA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+ESTI,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+ETWA,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+EURO,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+EXCL,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+FAPA,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+FAST,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+FASW,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+FILM,Barang Konsumen Non-Primer,Media & Hiburan,Hiburan & Film,Hiburan & Film
+FIMP,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+FIRE,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+FISH,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+FITT,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+FLMC,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+FMII,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+FOLK,Perindustrian,Perusahaan Holding Multi Sektor,Perusahaan Holding Multi-sektor,Perusahaan Holding Multi-sektor
+FOOD,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+FORE,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Ringan
+FORU,Barang Konsumen Non-Primer,Media & Hiburan,Media,Periklanan
+FPNI,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+FUJI,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+FUTR,Barang Konsumen Non-Primer,Media & Hiburan,Media,Periklanan
+FWCT,Barang Baku,Barang Baku,Perhutanan & Kertas,Kayu
+GAMA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+GDST,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+GDYR,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Ban
+GEMA,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+GEMS,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+GGRM,Barang Konsumen Primer,Rokok,Rokok,Rokok
+GGRP,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+GHON,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+GIAA,Transportasi & Logistik,Transportasi,Maskapai Penerbangan,Maskapai Penerbangan
+GJTL,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Ban
+GLOB,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Elektronik
+GLVA,Teknologi,Perangkat Keras & Peralatan Teknologi,"Perangkat, Instrumen & Komponen Elektronik",Perangkat & Instrumen Elektronik
+GMFI,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Bandar Udara
+GMTD,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+GOLD,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+GOLF,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Fasilitas Rekreasi & Olah Raga
+GOLL,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+GOOD,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+GOTO,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+GPRA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+GPSO,Perindustrian,Barang Perindustrian,Mesin,Mesin & Komponen Perindustrian
+GRIA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+GRPH,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+GRPM,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Ringan
+GSMF,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+GTBO,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+GTRA,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+GTSI,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+GULA,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+GUNA,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+GWSA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+GZCO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+HADE,Infrastruktur,Utilitas,Utilitas Gas,Utilitas Gas
+HAIS,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+HAJJ,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Agen Perjalanan
+HALO,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+HATM,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+HBAT,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+HDFA,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+HDIT,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+HEAL,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+HELI,Transportasi & Logistik,Transportasi,Maskapai Penerbangan,Maskapai Penerbangan
+HERO,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Supermarket
+HEXA,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+HGII,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+HILL,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+HITS,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+HKMU,Barang Baku,Barang Baku,Logam & Mineral,Alumunium
+HMSP,Barang Konsumen Primer,Rokok,Rokok,Rokok
+HOKI,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+HOME,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+HOMI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+HOPE,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+HOTL,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+HRME,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+HRTA,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,"Pakaian, Aksesoris, & Tas"
+HRUM,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+HUMI,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+HYGN,Perindustrian,Jasa Perindustrian,Jasa Komersial,Jasa Pengelolaan Lingkungan & Sarana
+IATA,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+IBFN,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+IBOS,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+IBST,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+ICBP,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+ICON,Perindustrian,Jasa Perindustrian,Jasa Komersial,Jasa Pendukung Bisnis
+IDEA,Barang Konsumen Non-Primer,Jasa Konsumen,Pendidikan & Jasa Penunjang,Jasa Pendidikan
+IDPR,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+IFII,Barang Baku,Barang Baku,Perhutanan & Kertas,Kayu
+IFSH,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+IGAR,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+IIKP,Barang Konsumen Non-Primer,Barang Rekreasi,Peralatan Olah Raga & Barang Hobi,Peralatan Olah Raga & Barang Hobi
+IKAI,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+IKAN,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+IKBI,Perindustrian,Barang Perindustrian,Kelistrikan,Komponen & Peralatan Kelistrikan
+IKPM,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+IMAS,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Otomotif
+IMJS,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+IMPC,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+INAF,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+INAI,Barang Baku,Barang Baku,Logam & Mineral,Alumunium
+INCF,Barang Baku,Barang Baku,Perhutanan & Kertas,Produk Hutan Lainnya
+INCI,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+INCO,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+INDF,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+INDO,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Jasa Real Estat
+INDR,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+INDS,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+INDX,Perindustrian,Jasa Perindustrian,Jasa Profesional,Jasa Penelitian & Konsultasi
+INDY,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+INET,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi,Jasa Telekomunikasi Kabel
+INKP,Barang Baku,Barang Baku,Perhutanan & Kertas,Kertas
+INOV,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+INPC,Keuangan,Bank,Bank,Bank
+INPP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+INPS,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+INRU,Barang Baku,Barang Baku,Perhutanan & Kertas,Kertas
+INTA,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+INTD,Barang Baku,Barang Baku,Perhutanan & Kertas,Kertas
+INTP,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+IOTF,Teknologi,Perangkat Keras & Peralatan Teknologi,"Perangkat, Instrumen & Komponen Elektronik",Perangkat & Instrumen Elektronik
+IPAC,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+IPCC,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Pelabuhan
+IPCM,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Pelabuhan
+IPOL,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+IPPE,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+IPTV,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penyiaran Berbayar
+IRRA,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+IRSX,Teknologi,Perangkat Lunak & Jasa TI,Perangkat Lunak,Perangkat Lunak
+ISAP,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+ISAT,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+ISEA,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+ISSP,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+ITIC,Barang Konsumen Primer,Rokok,Rokok,Rokok
+ITMA,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+ITMG,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+JARR,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+JAST,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi,Jasa Telekomunikasi Kabel
+JATI,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+JAWA,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+JAYA,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+JECC,Perindustrian,Barang Perindustrian,Kelistrikan,Komponen & Peralatan Kelistrikan
+JECX,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+JELI,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+JGLE,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+JIHD,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+JKON,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+JMAS,Keuangan,Asuransi,Asuransi,Asuransi Jiwa
+JPFA,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+JRPT,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+JSKY,Energi,Energi Alternatif,Peralatan Energi Alternatif,Peralatan Energi Alternatif
+JSMR,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Jalan Tol & Rel
+JSPT,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+JTPE,Perindustrian,Jasa Perindustrian,Jasa Komersial,Percetakan Komersial
+KAEF,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+KAQI,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+KARW,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Pelabuhan
+KAYU,Barang Baku,Barang Baku,Perhutanan & Kertas,Kayu
+KBAG,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+KBLI,Perindustrian,Barang Perindustrian,Kelistrikan,Komponen & Peralatan Kelistrikan
+KBLM,Perindustrian,Barang Perindustrian,Kelistrikan,Komponen & Peralatan Kelistrikan
+KBLV,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi,Jasa Telekomunikasi Kabel
+KBRI,Barang Baku,Barang Baku,Perhutanan & Kertas,Kertas
+KDSI,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+KDTN,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+KEEN,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+KEJU,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Produk Susu Olahan
+KETR,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi,Jasa Telekomunikasi Kabel
+KIAS,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+KICI,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Perlengkapan Rumah Tangga
+KIJA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+KING,Perindustrian,Jasa Perindustrian,Jasa Profesional,Jasa Personalia
+KINO,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+KIOS,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+KJEN,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+KKES,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+KKGI,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+KLAS,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+KLBF,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+KLIN,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Barang Rumah Tangga
+KMDS,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Ritel & Distributor Makanan
+KMTR,Barang Baku,Barang Baku,Perhutanan & Kertas,Produk Hutan Lainnya
+KOBX,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+KOCI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+KOIN,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+KOKA,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+KONI,Perindustrian,Jasa Perindustrian,Jasa Komersial,Peralatan Kantor
+KOPI,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+KOTA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+KPIG,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+KRAS,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+KREN,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+KRYA,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+KSIX,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+KUAS,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+LABA,Perindustrian,Barang Perindustrian,Mesin,Mesin & Komponen Perindustrian
+LABS,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+LAJU,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+LAND,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+LAPD,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Supermarket
+LCGP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+LCKM,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+LEAD,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+LFLO,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+LIFE,Keuangan,Asuransi,Asuransi,Asuransi Jiwa
+LINK,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi,Jasa Telekomunikasi Kabel
+LION,Perindustrian,Jasa Perindustrian,Jasa Komersial,Peralatan Kantor
+LIVE,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Perlengkapan Rumah Tangga
+LMAS,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+LMAX,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+LMPI,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Perlengkapan Rumah Tangga
+LMSH,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+LOPI,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+LPCK,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+LPGI,Keuangan,Asuransi,Asuransi,Asuransi Umum
+LPIN,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+LPKR,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+LPLI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+LPPF,Barang Konsumen Non-Primer,Perdagangan Ritel,Department Store,Department Store
+LPPS,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Investasi
+LRNA,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+LSIP,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+LTLS,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+LUCK,Teknologi,Perangkat Keras & Peralatan Teknologi,Perangkat Komputer,Perangkat Komputer
+LUCY,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+MABA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+MAGP,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+MAHA,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+MAIN,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+MANG,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+MAPA,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Pakaian & Tekstil
+MAPB,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+MAPI,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Pakaian & Tekstil
+MARI,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penyiaran
+MARK,Perindustrian,Barang Perindustrian,Mesin,Mesin & Komponen Perindustrian
+MASB,Keuangan,Bank,Bank,Bank
+MAXI,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+MAYA,Keuangan,Bank,Bank,Bank
+MBAP,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+MBMA,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+MBSS,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+MBTO,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+MCAS,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+MCOL,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+MCOR,Keuangan,Bank,Bank,Bank
+MDIA,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penyiaran
+MDIY,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Barang Rumah Tangga
+MDKA,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+MDKI,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+MDLA,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+MDLN,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+MDRN,Perindustrian,Jasa Perindustrian,Jasa Komersial,Peralatan Kantor
+MEDC,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Produksi & Penyulingan Minyak & Gas
+MEDS,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+MEGA,Keuangan,Bank,Bank,Bank
+MEJA,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+MENN,Teknologi,Perangkat Keras & Peralatan Teknologi,"Perangkat, Instrumen & Komponen Elektronik",Perangkat & Instrumen Elektronik
+MERI,Barang Konsumen Non-Primer,Jasa Konsumen,Pendidikan & Jasa Penunjang,Jasa Pendidikan
+MERK,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+META,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Jalan Tol & Rel
+MFMI,Perindustrian,Jasa Perindustrian,Jasa Komersial,Jasa Pendukung Bisnis
+MGLV,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+MGNA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+MGRO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+MHKI,Perindustrian,Jasa Perindustrian,Jasa Komersial,Jasa Pengelolaan Lingkungan & Sarana
+MICE,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Perlengkapan Rumah Tangga
+MIDI,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Supermarket
+MIKA,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+MINA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+MINE,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+MIRA,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+MITI,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+MKAP,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+MKNT,Barang Konsumen Non-Primer,Perdagangan Ritel,Distributor Barang Konsumen,Distributor Barang Konsumen
+MKPI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+MKTR,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+MLBI,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Keras
+MLIA,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+MLPL,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Supermarket
+MLPT,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+MMIX,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+MMLP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+MNCN,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penyiaran
+MOLI,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+MORA,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi,Jasa Telekomunikasi Kabel
+MPIX,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+MPMX,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Otomotif
+MPOW,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+MPPA,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Supermarket
+MPRO,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+MPXL,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+MRAT,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+MREI,Keuangan,Asuransi,Asuransi,Reasuransi
+MSIE,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+MSIN,Barang Konsumen Non-Primer,Media & Hiburan,Hiburan & Film,Hiburan & Film
+MSJA,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+MSKY,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penyiaran Berbayar
+MSTI,Teknologi,Perangkat Keras & Peralatan Teknologi,Peralatan Jaringan,Peralatan Jaringan
+MTDL,Teknologi,Perangkat Keras & Peralatan Teknologi,Perangkat Komputer,Perangkat Komputer
+MTEL,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+MTFN,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+MTLA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+MTMH,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+MTPS,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+MTRA,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+MTSM,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+MTWI,Keuangan,Asuransi,Asuransi,Asuransi Umum
+MUTU,Perindustrian,Jasa Perindustrian,Jasa Profesional,Jasa Penelitian & Konsultasi
+MYOH,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+MYOR,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+MYTX,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+NAIK,Perindustrian,Jasa Perindustrian,Perdagangan Aneka Barang Perindustrian,Perdagangan Aneka Barang Perindustrian
+NANO,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+NASA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+NASI,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+NATO,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+NAYZ,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+NCKL,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+NELY,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+NEST,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+NETV,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penyiaran
+NFCX,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+NICE,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+NICK,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Investasi
+NICL,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+NIKL,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+NINE,Teknologi,Perangkat Keras & Peralatan Teknologi,Perangkat Komputer,Perangkat Komputer
+NIRO,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+NISP,Keuangan,Bank,Bank,Bank
+NOBU,Keuangan,Bank,Bank,Bank
+NPGF,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Pertanian
+NRCA,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+NSSS,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+NTBK,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+NUSA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+NZIA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+OASA,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+OBAT,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+OBMD,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Khusus
+OCAP,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+OILS,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+OKAS,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+OLIV,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+OMED,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+OMRE,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+OPMS,Barang Baku,Barang Baku,Logam & Mineral,Baja & Besi
+PACK,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+PADA,Perindustrian,Jasa Perindustrian,Jasa Profesional,Jasa Personalia
+PADI,Keuangan,Jasa Investasi,Jasa Investasi,Bank Investasi & Perantara Perdagangan
+PALM,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Investasi
+PAMG,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+PANI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+PANR,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Agen Perjalanan
+PANS,Keuangan,Jasa Investasi,Jasa Investasi,Bank Investasi & Perantara Perdagangan
+PART,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+PBID,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+PBRX,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,"Pakaian, Aksesoris, & Tas"
+PBSA,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+PCAR,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Ritel & Distributor Makanan
+PDES,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Agen Perjalanan
+PDPP,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+PEGE,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+PEHA,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+PEVE,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+PGAS,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+PGEO,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+PGJO,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+PGLI,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+PGUN,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+PICO,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+PIPA,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+PJAA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Fasilitas Rekreasi & Olah Raga
+PJHB,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+PKPK,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+PLAN,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+PLAS,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+PLIN,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+PMJS,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Otomotif
+PMMP,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+PMUI,Barang Konsumen Non-Primer,Perdagangan Ritel,Distributor Barang Konsumen,Distributor Barang Konsumen
+PNBN,Keuangan,Bank,Bank,Bank
+PNBS,Keuangan,Bank,Bank,Bank
+PNGO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+PNIN,Keuangan,Asuransi,Asuransi,Asuransi Umum
+PNLF,Keuangan,Asuransi,Asuransi,Asuransi Jiwa
+PNSE,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+POLA,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+POLI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+POLL,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+POLU,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,"Pakaian, Aksesoris, & Tas"
+POLY,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+POOL,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+PORT,Infrastruktur,Infrastruktur Transportasi,Operator Infrastruktur Transportasi,Operator Pelabuhan
+POSA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+POWR,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+PPGL,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+PPRE,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+PPRI,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+PPRO,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+PRAY,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+PRDA,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+PRDL,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+PRIM,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+PSAB,Barang Baku,Barang Baku,Logam & Mineral,Emas
+PSAT,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+PSDN,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+PSGO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+PSKT,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+PSSI,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+PTBA,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+PTDU,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+PTIS,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+PTMP,Perindustrian,Barang Perindustrian,Mesin,Mesin & Komponen Perindustrian
+PTMR,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+PTPP,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+PTPS,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+PTPW,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+PTRO,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+PTSN,Teknologi,Perangkat Keras & Peralatan Teknologi,Peralatan Jaringan,Peralatan Jaringan
+PTSP,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+PUDP,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+PURA,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+PURE,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+PURI,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+PWON,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+PYFA,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+PZZA,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+RAAM,Barang Konsumen Non-Primer,Media & Hiburan,Hiburan & Film,Hiburan & Film
+RAFI,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,Rumah Makan
+RAJA,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+RALS,Barang Konsumen Non-Primer,Perdagangan Ritel,Department Store,Department Store
+RANC,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Supermarket
+RANS,Barang Konsumen Non-Primer,Media & Hiburan,Hiburan & Film,Hiburan & Film
+RATU,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Produksi & Penyulingan Minyak & Gas
+RBMS,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+RCCC,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+RDTX,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+REAL,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+RELF,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+RELI,Keuangan,Jasa Investasi,Jasa Investasi,Bank Investasi & Perantara Perdagangan
+RGAS,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+RICY,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,"Pakaian, Aksesoris, & Tas"
+RIGS,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+RIMO,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+RISE,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+RLCO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+RMKE,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+RMKO,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+ROCK,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+RODA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+RONY,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+ROTI,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+RSCH,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+RSGK,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+RUIS,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+RUNS,Teknologi,Perangkat Lunak & Jasa TI,Perangkat Lunak,Perangkat Lunak
+SAFE,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+SAGE,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+SAME,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+SAMF,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Pertanian
+SAPX,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+SATU,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+SBAT,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+SBMA,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+SCCO,Perindustrian,Barang Perindustrian,Kelistrikan,Komponen & Peralatan Kelistrikan
+SCMA,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penyiaran
+SCNP,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Peralatan Rumah Tangga
+SCPI,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+SDMU,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+SDPC,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Ritel & Distributor Obat-obatan
+SDRA,Keuangan,Bank,Bank,Bank
+SEMA,Energi,Energi Alternatif,Peralatan Energi Alternatif,Peralatan Energi Alternatif
+SFAN,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+SGER,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+SGRO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+SHID,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+SHIP,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+SICO,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+SIDO,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+SILO,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+SIMA,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+SIMP,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+SINI,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+SIPD,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+SKBM,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+SKLT,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+SKRN,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+SKYB,Teknologi,Perangkat Lunak & Jasa TI,Perangkat Lunak,Perangkat Lunak
+SLIS,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Elektronik
+SMAR,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+SMBR,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+SMCB,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+SMDM,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+SMDR,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+SMGA,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+SMGR,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+SMIL,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+SMKL,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+SMKM,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+SMLE,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+SMMA,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+SMMT,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+SMRA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+SMRU,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+SMSM,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+SNLK,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+SOCI,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Penyimpanan & Distribusi Minyak & Gas
+SOFA,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+SOHO,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+SOLA,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+SONA,Barang Konsumen Non-Primer,Perdagangan Ritel,Department Store,Department Store
+SOSS,Perindustrian,Jasa Perindustrian,Jasa Profesional,Jasa Personalia
+SOTS,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+SOUL,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Ringan
+SPMA,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+SPRE,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+SPTO,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+SQMI,Barang Baku,Barang Baku,Logam & Mineral,Emas
+SRAJ,Kesehatan,Jasa & Peralatan Kesehatan,Penyedia Jasa Kesehatan,Penyedia Jasa Kesehatan
+SRIL,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+SRSN,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+SRTG,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Investasi
+SSIA,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+SSMS,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+SSTM,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+STAA,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+STAR,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+STRK,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Keras
+STTP,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+SUGI,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Produksi & Penyulingan Minyak & Gas
+SULI,Barang Baku,Barang Baku,Perhutanan & Kertas,Kayu
+SUNI,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+SUPA,Keuangan,Bank,Bank,Bank
+SUPR,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+SURE,Energi,"Minyak, Gas & Batu Bara",Minyak & Gas,Produksi & Penyulingan Minyak & Gas
+SURI,Kesehatan,Jasa & Peralatan Kesehatan,Peralatan & Perlengkapan Kesehatan,Penyedia & Distribusi Perlengkapan Kesehatan
+SWAT,Barang Baku,Barang Baku,Perhutanan & Kertas,Kertas
+SWID,Barang Konsumen Non-Primer,Jasa Konsumen,Pariwisata & Rekreasi,"Hotel, Resor & Kapal Pesiar"
+TALF,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+TAMA,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+TAMU,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+TAPG,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+TARA,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+TAXI,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+TAYS,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+TBIG,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+TBLA,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+TBMS,Barang Baku,Barang Baku,Logam & Mineral,Tembaga
+TCID,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+TCPI,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+TDPM,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+TEBE,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+TECH,Teknologi,Perangkat Lunak & Jasa TI,Jasa & Konsultan TI,Jasa & Konsultan TI
+TELE,Barang Konsumen Non-Primer,Perdagangan Ritel,Distributor Barang Konsumen,Distributor Barang Konsumen
+TFAS,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+TFCO,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+TGKA,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+TGRA,Infrastruktur,Utilitas,Utilitas Listrik,Utilitas Listrik
+TGUK,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Produk Susu Olahan
+TIFA,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+TINS,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+TIRA,Perindustrian,Jasa Perindustrian,Perdagangan Aneka Barang Perindustrian,Perdagangan Aneka Barang Perindustrian
+TIRT,Barang Baku,Barang Baku,Perhutanan & Kertas,Kayu
+TKIM,Barang Baku,Barang Baku,Perhutanan & Kertas,Kertas
+TLDN,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+TLKM,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi,Jasa Telekomunikasi Terintegrasi
+TMAS,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+TMPO,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penerbitan
+TNCA,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+TOBA,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+TOOL,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Barang Rumah Tangga
+TOPS,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+TOSK,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+TOTL,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+TOTO,Perindustrian,Barang Perindustrian,Produk & Perlengkapan Bangunan,Produk & Perlengkapan Bangunan
+TOWR,Infrastruktur,Telekomunikasi,Jasa Telekomunikasi Nirkabel,Jasa Telekomunikasi Nirkabel
+TOYS,Barang Konsumen Non-Primer,Barang Rekreasi,Peralatan Olah Raga & Barang Hobi,Peralatan Olah Raga & Barang Hobi
+TPIA,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+TPMA,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Distribusi Batu Bara
+TRAM,Energi,"Minyak, Gas & Batu Bara",Batu Bara,Produksi Batu Bara
+TRGU,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+TRIL,Perindustrian,Jasa Perindustrian,Perdagangan Aneka Barang Perindustrian,Perdagangan Aneka Barang Perindustrian
+TRIM,Keuangan,Jasa Investasi,Jasa Investasi,Bank Investasi & Perantara Perdagangan
+TRIN,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+TRIO,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Elektronik
+TRIS,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,"Pakaian, Aksesoris, & Tas"
+TRJA,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+TRON,Teknologi,Perangkat Lunak & Jasa TI,Perangkat Lunak,Perangkat Lunak
+TRST,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+TRUE,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+TRUK,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+TRUS,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+TSPC,Kesehatan,Farmasi & Riset Kesehatan,Farmasi,Farmasi
+TUGU,Keuangan,Asuransi,Asuransi,Asuransi Umum
+TYRE,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Ban
+UANG,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+UCID,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+UDNG,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+UFOE,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Elektronik
+ULTJ,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Produk Susu Olahan
+UNIC,Barang Baku,Barang Baku,Barang Kimia,Barang Kimia Dasar
+UNIQ,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+UNIT,Barang Konsumen Non-Primer,Pakaian & Barang Mewah,Pakaian & Barang Mewah,Tekstil
+UNSP,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+UNTD,Barang Konsumen Non-Primer,Barang Rekreasi,Peralatan Olah Raga & Barang Hobi,Peralatan Olah Raga & Barang Hobi
+UNTR,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+UNVR,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+URBN,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+UVCR,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+VAST,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+VERN,Barang Konsumen Non-Primer,Media & Hiburan,Hiburan & Film,Hiburan & Film
+VICI,Barang Konsumen Primer,Produk Rumah Tangga Tidak Tahan Lama,Produk Perawatan Tubuh,Produk Perawatan Tubuh
+VICO,Keuangan,Perusahaan Holding & Investasi,Perusahaan Holding & Investasi,Perusahaan Holding Keuangan
+VINS,Keuangan,Asuransi,Asuransi,Asuransi Umum
+VISI,Perindustrian,Jasa Perindustrian,Jasa Komersial,Peralatan Kantor
+VIVA,Barang Konsumen Non-Primer,Media & Hiburan,Media,Penyiaran
+VKTR,Barang Konsumen Non-Primer,Otomotif & Komponen Otomotif,Komponen Otomotif,Suku Cadang Otomotif
+VOKS,Perindustrian,Barang Perindustrian,Kelistrikan,Komponen & Peralatan Kelistrikan
+VRNA,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+VTNY,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+WAPO,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,Perkebunan & Tanaman Pangan
+WBSA,Transportasi & Logistik,Logistik & Pengantaran,Logistik & Pengantaran,Logistik & Pengantaran
+WEGE,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+WEHA,Transportasi & Logistik,Transportasi,Pengangkutan Darat Penumpang,Transportasi Jalanan
+WGSH,Teknologi,Perangkat Lunak & Jasa TI,Perangkat Lunak,Perangkat Lunak
+WICO,Barang Konsumen Primer,Perdagangan Ritel Barang Primer,Perdagangan Ritel Barang Primer,Ritel & Distributor Makanan
+WIDI,Perindustrian,Barang Perindustrian,Mesin,Mesin Konstruksi & Kendaraan Berat
+WIFI,Teknologi,Perangkat Lunak & Jasa TI,Aplikasi & Jasa Internet,Aplikasi & Jasa Internet
+WIIM,Barang Konsumen Primer,Rokok,Rokok,Rokok
+WIKA,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+WINE,Barang Konsumen Primer,Makanan & Minuman,Minuman,Minuman Keras
+WINR,Properti & Real Estat,Properti & Real Estat,Pengelola & Pengembang Real Estat,Pengembang & Operator Real Estat
+WINS,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+WIRG,Teknologi,Perangkat Lunak & Jasa TI,Perangkat Lunak,Perangkat Lunak
+WMPP,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+WMUU,Barang Konsumen Primer,Makanan & Minuman,Produk Makanan Pertanian,"Ikan, Daging & Produk Unggas"
+WOMF,Keuangan,Jasa Pembiayaan,Pembiayaan Konsumen,Pembiayaan Konsumen
+WOOD,Barang Konsumen Non-Primer,Barang Rumah Tangga,Barang Rumah Tangga,Produsen Furnitur Rumah
+WOWS,Energi,"Minyak, Gas & Batu Bara","Pendukung Minyak, Gas & Batu Bara","Jasa & Perlengkapan Minyak, Gas & Batu Bara"
+WSBP,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+WSKT,Infrastruktur,Konstruksi Bangunan,Konstruksi Bangunan,Konstruksi Bangunan
+WTON,Barang Baku,Barang Baku,Material Konstruksi,Material Konstruksi
+YELO,Barang Konsumen Non-Primer,Perdagangan Ritel,Distributor Barang Konsumen,Distributor Barang Konsumen
+YOII,Keuangan,Asuransi,Asuransi,Asuransi Umum
+YPAS,Barang Baku,Barang Baku,Wadah & Kemasan,Wadah & Kemasan
+YULE,Keuangan,Jasa Investasi,Jasa Investasi,Bank Investasi & Perantara Perdagangan
+YUPI,Barang Konsumen Primer,Makanan & Minuman,Makanan Olahan,Makanan Olahan
+ZATA,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Pakaian & Tekstil
+ZBRA,Perindustrian,Perusahaan Holding Multi Sektor,Perusahaan Holding Multi-sektor,Perusahaan Holding Multi-sektor
+ZINC,Barang Baku,Barang Baku,Logam & Mineral,Logam & Mineral Lainnya
+ZONE,Barang Konsumen Non-Primer,Perdagangan Ritel,Ritel Khusus,Ritel Pakaian & Tekstil
+ZYRX,Teknologi,Perangkat Keras & Peralatan Teknologi,Perangkat Komputer,Perangkat Komputer

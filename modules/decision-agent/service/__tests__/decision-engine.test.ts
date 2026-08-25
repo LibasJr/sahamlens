@@ -28,21 +28,21 @@ const now = new Date('2026-08-24T03:10:00.000Z');
 
 describe('buildDecisionSignal', () => {
   it('membentuk BUY_CANDIDATE paper-ready tetapi live tetap diblokir saat model belum valid', () => {
-    const result = buildDecisionSignal({ stock: stock(), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false });
+    const result = buildDecisionSignal({ stock: stock(), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false, sector: 'Financials' });
     expect(result.action).toBe('BUY_CANDIDATE');
     expect(result.paperReadiness).toBe('PAPER_READY');
     expect(result.liveReadiness).toBe('BLOCKED_MODEL_UNVALIDATED');
   });
 
   it('fail-closed menjadi NO_SIGNAL saat coverage tidak cukup', () => {
-    const result = buildDecisionSignal({ stock: stock({ coverage: 60 }), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false });
+    const result = buildDecisionSignal({ stock: stock({ coverage: 60 }), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false, sector: 'Financials' });
     expect(result.action).toBe('NO_SIGNAL');
     expect(result.paperReadiness).toBe('RESEARCH_ONLY');
     expect(result.liveReadiness).toBe('BLOCKED_DATA_QUALITY');
   });
 
   it('tidak mengganti breakdown yang hilang dengan angka buatan', () => {
-    const result = buildDecisionSignal({ stock: stock({ breakdown: undefined }), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false });
+    const result = buildDecisionSignal({ stock: stock({ breakdown: undefined }), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false, sector: 'Financials' });
     expect(result.action).toBe('NO_SIGNAL');
     expect(result.scoreBreakdown).toBeNull();
     expect(result.paperReadiness).toBe('RESEARCH_ONLY');
@@ -51,7 +51,7 @@ describe('buildDecisionSignal', () => {
   it('snapshot basi tidak dapat dibuat menjadi order paper baru', () => {
     const result = buildDecisionSignal({
       stock: stock(), bearish: false, newsItems: [], dataAsOf,
-      now: new Date('2026-08-24T05:00:00.000Z'), modelValidated: false,
+      now: new Date('2026-08-24T05:00:00.000Z'), modelValidated: false, sector: 'Financials',
     });
     expect(result.action).toBe('BUY_CANDIDATE');
     expect(result.paperReadiness).toBe('RESEARCH_ONLY');
@@ -59,8 +59,14 @@ describe('buildDecisionSignal', () => {
   });
 
   it('sinyal bearish menjadi EXIT_REVIEW, bukan short recommendation', () => {
-    const result = buildDecisionSignal({ stock: stock(), bearish: true, newsItems: [], dataAsOf, now, modelValidated: false });
+    const result = buildDecisionSignal({ stock: stock(), bearish: true, newsItems: [], dataAsOf, now, modelValidated: false, sector: 'Financials' });
     expect(result.action).toBe('EXIT_REVIEW');
+  });
+
+  it('fail-closed saat klasifikasi IDX-IC resmi belum tersedia', () => {
+    const result = buildDecisionSignal({ stock: stock(), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false });
+    expect(result.action).toBe('NO_SIGNAL');
+    expect(result.invalidationReasons).toContain('Klasifikasi sektor resmi IDX-IC belum tersedia.');
   });
 
   it('membawa sektor, ADV, sumber, waktu, dan basis RSS tanpa mengarang artikel', () => {
