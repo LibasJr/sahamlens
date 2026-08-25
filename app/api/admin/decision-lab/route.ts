@@ -12,6 +12,9 @@ import {
   proposePaperOrder,
   rejectPaperOrder,
   runDecisionAgentScan,
+  freezePilotProtocol,
+  importIdxIcCsv,
+  importStockbitCsv,
 } from '@/modules/decision-agent';
 import { DataUnavailableError, ForbiddenError, ValidationError } from '@/shared/errors/app-error';
 import { runController } from '@/shared/http/next-response.adapter';
@@ -52,6 +55,15 @@ export async function POST(request: Request) {
         break;
       case 'configure-paper-account':
         await configurePaperAccount(input.config);
+        break;
+      case 'freeze-pilot-protocol':
+        await freezePilotProtocol();
+        break;
+      case 'import-idx-ic':
+        result = { imported: await importIdxIcCsv(input) };
+        break;
+      case 'import-stockbit':
+        result = await importStockbitCsv(input);
         break;
       case 'propose-paper-order':
         result = await proposePaperOrder(input.signalId, input.thesis);
