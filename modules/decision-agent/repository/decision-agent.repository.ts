@@ -208,7 +208,7 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
     pool.query(`SELECT * FROM decision_agent_pilot_protocols WHERE account_id='internal-paper' ORDER BY frozen_at DESC LIMIT 1`),
     pool.query(`SELECT
       (SELECT COUNT(*)::int FROM idx_ic_classifications) AS idx_ic_count,
-      (SELECT MAX(source_as_of) FROM idx_ic_classifications) AS idx_ic_latest_as_of,
+      (SELECT TO_CHAR(MAX(source_as_of),'YYYY-MM-DD') FROM idx_ic_classifications) AS idx_ic_latest_as_of,
       (SELECT source_url FROM idx_ic_classifications ORDER BY source_as_of DESC,imported_at DESC LIMIT 1) AS idx_ic_source_url,
       (SELECT COUNT(*)::int FROM decision_agent_broker_imports) AS broker_import_count,
       (SELECT COUNT(*)::int FROM decision_agent_broker_transactions) AS broker_transaction_count,
