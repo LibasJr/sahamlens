@@ -37,6 +37,7 @@ export type EventType = (typeof EVENT_TYPES)[number];
 export type EventHorizon = (typeof EVENT_HORIZONS)[number];
 export type ImpactDirection = (typeof IMPACT_DIRECTIONS)[number];
 export type ImpactMagnitude = (typeof IMPACT_MAGNITUDES)[number];
+export type NewsEvidenceBasis = 'HEADLINE_ONLY' | 'RSS_SUMMARY';
 
 export type StructuredEventIntelligence = {
   eventType: EventType;
@@ -49,7 +50,7 @@ export type StructuredEventIntelligence = {
     summary: string;
   };
   confidence: number;
-  evidenceBasis: 'HEADLINE_ONLY';
+  evidenceBasis: NewsEvidenceBasis;
 };
 
 type Rule = {
@@ -269,8 +270,12 @@ function directionSummary(direction: ImpactDirection, fallback: string): string 
   return fallback;
 }
 
-export function classifyEventByRules(title: string): StructuredEventIntelligence {
-  const lower = title.toLowerCase();
+export function classifyEventByRules(
+  title: string,
+  evidenceBasis: NewsEvidenceBasis = 'HEADLINE_ONLY',
+  summary?: string | null,
+): StructuredEventIntelligence {
+  const lower = `${title} ${summary ?? ''}`.toLowerCase();
   const rule = RULES.find((candidate) => includesAny(lower, candidate.keywords));
 
   if (!rule) {
@@ -285,7 +290,7 @@ export function classifyEventByRules(title: string): StructuredEventIntelligence
         summary: 'Judul belum cukup untuk memetakan dampak fundamental atau pasar.',
       },
       confidence: 25,
-      evidenceBasis: 'HEADLINE_ONLY',
+      evidenceBasis,
     };
   }
 
@@ -301,7 +306,7 @@ export function classifyEventByRules(title: string): StructuredEventIntelligence
       summary: directionSummary(direction, rule.summary),
     },
     confidence: rule.confidence,
-    evidenceBasis: 'HEADLINE_ONLY',
+    evidenceBasis,
   };
 }
 
@@ -322,8 +327,10 @@ function cleanText(value: unknown, maxLength: number): string | null {
 export function sanitizeEventIntelligence(
   raw: unknown,
   title: string,
+  evidenceBasis: NewsEvidenceBasis = 'HEADLINE_ONLY',
+  summary?: string | null,
 ): StructuredEventIntelligence {
-  const fallback = classifyEventByRules(title);
+  const fallback = classifyEventByRules(title, evidenceBasis, summary);
   if (!raw || typeof raw !== 'object') return fallback;
 
   const candidate = raw as Record<string, unknown>;
@@ -342,8 +349,9 @@ export function sanitizeEventIntelligence(
   const rawConfidence = typeof candidate.confidence === 'number'
     ? candidate.confidence
     : Number(candidate.confidence);
+  const confidenceCeiling = evidenceBasis === 'RSS_SUMMARY' ? 85 : 75;
   const confidence = Number.isFinite(rawConfidence)
-    ? Math.max(20, Math.min(75, Math.round(rawConfidence)))
+    ? Math.max(20, Math.min(confidenceCeiling, Math.round(rawConfidence)))
     : fallback.confidence;
 
   return {
@@ -361,6 +369,6 @@ export function sanitizeEventIntelligence(
       summary: cleanText(impact.summary, 180) ?? fallback.expectedImpact.summary,
     },
     confidence,
-    evidenceBasis: 'HEADLINE_ONLY',
+    evidenceBasis,
   };
 }

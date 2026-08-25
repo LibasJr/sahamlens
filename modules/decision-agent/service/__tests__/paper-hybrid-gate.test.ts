@@ -10,7 +10,8 @@ function signal(): DecisionAgentSignal {
     dataAsOf: '2026-08-24T03:00:00.000Z', stale: false, modelValidated: false,
     scoreBreakdown: { technical: 30, fundamental: 25, flow: 23 },
     riskSetup: { entry: 10_000, stop: 9_500, target1: 11_000, target2: 11_500, riskReward: 2, riskPct: 5 },
-    news: { positive: 0, neutral: 0, negative: 0, matchedHeadlines: [], basis: 'UNAVAILABLE' },
+    news: { positive: 0, neutral: 0, negative: 0, matchedHeadlines: [], matchedArticles: [], basis: 'UNAVAILABLE' },
+    sector: 'Financial Services', avgValue20d: 500_000_000_000,
     supportingReasons: [], opposingReasons: [], invalidationReasons: [], eligibilityReasons: [],
     hybridStatus: 'NOT_REVIEWED', hybridReview: null, version: 'decision-agent-v2-hybrid',
   };

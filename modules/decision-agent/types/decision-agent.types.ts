@@ -59,7 +59,15 @@ export interface DecisionNewsEvidence {
   neutral: number;
   negative: number;
   matchedHeadlines: string[];
-  basis: 'HEADLINE_ONLY' | 'UNAVAILABLE';
+  matchedArticles: Array<{
+    title: string;
+    source: string;
+    url: string;
+    publishedAt: string;
+    eventType: string;
+    basis: 'RSS_SUMMARY' | 'HEADLINE_ONLY';
+  }>;
+  basis: 'RSS_SUMMARY' | 'HEADLINE_ONLY' | 'UNAVAILABLE';
 }
 
 export interface DecisionRiskSetup {
@@ -83,6 +91,8 @@ export interface DecisionAgentSignal {
   stale: boolean;
   modelValidated: boolean;
   scoreBreakdown: { technical: number; fundamental: number; flow: number } | null;
+  sector: string | null;
+  avgValue20d: number | null;
   riskSetup: DecisionRiskSetup | null;
   news: DecisionNewsEvidence;
   supportingReasons: string[];
@@ -133,6 +143,13 @@ export interface PaperOrder {
   side: PaperOrderSide;
   lots: number;
   limitPrice: number;
+  fillPrice: number | null;
+  grossValue: number | null;
+  feeValue: number | null;
+  slippageBps: number | null;
+  priceSource: string | null;
+  priceAsOf: string | null;
+  freshness: string | null;
   status: PaperOrderStatus;
   rationale: string;
   proposedAt: string;
@@ -147,6 +164,13 @@ export interface PaperAccount {
   riskBudgetPct: number;
   maxPositionPct: number;
   maxOpenPositions: number;
+  maxTotalExposurePct: number | null;
+  maxSectorExposurePct: number | null;
+  maxAdvParticipationPct: number | null;
+  maxDrawdownPct: number | null;
+  buyFeePct: number | null;
+  sellFeePct: number | null;
+  slippageBps: number | null;
   enabled: boolean;
 }
 
@@ -155,6 +179,65 @@ export interface PaperPosition {
   lots: number;
   avgPrice: number;
   lastPrice: number;
+  sector: string | null;
+  avgValue20d: number | null;
+  observedMaePct: number;
+  observedMfePct: number;
+}
+
+export interface PaperPerformance {
+  initialCash: number | null;
+  nav: number | null;
+  totalReturnPct: number | null;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  closedTrades: number;
+  wins: number;
+  losses: number;
+  winRatePct: number | null;
+  averageWin: number | null;
+  averageLoss: number | null;
+  expectancy: number | null;
+  maxDrawdownPct: number | null;
+  averageMaePct: number | null;
+  averageMfePct: number | null;
+}
+
+export interface PaperRiskContext {
+  totalExposurePct: number | null;
+  currentDrawdownPct: number | null;
+  highWaterNav: number | null;
+  sectorExposure: Array<{ sector: string; value: number; pctNav: number }>;
+  blockers: string[];
+}
+
+export interface DecisionShadowCohort {
+  cohort: 'RULE_ALL' | 'CONFIRM' | 'CHALLENGE' | 'INSUFFICIENT_EVIDENCE' | 'NOT_REVIEWED';
+  t5Count: number;
+  t5AverageReturnPct: number | null;
+  t5HitRatePct: number | null;
+  t20Count: number;
+  t20AverageReturnPct: number | null;
+  t20HitRatePct: number | null;
+}
+
+export interface DecisionShadowEvaluation {
+  calendarSource: 'OBSERVED_MARKET_DATES';
+  entryRule: 'NEXT_OBSERVED_TRADING_CLOSE';
+  cohorts: DecisionShadowCohort[];
+}
+
+export interface DecisionThesis {
+  id: string;
+  ticker: string;
+  status: 'ACTIVE' | 'CLOSED';
+  thesis: string;
+  invalidationCriteria: string[];
+  catalyst: string | null;
+  reviewAt: string;
+  sourceType: 'USER_APPROVED';
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DecisionAgentDashboard {
@@ -163,4 +246,8 @@ export interface DecisionAgentDashboard {
   paperAccount: PaperAccount | null;
   positions: PaperPosition[];
   orders: PaperOrder[];
+  performance: PaperPerformance;
+  riskContext: PaperRiskContext;
+  shadowEvaluation: DecisionShadowEvaluation;
+  theses: DecisionThesis[];
 }

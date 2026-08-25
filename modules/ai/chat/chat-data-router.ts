@@ -398,7 +398,7 @@ function newsLines(items: NewsItem[]): string[] {
     const stamp = date && Number.isFinite(date.getTime())
       ? date.toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' })
       : 'tanggal tidak tersedia';
-    return `  - [${item.sentiment}] ${item.title} (${item.source}, ${stamp})`;
+    return `  - [${item.sentiment}] ${item.title} (${item.source}, ${stamp}, basis ${item.evidenceBasis ?? 'HEADLINE_ONLY'})`;
   });
 }
 
@@ -407,7 +407,7 @@ function sentimentTally(items: NewsItem[]): string {
   const positif = counted.filter((item) => item.sentiment === 'POSITIF').length;
   const negatif = counted.filter((item) => item.sentiment === 'NEGATIF').length;
   const netral = counted.length - positif - negatif;
-  return `- Hitungan sentimen judul: ${positif} positif, ${netral} netral, ${negatif} negatif (dari ${counted.length} berita)`;
+  return `- Hitungan sentimen evidence berita: ${positif} positif, ${netral} netral, ${negatif} negatif (dari ${counted.length} berita)`;
 }
 
 /**
@@ -429,10 +429,7 @@ async function marketNewsBlock(): Promise<string> {
       sentimentTally(news.items),
       '- Judul terbaru:',
       ...newsLines(news.items),
-      // Sentimen dihitung dari JUDUL saja (intelligenceBasis: 'headline-only'). Batas ini
-      // harus ikut dikirim, kalau tidak model akan menyimpulkan sebab-akibat yang tidak
-      // pernah diverifikasi siapa pun.
-      '- BATAS: sentimen di atas diklasifikasi dari JUDUL saja, bukan isi artikel, dan BUKAN',
+      '- BATAS: setiap item menyebut basisnya. RSS_SUMMARY berarti ringkasan asli feed, bukan artikel penuh; HEADLINE_ONLY hanya judul. Ini BUKAN',
       '  bukti kausal bahwa berita inilah yang menggerakkan harga. Sampaikan sebagai "sentimen',
       '  yang sedang beredar", bukan "penyebab IHSG turun".',
     ].join('\n');
@@ -458,7 +455,7 @@ async function stockNewsBlock(ticker: string): Promise<string> {
       sentimentTally(news.items),
       '- Judul terbaru:',
       ...newsLines(news.items),
-      '- BATAS: sentimen diklasifikasi dari JUDUL saja, bukan isi artikel, dan bukan bukti kausal.',
+      '- BATAS: RSS_SUMMARY adalah ringkasan asli feed, bukan artikel penuh; HEADLINE_ONLY hanya judul. Keduanya bukan bukti kausal.',
     ].join('\n');
   } catch (error) {
     console.warn('[LensAI:data-router] stock news gagal', ticker, error instanceof Error ? error.message : String(error));

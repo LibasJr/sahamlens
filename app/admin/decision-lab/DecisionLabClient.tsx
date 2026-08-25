@@ -8,8 +8,14 @@ import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
 type ActionBody =
   | { action: 'scan' }
-  | { action: 'configure-paper-account'; config: { initialCash: number; riskBudgetPct: number; maxPositionPct: number; maxOpenPositions: number } }
-  | { action: 'propose-paper-order'; signalId: string }
+  | { action: 'configure-paper-account'; config: {
+      initialCash: number; riskBudgetPct: number; maxPositionPct: number; maxOpenPositions: number;
+      maxTotalExposurePct: number; maxSectorExposurePct: number; maxAdvParticipationPct: number;
+      maxDrawdownPct: number; buyFeePct: number; sellFeePct: number; slippageBps: number;
+    } }
+  | { action: 'propose-paper-order'; signalId: string; thesis?: {
+      thesis: string; invalidationCriteria: string[]; catalyst: string | null; reviewAt: string;
+    } }
   | { action: 'execute-paper-order' | 'reject-paper-order' | 'execute-live-order'; orderId: string };
 
 function formatNumber(value: number | null, digits = 0): string {
@@ -22,7 +28,7 @@ function formatTime(value: string | null | undefined): string {
   return new Date(value).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }) + ' WIB';
 }
 
-function SignalRow({ signal, busy, onPropose }: { signal: PersistedDecisionSignal; busy: boolean; onPropose: (id: string) => void }) {
+function SignalRow({ signal, busy, onPrepare }: { signal: PersistedDecisionSignal; busy: boolean; onPrepare: (signal: PersistedDecisionSignal) => void }) {
   const hybridConfirmed = signal.hybridStatus === 'CONFIRMED' && signal.hybridReview?.verdict === 'CONFIRM';
   return (
     <tr className="border-t border-tv-border align-top">
@@ -34,7 +40,13 @@ function SignalRow({ signal, busy, onPropose }: { signal: PersistedDecisionSigna
         {signal.riskSetup ? <>stop {formatNumber(signal.riskSetup.stop)} · target {formatNumber(signal.riskSetup.target1)} · RR {formatNumber(signal.riskSetup.riskReward, 2)}</> : '—'}
       </td>
       <td className="max-w-sm px-3 py-3 text-xs text-tv-muted">
-        <div>{signal.news.basis === 'HEADLINE_ONLY' ? `Headline: +${signal.news.positive} / netral ${signal.news.neutral} / -${signal.news.negative}` : 'Berita tidak tersedia'}</div>
+        <div>{signal.news.basis !== 'UNAVAILABLE' ? `${signal.news.basis}: +${signal.news.positive} / netral ${signal.news.neutral} / -${signal.news.negative}` : 'Berita tidak tersedia'}</div>
+        <div className="mt-1">Sektor {signal.sector ?? '—'} · ADV20 {signal.avgValue20d == null ? '—' : `Rp ${formatNumber(signal.avgValue20d)}`}</div>
+        {signal.news.matchedArticles?.slice(0, 2).map((article) => (
+          <a key={`${article.url}:${article.title}`} className="mt-1 block text-tv-blue hover:underline" href={article.url} target="_blank" rel="noreferrer">
+            {article.source} · {article.eventType} · {article.basis}
+          </a>
+        ))}
         <div className="mt-1">{[...signal.supportingReasons, ...signal.opposingReasons, ...signal.invalidationReasons].join(' · ') || 'Tidak ada alasan tambahan.'}</div>
       </td>
       <td className="max-w-xs px-3 py-3 text-xs">
@@ -47,7 +59,7 @@ function SignalRow({ signal, busy, onPropose }: { signal: PersistedDecisionSigna
       </td>
       <td className="px-3 py-3">
         {signal.paperReadiness === 'PAPER_READY' && hybridConfirmed && (signal.action === 'BUY_CANDIDATE' || signal.action === 'EXIT_REVIEW') ? (
-          <Button size="sm" disabled={busy} onClick={() => onPropose(signal.id)}>Usulkan paper</Button>
+          <Button size="sm" disabled={busy} onClick={() => onPrepare(signal)}>{signal.action === 'BUY_CANDIDATE' ? 'Siapkan tesis & paper' : 'Usulkan exit paper'}</Button>
         ) : <span className="text-xs text-tv-muted">{signal.paperReadiness} · hybrid {signal.hybridStatus}</span>}
       </td>
     </tr>
@@ -59,9 +71,12 @@ function OrderRow({ order, busy, onAction }: { order: PaperOrder; busy: boolean;
     <tr className="border-t border-tv-border">
       <td className="px-3 py-3">{order.ticker}</td>
       <td className="px-3 py-3">{order.side}</td>
-      <td className="px-3 py-3 font-number">{formatNumber(order.lots)} lot @ {formatNumber(order.limitPrice)}</td>
+      <td className="px-3 py-3 font-number">
+        {formatNumber(order.lots)} lot · referensi {formatNumber(order.limitPrice)}
+        {order.fillPrice != null && <div className="mt-1 text-xs text-tv-muted">fill {formatNumber(order.fillPrice)} · fee Rp {formatNumber(order.feeValue)} · slip {formatNumber(order.slippageBps, 1)} bps</div>}
+      </td>
       <td className="px-3 py-3">{order.status}</td>
-      <td className="px-3 py-3 text-xs text-tv-muted">{order.rationale}</td>
+      <td className="px-3 py-3 text-xs text-tv-muted">{order.rationale}{order.priceSource && <div className="mt-1">{order.priceSource} · {order.freshness} · {formatTime(order.priceAsOf)}</div>}</td>
       <td className="px-3 py-3">
         {order.status === 'PROPOSED' ? <div className="flex gap-2">
           <Button size="sm" disabled={busy} onClick={() => onAction({ action: 'execute-paper-order', orderId: order.id })}><CheckCircle2 className="h-4 w-4" /> Konfirmasi</Button>
@@ -77,10 +92,16 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [initialCash, setInitialCash] = useState('');
-  const [riskBudgetPct, setRiskBudgetPct] = useState('');
-  const [maxPositionPct, setMaxPositionPct] = useState('');
-  const [maxOpenPositions, setMaxOpenPositions] = useState('');
+  const [policy, setPolicy] = useState({
+    initialCash: '', riskBudgetPct: '', maxPositionPct: '', maxOpenPositions: '',
+    maxTotalExposurePct: '', maxSectorExposurePct: '', maxAdvParticipationPct: '',
+    maxDrawdownPct: '', buyFeePct: '', sellFeePct: '', slippageBps: '',
+  });
+  const [selectedSignal, setSelectedSignal] = useState<PersistedDecisionSignal | null>(null);
+  const [thesis, setThesis] = useState('');
+  const [invalidation, setInvalidation] = useState('');
+  const [catalyst, setCatalyst] = useState('');
+  const [reviewAt, setReviewAt] = useState('');
 
   async function load() {
     setBusy(true); setError(null);
@@ -91,23 +112,48 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
     finally { setBusy(false); }
   }
 
-  async function act(body: ActionBody, success = 'Aksi berhasil dicatat.') {
+  async function act(body: ActionBody, success = 'Aksi berhasil dicatat.'): Promise<boolean> {
     setBusy(true); setError(null); setNotice(null);
     try {
       const data = await apiRequest<{ dashboard: DecisionAgentDashboard }>('/api/admin/decision-lab', {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
-      setDashboard(data.dashboard); setNotice(success);
-    } catch (cause) { setError(apiErrorMessage(cause, 'Aksi gagal', true)); }
+      setDashboard(data.dashboard); setNotice(success); return true;
+    } catch (cause) { setError(apiErrorMessage(cause, 'Aksi gagal', true)); return false; }
     finally { setBusy(false); }
   }
 
   function configure() {
-    const config = { initialCash: Number(initialCash), riskBudgetPct: Number(riskBudgetPct), maxPositionPct: Number(maxPositionPct), maxOpenPositions: Number(maxOpenPositions) };
-    if (Object.values(config).some((value) => !Number.isFinite(value) || value <= 0)) {
-      setError('Isi seluruh kebijakan akun dengan angka positif yang Anda tentukan sendiri.'); return;
+    const config = Object.fromEntries(Object.entries(policy).map(([key, value]) => [key, Number(value)])) as Extract<ActionBody, { action: 'configure-paper-account' }>['config'];
+    const nonNegative = new Set(['buyFeePct', 'sellFeePct', 'slippageBps']);
+    if (Object.entries(config).some(([key, value]) => !Number.isFinite(value) || (nonNegative.has(key) ? value < 0 : value <= 0))) {
+      setError('Isi seluruh kebijakan akun; fee/slippage boleh nol, field lainnya harus positif.'); return;
     }
     void act({ action: 'configure-paper-account', config }, 'Akun paper dan batas risiko tersimpan.');
+  }
+
+  function prepareSignal(signal: PersistedDecisionSignal) {
+    if (signal.action === 'EXIT_REVIEW') {
+      void act({ action: 'propose-paper-order', signalId: signal.id }, 'Paper exit diusulkan; belum dieksekusi.');
+      return;
+    }
+    setSelectedSignal(signal);
+  }
+
+  async function proposeBuy() {
+    if (!selectedSignal) return;
+    const invalidationCriteria = invalidation.split('\n').map((item) => item.trim()).filter(Boolean);
+    const parsedReviewAt = new Date(reviewAt);
+    if (thesis.trim().length < 20 || invalidationCriteria.length === 0 || !Number.isFinite(parsedReviewAt.getTime())) {
+      setError('Isi tesis minimal 20 karakter, sedikitnya satu invalidasi, dan tanggal review.');
+      return;
+    }
+    const succeeded = await act({
+      action: 'propose-paper-order', signalId: selectedSignal.id,
+      thesis: { thesis: thesis.trim(), invalidationCriteria, catalyst: catalyst.trim() || null, reviewAt: parsedReviewAt.toISOString() },
+    }, 'Tesis append-only dicatat dan paper order diusulkan.');
+    if (!succeeded) return;
+    setSelectedSignal(null); setThesis(''); setInvalidation(''); setCatalyst(''); setReviewAt('');
   }
 
   const account = dashboard.paperAccount;
@@ -115,30 +161,83 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
 
   return <div className="mt-6 space-y-6">
     <div className="rounded-xl border border-tv-yellow/40 bg-tv-yellow/10 p-4 text-sm">
-      <div className="flex gap-2"><AlertTriangle className="h-5 w-5 shrink-0 text-tv-yellow" /><div><b>Mode internal, bukan rekomendasi publik.</b> Harga order paper adalah harga snapshot sinyal, bukan klaim fill bursa. Eksekusi broker nyata sengaja terkunci sampai model tervalidasi dan adapter broker diaudit.</div></div>
+      <div className="flex gap-2"><AlertTriangle className="h-5 w-5 shrink-0 text-tv-yellow" /><div><b>Mode internal, bukan rekomendasi publik.</b> Fill paper memakai quote pasar aktual yang tersedia dengan slippage, tick size, dan fee sesuai kebijakan pengguna; ini tetap bukan fill bursa nyata. Eksekusi broker nyata sengaja terkunci sampai model tervalidasi dan adapter broker diaudit.</div></div>
     </div>
     {error && <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
     {notice && <div className="rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-300">{notice}</div>}
+
+    <Card as="section" className="p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h2 className="font-heading text-lg font-bold">Evaluasi pilot 90 hari</h2><p className="mt-1 text-xs text-tv-muted">Metrik hanya berasal dari fill paper aktual yang tersimpan. MAE/MFE adalah jalur harga yang teramati saat scan, bukan rekonstruksi intraday.</p></div>
+        <span className="rounded border border-tv-border px-2 py-1 text-xs font-bold">{dashboard.performance.closedTrades} trade selesai</span>
+      </div>
+      <div className="mt-4 grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+        <div>NAV<br/><b className="font-number">{dashboard.performance.nav == null ? '—' : `Rp ${formatNumber(dashboard.performance.nav)}`}</b></div>
+        <div>Return bersih<br/><b className="font-number">{dashboard.performance.totalReturnPct == null ? '—' : `${formatNumber(dashboard.performance.totalReturnPct, 2)}%`}</b></div>
+        <div>Win rate<br/><b className="font-number">{dashboard.performance.winRatePct == null ? '—' : `${formatNumber(dashboard.performance.winRatePct, 1)}%`}</b></div>
+        <div>Expectancy/trade<br/><b className="font-number">{dashboard.performance.expectancy == null ? '—' : `Rp ${formatNumber(dashboard.performance.expectancy)}`}</b></div>
+        <div>Realized P/L<br/><b className="font-number">Rp {formatNumber(dashboard.performance.realizedPnl)}</b></div>
+        <div>Unrealized P/L<br/><b className="font-number">Rp {formatNumber(dashboard.performance.unrealizedPnl)}</b></div>
+        <div>Max drawdown<br/><b className="font-number">{dashboard.performance.maxDrawdownPct == null ? '—' : `${formatNumber(dashboard.performance.maxDrawdownPct, 2)}%`}</b></div>
+        <div>Avg MAE / MFE<br/><b className="font-number">{dashboard.performance.averageMaePct == null ? '—' : `${formatNumber(dashboard.performance.averageMaePct, 2)}% / ${formatNumber(dashboard.performance.averageMfePct, 2)}%`}</b></div>
+      </div>
+      <div className="mt-4 border-t border-tv-border pt-4">
+        <div className="text-sm font-bold">Konteks risiko portofolio</div>
+        <div className="mt-2 text-xs text-tv-muted">Total exposure {dashboard.riskContext.totalExposurePct == null ? '—' : `${formatNumber(dashboard.riskContext.totalExposurePct, 2)}% NAV`} · drawdown saat ini {dashboard.riskContext.currentDrawdownPct == null ? '—' : `${formatNumber(dashboard.riskContext.currentDrawdownPct, 2)}%`}</div>
+        {dashboard.riskContext.sectorExposure.length > 0 && <div className="mt-2 flex flex-wrap gap-2">{dashboard.riskContext.sectorExposure.map((item) => <span key={item.sector} className="rounded border border-tv-border px-2 py-1 text-xs">{item.sector}: {formatNumber(item.pctNav, 1)}%</span>)}</div>}
+        {dashboard.riskContext.blockers.map((blocker) => <div key={blocker} className="mt-2 text-xs font-semibold text-tv-yellow">{blocker}</div>)}
+      </div>
+      <div className="mt-4 border-t border-tv-border pt-4">
+        <div className="text-sm font-bold">Shadow evaluation rule vs hybrid</div>
+        <p className="mt-1 text-xs text-tv-muted">Entry = penutupan perdagangan teramati berikutnya; T+5/T+20 memakai kalender tanggal pasar yang tersedia di database. Baris tanpa horizon lengkap tidak dihitung.</p>
+        <div className="mt-3 overflow-x-auto"><table className="min-w-full text-left text-xs"><thead className="text-tv-muted"><tr><th className="px-2 py-2">Cohort</th><th className="px-2 py-2">N T+5</th><th className="px-2 py-2">Avg T+5</th><th className="px-2 py-2">Hit T+5</th><th className="px-2 py-2">N T+20</th><th className="px-2 py-2">Avg T+20</th><th className="px-2 py-2">Hit T+20</th></tr></thead><tbody>{dashboard.shadowEvaluation.cohorts.map((item) => <tr key={item.cohort} className="border-t border-tv-border"><td className="px-2 py-2 font-bold">{item.cohort}</td><td className="px-2 py-2">{item.t5Count}</td><td className="px-2 py-2">{item.t5AverageReturnPct == null ? '—' : `${formatNumber(item.t5AverageReturnPct, 2)}%`}</td><td className="px-2 py-2">{item.t5HitRatePct == null ? '—' : `${formatNumber(item.t5HitRatePct, 1)}%`}</td><td className="px-2 py-2">{item.t20Count}</td><td className="px-2 py-2">{item.t20AverageReturnPct == null ? '—' : `${formatNumber(item.t20AverageReturnPct, 2)}%`}</td><td className="px-2 py-2">{item.t20HitRatePct == null ? '—' : `${formatNumber(item.t20HitRatePct, 1)}%`}</td></tr>)}</tbody></table></div>
+      </div>
+    </Card>
+
+    {selectedSignal && <Card as="section" className="border-tv-blue/40 p-5">
+      <h2 className="font-heading text-lg font-bold">Tesis paper {selectedSignal.ticker}</h2>
+      <p className="mt-1 text-xs text-tv-muted">Ditulis dan disetujui pengguna; setiap perubahan berikutnya disimpan sebagai event append-only.</p>
+      <div className="mt-4 grid gap-3">
+        <textarea aria-label="Tesis investasi" className="min-h-24 rounded border border-tv-border bg-tv-bg px-3 py-2 text-sm" placeholder="Alasan utama posisi ini layak diuji..." value={thesis} onChange={(event) => setThesis(event.target.value)} />
+        <textarea aria-label="Kriteria invalidasi" className="min-h-20 rounded border border-tv-border bg-tv-bg px-3 py-2 text-sm" placeholder={'Satu kriteria invalidasi per baris'} value={invalidation} onChange={(event) => setInvalidation(event.target.value)} />
+        <input aria-label="Katalis" className="rounded border border-tv-border bg-tv-bg px-3 py-2" placeholder="Katalis nyata bila ada (opsional)" value={catalyst} onChange={(event) => setCatalyst(event.target.value)} />
+        <input aria-label="Tanggal review tesis" type="datetime-local" className="rounded border border-tv-border bg-tv-bg px-3 py-2" value={reviewAt} onChange={(event) => setReviewAt(event.target.value)} />
+        <div className="flex gap-2"><Button disabled={busy} onClick={() => void proposeBuy()}>Catat tesis & usulkan paper</Button><Button variant="secondary" disabled={busy} onClick={() => setSelectedSignal(null)}>Batal</Button></div>
+      </div>
+    </Card>}
 
     <Card as="section" className="p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="font-heading text-lg font-bold">Snapshot keputusan aktual</h2><p className="text-xs text-tv-muted">As of {formatTime(dashboard.latestRun?.dataAsOf)} · model validated: {dashboard.latestRun?.modelValidated ? 'YA' : 'BELUM'} · hybrid: {dashboard.latestRun?.hybrid.status ?? '—'} {dashboard.latestRun?.hybrid.model ? `(${dashboard.latestRun.hybrid.model})` : ''}</p></div>
         <div className="flex gap-2"><Button variant="secondary" disabled={busy} onClick={() => void load()}><RefreshCw className="h-4 w-4" /> Muat ulang</Button><Button disabled={busy} onClick={() => void act({ action: 'scan' }, 'Scan aktual tersimpan.')}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Jalankan scan</Button></div>
       </div>
-      <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="text-xs text-tv-muted"><tr><th className="px-3 py-2">Ticker</th><th className="px-3 py-2">Aksi rule</th><th className="px-3 py-2">Harga</th><th className="px-3 py-2">Score / Coverage</th><th className="px-3 py-2">Risiko aktual</th><th className="px-3 py-2">Evidence aktual</th><th className="px-3 py-2">Hybrid analyst</th><th className="px-3 py-2">Paper</th></tr></thead><tbody>{dashboard.signals.map((signal) => <SignalRow key={signal.id} signal={signal} busy={busy} onPropose={(signalId) => void act({ action: 'propose-paper-order', signalId }, 'Paper order diusulkan; belum dieksekusi.')} />)}</tbody></table></div>
+      <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="text-xs text-tv-muted"><tr><th className="px-3 py-2">Ticker</th><th className="px-3 py-2">Aksi rule</th><th className="px-3 py-2">Harga</th><th className="px-3 py-2">Score / Coverage</th><th className="px-3 py-2">Risiko aktual</th><th className="px-3 py-2">Evidence aktual</th><th className="px-3 py-2">Hybrid analyst</th><th className="px-3 py-2">Paper</th></tr></thead><tbody>{dashboard.signals.map((signal) => <SignalRow key={signal.id} signal={signal} busy={busy} onPrepare={prepareSignal} />)}</tbody></table></div>
       {!busy && dashboard.signals.length === 0 && <p className="py-6 text-center text-sm text-tv-muted">Belum ada run tersimpan.</p>}
     </Card>
 
     <Card as="section" className="p-5">
       <h2 className="font-heading text-lg font-bold">Akun paper terisolasi</h2>
-      {account ? <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><div>Kas<br/><b className="font-number">Rp {formatNumber(account.cash)}</b></div><div>NAV mark-to-market<br/><b className="font-number">Rp {formatNumber(nav)}</b></div><div>Risk/order<br/><b>{formatNumber(account.riskBudgetPct, 2)}%</b></div><div>Maks posisi<br/><b>{formatNumber(account.maxPositionPct, 2)}% · {account.maxOpenPositions} saham</b></div></div> : <p className="mt-2 text-sm text-tv-muted">Belum dikonfigurasi. Tidak ada saldo awal otomatis.</p>}
-      <div className="mt-4 grid gap-3 sm:grid-cols-5">
-        <input aria-label="Modal awal paper" className="rounded border border-tv-border bg-tv-bg px-3 py-2" placeholder="Modal awal (Rp)" inputMode="decimal" value={initialCash} onChange={(e) => setInitialCash(e.target.value)} />
-        <input aria-label="Risk budget persen" className="rounded border border-tv-border bg-tv-bg px-3 py-2" placeholder="Risk/order % (maks 5)" inputMode="decimal" value={riskBudgetPct} onChange={(e) => setRiskBudgetPct(e.target.value)} />
-        <input aria-label="Maksimal posisi persen" className="rounded border border-tv-border bg-tv-bg px-3 py-2" placeholder="Maks posisi % (maks 25)" inputMode="decimal" value={maxPositionPct} onChange={(e) => setMaxPositionPct(e.target.value)} />
-        <input aria-label="Maksimal jumlah posisi" className="rounded border border-tv-border bg-tv-bg px-3 py-2" placeholder="Maks jumlah saham" inputMode="numeric" value={maxOpenPositions} onChange={(e) => setMaxOpenPositions(e.target.value)} />
+      {account ? <div className="mt-3 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><div>Kas<br/><b className="font-number">Rp {formatNumber(account.cash)}</b></div><div>NAV mark-to-market<br/><b className="font-number">Rp {formatNumber(nav)}</b></div><div>Risk/order<br/><b>{formatNumber(account.riskBudgetPct, 2)}%</b></div><div>Maks posisi<br/><b>{formatNumber(account.maxPositionPct, 2)}% · {account.maxOpenPositions} saham</b></div><div>Total exposure<br/><b>{formatNumber(account.maxTotalExposurePct, 2)}%</b></div><div>Exposure sektor<br/><b>{formatNumber(account.maxSectorExposurePct, 2)}%</b></div><div>Partisipasi ADV20<br/><b>{formatNumber(account.maxAdvParticipationPct, 2)}%</b></div><div>Kill-switch drawdown<br/><b>{formatNumber(account.maxDrawdownPct, 2)}%</b></div></div> : <p className="mt-2 text-sm text-tv-muted">Belum dikonfigurasi. Tidak ada saldo awal, fee, atau batas risiko otomatis.</p>}
+      <p className="mt-4 text-xs text-tv-muted">Masukkan kebijakan aktual yang akan dipakai selama pilot. Sistem tidak mengisi asumsi broker atau toleransi risiko secara otomatis.</p>
+      <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {([
+          ['initialCash', 'Modal awal paper (Rp)'], ['riskBudgetPct', 'Risk/order % (maks 5)'],
+          ['maxPositionPct', 'Maks posisi tunggal %'], ['maxOpenPositions', 'Maks jumlah saham'],
+          ['maxTotalExposurePct', 'Maks total exposure %'], ['maxSectorExposurePct', 'Maks exposure sektor %'],
+          ['maxAdvParticipationPct', 'Maks partisipasi ADV20 %'], ['maxDrawdownPct', 'Kill-switch drawdown %'],
+          ['buyFeePct', 'Fee beli broker %'], ['sellFeePct', 'Fee jual broker %'], ['slippageBps', 'Slippage (bps)'],
+        ] as const).map(([key, label]) => (
+          <input key={key} aria-label={label} className="rounded border border-tv-border bg-tv-bg px-3 py-2" placeholder={label} inputMode="decimal" value={policy[key]} onChange={(event) => setPolicy((current) => ({ ...current, [key]: event.target.value }))} />
+        ))}
         <Button disabled={busy} onClick={configure}>Simpan kebijakan</Button>
       </div>
+    </Card>
+
+    <Card as="section" className="p-5">
+      <h2 className="font-heading text-lg font-bold">Thesis tracker</h2>
+      <p className="mt-1 text-xs text-tv-muted">Tesis aktif dan histori status berasal dari input yang disetujui pengguna, bukan narasi buatan model.</p>
+      <div className="mt-3 space-y-3">{dashboard.theses.map((item) => <div key={item.id} className="rounded border border-tv-border p-3 text-sm"><div className="flex flex-wrap justify-between gap-2"><b>{item.ticker} · {item.status}</b><span className="text-xs text-tv-muted">Review {formatTime(item.reviewAt)}</span></div><p className="mt-2">{item.thesis}</p><div className="mt-2 text-xs text-tv-muted">Invalidasi: {item.invalidationCriteria.join(' · ')}</div>{item.catalyst && <div className="mt-1 text-xs text-tv-muted">Katalis: {item.catalyst}</div>}</div>)}</div>
+      {dashboard.theses.length === 0 && <p className="py-5 text-center text-sm text-tv-muted">Belum ada tesis paper yang disetujui.</p>}
     </Card>
 
     <Card as="section" className="p-5">

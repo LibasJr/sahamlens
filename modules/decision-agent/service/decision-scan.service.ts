@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { cacheGet } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
-import { readAiPickScores, type AiPickScores } from '@/shared/cache/ai-pick-cache';
+import { readAiPickScores, readFundamentalSnapshot, type AiPickScores } from '@/shared/cache/ai-pick-cache';
 import { getLensScoreValidationStatus } from '@/modules/validation';
 import type { NewsItem } from '@/modules/news';
 import { getOpenPaperPositionTickers, insertDecisionRun } from '../repository/decision-agent.repository';
@@ -45,9 +45,12 @@ export async function runDecisionAgentScan(options: DecisionScanOptions): Promis
   const scores = options.scores === undefined ? await readAiPickScores() : options.scores;
   if (!scores || !Array.isArray(scores.scores) || scores.scores.length === 0) return null;
 
-  const news = options.news === undefined
-    ? await cacheGet<CachedMarketNews>(COMPUTED_CACHE_KEY.MARKET_NEWS)
-    : options.news;
+  const [news, fundamentals] = await Promise.all([
+    options.news === undefined
+      ? cacheGet<CachedMarketNews>(COMPUTED_CACHE_KEY.MARKET_NEWS)
+      : Promise.resolve(options.news),
+    readFundamentalSnapshot(),
+  ]);
   const newsItems = Array.isArray(news?.items) ? news.items : [];
   const validation = getLensScoreValidationStatus();
   const bearish = new Set(scores.bearishSymbols);
@@ -61,6 +64,7 @@ export async function runDecisionAgentScan(options: DecisionScanOptions): Promis
       dataAsOf: scores.computedAt,
       now,
       modelValidated: validation.validated,
+      sector: fundamentals?.[stock.symbol]?.sector?.yahooSector ?? null,
     }))
     .sort((a, b) => b.lensScore - a.lensScore || a.ticker.localeCompare(b.ticker));
 
