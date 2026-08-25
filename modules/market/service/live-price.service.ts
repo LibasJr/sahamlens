@@ -2,6 +2,7 @@ import { getMarketAwareCacheHeaders, getMarketAwareTtlSec } from '@/shared/cache
 import { classifyFreshness } from '@/shared/http/freshness';
 import { isProviderCircuitOpen, recordProviderFailure, recordProviderSuccess } from '@/shared/http/provider-circuit-breaker';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
+import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 
 function isFinitePositive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -23,6 +24,7 @@ export interface LivePriceResult {
  * fallback is returned from this service.
  */
 export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceResult> {
+  const startedAt = Date.now();
   const yahooCircuitOpen = await isProviderCircuitOpen('YAHOO_CHART');
   try {
     if (yahooCircuitOpen) throw new Error('YAHOO_CIRCUIT_OPEN');
@@ -60,6 +62,11 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
         const changePercent = previousClose != null ? ((lastPrice - previousClose) / previousClose) * 100 : null;
         const volume = isFiniteNonNegative(meta?.regularMarketVolume) ? meta.regularMarketVolume : null;
         const fresh = classifyFreshness(meta?.regularMarketTime);
+        if (process.env.NODE_ENV !== 'test') await recordDataSourceHealth({
+          sourceId: 'YAHOO_CHART', ok: true, latencyMs: Date.now() - startedAt,
+          dataObservedAt: fresh.dataTimestamp,
+          detail: { endpoint: 'live-price', freshness: fresh.freshness },
+        });
 
         return {
           available: true,
@@ -92,6 +99,11 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
     }
     console.error('Failed to fetch from Yahoo Finance:', error);
   }
+
+  if (process.env.NODE_ENV !== 'test') await recordDataSourceHealth({
+    sourceId: 'YAHOO_CHART', ok: false, latencyMs: Date.now() - startedAt,
+    detail: { endpoint: 'live-price', ticker: ticker.replace(/\.JK$/i, '') },
+  });
 
   return {
     available: false,

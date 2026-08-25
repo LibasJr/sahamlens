@@ -61,4 +61,15 @@ describe('structured event intelligence', () => {
     expect(result.confidence).toBe(75);
     expect(result.evidenceBasis).toBe('HEADLINE_ONLY');
   });
+
+  it('menandai RSS summary hanya ketika ringkasan nyata diberikan pemanggil', () => {
+    const result = sanitizeEventIntelligence(
+      { eventType: 'EARNINGS', confidence: 99 },
+      'Emiten melaporkan kinerja kuartal',
+      'RSS_SUMMARY',
+      'Ringkasan feed menyebut pertumbuhan pendapatan dan laba bersih.',
+    );
+    expect(result.evidenceBasis).toBe('RSS_SUMMARY');
+    expect(result.confidence).toBe(85);
+  });
 });

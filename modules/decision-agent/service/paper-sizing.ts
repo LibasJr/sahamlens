@@ -15,6 +15,25 @@ export interface PaperSizingResult {
   bindingConstraint: 'RISK_BUDGET' | 'POSITION_LIMIT' | 'CASH' | 'NONE';
 }
 
+export interface PaperPortfolioCapacityInput {
+  nav: number;
+  orderPrice: number;
+  currentTotalExposureValue: number;
+  currentSectorExposureValue: number;
+  avgValue20d: number;
+  maxTotalExposurePct: number;
+  maxSectorExposurePct: number;
+  maxAdvParticipationPct: number;
+}
+
+export interface PaperPortfolioCapacityResult {
+  maxByTotalExposure: number;
+  maxBySectorExposure: number;
+  maxByLiquidity: number;
+  lots: number;
+  bindingConstraint: 'TOTAL_EXPOSURE' | 'SECTOR_EXPOSURE' | 'LIQUIDITY' | 'NONE';
+}
+
 const LOT_SIZE = 100;
 
 function validPositive(value: number): boolean {
@@ -46,4 +65,30 @@ export function calculatePaperBuyLots(input: PaperSizingInput): PaperSizingResul
         ? 'POSITION_LIMIT'
         : 'CASH';
   return { lots, maxByRisk, maxByPosition, maxByCash, bindingConstraint };
+}
+
+export function calculatePaperPortfolioCapacity(input: PaperPortfolioCapacityInput): PaperPortfolioCapacityResult {
+  if (
+    !validPositive(input.nav) || !validPositive(input.orderPrice) ||
+    input.currentTotalExposureValue < 0 || input.currentSectorExposureValue < 0 ||
+    !validPositive(input.avgValue20d) || !validPositive(input.maxTotalExposurePct) ||
+    !validPositive(input.maxSectorExposurePct) || !validPositive(input.maxAdvParticipationPct)
+  ) return { maxByTotalExposure: 0, maxBySectorExposure: 0, maxByLiquidity: 0, lots: 0, bindingConstraint: 'NONE' };
+
+  const perLotValue = input.orderPrice * LOT_SIZE;
+  const remainingTotal = Math.max(0, input.nav * input.maxTotalExposurePct / 100 - input.currentTotalExposureValue);
+  const remainingSector = Math.max(0, input.nav * input.maxSectorExposurePct / 100 - input.currentSectorExposureValue);
+  const liquidityCapacity = input.avgValue20d * input.maxAdvParticipationPct / 100;
+  const maxByTotalExposure = Math.floor(remainingTotal / perLotValue);
+  const maxBySectorExposure = Math.floor(remainingSector / perLotValue);
+  const maxByLiquidity = Math.floor(liquidityCapacity / perLotValue);
+  const lots = Math.max(0, Math.min(maxByTotalExposure, maxBySectorExposure, maxByLiquidity));
+  const bindingConstraint = lots <= 0
+    ? 'NONE'
+    : lots === maxByTotalExposure
+      ? 'TOTAL_EXPOSURE'
+      : lots === maxBySectorExposure
+        ? 'SECTOR_EXPOSURE'
+        : 'LIQUIDITY';
+  return { maxByTotalExposure, maxBySectorExposure, maxByLiquidity, lots, bindingConstraint };
 }
