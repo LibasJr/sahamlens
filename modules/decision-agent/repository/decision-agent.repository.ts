@@ -223,6 +223,7 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
     maxOpenPositions: number(accountRow.max_open_positions),
     maxTotalExposurePct: accountRow.max_total_exposure_pct == null ? null : number(accountRow.max_total_exposure_pct),
     maxSectorExposurePct: accountRow.max_sector_exposure_pct == null ? null : number(accountRow.max_sector_exposure_pct),
+    maxPositionsPerSector: accountRow.max_positions_per_sector == null ? null : number(accountRow.max_positions_per_sector),
     maxAdvParticipationPct: accountRow.max_adv_participation_pct == null ? null : number(accountRow.max_adv_participation_pct),
     maxDrawdownPct: accountRow.max_drawdown_pct == null ? null : number(accountRow.max_drawdown_pct),
     buyFeePct: accountRow.buy_fee_pct == null ? null : number(accountRow.buy_fee_pct),
@@ -308,7 +309,7 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
   const totalExposurePct = nav && nav > 0 ? positionValue / nav * 100 : null;
   const blockers: string[] = [];
   if (paperAccount) {
-    if ([paperAccount.maxTotalExposurePct, paperAccount.maxSectorExposurePct, paperAccount.maxAdvParticipationPct,
+    if ([paperAccount.maxTotalExposurePct, paperAccount.maxSectorExposurePct, paperAccount.maxPositionsPerSector, paperAccount.maxAdvParticipationPct,
       paperAccount.maxDrawdownPct, paperAccount.buyFeePct, paperAccount.sellFeePct, paperAccount.slippageBps].some((value) => value == null)) {
       blockers.push('Kebijakan pilot 90 hari belum lengkap.');
     }

@@ -7,6 +7,7 @@ export const configurePaperAccountSchema = z.object({
   maxOpenPositions: z.number().int().positive().max(30),
   maxTotalExposurePct: z.number().finite().positive().max(100),
   maxSectorExposurePct: z.number().finite().positive().max(100),
+  maxPositionsPerSector: z.number().int().positive().max(30),
   maxAdvParticipationPct: z.number().finite().positive().max(25),
   maxDrawdownPct: z.number().finite().positive().max(100),
   buyFeePct: z.number().finite().nonnegative().max(5),
