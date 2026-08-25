@@ -1,0 +1,15 @@
+# Rotasi log nginx untuk VPS SahamLens.
+# missingok + notifempty: aman dipasang di mesin yang belum menjalankan nginx.
+/var/log/nginx/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    missingok
+    notifempty
+    create 0640 www-data adm
+    sharedscripts
+    postrotate
+        [ -f /var/run/nginx.pid ] && kill -USR1 "$(cat /var/run/nginx.pid)" || true
+    endscript
+}

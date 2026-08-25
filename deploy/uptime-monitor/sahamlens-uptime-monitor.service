@@ -1,0 +1,10 @@
+[Unit]
+Description=SahamLens - pemantau ketersediaan & kesegaran build (peringatan saja, tidak me-restart apa pun)
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# SAHAMLENS_ALERT_WEBHOOK opsional - tanpa itu peringatan tetap masuk journal.
+EnvironmentFile=-/opt/sahamlens/app/.env.production
+ExecStart=/opt/sahamlens/scripts/uptime-monitor.sh

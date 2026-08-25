@@ -1,0 +1,10 @@
+[Unit]
+Description=Jadwal SahamLens - pemantau ketersediaan tiap 5 menit
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=5min
+AccuracySec=30
+
+[Install]
+WantedBy=timers.target
