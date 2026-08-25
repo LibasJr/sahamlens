@@ -811,6 +811,32 @@ cloudflared`.
 **BELUM AKTIF sampai dipasang manual di VPS** (perlu akses root, di luar akses sesi agen
 ini) - jalankan langkah di `deploy/cloudflared-watchdog/README.md`.
 
+**Perubahan 2026-08-25.** Watchdog ini sekarang menghitung gagal HANYA kalau tidak ada
+jawaban HTTP sama sekali. Kode status apa pun - termasuk 503 - dianggap membuktikan jalur
+lengkapnya bekerja, dan itu memang satu-satunya hal yang bisa diperbaiki restart
+cloudflared. Perubahan ini WAJIB seiring `/api/health` yang kini membalas 503 saat Redis
+tidak tersedia di produksi: `curl -sf` yang lama akan membaca "Redis mati" sebagai "tunnel
+putus" lalu me-restart cloudflared tiap 2 menit untuk masalah yang tidak disentuhnya.
+
+### 2026-08-25 - Pemantau ketersediaan & kesegaran build
+
+Sentry melaporkan galat dari proses yang masih hidup; ia tidak melaporkan proses yang mati,
+dan yang lebih halus - ia tidak melaporkan produksi yang menyajikan build LAMA. Kejadian 23
+Agustus 2026 (CLAUDE.md §7) tidak memerahkan apa pun: workflow deploy hijau, `git log` di
+VPS benar, dan pengguna dilayani build berumur dua belas jam.
+
+`deploy/uptime-monitor/` menutup celah itu dengan timer 5 menit yang membandingkan
+`buildId` yang BENAR-BENAR disajikan dengan `.next/BUILD_ID` di disk, plus `deployed-sha`
+vs HEAD, status `/api/health`, dan umur/jumlah restart servis. Ia hanya memberi peringatan
+- tidak me-restart apa pun, karena tak satu pun keadaan di atas bisa diperbaiki restart.
+
+Pemantau ini berjalan di mesin yang sama, jadi ia TIDAK menggantikan pemantau eksternal
+(Uptime Kuma / healthchecks.io): mesin yang mati tidak bisa melaporkan dirinya mati.
+Keduanya menangkap kelas kegagalan berbeda - tabel lengkapnya di
+`deploy/uptime-monitor/README.md`.
+
+**BELUM AKTIF sampai dipasang manual di VPS**: `bash deploy/uptime-monitor/install.sh`.
+
 ### 2026-08-14 - LensAI diperluas: kenal lebih banyak fitur + aturan akses/kesegaran data aplikasi sendiri
 
 Permintaan pengguna: "saya mau ask ai itu serba bisa jawab soal aplikasinya sendiri, dan
@@ -3086,6 +3112,12 @@ Yang justru perlu diawasi, dan tidak satu pun soal ukuran mesin:
   Yang menumpuk: journald, log nginx, image Docker 9router, dan build `.next` lama kalau skrip
   `deploy` tidak membersihkannya. Cek berkala: `df -h /`, `journalctl --disk-usage`,
   `docker system df`.
+
+  Batas otomatisnya ada di `deploy/logrotate/` (drop-in journald 512M/14 hari + logrotate
+  nginx); pasang dengan `bash deploy/logrotate/install.sh`. Batas log Docker sengaja TIDAK
+  ikut dipasang skrip itu - lihat README-nya. Selama ini belum dipasang, "cek berkala" di
+  atas adalah satu-satunya yang berdiri antara log dan disk penuh, dan ia bergantung pada
+  ingatan orang.
 - **Tidak ada autoscale.** Lonjakan trafik menabrak box tetap.
 
 Belum diukur: RSS proses Next.js, memori Redis terpakai, dan waktu respons endpoint di VPS
