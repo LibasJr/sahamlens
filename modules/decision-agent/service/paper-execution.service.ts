@@ -47,9 +47,9 @@ export async function configurePaperAccount(input: ConfigurePaperAccountInput): 
   await pool.query(
     `INSERT INTO decision_agent_paper_accounts
       (id, name, cash, initial_cash, risk_budget_pct, max_position_pct, max_open_positions,
-       max_total_exposure_pct, max_sector_exposure_pct, max_adv_participation_pct,
+       max_total_exposure_pct, max_sector_exposure_pct, max_positions_per_sector, max_adv_participation_pct,
        max_drawdown_pct, buy_fee_pct, sell_fee_pct, slippage_bps, enabled, updated_at)
-     VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, true, NOW())
+     VALUES ($1, $2, $3, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, true, NOW())
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name,
        cash = CASE
@@ -63,17 +63,18 @@ export async function configurePaperAccount(input: ConfigurePaperAccountInput): 
        max_open_positions = EXCLUDED.max_open_positions,
        max_total_exposure_pct = $7,
        max_sector_exposure_pct = $8,
-       max_adv_participation_pct = $9,
-       max_drawdown_pct = $10,
-       buy_fee_pct = $11,
-       sell_fee_pct = $12,
-       slippage_bps = $13,
+       max_positions_per_sector = $9,
+       max_adv_participation_pct = $10,
+       max_drawdown_pct = $11,
+       buy_fee_pct = $12,
+       sell_fee_pct = $13,
+       slippage_bps = $14,
        enabled = true,
        updated_at = NOW()`,
     [
       ACCOUNT_ID, 'Internal Decision Agent Paper Account', input.initialCash, input.riskBudgetPct,
       input.maxPositionPct, input.maxOpenPositions, input.maxTotalExposurePct,
-      input.maxSectorExposurePct, input.maxAdvParticipationPct, input.maxDrawdownPct,
+      input.maxSectorExposurePct, input.maxPositionsPerSector, input.maxAdvParticipationPct, input.maxDrawdownPct,
       input.buyFeePct, input.sellFeePct, input.slippageBps,
     ],
   );
@@ -145,7 +146,7 @@ export async function proposePaperOrder(signalId: string, thesisInput?: Decision
         throw new ConflictError('ADV20 aktual tidak tersedia; kapasitas likuiditas tidak dapat dihitung');
       }
       const requiredPolicy = [
-        account.max_total_exposure_pct, account.max_sector_exposure_pct,
+        account.max_total_exposure_pct, account.max_sector_exposure_pct, account.max_positions_per_sector,
         account.max_adv_participation_pct, account.max_drawdown_pct,
         account.buy_fee_pct, account.sell_fee_pct, account.slippage_bps,
       ];
@@ -159,6 +160,18 @@ export async function proposePaperOrder(signalId: string, thesisInput?: Decision
       const openPositions = asNumber(positionCountResult.rows[0]?.count);
       if (existingLots === 0 && openPositions >= asNumber(account.max_open_positions)) {
         throw new ConflictError('Batas jumlah posisi paper sudah tercapai');
+      }
+      const sectorPositionResult = await client.query(
+        `SELECT
+           (SELECT COUNT(*) FROM decision_agent_paper_positions
+             WHERE account_id=$1 AND sector=$2 AND lots>0)
+           +
+           (SELECT COUNT(*) FROM decision_agent_orders
+             WHERE account_id=$1 AND sector=$2 AND side='BUY' AND status='PROPOSED') AS count`,
+        [ACCOUNT_ID, signal.sector],
+      );
+      if (asNumber(sectorPositionResult.rows[0]?.count) >= asNumber(account.max_positions_per_sector)) {
+        throw new ConflictError(`Batas jumlah saham sektor ${signal.sector} sudah tercapai`);
       }
       const navResult = await client.query(
         `SELECT COALESCE(SUM(lots * 100 * last_price), 0) AS position_value,
@@ -332,7 +345,7 @@ export async function executePaperOrder(
         throw new ConflictError('Konteks sektor/ADV20 order tidak lengkap; fill dibatalkan');
       }
       const requiredPolicy = [
-        account.max_total_exposure_pct, account.max_sector_exposure_pct,
+        account.max_total_exposure_pct, account.max_sector_exposure_pct, account.max_positions_per_sector,
         account.max_adv_participation_pct, account.max_drawdown_pct,
       ];
       if (requiredPolicy.some((value) => value == null)) {
@@ -340,6 +353,7 @@ export async function executePaperOrder(
       }
       const contextResult = await client.query(
         `SELECT COUNT(*) FILTER (WHERE lots>0)::int AS open_positions,
+                COUNT(*) FILTER (WHERE lots>0 AND sector=$2)::int AS sector_positions,
                 COALESCE(SUM(CASE WHEN lots>0 THEN lots*100*last_price ELSE 0 END),0) AS position_value,
                 COALESCE(SUM(CASE WHEN lots>0 AND sector=$2 THEN lots*100*last_price ELSE 0 END),0) AS sector_value
            FROM decision_agent_paper_positions WHERE account_id=$1`,
@@ -348,6 +362,9 @@ export async function executePaperOrder(
       const context = contextResult.rows[0];
       if (asNumber(context?.open_positions) >= asNumber(account.max_open_positions)) {
         throw new ConflictError('Batas jumlah posisi tercapai sebelum fill; paper order dibatalkan');
+      }
+      if (asNumber(context?.sector_positions) >= asNumber(account.max_positions_per_sector)) {
+        throw new ConflictError(`Batas jumlah saham sektor ${String(order.sector)} tercapai sebelum fill`);
       }
       const positionValue = asNumber(context?.position_value);
       const nav = cash + positionValue;
