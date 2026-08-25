@@ -43,6 +43,7 @@
     "audit:broker-forensics": "node scripts/audit-broker-summary-forensics.mjs",
     "sync:idx-foreign-flow": "python scripts/sync-idx-foreign-flow.py",
     "sync:idx-broker-summary": "python scripts/sync-idx-broker-summary.py",
+    "sync:idx-ic": "python3 scripts/sync-idx-ic.py",
     "import:broker-eod": "node scripts/import-broker-market-daily.mjs",
     "audit:bundle": "node scripts/audit-bundle-budget.mjs",
     "audit:adoption": "node scripts/audit-adoption-ratchet.mjs",

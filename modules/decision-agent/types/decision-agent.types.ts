@@ -202,6 +202,27 @@ export interface PaperPerformance {
   maxDrawdownPct: number | null;
   averageMaePct: number | null;
   averageMfePct: number | null;
+  externalCosts: number;
+}
+
+export interface DecisionPilotProtocol {
+  status: 'ACTIVE' | 'COMPLETED';
+  startedAt: string;
+  endsAt: string;
+  frozenAt: string;
+  engineVersion: string;
+  policySnapshot: Record<string, unknown>;
+}
+
+export interface DecisionDataControls {
+  idxIcCount: number;
+  idxIcLatestAsOf: string | null;
+  idxIcSourceUrl: string | null;
+  brokerImportCount: number;
+  brokerTransactionCount: number;
+  unmatchedBrokerTransactions: number;
+  externalCosts: number;
+  telegramConfigured: boolean;
 }
 
 export interface PaperRiskContext {
@@ -251,4 +272,6 @@ export interface DecisionAgentDashboard {
   riskContext: PaperRiskContext;
   shadowEvaluation: DecisionShadowEvaluation;
   theses: DecisionThesis[];
+  pilotProtocol: DecisionPilotProtocol | null;
+  dataControls: DecisionDataControls;
 }
