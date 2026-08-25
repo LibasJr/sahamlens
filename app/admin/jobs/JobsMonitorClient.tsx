@@ -328,8 +328,7 @@ export default function JobsMonitorClient() {
         );
       })()}
 
-      {sourceHealth.length > 0 && (
-        <Card as="section" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
+      <Card as="section" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <h2 className="font-heading text-base font-bold text-tv-text">Data Source Health</h2>
           <p className="mt-1 text-xs text-tv-muted">Status provider dicatat dari request nyata; kegagalan health logging tidak pernah mengubah data finansial.</p>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -342,8 +341,8 @@ export default function JobsMonitorClient() {
               </div>
             ))}
           </div>
+          {sourceHealth.length === 0 && <p className="mt-4 rounded-lg border border-tv-yellow/30 bg-tv-yellow/[0.04] p-3 text-xs text-tv-yellow">Belum ada telemetry provider yang berhasil tersimpan. Status tidak dianggap sehat sampai request nyata mencatat hasilnya.</p>}
         </Card>
-      )}
 
       <Card as="section" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
