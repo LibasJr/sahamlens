@@ -18,10 +18,13 @@ function candidate() {
 
 describe('hybrid analyst evidence gate', () => {
   const originalModels = process.env.NINEROUTER_MODELS;
-  beforeEach(() => { process.env.NINEROUTER_MODELS = 'cc/claude-sonnet-5'; });
+  const originalDecisionModel = process.env.DECISION_AGENT_LLM_MODEL;
+  beforeEach(() => { process.env.NINEROUTER_MODELS = 'cc/claude-sonnet-5'; delete process.env.DECISION_AGENT_LLM_MODEL; });
   afterEach(() => {
     if (originalModels === undefined) delete process.env.NINEROUTER_MODELS;
     else process.env.NINEROUTER_MODELS = originalModels;
+    if (originalDecisionModel === undefined) delete process.env.DECISION_AGENT_LLM_MODEL;
+    else process.env.DECISION_AGENT_LLM_MODEL = originalDecisionModel;
   });
 
   it('menyimpan verdict hanya bila seluruh evidence ref berasal dari input aktual', async () => {
@@ -65,6 +68,55 @@ describe('hybrid analyst evidence gate', () => {
   it('fail-closed bila provider gagal', async () => {
     const result = await applyHybridAnalysis({ signals: [candidate()], runner: async () => { throw new Error('timeout'); } });
     expect(result.meta.status).toBe('PROVIDER_FAILED');
+    expect(result.signals[0].hybridStatus).toBe('PROVIDER_FAILED');
+  });
+
+  it('fallback ke model berikutnya bila model pertama gagal (exception)', async () => {
+    process.env.DECISION_AGENT_LLM_MODEL = 'cc/claude-opus-5,cx/gpt-5.6-sol';
+    const signal = candidate();
+    const refs = ['ruleAction', 'lensScore', 'coveragePct', 'riskReward', 'modelValidated'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async (args: { model: string }) => {
+      if (args.model === 'cc/claude-opus-5') throw new Error('rate_limit_error');
+      return {
+        output: { reviews: [{ ticker: 'BBCA', verdict: 'CONFIRM' as const, confidence: 'MEDIUM' as const, evidenceRefs: refs, concerns: ['MODEL_UNVALIDATED' as const], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION' as const] }] },
+        inputTokens: 100, outputTokens: 20,
+      };
+    });
+    const result = await applyHybridAnalysis({ signals: [signal], runner });
+    expect(runner).toHaveBeenCalledTimes(2);
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(result.meta.model).toBe('cx/gpt-5.6-sol');
+    expect(result.signals[0].hybridStatus).toBe('CONFIRMED');
+  });
+
+  it('fallback ke model berikutnya bila model pertama membalas output tak valid (bukan exception)', async () => {
+    process.env.DECISION_AGENT_LLM_MODEL = 'cc/claude-sonnet-5,cx/gpt-5.6-sol';
+    const signal = candidate();
+    const refs = ['ruleAction', 'lensScore', 'coveragePct', 'riskReward', 'modelValidated'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async (args: { model: string }) => {
+      if (args.model === 'cc/claude-sonnet-5') {
+        return { output: { reviews: [{ ticker: 'BBCA', verdict: 'CONFIRM' as const, confidence: 'HIGH' as const, evidenceRefs: ['E:BBCA:unknownEvidence'], concerns: [], nextEvidence: [] }] }, inputTokens: null, outputTokens: null };
+      }
+      return {
+        output: { reviews: [{ ticker: 'BBCA', verdict: 'CONFIRM' as const, confidence: 'MEDIUM' as const, evidenceRefs: refs, concerns: ['MODEL_UNVALIDATED' as const], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION' as const] }] },
+        inputTokens: 100, outputTokens: 20,
+      };
+    });
+    const result = await applyHybridAnalysis({ signals: [signal], runner });
+    expect(runner).toHaveBeenCalledTimes(2);
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(result.meta.model).toBe('cx/gpt-5.6-sol');
+  });
+
+  it('PROVIDER_FAILED hanya setelah SELURUH model di daftar gagal, melaporkan kegagalan terakhir', async () => {
+    process.env.DECISION_AGENT_LLM_MODEL = 'cc/claude-opus-5,cc/claude-sonnet-5';
+    const runner = vi.fn(async (args: { model: string }) => {
+      throw new Error(args.model === 'cc/claude-opus-5' ? 'rate_limit_error' : 'invalid_json_response');
+    });
+    const result = await applyHybridAnalysis({ signals: [candidate()], runner });
+    expect(runner).toHaveBeenCalledTimes(2);
+    expect(result.meta.status).toBe('PROVIDER_FAILED');
+    expect(result.meta.model).toBe('cc/claude-sonnet-5');
     expect(result.signals[0].hybridStatus).toBe('PROVIDER_FAILED');
   });
 
