@@ -3,10 +3,11 @@ import type { ScoredStock } from '@/modules/recommendation/service/ai-pick.servi
 import { buildDecisionSignal } from '../decision-engine';
 import { applyHybridAnalysis, buildSignalEvidence } from '../hybrid-analyst.service';
 
-function candidate() {
+function candidate(overrides: Partial<ScoredStock> = {}) {
   const stock: ScoredStock = {
     symbol: 'BBCA.JK', price: 10_000, changePct: 1, totalScore: 78, rsi: 55,
     accumulationConfirmed: true, breakdown: { technical: 30, fundamental: 25, flow: 23 },
+    ...overrides,
     topReasons: ['Trend naik'], coverage: 90, kategori: 'BUY', eligibilityStatus: 'ELIGIBLE',
     eligibilityReasons: [], tradeSetup: { tp1: 11_000, tp2: 11_500, cl1: 9_500, cl2: 9_000, rr: 2 },
   };
@@ -28,12 +29,23 @@ function exitReviewCandidate() {
 describe('hybrid analyst evidence gate', () => {
   const originalModels = process.env.NINEROUTER_MODELS;
   const originalDecisionModel = process.env.DECISION_AGENT_LLM_MODEL;
-  beforeEach(() => { process.env.NINEROUTER_MODELS = 'cc/claude-sonnet-5'; delete process.env.DECISION_AGENT_LLM_MODEL; });
+  const originalReviewLimit = process.env.DECISION_AGENT_REVIEW_LIMIT;
+  const originalMinLensScore = process.env.DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW;
+  beforeEach(() => {
+    process.env.NINEROUTER_MODELS = 'cc/claude-sonnet-5';
+    delete process.env.DECISION_AGENT_LLM_MODEL;
+    delete process.env.DECISION_AGENT_REVIEW_LIMIT;
+    delete process.env.DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW;
+  });
   afterEach(() => {
     if (originalModels === undefined) delete process.env.NINEROUTER_MODELS;
     else process.env.NINEROUTER_MODELS = originalModels;
     if (originalDecisionModel === undefined) delete process.env.DECISION_AGENT_LLM_MODEL;
     else process.env.DECISION_AGENT_LLM_MODEL = originalDecisionModel;
+    if (originalReviewLimit === undefined) delete process.env.DECISION_AGENT_REVIEW_LIMIT;
+    else process.env.DECISION_AGENT_REVIEW_LIMIT = originalReviewLimit;
+    if (originalMinLensScore === undefined) delete process.env.DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW;
+    else process.env.DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW = originalMinLensScore;
   });
 
   it('menyimpan verdict hanya bila seluruh evidence ref berasal dari input aktual', async () => {
@@ -195,5 +207,67 @@ describe('hybrid analyst evidence gate', () => {
     const result = await applyHybridAnalysis({ signals: [stale], runner });
     expect(runner).not.toHaveBeenCalled();
     expect(result.meta.status).toBe('SKIPPED_NO_ELIGIBLE_SIGNALS');
+  });
+
+  it('hanya mengirim maksimal 10 kandidat ke hybrid analyst', async () => {
+    const signals = Array.from({ length: 12 }, (_, index) => ({
+      ...candidate({ symbol: `T${String(index + 1).padStart(3, '0')}.JK`, totalScore: 82 }),
+      ticker: `T${String(index + 1).padStart(3, '0')}`,
+    }));
+    const runner = vi.fn(async (args: { evidence: Array<{ ticker: string }> }) => {
+      expect(args.evidence).toHaveLength(10);
+      const tickers = args.evidence.map((item) => item.ticker);
+      expect(tickers).toEqual(signals.slice(0, 10).map((signal) => signal.ticker));
+      return {
+        output: { reviews: tickers.map((ticker) => ({ ticker, verdict: 'CHALLENGE' as const, confidence: 'LOW' as const, evidenceRefs: [`E:${ticker}:ruleAction`, `E:${ticker}:modelValidated`], concerns: ['MODEL_UNVALIDATED' as const], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION' as const] })) },
+        inputTokens: 100,
+        outputTokens: 20,
+      };
+    });
+
+    const result = await applyHybridAnalysis({ signals, runner: runner as any });
+
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(result.meta.reviewedCount).toBe(10);
+  });
+
+  it('melewati kandidat dengan LensScore di bawah 75 sebelum memanggil hybrid analyst', async () => {
+    const low = { ...candidate({ symbol: 'LOW.JK', totalScore: 74 }), ticker: 'LOW' };
+    const pass = { ...candidate({ symbol: 'PASS.JK', totalScore: 75 }), ticker: 'PASS' };
+    const runner = vi.fn(async (args: { evidence: Array<{ ticker: string }> }) => {
+      expect(args.evidence.map((item) => item.ticker)).toEqual(['PASS']);
+      return {
+        output: { reviews: [{ ticker: 'PASS', verdict: 'CHALLENGE' as const, confidence: 'LOW' as const, evidenceRefs: ['E:PASS:ruleAction', 'E:PASS:modelValidated'], concerns: ['MODEL_UNVALIDATED' as const], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION' as const] }] },
+        inputTokens: 100,
+        outputTokens: 20,
+      };
+    });
+
+    const result = await applyHybridAnalysis({ signals: [low, pass], runner: runner as any });
+
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(result.meta.reviewedCount).toBe(1);
+  });
+
+  it('mengizinkan preset live menaikkan batas LensScore minimum ke 80 lewat env', async () => {
+    process.env.DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW = '80';
+    const low = { ...candidate({ symbol: 'LOW.JK', totalScore: 79 }), ticker: 'LOW' };
+    const pass = { ...candidate({ symbol: 'PASS.JK', totalScore: 80 }), ticker: 'PASS' };
+    const runner = vi.fn(async (args: { evidence: Array<{ ticker: string }> }) => {
+      expect(args.evidence.map((item) => item.ticker)).toEqual(['PASS']);
+      return {
+        output: { reviews: [{ ticker: 'PASS', verdict: 'CHALLENGE' as const, confidence: 'LOW' as const, evidenceRefs: ['E:PASS:ruleAction', 'E:PASS:modelValidated'], concerns: ['MODEL_UNVALIDATED' as const], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION' as const] }] },
+        inputTokens: 100,
+        outputTokens: 20,
+      };
+    });
+
+    const result = await applyHybridAnalysis({ signals: [low, pass], runner: runner as any });
+
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(result.meta.reviewedCount).toBe(1);
   });
 });
