@@ -66,13 +66,6 @@ export interface NavItem {
    *  sesuatu yang tidak punya URL adalah janji yang tidak bisa ditepati (tautan yang
    *  bisa dibuka di tab baru, di-bookmark, atau dibagikan). */
   action?: string;
-  /** Item admin-only yang ditaruh di GRUP BIASA (Utama/Riset/Tools/Intelligence),
-   *  bukan di ADMIN_NAV_GROUP - untuk fitur yang secara konsep milik grup itu (mis.
-   *  Decision Lab adalah riset per-emiten) tapi tetap harus disembunyikan dari
-   *  non-admin di navigasi. Ini filter UI di `visibleGroupsFor`, BUKAN penjamin
-   *  keamanan - halaman tujuannya wajib tetap men-gate sendiri via `isAdminServer()`
-   *  di server component. */
-  adminOnly?: boolean;
 }
 
 interface NavGroup {
@@ -98,7 +91,6 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { id: 'dashboard', name: 'LensTechnical', subtitle: 'Tren, momentum, flow, dan bukti teknikal', path: '/dashboard', icon: LineChart },
       { id: 'fundamental', name: 'LensFundamental', subtitle: 'Kualitas bisnis, pertumbuhan, neraca, dan profitabilitas', path: '/fundamental', icon: Building2 },
-      { id: 'decision-lab', name: 'Decision Lab', subtitle: 'Batch AI hybrid analyst & evidence per sinyal', path: '/admin/decision-lab', icon: Brain, adminOnly: true },
       { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Komposisi kepemilikan lokal dan asing', path: '/ownership-flow', icon: Users, guest: true },
       { id: 'compare', name: 'Compare', subtitle: 'Bandingkan beberapa emiten berdampingan', path: '/compare', icon: GitCompare },
     ],
@@ -198,6 +190,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
   items: [
     { id: 'admin', name: 'Admin Panel', subtitle: 'User & subscription', path: '/admin', icon: ShieldAlert },
     { id: 'admin-jobs', name: 'Cron & Update Mingguan', subtitle: 'Jadwal, hasil audit & kesehatan job', path: '/admin/jobs', icon: Activity },
+    { id: 'admin-decision-lab', name: 'Decision Lab', subtitle: 'Batch AI hybrid analyst & evidence per sinyal', path: '/admin/decision-lab', icon: Brain },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
     { id: 'admin-transparency', name: 'Transparansi LensRadar', subtitle: 'Bukti forward per bucket & rekonsiliasi harga', path: '/admin/transparency', icon: ShieldCheck },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
@@ -214,14 +207,7 @@ function visibleGroupsFor(role: 'guest' | 'trial' | 'admin'): NavGroup[] {
   if (role === 'admin') return [...NAV_GROUPS, ADMIN_NAV_GROUP];
   // Guest tetap dapat melihat seluruh fitur pengguna agar tahu cakupan produk.
   // Aksesnya tidak dibuka: item tanpa `guest: true` dikunci saat diklik di bawah.
-  // Item `adminOnly` (mis. Decision Lab di grup Riset) disembunyikan dari navigasi
-  // non-admin - tapi ini filter UI client-side seperti ADMIN_NAV_GROUP di atas, BUKAN
-  // penjamin keamanan. Halaman tujuannya (`/admin/decision-lab`) tetap wajib men-gate
-  // sendiri lewat `isAdminServer()` di server component; sidebar hanya urusan tampilan.
-  return NAV_GROUPS.map((group) => ({
-    ...group,
-    items: group.items.filter((item) => !item.adminOnly),
-  }));
+  return NAV_GROUPS;
 }
 
 const COLLAPSE_STORAGE_KEY = 'sahamlens_sidebar_collapsed';
