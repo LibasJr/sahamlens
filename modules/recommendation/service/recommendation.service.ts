@@ -320,13 +320,24 @@ export async function analyzeStock(ticker: string) {
     // Fallback 50/0 dihapus (temuan C-7) - lihat catatan yang sama di app/api/stock/
     // [ticker]/route.ts. Data yang tidak ada dikirim null, bukan angka yang kebetulan
     // jatuh di pita skor tertinggi.
-    const rsiResult = analyzersResult.find((r: any) => r.label?.includes('RSI')) as any;
-    const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : null;
+    //
+    // `analyzersResult` adalah union heterogen (tiap analyzer punya bentuk `raw` sendiri).
+    // Type predicate `hasRawField` menyempitkan union itu berdasarkan field yang benar-benar
+    // ada di `raw`, bukan `as any` - field yang salah nama/hilang gagal di typecheck alih-
+    // alih diam-diam jadi `undefined`.
+    function hasRawField<K extends string>(
+      r: (typeof analyzersResult)[number],
+      key: K,
+    ): r is Extract<(typeof analyzersResult)[number], { raw: Record<K, unknown> }> {
+      return 'raw' in r && key in (r.raw as Record<string, unknown>);
+    }
+    const rsiResult = analyzersResult.find((r) => r.label.includes('RSI') && hasRawField(r, 'rsi'));
+    const rsiVal = rsiResult && hasRawField(rsiResult, 'rsi') && typeof rsiResult.raw.rsi === 'number' ? rsiResult.raw.rsi : null;
 
-    const macdResult = analyzersResult.find((r: any) => r.label?.includes('MACD')) as any;
-    const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : null;
-    const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
-    const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
+    const macdResult = analyzersResult.find((r) => r.label.includes('MACD') && hasRawField(r, 'macdLine'));
+    const macdLineVal = macdResult && hasRawField(macdResult, 'macdLine') && typeof macdResult.raw.macdLine === 'number' ? macdResult.raw.macdLine : null;
+    const macdSigVal = macdResult && hasRawField(macdResult, 'macdSignal') && typeof macdResult.raw.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
+    const macdHistVal = macdResult && hasRawField(macdResult, 'macdHist') && typeof macdResult.raw.macdHist === 'number' ? macdResult.raw.macdHist : null;
 
     const volAvg20 = avgVolume;
 
