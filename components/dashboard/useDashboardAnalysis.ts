@@ -12,11 +12,52 @@ import {
   displayDashboardTicker,
   isIndexTicker,
   normalizeDashboardTicker,
+  type DashboardCandle,
+  type DashboardData,
 } from '@/components/dashboard/dashboard-analysis';
 import {
   OPEN_TECHNICAL_SUMMARY_EVENT,
   TECHNICAL_SUMMARY_ANCHOR_ID,
 } from '@/components/StockPerspectiveNav';
+import type { StockAnalysisResponse } from '@/modules/technical/contracts';
+
+type AiPickItem = {
+  symbol: string;
+  finalScore: number;
+  topReasons?: string[];
+};
+
+interface AiPickResponse {
+  items?: AiPickItem[];
+}
+
+interface PublicChartResponse {
+  history?: DashboardCandle[];
+}
+
+interface StockNewsItem {
+  [key: string]: unknown;
+}
+
+interface StockNewsResponse {
+  items?: StockNewsItem[];
+}
+
+type StockAnalysisDashboardResponse = StockAnalysisResponse & {
+  _quota?: {
+    remaining: number;
+    usedSymbols?: string[];
+  };
+};
+
+function subscriptionBody(body: unknown): { usedSymbols?: string[] } | null {
+  return body && typeof body === 'object' ? body as { usedSymbols?: string[] } : null;
+}
+
+function dashboardStockName(data: DashboardData | null): string {
+  const stock = data?.stock;
+  return stock && 'name' in stock && typeof stock.name === 'string' ? stock.name : '';
+}
 
 export function useDashboardAnalysis() {
   const searchParams = useSearchParams();
@@ -25,16 +66,16 @@ export function useDashboardAnalysis() {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [fetchErrorRequestId, setFetchErrorRequestId] = useState<string | null>(null);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DashboardData | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [marketClosed, setMarketClosed] = useState(false);
   const [sortByConfidence, setSortByConfidence] = useState(true);
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const [timeframe, setTimeframe] = useState('1Y');
-  const [chartCandles, setChartCandles] = useState<any[]>([]);
+  const [chartCandles, setChartCandles] = useState<DashboardCandle[]>([]);
   const [chartRefreshKey, setChartRefreshKey] = useState(0);
   const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
-  const [stockNews, setStockNews] = useState<any[]>([]);
+  const [stockNews, setStockNews] = useState<StockNewsItem[]>([]);
   const [loadingStockNews, setLoadingStockNews] = useState(true);
   const [newsModalOpen, setNewsModalOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -127,7 +168,7 @@ export function useDashboardAnalysis() {
     setRadarRank(null);
 
     try {
-      const payload = await apiRequest<any>(`/api/stock/${symbol}`, { cache: 'no-store', signal: controller.signal });
+      const payload = await apiRequest<StockAnalysisDashboardResponse>(`/api/stock/${symbol}`, { cache: 'no-store', signal: controller.signal });
 
       if (!payload?.stock) {
         setFetchError(true);
@@ -135,11 +176,11 @@ export function useDashboardAnalysis() {
       }
 
       setData(payload);
-      const sourceTime = new Date(payload?._meta?.dataTimestamp);
-      setLastUpdate(Number.isNaN(sourceTime.getTime()) ? null : sourceTime);
-      apiRequest<any>('/api/ai-pick', { cache: 'no-store', signal: controller.signal })
+      const sourceTime = payload._meta?.dataTimestamp ? new Date(payload._meta.dataTimestamp) : null;
+      setLastUpdate(sourceTime && !Number.isNaN(sourceTime.getTime()) ? sourceTime : null);
+      apiRequest<AiPickResponse>('/api/ai-pick', { cache: 'no-store', signal: controller.signal })
         .then((result) => {
-          const match = (result?.items || []).find((item: any) => item.symbol.replace('.JK', '') === symbol.replace('.JK', ''));
+          const match = (result?.items ?? []).find((item) => item.symbol.replace('.JK', '') === symbol.replace('.JK', ''));
           setRadarRank(match ? { finalScore: match.finalScore, topReasons: match.topReasons } : null);
         })
         .catch(() => setRadarRank(null));
@@ -156,10 +197,8 @@ export function useDashboardAnalysis() {
           symbol,
           price: payload.stock?.current_price,
           analyzers: payload.analyzers,
-          council: payload.council,
           technical: payload.technical,
           consensus: payload.consensus,
-          score: payload.score,
           modelSignal: payload.scoring?.kategori,
           decision: payload.decision,
           eligibility: payload.eligibility,
@@ -173,9 +212,9 @@ export function useDashboardAnalysis() {
         return;
       }
       if (isApiClientError(error) && error.code === 'SUBSCRIPTION_REQUIRED') {
-        const body = error.body && typeof error.body === 'object' ? error.body as any : null;
+        const body = subscriptionBody(error.body);
         setAnalisaRemaining(0);
-        setUsedSymbolsToday(body?.usedSymbols || []);
+        setUsedSymbolsToday(body?.usedSymbols ?? []);
         setShowPaywall(true);
         return;
       }
@@ -256,15 +295,15 @@ export function useDashboardAnalysis() {
       setLoading(true);
       setFetchError(false);
     }
-    apiRequest<any>(`/api/public-chart/${encodeURIComponent(isIndexTicker(ticker) ? 'IHSG' : code)}?tf=${timeframe}`, { signal: controller.signal })
+    apiRequest<PublicChartResponse>(`/api/public-chart/${encodeURIComponent(isIndexTicker(ticker) ? 'IHSG' : code)}?tf=${timeframe}`, { signal: controller.signal })
       .then((payload) => {
-        if (payload?.history?.length > 0) {
+        if (payload?.history && payload.history.length > 0) {
           setChartCandles(payload.history);
           if (isIndexTicker(ticker)) {
             const indexPayload = buildIndexPayload('^JKSE', payload.history);
             setData(indexPayload);
-            const sourceTime = new Date(indexPayload._meta?.dataTimestamp);
-            setLastUpdate(Number.isNaN(sourceTime.getTime()) ? null : sourceTime);
+            const sourceTime = indexPayload._meta?.dataTimestamp ? new Date(indexPayload._meta.dataTimestamp) : null;
+            setLastUpdate(sourceTime && !Number.isNaN(sourceTime.getTime()) ? sourceTime : null);
           }
         } else if (isIndexTicker(ticker)) {
           setFetchError(true);
@@ -290,9 +329,9 @@ export function useDashboardAnalysis() {
     const controller = new AbortController();
     setLoadingStockNews(true);
     const code = ticker.replace('.JK', '');
-    const name = data.stock.name || '';
-    apiRequest<any>(`/api/news/stock/${code}?name=${encodeURIComponent(name)}`, { signal: controller.signal })
-      .then((payload) => setStockNews(payload?.items || []))
+    const name = dashboardStockName(data);
+    apiRequest<StockNewsResponse>(`/api/news/stock/${code}?name=${encodeURIComponent(name)}`, { signal: controller.signal })
+      .then((payload) => setStockNews(payload?.items ?? []))
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) console.error('Stock news fetch failed', error);
       })
