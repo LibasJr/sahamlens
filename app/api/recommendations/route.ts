@@ -10,6 +10,13 @@ import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialSta
 import { getLensScoreValidationStatus } from '@/modules/validation';
 import { runController } from '@/shared/http/next-response.adapter';
 
+// Bentuk hasil analyzeStock() ini yang ditulis job cron (app/api/cron/recommendation-scan)
+// ke Redis DAN yang dikembalikan langsung saat cache miss (fallback live di bawah) - kedua
+// jalur harus sama persis, jadi tipenya diturunkan dari analyzeStock() sendiri (bukan `any`)
+// supaya field baru/berubah di sana otomatis tercermin di sini tanpa disunting manual.
+type AnalyzeStockResult = NonNullable<Awaited<ReturnType<typeof analyzeStock>>>;
+type CachedRecommendation = AnalyzeStockResult & { _meta?: unknown };
+
 // BUILD 006/007 - simbol yang rutin di-scan app/api/cron/recommendation-scan dibaca
 // cache-first (per simbol); simbol lain di luar daftar itu tetap dihitung live.
 function cacheKeyFor(symbol: string): string {
@@ -55,7 +62,7 @@ export async function GET(request: Request) {
       const chunk = symbols.slice(i, i + chunkSize);
       const chunkResults = await Promise.all(
         chunk.map(async (ticker) => {
-          const cached = await cacheGet<any>(cacheKeyFor(ticker));
+          const cached = await cacheGet<CachedRecommendation>(cacheKeyFor(ticker));
           if (cached) {
             const ttlRemaining = await getCacheTtlRemaining(cacheKeyFor(ticker));
             return { ...cached, _meta: describeCacheAge(ttlRemaining, CACHE_TTL_SEC.RECOMMENDATION_CRON) };
@@ -81,7 +88,7 @@ export async function GET(request: Request) {
       body: {
         recommendations: results,
         dataTimestamp: results
-          .map((result: any) => result?.dataTimestamp)
+          .map((result: CachedRecommendation | null) => result?.dataTimestamp)
           .filter((timestamp): timestamp is string => typeof timestamp === 'string')
           .sort()
           .at(-1) ?? null,
