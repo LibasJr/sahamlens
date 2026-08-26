@@ -11,7 +11,13 @@ import type {
 } from '../types/decision-agent.types';
 
 const REVIEW_LIMIT = 12;
-const TIMEOUT_MS = 45_000;
+// Dinaikkan dari 45s bersamaan dengan maxOutputTokens (2.500 -> 10.000): model reasoning
+// (mis. gemini-3.6 dengan reasoning_tokens tinggi) butuh lebih banyak waktu untuk
+// menghasilkan completion yang lebih panjang, timeout lama akan memotong sebelum token
+// penuh selesai - persis gejala finish_reason: length yang naiknya maxOutputTokens saja
+// tidak cukup atasi kalau timeout ikut membatasi lebih dulu. 90s masih di bawah batas
+// 100 detik Cloudflare untuk request 9Router (lihat docs/operations/9ROUTER.md).
+const TIMEOUT_MS = 90_000;
 
 const concernSchema = z.enum([
   'NEGATIVE_NEWS_DOMINANCE', 'LOW_COVERAGE_MARGIN', 'MODEL_UNVALIDATED', 'STALE_DATA',
@@ -182,7 +188,14 @@ async function callHybridAgent(args: { model: string; evidence: Array<{ ticker: 
     ].join(' '),
     output: Output.object({ schema: hybridOutputSchema }),
     stopWhen: isStepCount(1),
-    prepareStep: () => ({ temperature: 0, maxOutputTokens: 2_500 }),
+    // 2.500 token cukup untuk sedikit kandidat, tapi REVIEW_LIMIT = 12 kandidat sekaligus,
+    // masing-masing butuh reasoning + evidenceRefs + concerns + nextEvidence penuh, bisa
+    // menghabiskan lebih dari 2.500 token completion. Ditemukan di produksi 26 Agustus 2026:
+    // batch 12 saham memotong output tiga model berbeda di tengah JSON (finish_reason: length),
+    // masing-masing gagal parse dengan cara berbeda tapi akar masalahnya sama - budget token
+    // terlalu kecil untuk ukuran batch. Dinaikkan ke 10.000 (~830/kandidat) dengan margin besar
+    // supaya batch penuh 12 kandidat + reasoning panjang tidak lagi kena finish_reason: length.
+    prepareStep: () => ({ temperature: 0, maxOutputTokens: 10_000 }),
   });
   const result = await agent.generate({
     prompt: JSON.stringify({ task: 'Classify evidence-only rule candidates', candidates: args.evidence }),
