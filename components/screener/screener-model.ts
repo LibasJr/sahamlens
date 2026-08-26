@@ -1,3 +1,24 @@
+import type { ScreenerStock } from '@/modules/market/service/screener.service';
+import type { CacheAgeInfo } from '@/shared/http/freshness';
+
+// Bentuk body app/api/screener/route.ts - diselaraskan manual (route ini tidak
+// mengekspor tipe respons sendiri) sehingga field baru/berganti nama di route WAJIB
+// disinkronkan ke sini juga; kalau route berubah tanpa ini ikut diubah, typecheck
+// hanya menangkapnya di titik pemakaian (mis. `data.analysis.top_10_stocks`), bukan
+// di sini - itu trade-off yang diterima daripada tetap `any` di seluruh halaman.
+export interface ScreenerApiResponse {
+  profile: 'Konservatif' | 'Moderat' | 'Agresif';
+  analysis: {
+    top_10_stocks: ScreenerStock[];
+    total_count: number;
+    locked_count: number;
+    is_guest_limited: boolean;
+  };
+  availableSectors: string[];
+  momentumScored: boolean;
+  _meta: CacheAgeInfo;
+}
+
 export type ColumnKey = 'ticker' | 'name' | 'sector' | 'per' | 'rev_growth_ttm' | 'roe' | 'der'
   | 'div_yield' | 'bandarmology' | 'moat' | 'signal' | 'pattern_tag' | 'sentiment'
   | 'week52_high' | 'entry' | 'atr_pct' | 'market_cap' | 'adv20_idr';
@@ -6,7 +27,7 @@ export interface SortableColumn {
   key: ColumnKey;
   label: string;
   align?: 'right';
-  getValue: (item: any) => string | number | null | undefined;
+  getValue: (item: ScreenerStock) => string | number | null | undefined;
 }
 
 export function parseFormattedNumber(value: unknown): number | null {

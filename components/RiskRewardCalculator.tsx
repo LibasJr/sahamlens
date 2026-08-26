@@ -3,10 +3,11 @@
 import React from 'react';
 import { Target, TrendingDown, TrendingUp, AlertCircle, Info } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import type { StockAnalyzerResult } from '@/modules/technical/contracts';
 
 interface RiskRewardCalculatorProps {
-  currentPrice: number;
-  analyzers: any[];
+  currentPrice: number | null;
+  analyzers: StockAnalyzerResult[];
 }
 
 /**

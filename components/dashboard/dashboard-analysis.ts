@@ -1,5 +1,6 @@
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
+import type { StockAnalysisResponse, StockAnalyzerResult } from '@/modules/technical/contracts';
 
 export type DashboardCandle = {
   close: number;
@@ -8,6 +9,33 @@ export type DashboardCandle = {
   Date?: string;
   date?: string;
   [key: string]: unknown;
+};
+
+type DashboardFreshnessMeta = {
+  dataTimestamp?: string | null;
+  freshness?: string | null;
+  source?: string | null;
+  ageSeconds?: number | null;
+  staleReason?: string | null;
+};
+
+export type DashboardIndexPayload = {
+  stock: {
+    symbol: string;
+    name: string;
+    current_price: number | null;
+    change_pct: number | null;
+    history: DashboardCandle[];
+  };
+  analyzers: StockAnalyzerResult[];
+  technical: Record<string, never>;
+  price: number | null;
+  scoring: null;
+  decision: null;
+  tradeSetup: null;
+  consensus: null;
+  eligibility: null;
+  _meta: DashboardFreshnessMeta;
 };
 
 export const isIndexTicker = (symbol: string) => {
@@ -25,12 +53,14 @@ export const displayDashboardTicker = (symbol: string) => (
   isIndexTicker(symbol) ? 'IHSG' : symbol.replace('.JK', '').replace('.JK', '')
 );
 
-export function buildIndexPayload(symbol: string, candles: any[]) {
+export type DashboardData = StockAnalysisResponse | DashboardIndexPayload;
+
+export function buildIndexPayload(symbol: string, candles: DashboardCandle[]): DashboardIndexPayload {
   const last = candles[candles.length - 1];
   const close = typeof last?.close === 'number' ? last.close : null;
   const timestamps = candles.map((candle) => {
     const rawTime = candle?.time ?? candle?.Date ?? candle?.date;
-    const millis = typeof rawTime === 'number' ? rawTime * 1000 : Date.parse(rawTime);
+    const millis = typeof rawTime === 'number' ? rawTime * 1000 : (typeof rawTime === 'string' ? Date.parse(rawTime) : NaN);
     return Number.isFinite(millis) ? Math.floor(millis / 1000) : null;
   });
   const closes = candles.map((candle) => candle?.close);
@@ -49,6 +79,12 @@ export function buildIndexPayload(symbol: string, candles: any[]) {
     },
     analyzers: [],
     technical: {},
+    price: close,
+    scoring: null,
+    decision: null,
+    tradeSetup: null,
+    consensus: null,
+    eligibility: null,
     _meta: {
       dataTimestamp: typeof last?.Date === 'string'
         ? last.Date
@@ -121,9 +157,9 @@ export const signalBadgeTone = (signal: string | null | undefined) =>
   signal === 'SELL' ? 'bg-tv-red/20 text-tv-red border-tv-red/50' :
   'bg-tv-hover text-tv-muted border-tv-border';
 
-export function buildChartTechnical(analyzers: any[], candles: any[]) {
-  const emaAnalyzer = analyzers.find((analyzer: any) => analyzer.label?.includes('EMA'));
-  const cmfAnalyzer = analyzers.find((analyzer: any) => analyzer.label?.includes('Bandarmology'));
+export function buildChartTechnical(analyzers: StockAnalyzerResult[], candles: DashboardCandle[]) {
+  const emaAnalyzer = analyzers.find((analyzer) => analyzer.label?.includes('EMA'));
+  const cmfAnalyzer = analyzers.find((analyzer) => analyzer.label?.includes('Bandarmology'));
   const cmfRaw = cmfAnalyzer?.raw;
   return {
     cross_status:
@@ -139,10 +175,10 @@ export function buildChartTechnical(analyzers: any[], candles: any[]) {
   };
 }
 
-export function buildIndexTechnicalSummary(candles: any[]) {
+export function buildIndexTechnicalSummary(candles: DashboardCandle[]) {
   if (candles.length < 2) return null;
   const closes = candles
-    .map((candle: any) => candle.close)
+    .map((candle) => candle.close)
     .filter((value: unknown): value is number => typeof value === 'number' && Number.isFinite(value));
   const price = closes[closes.length - 1] ?? null;
   const ma20 = smaOf(candles, 20);
@@ -207,8 +243,8 @@ export function buildIndexTechnicalSummary(candles: any[]) {
   };
 }
 
-export function buildDataFreshness(data: any) {
-  const meta = data?._meta;
+export function buildDataFreshness(data: DashboardData | null) {
+  const meta: DashboardFreshnessMeta | null = data?._meta ?? null;
   if (!meta) return null;
   const timestamp = meta.dataTimestamp ? new Date(meta.dataTimestamp) : null;
   const timeLabel = timestamp
@@ -231,14 +267,14 @@ export function buildDataFreshness(data: any) {
   return { warn: true, label: 'Waktu data tidak diketahui', detail: 'Sumber data tidak mengirim timestamp bar harga.' };
 }
 
-export function computeBacktestAccuracy(data: any): Record<string, { pct: number; samples: number }> {
-  const history = data?.stock?.history || [];
+export function computeBacktestAccuracy(data: DashboardData | null): Record<string, { pct: number; samples: number }> {
+  const history: DashboardCandle[] = data?.stock?.history ?? [];
   if (history.length < 50) return {};
 
   const results: Record<string, { pct: number; samples: number }> = {};
-  const validHistory = history.filter((item: any) => typeof item?.close === 'number' && Number.isFinite(item.close) && item.close > 0);
+  const validHistory = history.filter((item) => typeof item?.close === 'number' && Number.isFinite(item.close) && item.close > 0);
   if (validHistory.length < 50) return {};
-  const closes: number[] = validHistory.map((item: any) => item.close);
+  const closes: number[] = validHistory.map((item) => item.close);
   const horizon = 10;
   const targetGain = 1.03;
   const minSamples = 20;
@@ -256,7 +292,7 @@ export function computeBacktestAccuracy(data: any): Record<string, { pct: number
   record('RSI 14', rsiCorrect, rsiTotal);
 
   let volumeCorrect = 0; let volumeTotal = 0;
-  const volumes: Array<number | null> = validHistory.map((item: any) =>
+  const volumes: Array<number | null> = validHistory.map((item) =>
     typeof item?.volume === 'number' && Number.isFinite(item.volume) && item.volume >= 0 ? item.volume : null
   );
   for (let index = 20; index < closes.length - horizon; index++) {
