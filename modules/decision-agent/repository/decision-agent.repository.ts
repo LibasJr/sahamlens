@@ -164,6 +164,27 @@ function average(values: number[]): number | null {
   return values.length > 0 ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
 }
 
+/**
+ * Ambil sinyal decision-agent terbaru untuk satu ticker, dari run terbaru saja.
+ * Dipakai halaman detail emiten (mis. /technical/[symbol]) untuk menampilkan
+ * candidate buy + evidence hybrid analyst tanpa memaksa fetch seluruh dashboard.
+ * Admin-only (di-gate di layer page, bukan di sini).
+ */
+export async function getLatestDecisionSignalForTicker(ticker: string): Promise<PersistedDecisionSignal | null> {
+  await ensureSharedSchema();
+  const normalized = ticker.replace(/\.JK$/i, '').toUpperCase();
+  const { rows } = await pool.query(
+    `SELECT s.* FROM decision_agent_signals s
+     JOIN decision_agent_runs r ON r.id = s.run_id
+     WHERE s.ticker = $1
+     ORDER BY r.created_at DESC, s.created_at DESC
+     LIMIT 1`,
+    [normalized],
+  );
+  const row = rows[0] as Record<string, unknown> | undefined;
+  return row ? mapSignal(row) : null;
+}
+
 export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboard> {
   await ensureSharedSchema();
   const [runResult, accountResult, positionResult, orderResult, roundTripResult, navSnapshotResult, thesisResult, shadowResult, protocolResult, controlsResult] = await Promise.all([
