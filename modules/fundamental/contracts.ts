@@ -64,3 +64,11 @@ export interface StockApiResponseForFundamentalMerge {
   decision?: unknown;
   eligibility?: unknown;
 }
+
+import type { CompoundingYear, DividendPlanResult, DividendStock } from '@/modules/fundamental';
+
+export type { CompoundingYear, DividendStock };
+
+export interface DividendPlanApiResponse {
+  quant: DividendPlanResult;
+}
