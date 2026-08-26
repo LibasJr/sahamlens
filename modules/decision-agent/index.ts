@@ -11,7 +11,7 @@ export {
 } from './service/paper-execution.service';
 export { decisionAgentActionSchema } from './validator/decision-agent.validator';
 export { freezePilotProtocol, importIdxIcCsv, importStockbitCsv } from './service/pilot-control.service';
-export { applyHybridAnalysis, buildSignalEvidence, resolveHybridModel } from './service/hybrid-analyst.service';
+export { applyHybridAnalysis, buildSignalEvidence, resolveHybridModel, resolveHybridModels } from './service/hybrid-analyst.service';
 export type {
   DecisionAgentDashboard,
   DecisionAction,

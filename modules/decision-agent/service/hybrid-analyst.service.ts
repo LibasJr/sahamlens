@@ -61,13 +61,36 @@ function normalizeBaseUrl(raw: string): string | null {
   return `${trimmed}/v1`;
 }
 
-export function resolveHybridModel(): string | null {
-  const explicit = process.env.DECISION_AGENT_LLM_MODEL?.trim();
-  if (explicit) return explicit;
+// Mengembalikan DAFTAR model untuk dicoba berurutan, bukan satu model tunggal.
+//
+// Kenapa daftar, bukan satu: hybrid analyst sebelumnya terikat ke satu model lewat
+// DECISION_AGENT_LLM_MODEL. Saat model itu kena rate limit (429) atau membalas payload
+// yang gagal di-parse (Invalid JSON response - provider hidup, tapi keluarannya rusak),
+// SELURUH run langsung PROVIDER_FAILED, walau model lain di 9Router sedang sehat.
+// Diamati langsung 26 Agustus 2026: cc/claude-opus-5 kena 429 berulang, gantinya
+// (cc/claude-sonnet-5) sehat dari sisi HTTP tapi tetap gagal dengan "Invalid JSON
+// response" - kelas kegagalan berbeda, provider yang sama sensitif terhadap error yang
+// sama. Daftar model dari provider/keluarga BERBEDA memberi peluang sungguhan lolos.
+//
+// DECISION_AGENT_LLM_MODEL boleh berisi satu model ATAU daftar dipisah koma
+// ("cc/claude-sonnet-5,cx/gpt-5.6-sol,ag/gemini-3.6-flash-medium"). Kalau kosong,
+// fallback ke pencarian lama dari NINEROUTER_MODELS (opus lalu sonnet), supaya
+// deployment yang belum mengisi variabel baru ini tidak tiba-tiba SKIPPED_NOT_CONFIGURED.
+export function resolveHybridModels(): string[] {
+  const explicit = (process.env.DECISION_AGENT_LLM_MODEL ?? '')
+    .split(',').map((item) => item.trim()).filter(Boolean);
+  if (explicit.length > 0) return explicit;
   const configured = (process.env.NINEROUTER_MODELS ?? '').split(',').map((item) => item.trim()).filter(Boolean);
-  return configured.find((model) => /opus/i.test(model))
-    ?? configured.find((model) => /sonnet/i.test(model))
-    ?? null;
+  const fallback = [
+    configured.find((model) => /opus/i.test(model)),
+    configured.find((model) => /sonnet/i.test(model)),
+  ].filter((model): model is string => Boolean(model));
+  return fallback;
+}
+
+/** @deprecated Pakai resolveHybridModels() - fungsi ini hanya mengembalikan kandidat pertama. */
+export function resolveHybridModel(): string | null {
+  return resolveHybridModels()[0] ?? null;
 }
 
 function add(items: EvidenceItem[], ticker: string, field: string, value: unknown): void {
@@ -186,63 +209,89 @@ export async function applyHybridAnalysis(args: {
   if (candidates.length === 0) {
     return { signals: args.signals, meta: invalidMeta(null, 'SKIPPED_NO_ELIGIBLE_SIGNALS', 'NO_ELIGIBLE_SIGNALS') };
   }
-  const model = resolveHybridModel();
-  if (!model) return { signals: args.signals, meta: invalidMeta(null, 'SKIPPED_NOT_CONFIGURED', 'MODEL_NOT_CONFIGURED') };
+  const models = resolveHybridModels();
+  if (models.length === 0) return { signals: args.signals, meta: invalidMeta(null, 'SKIPPED_NOT_CONFIGURED', 'MODEL_NOT_CONFIGURED') };
 
   const evidence = candidates.map((signal) => ({ ticker: signal.ticker, items: buildSignalEvidence(signal) }));
   const allowedRefs = new Map(evidence.map(({ ticker, items }) => [ticker, new Set(items.map((item) => item.id))]));
-  try {
-    const generated = await (args.runner ?? callHybridAgent)({ model, evidence });
-    const parsed = hybridOutputSchema.safeParse(generated.output);
-    if (!parsed.success) return { signals: args.signals, meta: invalidMeta(model, 'INVALID_OUTPUT', 'SCHEMA_INVALID') };
-    const tickers = candidates.map((signal) => signal.ticker);
-    const returned = parsed.data.reviews.map((review) => review.ticker);
-    const exactTickers = returned.length === tickers.length
-      && new Set(returned).size === returned.length
-      && tickers.every((ticker) => returned.includes(ticker));
-    const refsValid = parsed.data.reviews.every((review) => review.evidenceRefs.every((ref) => allowedRefs.get(review.ticker)?.has(ref)));
-    const candidateByTicker = new Map(candidates.map((signal) => [signal.ticker, signal]));
-    const grounded = parsed.data.reviews.every((review) => {
-      const signal = candidateByTicker.get(review.ticker);
-      return signal ? isGroundedReview(review, signal) : false;
-    });
-    if (!exactTickers || !refsValid || !grounded) {
-      const errorCode = !exactTickers ? 'TICKER_SET_MISMATCH' : !refsValid ? 'UNKNOWN_EVIDENCE_REF' : 'UNGROUNDED_VERDICT';
-      return { signals: args.signals, meta: invalidMeta(model, 'INVALID_OUTPUT', errorCode) };
-    }
-    const reviewedAt = (args.now ?? new Date()).toISOString();
-    const byTicker = new Map(parsed.data.reviews.map((review) => [review.ticker, review]));
-    const signals = args.signals.map((signal): DecisionAgentSignal => {
-      const review = byTicker.get(signal.ticker);
-      if (!review) return signal;
-      const hybridReview: HybridSignalReview = {
-        verdict: review.verdict,
-        confidence: review.confidence,
-        evidenceRefs: review.evidenceRefs,
-        concerns: review.concerns as HybridConcern[],
-        nextEvidence: review.nextEvidence as HybridNextEvidence[],
-        model,
-        reviewedAt,
-      };
+  const candidateByTicker = new Map(candidates.map((signal) => [signal.ticker, signal]));
+  const tickers = candidates.map((signal) => signal.ticker);
+  const selected = new Set(tickers);
+
+  // Coba tiap model berurutan. Berhenti di kandidat PERTAMA yang menghasilkan COMPLETED.
+  // Kegagalan model sebelumnya (exception ATAU output tervalidasi tapi ditolak gate) tidak
+  // menghentikan seluruh run - itu justru skenario yang mendorong fallback ini dibuat.
+  let lastFailure: { model: string; status: HybridRunMeta['status']; errorCode: string } | null = null;
+  for (const model of models) {
+    try {
+      const generated = await (args.runner ?? callHybridAgent)({ model, evidence });
+      const parsed = hybridOutputSchema.safeParse(generated.output);
+      if (!parsed.success) { lastFailure = { model, status: 'INVALID_OUTPUT', errorCode: 'SCHEMA_INVALID' }; continue; }
+      const returned = parsed.data.reviews.map((review) => review.ticker);
+      const exactTickers = returned.length === tickers.length
+        && new Set(returned).size === returned.length
+        && tickers.every((ticker) => returned.includes(ticker));
+      const refsValid = parsed.data.reviews.every((review) => review.evidenceRefs.every((ref) => allowedRefs.get(review.ticker)?.has(ref)));
+      const grounded = parsed.data.reviews.every((review) => {
+        const signal = candidateByTicker.get(review.ticker);
+        return signal ? isGroundedReview(review, signal) : false;
+      });
+      if (!exactTickers || !refsValid || !grounded) {
+        const errorCode = !exactTickers ? 'TICKER_SET_MISMATCH' : !refsValid ? 'UNKNOWN_EVIDENCE_REF' : 'UNGROUNDED_VERDICT';
+        lastFailure = { model, status: 'INVALID_OUTPUT', errorCode };
+        continue;
+      }
+      const reviewedAt = (args.now ?? new Date()).toISOString();
+      const byTicker = new Map(parsed.data.reviews.map((review) => [review.ticker, review]));
+      const signals = args.signals.map((signal): DecisionAgentSignal => {
+        const review = byTicker.get(signal.ticker);
+        if (!review) return signal;
+        const hybridReview: HybridSignalReview = {
+          verdict: review.verdict,
+          confidence: review.confidence,
+          evidenceRefs: review.evidenceRefs,
+          concerns: review.concerns as HybridConcern[],
+          nextEvidence: review.nextEvidence as HybridNextEvidence[],
+          model,
+          reviewedAt,
+        };
+        return {
+          ...signal,
+          hybridReview,
+          hybridStatus: review.verdict === 'CONFIRM' ? 'CONFIRMED' : review.verdict === 'CHALLENGE' ? 'CHALLENGED' : 'INSUFFICIENT',
+        };
+      });
       return {
-        ...signal,
-        hybridReview,
-        hybridStatus: review.verdict === 'CONFIRM' ? 'CONFIRMED' : review.verdict === 'CHALLENGE' ? 'CHALLENGED' : 'INSUFFICIENT',
+        signals,
+        meta: {
+          status: 'COMPLETED', model, reviewedCount: parsed.data.reviews.length,
+          inputTokens: generated.inputTokens, outputTokens: generated.outputTokens, errorCode: null,
+        },
       };
-    });
-    return {
-      signals,
-      meta: {
-        status: 'COMPLETED', model, reviewedCount: parsed.data.reviews.length,
-        inputTokens: generated.inputTokens, outputTokens: generated.outputTokens, errorCode: null,
-      },
-    };
-  } catch (err) {
-    logger.error('Hybrid decision analyst gagal; rule engine tetap tersimpan tanpa approval LLM', { module: 'decision-agent', model, err });
-    const selected = new Set(candidates.map((signal) => signal.ticker));
-    return {
-      signals: args.signals.map((signal) => selected.has(signal.ticker) ? { ...signal, hybridStatus: 'PROVIDER_FAILED' } : signal),
-      meta: invalidMeta(model, 'PROVIDER_FAILED', err instanceof Error ? err.name : 'PROVIDER_ERROR'),
-    };
+    } catch (err) {
+      logger.warn('Hybrid decision analyst - satu model gagal, mencoba fallback berikutnya bila ada', {
+        module: 'decision-agent', model, err, remainingModels: models.slice(models.indexOf(model) + 1),
+      });
+      lastFailure = { model, status: 'PROVIDER_FAILED', errorCode: err instanceof Error ? err.name : 'PROVIDER_ERROR' };
+    }
   }
+
+  // Seluruh model di daftar gagal - fail-closed seperti sebelumnya, tapi errorCode/model
+  // yang dilaporkan adalah percobaan TERAKHIR, bukan yang pertama, supaya operator melihat
+  // kegagalan paling relevan (biasanya paling representatif untuk seluruh daftar).
+  //
+  // hybridStatus HANYA dipaksa jadi PROVIDER_FAILED kalau kegagalan terakhir memang berasal
+  // dari exception (provider benar-benar tidak bisa dihubungi/timeout/rate-limit). Kalau
+  // kegagalan terakhir adalah INVALID_OUTPUT (provider menjawab tapi outputnya ditolak gate
+  // evidence), sinyal dibiarkan NOT_REVIEWED - perilaku sebelum fallback ini ditambahkan.
+  const failure = lastFailure ?? { model: models[0], status: 'PROVIDER_FAILED' as const, errorCode: 'PROVIDER_ERROR' };
+  logger.error('Hybrid decision analyst gagal di seluruh model fallback; rule engine tetap tersimpan tanpa approval LLM', {
+    module: 'decision-agent', modelsAttempted: models, lastFailure: failure,
+  });
+  return {
+    signals: failure.status === 'PROVIDER_FAILED'
+      ? args.signals.map((signal) => selected.has(signal.ticker) ? { ...signal, hybridStatus: 'PROVIDER_FAILED' } : signal)
+      : args.signals,
+    meta: invalidMeta(failure.model, failure.status, failure.errorCode),
+  };
 }
