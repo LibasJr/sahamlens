@@ -15,6 +15,7 @@ import { JourneyBeacon, JourneyVisibilityBeacon } from '@/components/analytics/J
 import BrokerDistributionPanel from './BrokerDistributionPanel';
 import BandarFlowPro from '@/components/BandarFlowPro';
 import TechnicalAnalysisSuite from '@/components/technical/TechnicalAnalysisSuite';
+import { AdminBuyCandidateSection } from '@/components/technical/AdminBuyCandidateSection';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getEmitenSymbolSet, loadEmitenList } from '@/shared/market/emiten-list';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
@@ -716,6 +717,12 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
         {!isIndex && <JourneyBeacon event="stock_analysis_view" surface="technical" />}
 
         {!isIndex && <MarketDataIntegrityBanner ticker={symbol} />}
+
+        {!isIndex && (
+          <Suspense fallback={null}>
+            <AdminBuyCandidateSection symbol={code} />
+          </Suspense>
+        )}
 
         {isIndex ? (
           <p className="lens-body-sm border-t border-tv-border pt-4 text-tv-muted">
