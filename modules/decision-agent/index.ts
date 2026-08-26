@@ -1,6 +1,6 @@
 export { buildDecisionSignal } from './service/decision-engine';
 export { runDecisionAgentScan } from './service/decision-scan.service';
-export { getDecisionAgentDashboard } from './repository/decision-agent.repository';
+export { getDecisionAgentDashboard, getLatestDecisionSignalForTicker } from './repository/decision-agent.repository';
 export {
   configurePaperAccount,
   proposePaperOrder,

@@ -5,6 +5,7 @@ import { AlertTriangle, CheckCircle2, Loader2, Play, RefreshCw, XCircle } from '
 import { Button, Card } from '@/components/ui';
 import type { DecisionAgentDashboard, PaperOrder, PersistedDecisionSignal } from '@/modules/decision-agent';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
+import { mapEvidenceLabels } from '@/shared/presentation/hybrid-evidence-labels';
 
 type ActionBody =
   | { action: 'scan' }
@@ -34,6 +35,7 @@ function formatTime(value: string | null | undefined): string {
 
 function SignalRow({ signal, busy, onPrepare }: { signal: PersistedDecisionSignal; busy: boolean; onPrepare: (signal: PersistedDecisionSignal) => void }) {
   const hybridConfirmed = signal.hybridStatus === 'CONFIRMED' && signal.hybridReview?.verdict === 'CONFIRM';
+  const hybridEvidence = signal.hybridReview ? mapEvidenceLabels(signal, signal.hybridReview.evidenceRefs) : [];
   return (
     <tr className="border-t border-tv-border align-top">
       <td className="px-3 py-3 font-bold">{signal.ticker}</td>
@@ -58,7 +60,17 @@ function SignalRow({ signal, busy, onPrepare }: { signal: PersistedDecisionSigna
         {signal.hybridReview ? <>
           <div className="mt-1 text-tv-muted">{signal.hybridReview.model} · confidence {signal.hybridReview.confidence}</div>
           {signal.hybridReview.concerns.length > 0 && <div className="mt-1 text-tv-muted">Concern: {signal.hybridReview.concerns.join(', ')}</div>}
-          <div className="mt-1 text-tv-muted" title={signal.hybridReview.evidenceRefs.join('\n')}>{signal.hybridReview.evidenceRefs.length} evidence refs</div>
+          {hybridEvidence.length > 0 && <div className="mt-2 rounded border border-tv-border bg-tv-bg/60 p-2">
+            <div className="mb-1 font-semibold text-tv-muted">Evidence aktual yang dirujuk:</div>
+            <ul className="space-y-1">
+              {hybridEvidence.slice(0, 6).map((item) => (
+                <li key={item.ref} className="leading-snug" title={item.ref}>
+                  <span className="font-semibold">{item.label}:</span> <span className="text-tv-muted">{item.value}</span>
+                </li>
+              ))}
+            </ul>
+            {hybridEvidence.length > 6 && <div className="mt-1 text-tv-muted">+{hybridEvidence.length - 6} evidence lain</div>}
+          </div>}
         </> : <div className="mt-1 text-tv-muted">Belum ada second opinion terstruktur.</div>}
       </td>
       <td className="px-3 py-3">
