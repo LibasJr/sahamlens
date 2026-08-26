@@ -16,6 +16,15 @@ function candidate() {
   });
 }
 
+function exitReviewCandidate() {
+  return {
+    ...candidate(),
+    ticker: 'BMRI',
+    action: 'EXIT_REVIEW' as const,
+    hybridStatus: 'NOT_REVIEWED' as const,
+  };
+}
+
 describe('hybrid analyst evidence gate', () => {
   const originalModels = process.env.NINEROUTER_MODELS;
   const originalDecisionModel = process.env.DECISION_AGENT_LLM_MODEL;
@@ -41,6 +50,25 @@ describe('hybrid analyst evidence gate', () => {
     expect(result.meta.status).toBe('COMPLETED');
     expect(result.signals[0].hybridStatus).toBe('CONFIRMED');
     expect(result.signals[0].hybridReview?.evidenceRefs).toEqual(refs);
+  });
+
+  it('hanya mengirim BUY_CANDIDATE PAPER_READY ke hybrid analyst, bukan EXIT_REVIEW held', async () => {
+    const buy = candidate();
+    const exit = exitReviewCandidate();
+    const refs = ['ruleAction', 'modelValidated'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async (args: { evidence: Array<{ ticker: string }> }) => {
+      expect(args.evidence.map((item) => item.ticker)).toEqual(['BBCA']);
+      return {
+        output: { reviews: [{ ticker: 'BBCA', verdict: 'CHALLENGE' as const, confidence: 'LOW' as const, evidenceRefs: refs, concerns: ['MODEL_UNVALIDATED' as const], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION' as const] }] },
+        inputTokens: 100,
+        outputTokens: 20,
+      };
+    });
+    const result = await applyHybridAnalysis({ signals: [exit, buy], heldTickers: new Set(['BMRI']), runner: runner as any });
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(result.signals.find((signal) => signal.ticker === 'BMRI')?.hybridStatus).toBe('NOT_REVIEWED');
+    expect(result.signals.find((signal) => signal.ticker === 'BBCA')?.hybridStatus).toBe('CHALLENGED');
   });
 
   it('menolak seluruh output bila model mengutip evidence id yang tidak pernah diberikan', async () => {
@@ -118,6 +146,47 @@ describe('hybrid analyst evidence gate', () => {
     expect(result.meta.status).toBe('PROVIDER_FAILED');
     expect(result.meta.model).toBe('cc/claude-sonnet-5');
     expect(result.signals[0].hybridStatus).toBe('PROVIDER_FAILED');
+  });
+
+  it('menormalisasi output fenced object dari model yang membungkus JSON dalam markdown', async () => {
+    const signal = candidate();
+    const refs = ['ruleAction', 'modelValidated'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async () => ({
+      output: `\`\`\`json\n{"reviews":[{"ticker":"BBCA","verdict":"CHALLENGE","confidence":"MEDIUM","evidenceRefs":${JSON.stringify(refs)},"concerns":["MODEL_UNVALIDATED"],"nextEvidence":["NEED_POINT_IN_TIME_VALIDATION"]}]}\n\`\`\``,
+      inputTokens: 100,
+      outputTokens: 80,
+    }));
+    const result = await applyHybridAnalysis({ signals: [signal], runner: runner as any });
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(result.signals[0].hybridStatus).toBe('CHALLENGED');
+    expect(result.signals[0].hybridReview?.confidence).toBe('MEDIUM');
+  });
+
+  it('menormalisasi output array langsung dari model yang tidak membungkus reviews', async () => {
+    const signal = candidate();
+    const refs = ['ruleAction', 'modelValidated'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async () => ({
+      output: `\`\`\`json\n[{"ticker":"BBCA","verdict":"CHALLENGE","confidence":"LOW","evidenceRefs":${JSON.stringify(refs)},"concerns":["MODEL_UNVALIDATED"],"nextEvidence":[]}]\n\`\`\``,
+      inputTokens: 100,
+      outputTokens: 80,
+    }));
+    const result = await applyHybridAnalysis({ signals: [signal], runner: runner as any });
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(result.signals[0].hybridStatus).toBe('CHALLENGED');
+  });
+
+  it('menormalisasi output reason-only dengan default aman untuk field schema yang hilang', async () => {
+    const signal = candidate();
+    const refs = ['ruleAction', 'modelValidated'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async () => ({
+      output: { reviews: [{ ticker: 'BBCA', verdict: 'CHALLENGE', reason: 'Model belum tervalidasi.', evidenceRefs: refs }] },
+      inputTokens: 100,
+      outputTokens: 80,
+    }));
+    const result = await applyHybridAnalysis({ signals: [signal], runner: runner as any });
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(result.signals[0].hybridStatus).toBe('CHALLENGED');
+    expect(result.signals[0].hybridReview).toMatchObject({ confidence: 'LOW', concerns: ['MODEL_UNVALIDATED'], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION'] });
   });
 
   it('tidak memanggil LLM untuk snapshot stale', async () => {
