@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { isStepCount, Output, ToolLoopAgent } from 'ai';
+import { generateText } from 'ai';
 import { z } from 'zod';
 import { logger } from '@/shared/logger/logger';
 import type {
@@ -44,7 +44,7 @@ type EvidenceItem = { id: string; value: unknown };
 export type HybridAgentRunner = (args: {
   model: string;
   evidence: Array<{ ticker: string; items: EvidenceItem[] }>;
-}) => Promise<{ output: HybridOutput; inputTokens: number | null; outputTokens: number | null }>;
+}) => Promise<{ output: unknown; inputTokens: number | null; outputTokens: number | null }>;
 
 const CONCERN_FIELDS: Record<HybridConcern, string[]> = {
   NEGATIVE_NEWS_DOMINANCE: ['newsPositive', 'newsNegative'],
@@ -167,6 +167,56 @@ function isGroundedReview(review: HybridOutput['reviews'][number], signal: Decis
   return review.concerns.every((concern) => refsMatchAnyField(review.evidenceRefs, CONCERN_FIELDS[concern]));
 }
 
+function parseJsonishText(text: string): unknown {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  if (fenced) return JSON.parse(fenced[1]);
+  const withoutThinking = trimmed.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+  const objectStart = withoutThinking.search(/[\[{]/);
+  if (objectStart < 0) throw new SyntaxError('HYBRID_OUTPUT_JSON_NOT_FOUND');
+  const sliced = withoutThinking.slice(objectStart);
+  const objectEnd = sliced.startsWith('[') ? sliced.lastIndexOf(']') : sliced.lastIndexOf('}');
+  if (objectEnd < 0) throw new SyntaxError('HYBRID_OUTPUT_JSON_NOT_CLOSED');
+  return JSON.parse(sliced.slice(0, objectEnd + 1));
+}
+
+function asStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function normalizeHybridOutput(raw: unknown): unknown {
+  const parsed = typeof raw === 'string' ? parseJsonishText(raw) : raw;
+  const reviews = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === 'object' && Array.isArray((parsed as { reviews?: unknown }).reviews)
+      ? (parsed as { reviews: unknown[] }).reviews
+      : null;
+  if (!reviews) return parsed;
+
+  return {
+    reviews: reviews.map((review) => {
+      if (!review || typeof review !== 'object') return review;
+      const current = review as Record<string, unknown>;
+      const evidenceRefs = asStringArray(current.evidenceRefs);
+      const concerns = asStringArray(current.concerns).filter((item): item is HybridConcern => concernSchema.safeParse(item).success);
+      const nextEvidence = asStringArray(current.nextEvidence).filter((item): item is HybridNextEvidence => nextEvidenceSchema.safeParse(item).success);
+      if (concerns.length === 0 && evidenceRefs.some((ref) => ref.includes(':modelValidated') || ref.includes(':invalidationReason'))) {
+        concerns.push('MODEL_UNVALIDATED');
+      }
+      if (nextEvidence.length === 0 && concerns.includes('MODEL_UNVALIDATED')) {
+        nextEvidence.push('NEED_POINT_IN_TIME_VALIDATION');
+      }
+      return {
+        ...current,
+        confidence: z.enum(['LOW', 'MEDIUM', 'HIGH']).safeParse(current.confidence).success ? current.confidence : 'LOW',
+        evidenceRefs,
+        concerns,
+        nextEvidence,
+      };
+    }),
+  };
+}
+
 async function callHybridAgent(args: { model: string; evidence: Array<{ ticker: string; items: EvidenceItem[] }> }): ReturnType<HybridAgentRunner> {
   const baseURL = normalizeBaseUrl(process.env.NINEROUTER_BASE_URL ?? '');
   const apiKey = process.env.NINEROUTER_API_KEY?.trim();
@@ -175,7 +225,7 @@ async function callHybridAgent(args: { model: string; evidence: Array<{ ticker: 
     name: '9router-decision-agent', baseURL, apiKey,
     headers: { 'HTTP-Referer': 'https://sahamlens.id', 'X-Title': 'SahamLens Decision Agent' },
   });
-  const agent = new ToolLoopAgent({
+  const result = await generateText({
     model: provider.chat(args.model),
     instructions: [
       'Anda adalah second-opinion analyst untuk saham IDX, bukan mesin eksekusi.',
@@ -185,9 +235,8 @@ async function callHybridAgent(args: { model: string; evidence: Array<{ ticker: 
       'CONFIRM berarti evidence yang tersedia konsisten dengan kandidat rule engine; bukan rekomendasi investasi.',
       'Jika bukti tipis/kontradiktif/tidak tersedia, pilih CHALLENGE atau INSUFFICIENT_EVIDENCE.',
       'Kembalikan tepat satu review untuk setiap ticker input dan jangan menambah ticker.',
+      'Balas HANYA JSON valid tanpa markdown fence. Bentuk wajib: {"reviews":[{"ticker":"...","verdict":"CONFIRM|CHALLENGE|INSUFFICIENT_EVIDENCE","confidence":"LOW|MEDIUM|HIGH","evidenceRefs":["E:TICKER:field"],"concerns":["MODEL_UNVALIDATED"],"nextEvidence":["NEED_POINT_IN_TIME_VALIDATION"]}]}',
     ].join(' '),
-    output: Output.object({ schema: hybridOutputSchema }),
-    stopWhen: isStepCount(1),
     // 2.500 token cukup untuk sedikit kandidat, tapi REVIEW_LIMIT = 12 kandidat sekaligus,
     // masing-masing butuh reasoning + evidenceRefs + concerns + nextEvidence penuh, bisa
     // menghabiskan lebih dari 2.500 token completion. Ditemukan di produksi 26 Agustus 2026:
@@ -195,14 +244,13 @@ async function callHybridAgent(args: { model: string; evidence: Array<{ ticker: 
     // masing-masing gagal parse dengan cara berbeda tapi akar masalahnya sama - budget token
     // terlalu kecil untuk ukuran batch. Dinaikkan ke 10.000 (~830/kandidat) dengan margin besar
     // supaya batch penuh 12 kandidat + reasoning panjang tidak lagi kena finish_reason: length.
-    prepareStep: () => ({ temperature: 0, maxOutputTokens: 10_000 }),
-  });
-  const result = await agent.generate({
     prompt: JSON.stringify({ task: 'Classify evidence-only rule candidates', candidates: args.evidence }),
+    temperature: 0,
+    maxOutputTokens: 10_000,
     timeout: { totalMs: TIMEOUT_MS },
   });
   return {
-    output: result.output,
+    output: normalizeHybridOutput(result.text),
     inputTokens: result.totalUsage.inputTokens ?? null,
     outputTokens: result.totalUsage.outputTokens ?? null,
   };
@@ -238,7 +286,7 @@ export async function applyHybridAnalysis(args: {
   for (const model of models) {
     try {
       const generated = await (args.runner ?? callHybridAgent)({ model, evidence });
-      const parsed = hybridOutputSchema.safeParse(generated.output);
+      const parsed = hybridOutputSchema.safeParse(normalizeHybridOutput(generated.output));
       if (!parsed.success) { lastFailure = { model, status: 'INVALID_OUTPUT', errorCode: 'SCHEMA_INVALID' }; continue; }
       const returned = parsed.data.reviews.map((review) => review.ticker);
       const exactTickers = returned.length === tickers.length
