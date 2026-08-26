@@ -12,6 +12,7 @@ import {
   Activity,
   BarChart3,
   BookOpenCheck,
+  Brain,
   Building2,
   CalendarDays,
   ChevronRight,
@@ -189,6 +190,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
   items: [
     { id: 'admin', name: 'Admin Panel', subtitle: 'User & subscription', path: '/admin', icon: ShieldAlert },
     { id: 'admin-jobs', name: 'Cron & Update Mingguan', subtitle: 'Jadwal, hasil audit & kesehatan job', path: '/admin/jobs', icon: Activity },
+    { id: 'admin-decision-lab', name: 'Decision Lab', subtitle: 'Batch AI hybrid analyst & evidence per sinyal', path: '/admin/decision-lab', icon: Brain },
     { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
     { id: 'admin-transparency', name: 'Transparansi LensRadar', subtitle: 'Bukti forward per bucket & rekonsiliasi harga', path: '/admin/transparency', icon: ShieldCheck },
     { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
