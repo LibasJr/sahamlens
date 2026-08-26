@@ -71,6 +71,7 @@ jobs:
         run: npm run verify:prod
         env:
           NODE_ENV: production
+          TRUSTED_PROXY_MODE: cloudflare
           JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY || 'ci-manual-deploy-verify-secret' }}
           ADMIN_JWT_SECRET: ${{ secrets.ADMIN_JWT_SECRET || 'ci-manual-deploy-verify-admin-secret' }}
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgres://lens:test@localhost:5432/sahamlens' }}
