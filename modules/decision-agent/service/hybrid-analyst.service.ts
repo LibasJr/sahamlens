@@ -148,10 +148,10 @@ export function buildSignalEvidence(signal: DecisionAgentSignal): EvidenceItem[]
   return items;
 }
 
-function selectCandidates(signals: DecisionAgentSignal[], heldTickers: ReadonlySet<string>): DecisionAgentSignal[] {
-  const buys = signals.filter((signal) => signal.action === 'BUY_CANDIDATE' && signal.paperReadiness === 'PAPER_READY');
-  const heldExits = signals.filter((signal) => signal.action === 'EXIT_REVIEW' && signal.paperReadiness === 'PAPER_READY' && heldTickers.has(signal.ticker));
-  return [...heldExits, ...buys].slice(0, REVIEW_LIMIT);
+function selectCandidates(signals: DecisionAgentSignal[], _heldTickers: ReadonlySet<string>): DecisionAgentSignal[] {
+  return signals
+    .filter((signal) => signal.action === 'BUY_CANDIDATE' && signal.paperReadiness === 'PAPER_READY')
+    .slice(0, REVIEW_LIMIT);
 }
 
 function refsMatchAnyField(refs: string[], fields: string[]): boolean {

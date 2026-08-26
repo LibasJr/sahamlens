@@ -16,6 +16,15 @@ function candidate() {
   });
 }
 
+function exitReviewCandidate() {
+  return {
+    ...candidate(),
+    ticker: 'BMRI',
+    action: 'EXIT_REVIEW' as const,
+    hybridStatus: 'NOT_REVIEWED' as const,
+  };
+}
+
 describe('hybrid analyst evidence gate', () => {
   const originalModels = process.env.NINEROUTER_MODELS;
   const originalDecisionModel = process.env.DECISION_AGENT_LLM_MODEL;
@@ -41,6 +50,25 @@ describe('hybrid analyst evidence gate', () => {
     expect(result.meta.status).toBe('COMPLETED');
     expect(result.signals[0].hybridStatus).toBe('CONFIRMED');
     expect(result.signals[0].hybridReview?.evidenceRefs).toEqual(refs);
+  });
+
+  it('hanya mengirim BUY_CANDIDATE PAPER_READY ke hybrid analyst, bukan EXIT_REVIEW held', async () => {
+    const buy = candidate();
+    const exit = exitReviewCandidate();
+    const refs = ['ruleAction', 'modelValidated'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async (args: { evidence: Array<{ ticker: string }> }) => {
+      expect(args.evidence.map((item) => item.ticker)).toEqual(['BBCA']);
+      return {
+        output: { reviews: [{ ticker: 'BBCA', verdict: 'CHALLENGE' as const, confidence: 'LOW' as const, evidenceRefs: refs, concerns: ['MODEL_UNVALIDATED' as const], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION' as const] }] },
+        inputTokens: 100,
+        outputTokens: 20,
+      };
+    });
+    const result = await applyHybridAnalysis({ signals: [exit, buy], heldTickers: new Set(['BMRI']), runner: runner as any });
+    expect(result.meta.status).toBe('COMPLETED');
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(result.signals.find((signal) => signal.ticker === 'BMRI')?.hybridStatus).toBe('NOT_REVIEWED');
+    expect(result.signals.find((signal) => signal.ticker === 'BBCA')?.hybridStatus).toBe('CHALLENGED');
   });
 
   it('menolak seluruh output bila model mengutip evidence id yang tidak pernah diberikan', async () => {
