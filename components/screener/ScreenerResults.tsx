@@ -410,7 +410,7 @@ export default function ScreenerResults({
         ))}
       </div>
 
-      {visibleRows.map((item: any, idx: number) => {
+      {visibleRows.map((item, idx: number) => {
         const growth = parseFormattedNumber(item.rev_growth_ttm);
         return (
           <motion.div
