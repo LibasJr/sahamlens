@@ -29,6 +29,13 @@ import { momentumScore, riskScore } from '@/lib/utils/lens-score-breakdown';
 import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligibility';
 import { Activity, CheckCircle2, Download, FileText, Radar, RefreshCw, Sparkles } from 'lucide-react';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import type { DashboardData } from '@/components/dashboard/dashboard-analysis';
+
+function stockCurrentPrice(data: DashboardData | null): number | null {
+  const price = data?.stock?.current_price;
+  return typeof price === 'number' && Number.isFinite(price) && price > 0 ? price : null;
+}
+
 function DashboardContent() {
   const {
     ticker, setTicker, loading, fetchError, fetchErrorRequestId, data, lastUpdate, marketClosed,
@@ -40,10 +47,11 @@ function DashboardContent() {
   } = useDashboardAnalysis();
 
   const downloadTechnicalPDF = () => downloadTechnicalReport({ data, ticker });
-  const stock = data?.stock || {};
+  const stock = data?.stock ?? null;
+  const currentPrice = stockCurrentPrice(data);
   const currentIsIndex = isIndexTicker(ticker);
-  const candles = chartCandles.length > 0 ? chartCandles : (data?.stock?.history || []);
-  let analyzers = data?.analyzers || [];
+  const candles = chartCandles.length > 0 ? chartCandles : (data?.stock?.history ?? []);
+  let analyzers = data?.analyzers ?? [];
 
   if (sortByConfidence) {
     analyzers = [...analyzers].sort((a, b) => b.confidence - a.confidence);
@@ -60,7 +68,8 @@ function DashboardContent() {
   // & Volatility (ATR 14) yang sudah dihitung di atas (bagian dari `analyzers`), bukan
   // komputasi baru. Tidak ikut total_score/kategori BUY-SELL.
   const momentum = data?.scoring ? momentumScore(analyzers) : null;
-  const risk = data?.scoring ? riskScore(analyzers, stock.current_price ?? data?.price) : null;
+  const riskInputPrice = currentPrice ?? data?.price ?? null;
+  const risk = data?.scoring && riskInputPrice != null ? riskScore(analyzers, riskInputPrice) : null;
   const decisionPresentation = data?.scoring
     ? getDecisionPresentation(data.scoring.kategori, data.decision)
     : null;
@@ -357,7 +366,7 @@ function DashboardContent() {
             // bar) hasilnya 0, dan getMAStatus(price, 0, 0) menyimpulkan UPTREND karena
             // harga selalu > 0. Sekarang pakai `raw` dan tampilkan "data belum cukup".
             const price = data.price;
-            const maResult = analyzers.find((a: any) => a.label?.includes('MA Trend'));
+            const maResult = analyzers.find((a) => a.label?.includes('MA Trend'));
             const ma50 = typeof maResult?.raw?.ma50 === 'number' ? maResult.raw.ma50 : null;
             const ma200 = typeof maResult?.raw?.ma200 === 'number' ? maResult.raw.ma200 : null;
             const maDataReady = ma50 != null && ma200 != null && typeof price === 'number';
@@ -397,15 +406,15 @@ function DashboardContent() {
           {viewMode === 'full' ? (
             <>
               <div className="w-full space-y-4">
-                <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
+                <RiskRewardCalculator currentPrice={currentPrice} analyzers={analyzers} />
                 {(() => {
                   const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
-                  const support = analyzers.find((a: any) => a.label?.includes('Support'))?.raw?.support;
-                  const resistance = analyzers.find((a: any) => a.label?.includes('Resistance'))?.raw?.resistance;
-                  const stopLossPrice = data?.tradeSetup?.stopLoss ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
-                  const takeProfit1Price = data?.tradeSetup?.takeProfit1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
-                  const takeProfit2Price = data?.tradeSetup?.takeProfit2 ?? null;
-                  const entryPrice = data?.tradeSetup?.entryPrice ?? currentPrice;
+                  const support = analyzers.find((a) => a.label?.includes('Support'))?.raw?.support;
+                  const resistance = analyzers.find((a) => a.label?.includes('Resistance'))?.raw?.resistance;
+                  const stopLossPrice = data?.tradeSetup?.stop ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
+                  const takeProfit1Price = data?.tradeSetup?.tp1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
+                  const takeProfit2Price = data?.tradeSetup?.tp2 ?? null;
+                  const entryPrice = data?.tradeSetup?.entry ?? currentPrice;
                   if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
                     return (
                       <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="50" className="border-tv-border px-4 py-3 text-xs text-tv-muted">
@@ -436,15 +445,15 @@ function DashboardContent() {
             </>
           ) : (
             <div className="w-full space-y-4">
-              <RiskRewardCalculator currentPrice={data?.stock?.current_price} analyzers={analyzers} />
+              <RiskRewardCalculator currentPrice={currentPrice} analyzers={analyzers} />
               {(() => {
                 const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
-                const support = analyzers.find((a: any) => a.label?.includes('Support'))?.raw?.support;
-                const resistance = analyzers.find((a: any) => a.label?.includes('Resistance'))?.raw?.resistance;
-                const stopLossPrice = data?.tradeSetup?.stopLoss ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
-                const takeProfit1Price = data?.tradeSetup?.takeProfit1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
-                const takeProfit2Price = data?.tradeSetup?.takeProfit2 ?? null;
-                const entryPrice = data?.tradeSetup?.entryPrice ?? currentPrice;
+                const support = analyzers.find((a) => a.label?.includes('Support'))?.raw?.support;
+                const resistance = analyzers.find((a) => a.label?.includes('Resistance'))?.raw?.resistance;
+                const stopLossPrice = data?.tradeSetup?.stop ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
+                const takeProfit1Price = data?.tradeSetup?.tp1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
+                const takeProfit2Price = data?.tradeSetup?.tp2 ?? null;
+                const entryPrice = data?.tradeSetup?.entry ?? currentPrice;
                 if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
                   return (
                     <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="50" className="border-tv-border px-4 py-3 text-xs text-tv-muted">

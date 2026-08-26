@@ -10,6 +10,7 @@ import { useLanguage } from '@/lib/i18n';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import type { CompoundingYear, DividendPlanApiResponse, DividendStock } from '@/modules/fundamental/contracts';
 
 export default function DividendPage() {
   const { t, language } = useLanguage();
@@ -18,7 +19,7 @@ export default function DividendPage() {
   const [targetMonthly, setTargetMonthly] = useState(10_000_000);
   const [ticker, setTicker] = useState('BBCA');
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<DividendPlanApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
 
@@ -31,7 +32,7 @@ export default function DividendPage() {
     setLoading(true);
     setError(null);
     try {
-      const json = await apiRequest<any>(`/api/dividend-plan?capital=${capital}&targetMonthly=${targetMonthly}`);
+      const json = await apiRequest<DividendPlanApiResponse>(`/api/dividend-plan?capital=${capital}&targetMonthly=${targetMonthly}`);
       setData(json);
     } catch (e) {
       // BUG FIX (2026-08-22): sebelumnya SEMUA error (termasuk 402 SUBSCRIPTION_REQUIRED
@@ -58,14 +59,14 @@ export default function DividendPage() {
     return () => window.clearTimeout(timeout);
   }, [capital, targetMonthly]);
 
-  const quant = data?.quant || {};
-  const stocks = quant?.div_stocks || [];
-  const schedule = quant?.compounding_schedule || [];
+  const quant = data?.quant ?? null;
+  const stocks: DividendStock[] = quant?.div_stocks ?? [];
+  const schedule: CompoundingYear[] = quant?.compounding_schedule ?? [];
   const [aristocratFilter, setAristocratFilter] = useState<'all' | 'aristocrats'>('all');
 
   const filteredStocks = React.useMemo(() => {
     if (aristocratFilter === 'aristocrats') {
-      return stocks.filter((s: any) => s.is_aristocrat);
+      return stocks.filter((s) => s.is_aristocrat);
     }
     return stocks;
   }, [stocks, aristocratFilter]);
@@ -138,7 +139,7 @@ export default function DividendPage() {
       )}
 
       {/* Metric Cards */}
-      {data && (
+      {quant && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
             <div className="text-[11px] text-tv-muted uppercase font-semibold">Rata-rata Yield Universe</div>
@@ -174,7 +175,7 @@ export default function DividendPage() {
         </div>
       )}
 
-      {data && (
+      {quant && (
         <div className="mb-6 rounded-lg border border-tv-blue/20 bg-tv-blue/[0.04] px-3.5 py-3 text-[11px] leading-relaxed text-tv-muted">
           <span className="font-semibold text-tv-text">Metodologi:</span>{' '}
           rata-rata yield adalah equal-weight snapshot dari universe yang berhasil dibaca provider, bukan yield portofolio aktual. Safety 1-10 adalah skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.
@@ -212,7 +213,7 @@ export default function DividendPage() {
                     : 'text-tv-muted hover:text-amber-300'
                 }`}
               >
-                <span>✓</span> Konsisten 5Y+ ({stocks.filter((s: any) => s.is_aristocrat).length})
+                <span>✓</span> Konsisten 5Y+ ({stocks.filter((s) => s.is_aristocrat).length})
               </PrimitiveButton>
             </div>
           </div>
@@ -237,7 +238,7 @@ export default function DividendPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border/50">
-                {filteredStocks.map((s: any) => (
+                {filteredStocks.map((s) => (
                   <tr key={s.ticker} className="hover:bg-tv-hover/50">
                     <td className="p-2.5">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -279,7 +280,7 @@ export default function DividendPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border/50">
-                {schedule.map((row: any) => (
+                {schedule.map((row) => (
                   <tr key={row.year} className="hover:bg-tv-hover/50">
                     <td className="p-2.5 font-bold text-tv-text">{row.year}</td>
                     <td className="p-2.5 text-right text-tv-green font-bold font-number">

@@ -35,7 +35,7 @@ export {
 
 // Backend real halaman /dividend (2026-08-01) - lihat dividend-plan.service.ts untuk
 // alasan lengkap (menggantikan /api/live/[ticker] yang tidak pernah punya field quant.*).
-export { fetchDividendUniverse, buildDividendPlan, type DividendStock, type DividendPlanResult } from './service/dividend-plan.service';
+export { fetchDividendUniverse, buildDividendPlan, type DividendStock, type CompoundingYear, type DividendPlanResult } from './service/dividend-plan.service';
 
 // Laporan keuangan kuartalan RESMI BEI lewat XBRL (2026-08-22) - sumber langsung dari
 // bursa, alternatif Yahoo Finance yang selama ini dipakai fundamental-snapshot. Artefak

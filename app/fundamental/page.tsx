@@ -35,6 +35,11 @@ import FundamentalAnalyzerGrid from '@/components/fundamental/FundamentalAnalyze
 import dynamic from 'next/dynamic';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import type {
+  FundamentalAnalyzerResult,
+  FundamentalApiResponse,
+  StockApiResponseForFundamentalMerge,
+} from '@/modules/fundamental/contracts';
 
 // Normalisasi simbol: pastikan hanya 1x .JK
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
@@ -65,7 +70,7 @@ function FundamentalContent() {
   const { loading: authLoading, resolved: authResolved, user } = useAuthUser();
   const [ticker, setTickerState] = useState('BBCA');
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<FundamentalApiResponse | null>(null);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
   const [marketClosed, setMarketClosed] = useState(false);
   const [localObservations, setLocalObservations] = useState<Record<string, LocalDirectionObservation>>({});
@@ -109,8 +114,8 @@ function FundamentalContent() {
     try {
       // Fetch data for chart and fundamental analyzers in parallel.
       const [jsonStock, jsonAlgo] = await Promise.all([
-        apiRequest<any>(`/api/stock/${symbol}`, { signal: controller.signal }),
-        apiRequest<any>(`/api/fundamental/${symbol}`, { signal: controller.signal }),
+        apiRequest<StockApiResponseForFundamentalMerge>(`/api/stock/${symbol}`, { signal: controller.signal }),
+        apiRequest<FundamentalApiResponse>(`/api/fundamental/${symbol}`, { signal: controller.signal }),
       ]);
       if (controller.signal.aborted) return;
       if (!jsonAlgo?.stock) { setFetchError(true); return; }
@@ -124,8 +129,8 @@ function FundamentalContent() {
         jsonAlgo.stock.listing_board = jsonStock?.stock?.listing_board ?? null;
         jsonAlgo._meta = jsonStock?._meta ?? null;
         setData(jsonAlgo);
-        const sourceTime = new Date(jsonAlgo?._meta?.dataTimestamp);
-        setLastUpdate(Number.isNaN(sourceTime.getTime()) ? null : sourceTime);
+        const sourceTime = jsonAlgo._meta?.dataTimestamp ? new Date(jsonAlgo._meta.dataTimestamp) : null;
+        setLastUpdate(sourceTime && !Number.isNaN(sourceTime.getTime()) ? sourceTime : null);
         
         // Kirim data ke AI Chat supaya jawaban AI lebih substantif
         window.dispatchEvent(new CustomEvent('update-ai-context', { 
@@ -133,10 +138,7 @@ function FundamentalContent() {
             symbol,
             price: jsonAlgo.stock?.current_price,
             analyzers: jsonAlgo.analyzers,
-            council: jsonAlgo.council,
-            technical: jsonAlgo.technical,
             consensus: jsonAlgo.consensus,
-            score: jsonAlgo.score,
             modelSignal: jsonStock?.scoring?.kategori,
             decision: jsonStock?.decision,
             eligibility: jsonStock?.eligibility
@@ -146,7 +148,9 @@ function FundamentalContent() {
         // Observasi lokal transparan: hanya mencatat apakah arah analyzer pada kunjungan
         // sebelumnya sejalan dengan harga saat pengguna membuka halaman lagi. Ini bukan
         // backtest dan tidak memiliki horizon tetap.
-        trackLocalDirectionObservation(symbol, jsonAlgo.price, jsonAlgo.analyzers);
+        if (jsonAlgo.price != null) {
+          trackLocalDirectionObservation(symbol, jsonAlgo.price, jsonAlgo.analyzers);
+        }
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === 'AbortError') return;
@@ -167,7 +171,7 @@ function FundamentalContent() {
   //
   // Storage memakai v2 agar statistik lama yang pernah dilabeli "hit-rate historis"
   // tidak ikut diwariskan sebagai bukti performa.
-  const trackLocalDirectionObservation = (sym: string, price: number, analyzers: any[]) => {
+  const trackLocalDirectionObservation = (sym: string, price: number, analyzers: FundamentalAnalyzerResult[]) => {
     if (!Number.isFinite(price) || price <= 0 || !Array.isArray(analyzers)) return;
     try {
       const historyKey = 'fundamental_local_observations_v2';
@@ -213,7 +217,7 @@ function FundamentalContent() {
       localStorage.setItem(storageKey, JSON.stringify({
         price,
         observedAt: new Date(nowMs).toISOString(),
-        analyzers: analyzers.map((algo: any) => ({ label: algo?.label, decision: algo?.decision })),
+        analyzers: analyzers.map((algo) => ({ label: algo?.label, decision: algo?.decision })),
       }));
       setLocalObservations(history[sym] || {});
     } catch {
@@ -395,7 +399,7 @@ function FundamentalContent() {
     return { ...stat, total, avgGapHours };
   };
 
-  const filteredAnalyzers = analyzers.filter((algo: any) => {
+  const filteredAnalyzers = analyzers.filter((algo) => {
     if (algo.value === 'N/A' && algo.confidence === 0) return false;
     if (data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank')) {
       if (algo.label?.includes('Debt') || algo.label?.includes('Current Ratio') || algo.label?.includes('Quick Ratio')) return false;
@@ -411,10 +415,10 @@ function FundamentalContent() {
       ['ROE', 'ROA', 'Profitability'],
       ['Operating Margin', 'Net Profit Margin', 'Revenue Growth', 'EPS Growth', 'Dividend Yield'],
     ];
-    const picked: any[] = [];
+    const picked: FundamentalAnalyzerResult[] = [];
     for (const keywords of groups) {
-      const candidates = filteredAnalyzers.filter((algo: any) => keywords.some((k) => algo.label?.includes(k)) && !picked.includes(algo));
-      candidates.sort((a: any, b: any) => (b.confidence || 0) - (a.confidence || 0));
+      const candidates = filteredAnalyzers.filter((algo) => keywords.some((k) => algo.label?.includes(k)) && !picked.includes(algo));
+      candidates.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
       if (candidates[0]) picked.push(candidates[0]);
     }
     for (const algo of filteredAnalyzers) {
@@ -424,13 +428,13 @@ function FundamentalContent() {
     return picked.slice(0, 3);
   })();
   const displayedAnalyzers = viewMode === 'compact' ? compactAnalyzers : filteredAnalyzers;
-  const noLocalObservationCount = displayedAnalyzers.filter((algo: any) => getLocalObservation(algo.label) == null).length;
+  const noLocalObservationCount = displayedAnalyzers.filter((algo) => getLocalObservation(algo.label) == null).length;
   // Kalau status sesi gagal dibaca, jangan mengunci UI secara keliru. Hanya tamu yang
   // sudah terkonfirmasi melihat teaser kartu; user yang sudah login tetap melihat
   // seluruh indikator, terlepas dari status trial/Pro-nya.
   const isConfirmedGuest = authResolved && !authLoading && !user;
   const lockedAnalyzerCount = isConfirmedGuest
-    ? filteredAnalyzers.filter((algo: any) => !isVisibleForFundamentalGuest(algo.label)).length
+    ? filteredAnalyzers.filter((algo) => !isVisibleForFundamentalGuest(algo.label)).length
     : 0;
 
   // Klasifikasi yang sama dipakai FundamentalOverview untuk memutuskan blok rasio bank.

@@ -6,6 +6,14 @@ import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Too
 import { Card, EmptyState, LoadingFact, Skeleton, TickerAvatar } from '@/components/ui';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
 import { BACKTEST_LIMITATIONS } from '@/modules/backtest/constants/backtest-limitations';
+import type {
+  BacktestApiResponse,
+  BacktestChartPoint,
+  BacktestLiveFilterResponse,
+  BacktestTradeRow,
+  EquityTooltipProps,
+  RechartsTooltipEntry,
+} from '@/modules/backtest/contracts';
 
 const fmtRupiah = (n: number) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
 
@@ -30,10 +38,14 @@ function toneOf(value: unknown): string {
   return n > 0 ? 'text-tv-green' : 'text-tv-red';
 }
 
-function EquityTooltip({ active, payload, label, initialCapital }: any) {
+function numericTooltipValue(entry: RechartsTooltipEntry | undefined): number | undefined {
+  return typeof entry?.value === 'number' && Number.isFinite(entry.value) ? entry.value : undefined;
+}
+
+function EquityTooltip({ active, payload, label, initialCapital }: EquityTooltipProps) {
   if (!active || !payload?.length) return null;
-  const strategy = payload.find((p: any) => p.dataKey === 'Strategy')?.value as number | undefined;
-  const ihsg = payload.find((p: any) => p.dataKey === 'IHSG')?.value as number | undefined;
+  const strategy = numericTooltipValue(payload.find((p) => p.dataKey === 'Strategy'));
+  const ihsg = numericTooltipValue(payload.find((p) => p.dataKey === 'IHSG'));
   const gap = typeof strategy === 'number' && typeof ihsg === 'number' ? strategy - ihsg : null;
   const growthPct = typeof strategy === 'number' && initialCapital > 0 ? ((strategy - initialCapital) / initialCapital) * 100 : null;
   return (
@@ -51,14 +63,14 @@ function EquityTooltip({ active, payload, label, initialCapital }: any) {
 interface BacktestResultsPanelProps {
   liveLoading: boolean;
   liveError: string | null;
-  liveResults: any;
+  liveResults: BacktestLiveFilterResponse | null;
   selectedFilters: string[];
   error: string | null;
-  results: any;
+  results: BacktestApiResponse | null;
   loading: boolean;
   runBacktest: () => void;
   dataAsOfLabel: string | null;
-  chartData: any[];
+  chartData: BacktestChartPoint[];
   modal: number;
 }
 
@@ -127,7 +139,7 @@ export default function BacktestResultsPanel({
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-tv-border text-sm">
-                          {liveResults.matches.map((m: any) => (
+                          {liveResults.matches.map((m) => (
                             <tr key={m.ticker} className="hover:bg-tv-hover/30">
                               <td className="py-2 px-3 font-bold font-number text-tv-text">
                                 <span className="inline-flex items-center gap-2">
@@ -458,7 +470,7 @@ export default function BacktestResultsPanel({
                 </tr>
               </thead>
               <tbody className="divide-y divide-tv-border text-sm">
-                {results.trades.map((t: any, idx: number) => (
+                {results.trades.map((t: BacktestTradeRow, idx: number) => (
                   <tr key={idx} className="hover:bg-tv-hover/30">
                     <td className="py-3 px-4 text-tv-muted">{t.date}</td>
                     <td className="py-3 px-4 text-tv-text font-bold font-number">
