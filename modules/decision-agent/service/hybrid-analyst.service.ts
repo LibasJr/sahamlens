@@ -10,7 +10,23 @@ import type {
   HybridSignalReview,
 } from '../types/decision-agent.types';
 
-const REVIEW_LIMIT = 12;
+export const DEFAULT_HYBRID_REVIEW_LIMIT = 10;
+export const DEFAULT_HYBRID_MIN_LENS_SCORE = 75;
+
+function readBoundedNumberEnv(name: string, fallback: number, min: number, max: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const parsed = Number(raw);
+  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : fallback;
+}
+
+function hybridReviewLimit(): number {
+  return Math.floor(readBoundedNumberEnv('DECISION_AGENT_REVIEW_LIMIT', DEFAULT_HYBRID_REVIEW_LIMIT, 1, 10));
+}
+
+function hybridMinLensScore(): number {
+  return readBoundedNumberEnv('DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW', DEFAULT_HYBRID_MIN_LENS_SCORE, 0, 100);
+}
 // Dinaikkan dari 45s bersamaan dengan maxOutputTokens (2.500 -> 10.000): model reasoning
 // (mis. gemini-3.6 dengan reasoning_tokens tinggi) butuh lebih banyak waktu untuk
 // menghasilkan completion yang lebih panjang, timeout lama akan memotong sebelum token
@@ -36,7 +52,7 @@ export const hybridOutputSchema = z.object({
     evidenceRefs: z.array(z.string().min(1).max(100)).min(1).max(12),
     concerns: z.array(concernSchema).max(8),
     nextEvidence: z.array(nextEvidenceSchema).max(6),
-  })).max(REVIEW_LIMIT),
+  })).max(DEFAULT_HYBRID_REVIEW_LIMIT),
 });
 
 type HybridOutput = z.infer<typeof hybridOutputSchema>;
@@ -149,9 +165,11 @@ export function buildSignalEvidence(signal: DecisionAgentSignal): EvidenceItem[]
 }
 
 function selectCandidates(signals: DecisionAgentSignal[], _heldTickers: ReadonlySet<string>): DecisionAgentSignal[] {
+  const minLensScore = hybridMinLensScore();
   return signals
     .filter((signal) => signal.action === 'BUY_CANDIDATE' && signal.paperReadiness === 'PAPER_READY')
-    .slice(0, REVIEW_LIMIT);
+    .filter((signal) => signal.lensScore >= minLensScore)
+    .slice(0, hybridReviewLimit());
 }
 
 function refsMatchAnyField(refs: string[], fields: string[]): boolean {
@@ -237,13 +255,11 @@ async function callHybridAgent(args: { model: string; evidence: Array<{ ticker: 
       'Kembalikan tepat satu review untuk setiap ticker input dan jangan menambah ticker.',
       'Balas HANYA JSON valid tanpa markdown fence. Bentuk wajib: {"reviews":[{"ticker":"...","verdict":"CONFIRM|CHALLENGE|INSUFFICIENT_EVIDENCE","confidence":"LOW|MEDIUM|HIGH","evidenceRefs":["E:TICKER:field"],"concerns":["MODEL_UNVALIDATED"],"nextEvidence":["NEED_POINT_IN_TIME_VALIDATION"]}]}',
     ].join(' '),
-    // 2.500 token cukup untuk sedikit kandidat, tapi REVIEW_LIMIT = 12 kandidat sekaligus,
-    // masing-masing butuh reasoning + evidenceRefs + concerns + nextEvidence penuh, bisa
-    // menghabiskan lebih dari 2.500 token completion. Ditemukan di produksi 26 Agustus 2026:
-    // batch 12 saham memotong output tiga model berbeda di tengah JSON (finish_reason: length),
-    // masing-masing gagal parse dengan cara berbeda tapi akar masalahnya sama - budget token
-    // terlalu kecil untuk ukuran batch. Dinaikkan ke 10.000 (~830/kandidat) dengan margin besar
-    // supaya batch penuh 12 kandidat + reasoning panjang tidak lagi kena finish_reason: length.
+    // 2.500 token cukup untuk sedikit kandidat, tapi batch kandidat hybrid bisa
+    // membutuhkan reasoning + evidenceRefs + concerns + nextEvidence penuh. Ditemukan
+    // di produksi 26 Agustus 2026: batch besar memotong output beberapa model di
+    // tengah JSON (finish_reason: length). Dinaikkan ke 10.000 dan batch kini dibatasi
+    // maksimal DEFAULT_HYBRID_REVIEW_LIMIT supaya completion tetap punya margin aman.
     prompt: JSON.stringify({ task: 'Classify evidence-only rule candidates', candidates: args.evidence }),
     temperature: 0,
     maxOutputTokens: 10_000,
