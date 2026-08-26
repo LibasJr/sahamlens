@@ -6,19 +6,20 @@ import { Award, ArrowUpDown, Lock } from 'lucide-react';
 import { ApiErrorHint, Button, Card, EmptyState, LoadingFact, Skeleton, TickerAvatar } from '@/components/ui';
 import { fmtMiliar, fmtTriliun } from '@/shared/format/fundamental-format';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
-import { parseFormattedNumber, SORTABLE_COLUMNS, type ColumnKey } from './screener-model';
+import { parseFormattedNumber, SORTABLE_COLUMNS, type ColumnKey, type ScreenerApiResponse } from './screener-model';
+import type { ScreenerStock } from '@/modules/market/service/screener.service';
 
 type RiskProfile = 'Konservatif' | 'Moderat' | 'Agresif';
 
 interface ScreenerResultsProps {
-  data: any;
+  data: ScreenerApiResponse | null;
   riskProfile: RiskProfile;
   loading: boolean;
   loadError: boolean;
   loadErrorMessage: string | null;
   loadErrorRequestId: string | null;
-  sortedRows: any[];
-  visibleRows: any[];
+  sortedRows: ScreenerStock[];
+  visibleRows: ScreenerStock[];
   hasLockedGuestRows: boolean;
   lockedCount: number;
   sortKey: ColumnKey | null;
@@ -173,7 +174,7 @@ export default function ScreenerResults({
         </tr>
       </thead>
       <tbody className="divide-y divide-tv-border/50">
-        {visibleRows.map((item: any, idx: number) => (
+        {visibleRows.map((item, idx: number) => (
           <tr key={item.ticker} className="hover:bg-tv-hover/50 transition-colors">
             <td className="w-12 p-3 text-tv-muted font-bold">{idx + 1}</td>
             <td className="p-3">

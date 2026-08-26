@@ -17,14 +17,16 @@ import {
   compareValues,
   loadTemplates,
   type ColumnKey,
+  type ScreenerApiResponse,
   type ScreenerTemplate,
 } from '@/components/screener/screener-model';
+import type { ScreenerStock } from '@/modules/market/service/screener.service';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 
 // Konstanta modul, bukan `|| []` inline: literal baru tiap render mengubah identitas
 // dependensi useMemo di bawah, jadi memo-nya tidak pernah benar-benar memo (dan eslint
 // react-hooks/exhaustive-deps memperingatkannya).
-const EMPTY_ROWS: any[] = [];
+const EMPTY_ROWS: ScreenerStock[] = [];
 
 export default function ScreenerPage() {
   const router = useRouter();
@@ -39,7 +41,7 @@ export default function ScreenerPage() {
   // hasilnya nihil" selama setengah detik sebelum satu request pun dikirim - klaim
   // tentang pemindaian yang belum terjadi, persis keadaan yang dijaga komentar di bawah.
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ScreenerApiResponse | null>(null);
   // Daftar sektor dipisah dari `data` supaya kegagalan fetch (yang men-set data=null)
   // tidak ikut mengosongkan dropdown. Kalau ikut kosong, <select> terkontrol yang
   // value-nya masih "Keuangan" tampil sebagai "Semua Sektor" sementara tombol Coba Lagi
@@ -101,7 +103,7 @@ export default function ScreenerPage() {
         params.set('minLiquidity', String(parsedLiquidity * 1e9));
       }
 
-      const json = await apiRequest<any>('/api/screener?' + params.toString(), { signal });
+      const json = await apiRequest<ScreenerApiResponse>('/api/screener?' + params.toString(), { signal });
       setData(json);
       // Hanya ditimpa saat sukses. Sektor yang tersedia tidak berubah karena satu
       // request gagal, jadi daftar terakhir yang benar tetap dipertahankan.
@@ -142,7 +144,7 @@ export default function ScreenerPage() {
     };
   }, [riskProfile, sectorFilter, maxPriceInput, minMarketCapInput, minLiquidityInput, runScreener]);
 
-  const top10: any[] = data?.analysis?.top_10_stocks ?? EMPTY_ROWS;
+  const top10: ScreenerStock[] = data?.analysis?.top_10_stocks ?? EMPTY_ROWS;
   const isConfirmedGuest = authResolved && !authLoading && !user;
   const isGuestLimited = Boolean(data?.analysis?.is_guest_limited ?? isConfirmedGuest);
   // ?? 0, BUKAN ?? 8. Angka 8 adalah nilai karangan: saat data masih null (debounce awal)
@@ -155,7 +157,7 @@ export default function ScreenerPage() {
   const sortedRows = useMemo(() => {
     if (!sortKey) return top10;
     const col = SORTABLE_COLUMNS.find((c) => c.key === sortKey)!;
-    return [...top10].sort((a: any, b: any) => compareValues(col.getValue(a), col.getValue(b), sortDir));
+    return [...top10].sort((a, b) => compareValues(col.getValue(a), col.getValue(b), sortDir));
   }, [top10, sortKey, sortDir]);
   const visibleRows = isGuestLimited ? sortedRows.slice(0, GUEST_VISIBLE_RESULT_COUNT) : sortedRows;
 
@@ -176,7 +178,7 @@ export default function ScreenerPage() {
       return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const header = SORTABLE_COLUMNS.map((c) => c.label).join(',');
-    const rows = sortedRows.map((item: any) =>
+    const rows = sortedRows.map((item) =>
       SORTABLE_COLUMNS.map((c) => escapeCsv(c.getValue(item))).join(',')
     );
     // ﻿ (UTF-8 BOM) - tanpa ini Excel di Windows salah menebak encoding dan
