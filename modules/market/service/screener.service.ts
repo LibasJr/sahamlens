@@ -635,3 +635,9 @@ export function rankScreener(universe: RawStock[], profile: RiskProfile, filters
 
   return ranked;
 }
+
+// Tipe item hasil rankScreener() - diturunkan dari implementasi (bukan didefinisikan
+// ulang secara terpisah) supaya field baru/berubah di ranked[] otomatis tercermin di
+// sini. Dipakai oleh app/api/screener/route.ts (bentuk body) dan frontend
+// (components/screener/screener-model.ts, app/screener/page.tsx) menggantikan `any`.
+export type ScreenerStock = ReturnType<typeof rankScreener>[number];

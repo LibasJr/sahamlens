@@ -25,6 +25,11 @@ import { getAnalyzerDirectionLabel, getKategoriPresentationLabel, getKategoriTon
 import { susunTemuanDimensi, type TemuanDimensi } from '@/shared/presentation/stock-brief';
 import { describeFreshness } from '@/shared/presentation/freshness-labels';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import type {
+  StockAnalysisResponse,
+  StockAnalyzerResult,
+  StockConsensusDimension,
+} from '@/modules/technical/contracts';
 
 
 
@@ -109,7 +114,7 @@ export async function generateMetadata({
 // 401/402/429 jatuh ke teaser "Masuk dulu", jadi user yang SUDAH login disuruh login lagi
 // setiap kali sumber datanya gagal. Status kegagalan teknis tidak boleh diterjemahkan
 // menjadi "kamu belum login".
-async function getKonsensusData(symbol: string): Promise<{ data: any; status: number; signedIn: boolean }> {
+async function getKonsensusData(symbol: string): Promise<{ data: StockAnalysisResponse | null; status: number; signedIn: boolean }> {
   let signedIn = false;
   try {
     const session = await getSession();
@@ -243,9 +248,9 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     );
   }
 
-  const analyzers: any[] = Array.isArray(data.analyzers) ? data.analyzers : [];
+  const analyzers: StockAnalyzerResult[] = Array.isArray(data.analyzers) ? data.analyzers : [];
   const konsensus = data.consensusData || null;
-  const dimensi: any[] = Array.isArray(konsensus?.dimensions) ? konsensus.dimensions : [];
+  const dimensi: StockConsensusDimension[] = Array.isArray(konsensus?.dimensions) ? konsensus.dimensions : [];
   const lockedAnalyzerCount = signedIn
     ? 0
     : analyzers.filter((analyzer) => !isGuestVisibleAnalyzer(analyzer.label)).length;
@@ -546,7 +551,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {dimensi.map((d: any) => (
+                  {dimensi.map((d) => (
                     <tr key={d.dimension} className="border-b border-tv-border/50 last:border-0">
                       <td className="py-2 font-semibold text-tv-text">{d.dimension}</td>
                       <td className="py-2 text-right font-number text-tv-muted">{d.weight}</td>
@@ -590,7 +595,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {analyzers.map((a: any, idx: number) => {
+        {analyzers.map((a, idx: number) => {
           const sinyal = sinyalDariAnalyzer(a.decision);
           const locked = !signedIn && !isGuestVisibleAnalyzer(a.label);
 
