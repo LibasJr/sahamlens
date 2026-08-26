@@ -20,6 +20,12 @@ import { BACKTEST_PRESETS } from '@/modules/backtest/constants/presets';
 import { BACKTEST_PERIOD_MONTHS, TRADING_DAYS_PER_MONTH } from '@/modules/backtest/constants/backtest-periods';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import type {
+  BacktestApiResponse,
+  BacktestChartPoint,
+  BacktestLiveFilterResponse,
+  PublicChartReplayResponse,
+} from '@/modules/backtest/contracts';
 
 export default function BacktestPage() {
   const { user, resolved: authResolved, loading: authLoading } = useAuthUser();
@@ -58,7 +64,7 @@ export default function BacktestPage() {
       // tf=10Y selalu diminta (satu jalur kode untuk semua periode, bukan tf=1Y vs tf=10Y
       // bercabang) - candle yang dipakai TETAP dipotong ke jendela periode di bawah, jadi
       // permintaan Yahoo-nya sama persis dengan yang dipakai StockChartPanel untuk 10Y.
-      const data = await apiRequest<any>(`/api/public-chart/${encodeURIComponent(code)}?tf=10Y`);
+      const data = await apiRequest<PublicChartReplayResponse>(`/api/public-chart/${encodeURIComponent(code)}?tf=10Y`);
       const history: ReplayCandle[] = Array.isArray(data?.history) ? data.history : [];
       if (history.length === 0) { setReplayError('Data harga tidak tersedia untuk emiten ini'); setReplayCandles([]); return; }
       // Jendela periode dipotong dari BELAKANG (candle terbaru), konsisten dengan
@@ -68,7 +74,7 @@ export default function BacktestPage() {
       setReplayCandles(history.slice(-windowSize));
       setReplayToken(Date.now());
       // TIDAK langsung setReplayPlaying(true) - tunggu tombol Start ditekan.
-    } catch (e: any) {
+    } catch (e: unknown) {
       setReplayError(apiErrorMessage(e, 'Gagal memuat data harga', true));
       setReplayCandles([]);
     } finally {
@@ -93,7 +99,7 @@ export default function BacktestPage() {
   const [selectedFilters, setSelectedFilters] = useState<string[]>(presets[0].filters);
 
   const [loading, setLoading] = useState(false);
-  const [results, setResults] = useState<any>(null);
+  const [results, setResults] = useState<BacktestApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -104,7 +110,7 @@ export default function BacktestPage() {
   // saat tombol diklik - state terpisah dari `results` (historis) supaya dua mode
   // tidak saling menimpa tampilan.
   const [liveLoading, setLiveLoading] = useState(false);
-  const [liveResults, setLiveResults] = useState<any>(null);
+  const [liveResults, setLiveResults] = useState<BacktestLiveFilterResponse | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
 
   const toggleFilter = (f: string) => {
@@ -124,7 +130,7 @@ export default function BacktestPage() {
     setLoading(true);
     setError(null);
     try {
-      const data = await apiRequest<any>('/api/backtest', {
+      const data = await apiRequest<BacktestApiResponse>('/api/backtest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filters: selectedFilters, modal, period }),
@@ -150,7 +156,7 @@ export default function BacktestPage() {
     setLiveLoading(true);
     setLiveError(null);
     try {
-      const data = await apiRequest<any>('/api/backtest/live-filter-check', {
+      const data = await apiRequest<BacktestLiveFilterResponse>('/api/backtest/live-filter-check', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ filters: selectedFilters }),
@@ -172,10 +178,10 @@ export default function BacktestPage() {
     }
   };
 
-  const chartData = results?.equityCurve?.map((eq: number, idx: number) => ({
+  const chartData: BacktestChartPoint[] = results?.equityCurve?.map((eq, idx) => ({
     month: `M${idx}`,
     Strategy: eq,
-    IHSG: Array.isArray(results?.ihsgCurve) ? results.ihsgCurve[idx] : null
+    IHSG: Array.isArray(results?.ihsgCurve) ? results.ihsgCurve[idx] ?? null : null
   })) || [];
 
   const dataAsOfLabel = results?.dataAsOf
