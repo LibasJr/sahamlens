@@ -32,6 +32,7 @@ import {
   VALIDATION_LIMITATIONS_REVIEWED_ON,
 } from '../constants/validation-limitations';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
+import { provenancedValue, type ProvenancedFinancialValue } from '@/shared/finance/provenance';
 
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 // v2: payload sekarang membedakan observasi mentah, sampel efektif per bucket edge,
@@ -79,6 +80,10 @@ export interface TransparencyBucketRow {
   /** Return T+20 sebelum fee + slippage. `avgT20` adalah angka bersihnya. */
   avgT20Gross: number | null;
   winRateT20: number | null;
+  provenance: {
+    avgT20: ProvenancedFinancialValue;
+    winRateT20: ProvenancedFinancialValue;
+  };
   totalSamples: number;
   /** Drawdown intra-trade pada persentil 95: hanya 5% trade yang turun lebih dalam. */
   maxDdP95T20: number | null;
@@ -210,13 +215,28 @@ export function buildBucketRows(
   const rows = BUCKETS.map((bucket): TransparencyBucketRow => {
     const stat = statsByBucket.get(bucket);
     const fallback = deriveBucketFallback(observations, bucket);
+    const avgT20 = roundPct(finiteNumber(stat?.avg_t20 ?? null) ?? fallback.avgT20 ?? null);
+    const winRateT20 = roundPct(finiteNumber(stat?.win_rate_t20 ?? null) ?? fallback.winRateT20 ?? null);
+    const provenanceBase = {
+      source: stat ? 'lens_bucket_stats' : 'calibration-observation-fallback',
+      period: latestStatsRunDate ?? 'on-demand',
+      asOf: latestStatsRunDate ?? undefined,
+      retrievedAt: latestStatsRunDate ?? undefined,
+      confidence: stat ? 'calculated' as const : 'fallback' as const,
+      isEstimated: false,
+      note: stat ? 'Dihitung dari tabel agregat bucket PIT.' : 'Fallback dihitung dari observasi kalibrasi saat agregat belum tersedia.',
+    };
     const row = {
       bucket,
       avgT1: roundPct(finiteNumber(stat?.avg_t1 ?? null)),
       avgT5: roundPct(finiteNumber(stat?.avg_t5 ?? null) ?? fallback.avgT5 ?? null),
-      avgT20: roundPct(finiteNumber(stat?.avg_t20 ?? null) ?? fallback.avgT20 ?? null),
+      avgT20,
       avgT20Gross: roundPct(finiteNumber(stat?.avg_t20_gross ?? null) ?? fallback.avgT20Gross ?? null),
-      winRateT20: roundPct(finiteNumber(stat?.win_rate_t20 ?? null) ?? fallback.winRateT20 ?? null),
+      winRateT20,
+      provenance: {
+        avgT20: provenancedValue(avgT20, provenanceBase),
+        winRateT20: provenancedValue(winRateT20, provenanceBase),
+      },
       totalSamples: Number(stat?.total_samples ?? fallback.totalSamples ?? 0),
       maxDdP95T20: roundPct(finiteNumber(stat?.max_dd_p95 ?? null) ?? fallback.maxDdP95T20 ?? null),
       worstMaeT20: roundPct(finiteNumber(stat?.worst_mae ?? null) ?? fallback.worstMaeT20 ?? null),
@@ -488,6 +508,101 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
   };
 }
 
+export interface PublicTransparencyData {
+  asOfDate: string;
+  modelStatus: 'RESEARCH_ONLY' | 'MODEL_UNVALIDATED' | 'NON_ACTIONABLE' | 'VALIDATED_OUT_OF_SAMPLE';
+  model: {
+    scoreVersion: string;
+    scoreConfigHash: string;
+    priceBasis: PriceBasis;
+    priceDataVersion: string;
+  };
+  validation: {
+    status: TransparencyBanner['status'];
+    message: string;
+    metricProvenance: {
+      highBucketAvgT20: ProvenancedFinancialValue;
+      highBucketWinRateT20: ProvenancedFinancialValue;
+    };
+    startDate: string | null;
+    validationDays: number;
+    totalSamples: number;
+    effectiveHighBucketSamples: number;
+    effectiveLowBucketSamples: number;
+    pValue80VsLt60: number | null;
+    significant: boolean;
+    outOfSampleStatus: 'PENDING';
+    returnBasis: string;
+  };
+  dataQuality: {
+    latestStatsRunDate: string | null;
+    illiquidRowsSkipped: number | null;
+    rejectedRows: number;
+    unversionedRows: number;
+    versionMixed: boolean;
+    versionRejectedReason: string | null;
+    minAvgValue20dIdr: number;
+  };
+  methodology: readonly string[];
+  limitations: readonly string[];
+  limitationsReviewedOn: string;
+  disclaimer: string;
+}
+
 export async function getTransparencyData(): Promise<TransparencyData> {
   return getOrCompute(TRANSPARENCY_CACHE_KEY, CACHE_TTL_SEC.LENS_TRANSPARENCY, () => computeTransparencyData());
+}
+
+export function toPublicTransparencyData(data: TransparencyData): PublicTransparencyData {
+  return {
+    asOfDate: data.asOfDate,
+    modelStatus: data.banner.status === 'validated' ? 'VALIDATED_OUT_OF_SAMPLE' : 'RESEARCH_ONLY',
+    model: {
+      scoreVersion: data.scoreVersion ?? data.requestedScoreVersion,
+      scoreConfigHash: data.scoreConfigHash,
+      priceBasis: data.priceBasis,
+      priceDataVersion: data.priceDataVersion,
+    },
+    validation: {
+      status: data.banner.status,
+      message: data.banner.message,
+      metricProvenance: {
+        highBucketAvgT20: data.buckets.find((bucket) => bucket.bucket === '80-100')?.provenance.avgT20
+          ?? provenancedValue(null, { source: 'lens_bucket_stats', confidence: 'unknown', isEstimated: false, note: 'Bucket 80-100 belum tersedia.' }),
+        highBucketWinRateT20: data.buckets.find((bucket) => bucket.bucket === '80-100')?.provenance.winRateT20
+          ?? provenancedValue(null, { source: 'lens_bucket_stats', confidence: 'unknown', isEstimated: false, note: 'Bucket 80-100 belum tersedia.' }),
+      },
+      startDate: data.startDate,
+      validationDays: data.validationDays,
+      totalSamples: data.totalSamples,
+      effectiveHighBucketSamples: data.effectiveHighBucketSamples,
+      effectiveLowBucketSamples: data.effectiveLowBucketSamples,
+      pValue80VsLt60: data.pValue80VsLt60,
+      significant: data.significant,
+      outOfSampleStatus: 'PENDING',
+      returnBasis: 'Entry Open H+1, exit T+N hari bursa, return T+20 bersih setelah fee 0,4% + slippage 0,1%',
+    },
+    dataQuality: {
+      latestStatsRunDate: data.latestStatsRunDate,
+      illiquidRowsSkipped: data.illiquidRowsSkipped,
+      rejectedRows: data.rejectedRows,
+      unversionedRows: data.unversionedRows,
+      versionMixed: data.versionMixed,
+      versionRejectedReason: data.versionRejectedReason,
+      minAvgValue20dIdr: data.minAvgValue20dIdr,
+    },
+    methodology: [
+      'LensScore dibekukan per versi model dan hash konfigurasi sebelum hasil forward dihitung.',
+      'Validasi memakai data point-in-time: hanya sinyal yang lolos versi model, basis harga, likuiditas, cakupan, dan eligibility.',
+      'Bucket skor tinggi dibandingkan dengan bucket skor rendah memakai sampel T+20 yang didekorelasi.',
+      'Status publik tidak naik dari research-only sebelum syarat sampel dan out-of-sample terpenuhi.',
+    ],
+    limitations: data.limitations,
+    limitationsReviewedOn: data.limitationsReviewedOn,
+    disclaimer: data.disclaimer,
+  };
+}
+
+export async function getPublicTransparencyData(): Promise<PublicTransparencyData> {
+  return toPublicTransparencyData(await getTransparencyData());
 }

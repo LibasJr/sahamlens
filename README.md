@@ -6,7 +6,8 @@ screener, radar peluang, backtest, dan penjelasan berbahasa alami.
 
 > **Status model.** LensScore dan turunannya berstatus `RESEARCH_ONLY` / `MODEL_UNVALIDATED`.
 > Angka di aplikasi ini adalah hasil riset, bukan rekomendasi investasi, dan belum melewati
-> gerbang bukti out-of-sample. Lihat `/transparency` di aplikasi dan `docs/audit/`.
+> gerbang bukti out-of-sample. Lihat `/transparency`,
+> `docs/architecture/model-validation.md`, dan `docs/decisions/ADR-002-transparency-access.md`.
 
 ## Menjalankan secara lokal
 
@@ -50,7 +51,7 @@ npm run audit:schema  # runtime tidak boleh menyentuh skema
 | `lib/` | Utilitas sisi klien, i18n, hook |
 | `database/migrations/` | Migration bernomor — satu-satunya pemilik skema |
 | `scripts/` | Skrip audit, backfill, import, dan sinkronisasi data |
-| `docs/` | Dokumentasi operasional (`operations/`), audit (`audit/`), catatan (`notes/`) |
+| `docs/` | Dokumentasi aktif (`architecture/`, `operations/`, `decisions/`) serta arsip audit/catatan (`audit/`, `notes/`) |
 
 ## Aturan yang dijaga otomatis
 

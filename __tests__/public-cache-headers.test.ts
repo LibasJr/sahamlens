@@ -45,6 +45,7 @@ const PUBLIC_CACHEABLE = new Set([
   'app/api/calendar/route.ts',
   'app/api/ai-pick/route.ts',
   'app/api/daily-picks/route.ts',
+  'app/api/transparency/route.ts',
   'app/api/public-chart/[ticker]/route.ts',
 ]);
 

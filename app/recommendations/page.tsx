@@ -87,7 +87,7 @@ function SortableTh({
   );
 }
 
-export default function Recommendations() {
+export default function ResearchIdeasPage() {
   const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
@@ -161,7 +161,7 @@ export default function Recommendations() {
             );
             const merged = [...prev, ...newItems];
             
-            // Kirim data rekomendasi ke AI Chat supaya jawaban AI lebih substantif
+            // Kirim data ide riset ke AI Chat supaya jawaban AI lebih substantif
             window.dispatchEvent(new CustomEvent('update-ai-context', { 
               detail: {
                 symbol: 'RECOMMENDATIONS',
@@ -264,7 +264,7 @@ export default function Recommendations() {
     return result.slice(0, 50);
   }, [data, searchTerm, sortConfig]);
 
-  // GEMBOK TAMU (2026-08-23). Pengunjung dapat SATU rekomendasi teratas beserta seluruh
+  // GEMBOK TAMU (2026-08-23). Pengunjung dapat SATU ide riset teratas beserta seluruh
   // alasannya - cukup untuk menilai apakah analisisnya layak dipercaya - lalu sisanya
   // dikunci dengan jumlahnya disebutkan. Menyebut angka konkret ("49 saham lainnya")
   // memancing lebih kuat daripada ajakan masuk tanpa konteks.
@@ -287,7 +287,7 @@ export default function Recommendations() {
               </span>
             </div>
             <p className="text-xs text-tv-muted font-sans">
-              Memindai {LIQUID_STOCKS.length} saham aktif dari data pasar; sinyal belum merupakan rekomendasi BUY/SELL.
+              Memindai {LIQUID_STOCKS.length} saham aktif dari data pasar; sinyal belum merupakan arahan transaksi BUY/SELL.
             </p>
           </div>
         </div>
@@ -372,7 +372,7 @@ export default function Recommendations() {
                     <td colSpan={8} className="p-10 text-center text-tv-muted">
                       <div className="flex flex-col items-center gap-3">
                         <Search className="w-6 h-6 text-tv-muted opacity-50" />
-                        <span>{loading ? 'Menyaring rekomendasi terbaik...' : scanError ? 'Pemindaian gagal sebelum menghasilkan daftar lengkap.' : searchTerm ? `Tidak ada data saham yang cocok dengan pencarian "${searchTerm}"` : 'Belum ada hasil pemindaian yang dapat ditampilkan.'}</span>
+                        <span>{loading ? 'Menyaring ide riset terbaik...' : scanError ? 'Pemindaian gagal sebelum menghasilkan daftar lengkap.' : searchTerm ? `Tidak ada data saham yang cocok dengan pencarian "${searchTerm}"` : 'Belum ada hasil pemindaian yang dapat ditampilkan.'}</span>
                       </div>
                     </td>
                   </tr>
@@ -403,7 +403,7 @@ export default function Recommendations() {
                     <td className="p-4 text-center">
                       {/* BUG FIX (2026-08-06, sweep "font beda"): font-mono khusus data
                           tabular/kode (aturan app/globals.css), bukan kata status BUY/SELL.
-                          BUG FIX (audit label rekomendasi 2026-08-15): `item.consensus`
+                          BUG FIX (audit label ide riset 2026-08-15): `item.consensus`
                           adalah nilai classifier internal ('STRONG BUY' dst, lihat
                           consensus.service.ts) - dulu dirender apa adanya, terbaca sebagai
                           ajakan transaksi ("STRONG BUY" hijau tebal) padahal model BELUM
@@ -459,7 +459,7 @@ export default function Recommendations() {
                         className="flex items-center justify-center gap-2 px-4 py-6 text-sm font-bold text-tv-blue transition hover:bg-tv-hover"
                       >
                         <Lock className="h-4 w-4" />
-                        Masuk untuk melihat {lockedCount} rekomendasi lainnya
+                        Masuk untuk melihat {lockedCount} ide riset lainnya
                       </Link>
                     </td>
                   </tr>
@@ -485,7 +485,7 @@ export default function Recommendations() {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Hasil"
-        body="Rekomendasi saham butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
+        body="Ide riset saham butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
