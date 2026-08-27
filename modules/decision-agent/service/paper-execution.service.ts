@@ -36,6 +36,9 @@ function mapOrder(row: Record<string, unknown>): PaperOrder {
   };
 }
 
+// Tidak lagi dipanggil dari proposePaperOrder (2026-08-27) - lihat catatan di sana.
+// Dibiarkan ada supaya gerbangnya gampang disambung ulang kalau shadow-evaluation
+// akhir September membuktikan skeptisisme hybrid memang informatif.
 export function assertHybridConfirmed(signal: DecisionAgentSignal): void {
   if (signal.hybridStatus !== 'CONFIRMED' || signal.hybridReview?.verdict !== 'CONFIRM') {
     throw new ConflictError('Paper order membutuhkan konfirmasi hybrid analyst yang valid');
@@ -105,7 +108,11 @@ export async function proposePaperOrder(signalId: string, thesisInput?: Decision
     if (!signalRow) throw new NotFoundError('Sinyal tidak ditemukan');
     const signal = signalRow.payload as DecisionAgentSignal;
     if (signal.paperReadiness !== 'PAPER_READY') throw new ConflictError('Sinyal belum siap untuk paper order');
-    assertHybridConfirmed(signal);
+    // CONFIRM hybrid cuma 2,4% dari 82 run (data 2026-08-27) - mensyaratkannya di sini
+    // membuat paperReady jadi rem yang nyaris tidak pernah lepas, bukan validator.
+    // Review hybrid tetap jalan dan dicatat (buat shadow-evaluation), cuma tidak lagi
+    // menggerbangi eksekusi paper order. Keputusan akhir menyusul akhir September
+    // begitu ada cukup sampel return t+5/t+20 per kohort.
 
     const accountResult = await client.query(`SELECT * FROM decision_agent_paper_accounts WHERE id = $1 FOR UPDATE`, [ACCOUNT_ID]);
     const account = accountResult.rows[0] as Record<string, unknown> | undefined;

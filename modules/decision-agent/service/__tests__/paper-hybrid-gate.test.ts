@@ -17,6 +17,9 @@ function signal(): DecisionAgentSignal {
   };
 }
 
+// Catatan (2026-08-27): assertHybridConfirmed tidak lagi dipanggil dari
+// proposePaperOrder - lihat paper-execution.service.ts. Test ini menjaga
+// perilaku fungsinya sendiri kalau nanti disambung ulang.
 describe('paper hybrid gate', () => {
   it('menolak sinyal rule-only tanpa confirmation LLM', () => {
     expect(() => assertHybridConfirmed(signal())).toThrow(ConflictError);

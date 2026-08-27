@@ -34,7 +34,6 @@ function formatTime(value: string | null | undefined): string {
 }
 
 function SignalRow({ signal, busy, onPrepare }: { signal: PersistedDecisionSignal; busy: boolean; onPrepare: (signal: PersistedDecisionSignal) => void }) {
-  const hybridConfirmed = signal.hybridStatus === 'CONFIRMED' && signal.hybridReview?.verdict === 'CONFIRM';
   const hybridEvidence = signal.hybridReview ? mapEvidenceLabels(signal, signal.hybridReview.evidenceRefs) : [];
   return (
     <tr className="border-t border-tv-border align-top">
@@ -74,9 +73,9 @@ function SignalRow({ signal, busy, onPrepare }: { signal: PersistedDecisionSigna
         </> : <div className="mt-1 text-tv-muted">Belum ada second opinion terstruktur.</div>}
       </td>
       <td className="px-3 py-3">
-        {signal.paperReadiness === 'PAPER_READY' && hybridConfirmed && (signal.action === 'BUY_CANDIDATE' || signal.action === 'EXIT_REVIEW') ? (
+        {signal.paperReadiness === 'PAPER_READY' && (signal.action === 'BUY_CANDIDATE' || signal.action === 'EXIT_REVIEW') ? (
           <Button size="sm" disabled={busy} onClick={() => onPrepare(signal)}>{signal.action === 'BUY_CANDIDATE' ? 'Siapkan tesis & paper' : 'Usulkan exit paper'}</Button>
-        ) : <span className="text-xs text-tv-muted">{signal.paperReadiness} · hybrid {signal.hybridStatus}</span>}
+        ) : <span className="text-xs text-tv-muted">{signal.paperReadiness}</span>}
       </td>
     </tr>
   );
