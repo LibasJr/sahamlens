@@ -1,31 +1,11 @@
 import { withSentryConfig } from '@sentry/nextjs';
 
 const isProd = process.env.NODE_ENV === 'production';
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  "base-uri 'self'",
-  "object-src 'none'",
-  "frame-ancestors 'none'",
-  "form-action 'self'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "style-src 'self' 'unsafe-inline'",
-  // static.cloudflareinsights.com: beacon Cloudflare Web Analytics DISUNTIKKAN OTOMATIS
-  // oleh Cloudflare ke setiap respons HTML, jadi ia tidak pernah terlihat di kode ini.
-  // Tanpa izin di sini, CSP kita memblokir analytics kita sendiri dan angkanya nol tanpa
-  // penjelasan - terlihat di konsol produksi sebagai "Loading the script
-  // 'https://static.cloudflareinsights.com/beacon.min.js/...' violates ... script-src".
-  `script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com${isProd ? '' : " 'unsafe-eval'"}`,
-  // Beacon-nya mengirim hasil pengukuran ke cloudflareinsights.com. Mengizinkan skripnya
-  // saja tidak cukup: tanpa baris ini skrip berhasil dimuat lalu gagal di langkah kirim,
-  // dan gejalanya sama persis - data tidak pernah sampai.
-  "connect-src 'self' https://*.ingest.sentry.io https://cloudflareinsights.com wss:",
-  "worker-src 'self' blob:",
-  isProd ? 'upgrade-insecure-requests' : '',
-].filter(Boolean).join('; ');
 
+// CSP sengaja TIDAK statis di next.config. Next.js 16 perlu nonce unik per request
+// supaya inline framework scripts/hydration dapat berjalan tanpa script-src
+// 'unsafe-inline'. Policy dinamis dipasang oleh proxy.ts hanya pada respons HTML.
 const securityHeaders = [
-  { key: 'Content-Security-Policy', value: contentSecurityPolicy },
   { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
   { key: 'X-Content-Type-Options', value: 'nosniff' },
   { key: 'X-Frame-Options', value: 'DENY' },
