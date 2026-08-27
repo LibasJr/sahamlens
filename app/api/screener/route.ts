@@ -7,6 +7,7 @@ import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 import { getSession } from '@/modules/user';
 import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
 import { runController } from '@/shared/http/next-response.adapter';
+import { apiOk } from '@/shared/http/api-response';
 
 export const dynamic = 'force-dynamic';
 // 120 (bukan 60) - disamakan dengan app/api/cron/screener-scan yang mengerjakan
@@ -95,21 +96,30 @@ export async function GET(request: Request) {
 
     const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
     const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.SCREENER_UNIVERSE);
+    const data = {
+      profile,
+      analysis: {
+        top_10_stocks: visibleStocks,
+        total_count: top10.length,
+        locked_count: lockedCount,
+        is_guest_limited: isGuest,
+      },
+      availableSectors,
+      momentumScored,
+      _meta,
+    };
 
     return {
       status: 200,
       cookiesToSet,
       body: {
-        profile,
-        analysis: {
-          top_10_stocks: visibleStocks,
-          total_count: top10.length,
-          locked_count: lockedCount,
-          is_guest_limited: isGuest,
-        },
-        availableSectors,
-        momentumScored,
-        _meta,
+        ...apiOk(data, {
+          source: 'screener-universe-cache',
+          staleness: _meta.freshness.toLowerCase(),
+        }),
+        // Backward-compatible top-level fields while clients migrate to
+        // the standard { ok, data, meta } response contract.
+        ...data,
       },
     };
   }, request);
