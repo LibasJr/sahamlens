@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertCircle, Plus, Activity, Bell, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles } from 'lucide-react';
+import { Trash2, AlertCircle, Plus, Activity, Bell, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles, Target, ShieldAlert } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
@@ -34,6 +34,36 @@ interface AlertItem {
   targetValue: string;
   isActive: boolean;
   createdAt: string;
+}
+
+const ALERT_OPTIONS = [
+  { value: 'PRICE_BELOW', label: 'Harga Turun Di Bawah', needsValue: true, placeholder: 'Target harga' },
+  { value: 'PRICE_ABOVE', label: 'Harga Naik Di Atas', needsValue: true, placeholder: 'Target harga' },
+  { value: 'LENS_SCORE_ABOVE', label: 'LensScore Minimal', needsValue: true, placeholder: 'Target skor 0-100' },
+  { value: 'LENS_CONFIDENCE_BELOW', label: 'Confidence Turun Di Bawah', needsValue: true, placeholder: 'Target confidence %' },
+  { value: 'BREAKOUT_SCORE_ABOVE', label: 'LensRadar Score Minimal', needsValue: true, placeholder: 'Target score radar' },
+  { value: 'BREADTH_ADVANCING_BELOW', label: 'Market Breadth Melemah', needsValue: true, placeholder: 'Jumlah saham naik maksimal' },
+  { value: 'CONSENSUS_STRONG_BUY', label: 'Konsensus Sangat Positif', needsValue: false, placeholder: '' },
+  { value: 'RSI_OVERSOLD', label: 'RSI Oversold (< 30)', needsValue: false, placeholder: '' },
+] as const;
+
+function getAlertOption(conditionType: string) {
+  return ALERT_OPTIONS.find((option) => option.value === conditionType);
+}
+
+function alertConditionText(alert: AlertItem) {
+  const value = alert.targetValue;
+  switch (alert.conditionType) {
+    case 'PRICE_BELOW': return `Harga < ${value}`;
+    case 'PRICE_ABOVE': return `Harga > ${value}`;
+    case 'LENS_SCORE_ABOVE': return `LensScore >= ${value}`;
+    case 'LENS_CONFIDENCE_BELOW': return `Confidence < ${value}%`;
+    case 'BREAKOUT_SCORE_ABOVE': return `LensRadar score >= ${value}`;
+    case 'BREADTH_ADVANCING_BELOW': return `Market breadth naik < ${value}`;
+    case 'CONSENSUS_STRONG_BUY': return 'Konsensus Sangat Positif';
+    case 'RSI_OVERSOLD': return 'RSI Oversold';
+    default: return getAlertOption(alert.conditionType)?.label ?? alert.conditionType;
+  }
 }
 
 export default function WatchlistPage() {
@@ -213,7 +243,8 @@ export default function WatchlistPage() {
     e.preventDefault();
     if (!alertSymbol) return;
 
-    const needsValue = alertCondition === 'PRICE_BELOW' || alertCondition === 'PRICE_ABOVE';
+    const option = getAlertOption(alertCondition);
+    const needsValue = option?.needsValue === true;
     const parsedValue = alertValue.trim() ? Number(alertValue) : null;
     if (needsValue && (parsedValue === null || Number.isNaN(parsedValue))) {
       showToast('Target Nilai wajib diisi dengan angka.', 'error');
@@ -410,7 +441,7 @@ export default function WatchlistPage() {
                       ? 'bg-tv-yellow/15 border-tv-yellow/50 text-tv-yellow'
                       : scoreSignal === 'SELL'
                         ? 'bg-tv-red/15 border-tv-red/50 text-tv-red'
-                        : 'bg-tv-muted/15 border-tv-muted/40 text-tv-muted';
+                      : 'bg-tv-muted/15 border-tv-muted/40 text-tv-muted';
                 const scoreLabel = scoreVal == null
                   ? (loading ? 'memuat' : 'skor N/A')
                   : scorePresentation?.actionable && data?.decision?.action
@@ -418,6 +449,20 @@ export default function WatchlistPage() {
                     : scorePresentation?.modelSignal
                       ? getKategoriPresentationLabel(scorePresentation.modelSignal)
                       : 'sinyal N/A';
+                const explainability = data?.scoring?.explainability;
+                const researchLabel = data?.trust?.research_label ?? explainability?.research_label;
+                const confidenceLevel = data?.trust?.score_confidence ?? explainability?.confidence_level;
+                const confidenceScore = data?.trust?.score_confidence_pct ?? explainability?.confidence_score;
+                const riskFlags = Array.isArray(data?.trust?.blocking_reasons)
+                  ? data.trust.blocking_reasons
+                  : Array.isArray(explainability?.risk_flags)
+                    ? explainability.risk_flags
+                    : [];
+                const dataGaps = Array.isArray(data?.trust?.data_gaps)
+                  ? data.trust.data_gaps
+                  : Array.isArray(explainability?.data_gaps)
+                    ? explainability.data_gaps
+                    : [];
 
                 return (
                   <div key={item.symbol} className="group rounded-lg border border-tv-border bg-tv-bg hover:border-tv-blue/40 hover:bg-tv-hover/40 transition-colors p-3.5 flex items-center gap-3">
@@ -441,6 +486,30 @@ export default function WatchlistPage() {
                           scorePresentation.kind === 'INELIGIBLE' ? 'text-tv-red' : 'text-tv-yellow'
                         }`}>
                           {scorePresentation.statusLabel}
+                        </div>
+                      )}
+                      {(researchLabel || confidenceLevel || dataGaps.length > 0 || riskFlags.length > 0) && (
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                          {researchLabel && (
+                            <span className="lens-chip rounded border border-tv-blue/40 bg-tv-blue/10 px-1.5 py-0.5 font-semibold text-tv-blue">
+                              {researchLabel}
+                            </span>
+                          )}
+                          {confidenceLevel && (
+                            <span className="lens-chip rounded border border-tv-border bg-tv-card px-1.5 py-0.5 text-tv-muted">
+                              Confidence {confidenceLevel}{typeof confidenceScore === 'number' ? ` ${confidenceScore}%` : ''}
+                            </span>
+                          )}
+                          {riskFlags.length > 0 && (
+                            <span className="lens-chip rounded border border-tv-yellow/40 bg-tv-yellow/10 px-1.5 py-0.5 text-tv-yellow">
+                              {riskFlags.length} risiko
+                            </span>
+                          )}
+                          {dataGaps.length > 0 && (
+                            <span className="lens-chip rounded border border-tv-muted/40 bg-tv-muted/10 px-1.5 py-0.5 text-tv-muted">
+                              {dataGaps.length} data gap
+                            </span>
+                          )}
                         </div>
                       )}
                       {/* Di bawah 640px kolom kanan (`hidden sm:flex`) hilang seluruhnya - dan
@@ -608,15 +677,14 @@ export default function WatchlistPage() {
                 required
               />
               <Select value={alertCondition} onChange={(e) => setAlertCondition(e.target.value)}>
-                <option value="PRICE_BELOW">Harga Turun Di Bawah</option>
-                <option value="PRICE_ABOVE">Harga Naik Di Atas</option>
-                <option value="CONSENSUS_STRONG_BUY">Konsensus Sangat Positif</option>
-                <option value="RSI_OVERSOLD">RSI Oversold (&lt; 30)</option>
+                {ALERT_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </Select>
-              {(alertCondition === 'PRICE_BELOW' || alertCondition === 'PRICE_ABOVE') && (
+              {getAlertOption(alertCondition)?.needsValue && (
                 <Input
                   type="number"
-                  placeholder="Target Nilai"
+                  placeholder={getAlertOption(alertCondition)?.placeholder || 'Target nilai'}
                   value={alertValue}
                   onChange={(e) => setAlertValue(e.target.value)}
                   required
@@ -639,6 +707,8 @@ export default function WatchlistPage() {
                 const AlertIcon = alert.conditionType === 'PRICE_BELOW' ? ArrowDownCircle
                   : alert.conditionType === 'PRICE_ABOVE' ? ArrowUpCircle
                   : alert.conditionType === 'RSI_OVERSOLD' ? Gauge
+                  : alert.conditionType === 'LENS_SCORE_ABOVE' ? Target
+                  : alert.conditionType === 'LENS_CONFIDENCE_BELOW' ? ShieldAlert
                   : Sparkles;
                 return (
                   <div key={alert.id} className={`p-3 rounded-md border flex flex-col gap-2 ${alert.isActive ? 'bg-tv-bg border-tv-border' : 'bg-tv-bg/50 border-tv-border/50 opacity-50'}`}>
@@ -653,10 +723,7 @@ export default function WatchlistPage() {
                     </div>
                     <div className="text-xs text-tv-muted flex items-center gap-1.5">
                       <AlertIcon className="w-3.5 h-3.5 shrink-0" />
-                      {alert.conditionType === 'PRICE_BELOW' && `Harga < ${alert.targetValue}`}
-                      {alert.conditionType === 'PRICE_ABOVE' && `Harga > ${alert.targetValue}`}
-                      {alert.conditionType === 'CONSENSUS_STRONG_BUY' && `Konsensus Sangat Positif`}
-                      {alert.conditionType === 'RSI_OVERSOLD' && `RSI Oversold`}
+                      {alertConditionText(alert)}
                     </div>
                   </div>
                 );

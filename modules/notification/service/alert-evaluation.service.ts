@@ -72,6 +72,21 @@ function getRsi(data: unknown): number | null {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function getLensScore(data: unknown): number | null {
+  const input = record(data);
+  return finiteNumber(nested(data, 'scoring').total_score) ?? finiteNumber(input.totalScore);
+}
+
+function getScoreConfidence(data: unknown): number | null {
+  return finiteNumber(nested(data, 'trust').score_confidence_pct)
+    ?? finiteNumber(nested(nested(data, 'scoring'), 'explainability').confidence_score);
+}
+
+function getResearchLabel(data: unknown): string | null {
+  return text(nested(data, 'trust').research_label)
+    ?? text(nested(nested(data, 'scoring'), 'explainability').research_label);
+}
+
 /** Alert TIDAK boleh dipicu dari payload cache darurat - `_meta.source === 'stale-cache'`
  * bisa berumur sampai 24 jam (lihat TTL.STALE_FALLBACK). Notifikasi harga yang dikirim
  * dari harga kemarin lebih buruk daripada tidak ada notifikasi (temuan M-9). */
@@ -118,6 +133,14 @@ export function isTriggered(alert: Alert, ctx: AlertEvaluationContext): boolean 
       const rsi = getRsi(ctx.stock);
       return rsi !== null && rsi < 30;
     }
+    case 'LENS_SCORE_ABOVE': {
+      const score = getLensScore(ctx.stock);
+      return target != null && score != null && score >= target;
+    }
+    case 'LENS_CONFIDENCE_BELOW': {
+      const confidence = getScoreConfidence(ctx.stock);
+      return target != null && confidence != null && confidence < target;
+    }
     case 'BREAKOUT_SCORE_ABOVE': {
       const score = finiteNumber(record(ctx.breakoutEntry).score);
       return target != null && score != null && score >= target;
@@ -142,20 +165,27 @@ export function formatMessage(alert: Alert, ctx: AlertEvaluationContext): string
     case 'PRICE_BELOW':
     case 'PRICE_ABOVE':
     case 'CONSENSUS_STRONG_BUY':
-    case 'RSI_OVERSOLD': {
+    case 'RSI_OVERSOLD':
+    case 'LENS_SCORE_ABOVE':
+    case 'LENS_CONFIDENCE_BELOW': {
       const price = getPrice(ctx.stock);
       const label = alert.condition_type === 'PRICE_BELOW' ? `Harga turun ke bawah ${alert.condition_value}`
         : alert.condition_type === 'PRICE_ABOVE' ? `Harga naik ke atas ${alert.condition_value}`
         : alert.condition_type === 'CONSENSUS_STRONG_BUY' ? 'Konsensus Sangat Positif'
-        : 'RSI Oversold (< 30)';
+        : alert.condition_type === 'RSI_OVERSOLD' ? 'RSI Oversold (< 30)'
+        : alert.condition_type === 'LENS_SCORE_ABOVE' ? `LensScore mencapai minimal ${alert.condition_value}`
+        : `Confidence skor turun di bawah ${alert.condition_value}%`;
       const scoring = nested(ctx.stock, 'scoring');
-      const score = finiteNumber(scoring.total_score);
+      const score = getLensScore(ctx.stock);
       const kategori = text(scoring.kategori);
       const kategoriLabel = kategori ? getKategoriPresentationLabel(kategori) : '';
+      const confidence = getScoreConfidence(ctx.stock);
+      const researchLabel = getResearchLabel(ctx.stock);
       return [
         '🚨 <b>SahamLens LensAlert</b>',
         `${alert.symbol} ${label}!`,
-        `Price: ${price != null ? price.toLocaleString('id-ID') : 'N/A'}${score != null ? ` | Score: ${score} ${kategoriLabel}` : ''}`,
+        `Price: ${price != null ? price.toLocaleString('id-ID') : 'N/A'}${score != null ? ` | Score: ${score} ${kategoriLabel}` : ''}${confidence != null ? ` | Confidence: ${confidence}%` : ''}`,
+        researchLabel ? `Label riset: ${researchLabel}` : 'Label riset: belum tersedia',
         `Cek: /dashboard?symbol=${alert.symbol}`,
       ].join('\n');
     }
@@ -189,6 +219,8 @@ const STOCK_BASED_TYPES = new Set<AlertConditionType>([
   'PRICE_ABOVE',
   'CONSENSUS_STRONG_BUY',
   'RSI_OVERSOLD',
+  'LENS_SCORE_ABOVE',
+  'LENS_CONFIDENCE_BELOW',
 ]);
 
 function breakoutEntries(payload: unknown): Map<string, unknown> {

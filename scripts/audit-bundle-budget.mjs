@@ -24,7 +24,11 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // 5.760 KB, terbesar 415 KB - turun 1,4 MB (~20%) hanya dari dua impor dinamis.
 // Kepala ruangnya sengaja tipis (~4%): anggaran yang longgar tidak menahan apa pun, dan
 // angka inilah yang membuat penurunan tadi tidak pelan-pelan kembali.
-const TOTAL_BUDGET_KB = 6_000;
+// Dinaikkan 6.000 -> 6.020 pada 2026-08-27 untuk UI watchlist/compare product flow:
+// alert LensScore/confidence, mode Ringkas/Advanced, Share, dan export JSON dari data
+// aktif. Sebelum menaikkan, compare sudah dipangkas dari framer-motion, icon tambahan,
+// formatter freshness, dan feedback state supaya pertumbuhan hanya membayar fitur.
+const TOTAL_BUDGET_KB = 6_020;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
