@@ -95,6 +95,28 @@ describe('GET /api/screener', () => {
     expect(json.availableSectors).toEqual(['Infrastruktur', 'Keuangan']);
   });
 
+  it('menyediakan ApiResponse envelope tanpa menghapus field legacy screener', async () => {
+    vi.mocked(getCacheTtlRemaining).mockResolvedValue(900);
+
+    const res = await GET(makeRequest('?profile=Moderat'));
+    const json = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(json.ok).toBe(true);
+    expect(json.data.profile).toBe('Moderat');
+    expect(json.data.analysis).toEqual(json.analysis);
+    expect(json.data.availableSectors).toEqual(json.availableSectors);
+    expect(json.meta).toEqual(expect.objectContaining({
+      requestId: expect.any(String),
+      source: 'screener-universe-cache',
+      staleness: 'cached',
+    }));
+    expect(res.headers.get('X-Request-Id')).toBe(json.meta.requestId);
+    // Backward compatibility: client lama masih dapat membaca field top-level yang sama.
+    expect(json.profile).toBe('Moderat');
+    expect(json.analysis.top_10_stocks).toHaveLength(2);
+  });
+
   it('tamu (guest/unauthenticated) hanya menerima 2 emiten teratas dengan flag is_guest_limited', async () => {
     vi.mocked(getSession).mockResolvedValue(null);
 
