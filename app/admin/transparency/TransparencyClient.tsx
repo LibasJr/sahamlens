@@ -19,6 +19,7 @@ import { Card, Skeleton, EmptyState, LoadingFact } from '@/components/ui';
 // memutuskan status validasi, bukan angka yang ditulis ulang di UI.
 import { MIN_VALIDATION_DAYS, MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION } from '@/modules/lens-radar/constants/research-status';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 type Bucket = '80-100' | '70-79' | '60-69' | '<60';
 
@@ -148,8 +149,7 @@ function CollectingPanel({ data }: { data: TransparencyData }) {
             aria-valuemax={MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION}
           >
             <div
-              className="h-full rounded-full bg-gradient-accent transition-[width] duration-700 ease-settle"
-              style={{ width: `${Math.min(100, (Math.min(effectiveHigh, effectiveLow) / MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION) * 100)}%` }}
+              className={`h-full rounded-full bg-gradient-accent transition-[width] duration-700 ease-settle ${percentageWidthClass((Math.min(effectiveHigh, effectiveLow) / MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION) * 100)}`}
             />
           </div>
           <p className="mt-2 text-center text-[10px] leading-relaxed text-tv-muted">

@@ -6,6 +6,7 @@ import { ArrowRight, ExternalLink } from 'lucide-react';
 import { Badge } from '@/components/ui';
 import { fadeUp } from '@/lib/motion';
 import { useLanguage } from '@/lib/i18n';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 export interface StructuredNewsCardItem {
   title: string;
@@ -178,8 +179,7 @@ export function StructuredNewsCard({
               <div className="flex items-center gap-2">
                 <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-tv-hover">
                   <div
-                    className={confidence >= 65 ? 'h-full bg-tv-green' : confidence >= 45 ? 'h-full bg-tv-warning' : 'h-full bg-tv-muted'}
-                    style={{ width: String(confidence) + '%' }}
+                    className={`${confidence >= 65 ? 'h-full bg-tv-green' : confidence >= 45 ? 'h-full bg-tv-warning' : 'h-full bg-tv-muted'} ${percentageWidthClass(confidence)}`}
                   />
                 </div>
                 <span className="font-number text-xs font-bold text-tv-text">{confidence}/100</span>

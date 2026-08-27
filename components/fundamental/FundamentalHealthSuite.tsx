@@ -25,6 +25,7 @@ import {
   type FundamentalHealthSuiteResult,
 } from '@/lib/fundamental/financial-health';
 import { useLanguage } from '@/lib/i18n';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 interface FundamentalHealthSuiteProps {
   fundamentals: any;
@@ -161,8 +162,7 @@ export default function FundamentalHealthSuite({
               <div className="space-y-1">
                 <div className="h-2 w-full rounded-full bg-white/[0.06] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-gradient-to-r from-tv-green via-tv-yellow to-tv-purple transition-all duration-700"
-                    style={{ width: `${valuationPercentile.pePercentile}%` }}
+                    className={`h-full rounded-full bg-gradient-to-r from-tv-green via-tv-yellow to-tv-purple transition-all duration-700 ${percentageWidthClass(valuationPercentile.pePercentile)}`}
                   />
                 </div>
                 <div className="flex justify-between text-[10px] text-tv-muted">

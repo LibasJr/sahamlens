@@ -25,6 +25,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 export default function MarketPulse() {
   const [data, setData] = useState<any>(null);
@@ -352,7 +353,7 @@ export default function MarketPulse() {
                     <div className="flex items-center gap-2 min-w-0">
                       <span className="text-xs text-tv-text font-number shrink-0">{item.score}/8</span>
                       <span className="h-1 w-12 rounded-full bg-tv-border overflow-hidden shrink-0">
-                        <span className="block h-full rounded-full bg-tv-blue" style={{ width: `${Math.min(100, (Number(item.score) / 8) * 100)}%` }} />
+                        <span className={`block h-full rounded-full bg-tv-blue ${percentageWidthClass((Number(item.score) / 8) * 100)}`} />
                       </span>
                     </div>
                     <span className="text-[10px] text-tv-muted bg-tv-hover px-2 rounded font-number shrink-0">RR {item.rr}</span>
