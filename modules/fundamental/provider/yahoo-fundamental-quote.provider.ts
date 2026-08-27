@@ -24,6 +24,8 @@ const nullableString = z
 const assetProfileSchema = z.object({
   sector: nullableString,
   industry: nullableString,
+  longBusinessSummary: nullableString,
+  website: nullableString,
 }).passthrough().nullable().optional().catch(null);
 
 const defaultKeyStatisticsSchema = z.object({
@@ -32,6 +34,7 @@ const defaultKeyStatisticsSchema = z.object({
   sharesOutstanding: nullableFiniteNumber,
   beta: nullableFiniteNumber,
   priceToBook: nullableFiniteNumber,
+  earningsQuarterlyGrowth: nullableFiniteNumber,
 }).passthrough().nullable().optional().catch(null);
 
 const financialDataSchema = z.object({
@@ -39,17 +42,40 @@ const financialDataSchema = z.object({
   freeCashflow: nullableFiniteNumber,
   totalDebt: nullableFiniteNumber,
   totalCash: nullableFiniteNumber,
+  operatingCashflow: nullableFiniteNumber,
+  totalRevenue: nullableFiniteNumber,
+  grossProfits: nullableFiniteNumber,
+  returnOnAssets: nullableFiniteNumber,
+  debtToEquity: nullableFiniteNumber,
+  currentRatio: nullableFiniteNumber,
+  quickRatio: nullableFiniteNumber,
+  revenueGrowth: nullableFiniteNumber,
+  ebitda: nullableFiniteNumber,
+  profitMargins: nullableFiniteNumber,
+  grossMargins: nullableFiniteNumber,
+  operatingMargins: nullableFiniteNumber,
+  netInterestMargin: nullableFiniteNumber,
   financialCurrency: nullableString,
 }).passthrough().nullable().optional().catch(null);
 
 const summaryDetailSchema = z.object({
   dividendRate: nullableFiniteNumber,
   payoutRatio: nullableFiniteNumber,
+  trailingPE: nullableFiniteNumber,
+  forwardPE: nullableFiniteNumber,
+  marketCap: nullableFiniteNumber,
+  dividendYield: nullableFiniteNumber,
+  trailingAnnualDividendRate: nullableFiniteNumber,
 }).passthrough().nullable().optional().catch(null);
 
 const priceSchema = z.object({
   regularMarketPrice: nullableFiniteNumber,
+  regularMarketChangePercent: nullableFiniteNumber,
+  regularMarketVolume: nullableFiniteNumber,
+  marketCap: nullableFiniteNumber,
   currency: nullableString,
+  longName: nullableString,
+  shortName: nullableString,
 }).passthrough().nullable().optional().catch(null);
 
 const yahooFundamentalQuoteSchema = z.object({
@@ -89,7 +115,18 @@ interface YahooQuoteSummaryClient {
 // receive the validated type above instead of an `any` provider payload.
 const yahooFinance = new YahooFinanceClass({ suppressNotices: ['yahooSurvey'] }) as unknown as YahooQuoteSummaryClient;
 
-export async function fetchYahooFundamentalQuote(ticker: string): Promise<YahooFundamentalQuote | null> {
-  const response = await yahooFinance.quoteSummary(ticker, { modules: FUNDAMENTAL_QUOTE_MODULES });
+export async function fetchYahooFundamentalQuote(
+  ticker: string,
+  options: { timeoutMs?: number } = {},
+): Promise<YahooFundamentalQuote | null> {
+  const request = yahooFinance.quoteSummary(ticker, { modules: FUNDAMENTAL_QUOTE_MODULES });
+  const response = options.timeoutMs
+    ? await Promise.race([
+        request,
+        new Promise<never>((_, reject) => {
+          setTimeout(() => reject(new Error('fundamental timeout')), options.timeoutMs);
+        }),
+      ])
+    : await request;
   return parseYahooFundamentalQuote(response);
 }
