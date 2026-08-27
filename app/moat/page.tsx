@@ -31,6 +31,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 interface MoatPayload {
   ticker: string;
@@ -327,8 +328,7 @@ export default function MoatPage() {
               </div>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[0.06]">
                 <div
-                  className="h-full rounded-full bg-tv-purple transition-[width] duration-500"
-                  style={{ width: String(moat.coveragePct) + '%' }}
+                  className={`h-full rounded-full bg-tv-purple transition-[width] duration-500 ${percentageWidthClass(moat.coveragePct)}`}
                 />
               </div>
             </div>
