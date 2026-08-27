@@ -22,6 +22,17 @@ export type StockAnalysisAccessResolution =
   | { ok: true; context: StockAnalysisAccessContext }
   | { ok: false; response: HttpResult };
 
+export interface StockAnalysisQuotaMeta {
+  used: number;
+  limit: number;
+  remaining: number;
+  usedSymbols: string[];
+}
+
+export type StockAnalysisPayloadWithQuota<T extends Record<string, unknown>> = T & {
+  _quota?: StockAnalysisQuotaMeta;
+};
+
 /**
  * Resolves ticker validation, session entitlement and daily free quota in one place.
  * Guest access remains intentionally open; registered non-Pro users keep the existing
@@ -78,10 +89,10 @@ export async function resolveStockAnalysisAccess(
  * Quota metadata is attached after cache/computation so shared technical cache entries
  * never contain user-specific usage state.
  */
-export async function attachStockAnalysisQuota(
-  payload: any,
+export async function attachStockAnalysisQuota<T extends Record<string, unknown>>(
+  payload: T,
   context: StockAnalysisAccessContext,
-) {
+): Promise<StockAnalysisPayloadWithQuota<T>> {
   const userId = context.session?.id;
   if (context.hasPro || context.isInternal || !userId) return payload;
 
