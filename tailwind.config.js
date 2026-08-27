@@ -5,8 +5,12 @@ module.exports = {
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
     './components/**/*.{js,ts,jsx,tsx,mdx}',
     './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './shared/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  safelist: Array.from({ length: 101 }, (_, value) => [
+    `lens-w-${value}`,
+    `lens-left-${value}`,
+    `lens-h-${value}`,
+  ]).flat(),
   theme: {
     extend: {
       colors: {
@@ -100,5 +104,15 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    function percentageUtilities({ addUtilities }) {
+      const utilities = {};
+      for (let value = 0; value <= 100; value += 1) {
+        utilities[`.lens-w-${value}`] = { width: `${value}%` };
+        utilities[`.lens-left-${value}`] = { left: `${value}%` };
+        utilities[`.lens-h-${value}`] = { height: `${value}%` };
+      }
+      addUtilities(utilities);
+    },
+  ],
 }

@@ -5,6 +5,7 @@ import { Card as UiCard } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { AlertTriangle, Loader2 } from 'lucide-react';
 import type { Nullable, RecentSample, SampleSort, SampleSortKey } from './types';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 // ---------------------------------------------------------------------------
 // Formatter dan komponen kecil bersama, dipakai di seluruh section Intraday
@@ -102,8 +103,7 @@ export function ProgressMetric({ label, current, required }: { label: string; cu
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-tv-hover">
         <div
-          className={`h-full rounded-full ${done ? 'bg-tv-green' : 'bg-tv-accent'}`}
-          style={{ width: `${ratio * 100}%` }}
+          className={`h-full rounded-full ${done ? 'bg-tv-green' : 'bg-tv-accent'} ${percentageWidthClass(ratio * 100)}`}
         />
       </div>
     </div>
