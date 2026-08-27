@@ -1,4 +1,5 @@
 import { Redis } from './redis-local';
+import { recordCacheState } from '@/shared/observability/request-context';
 
 // Konvensi key: sahamlens:cache:{tier}:{domain}:{identifier} (Cache Layer
 // Strategy poin 2) - dipanggil dengan key lengkap oleh caller, helper ini generik.
@@ -99,11 +100,19 @@ export async function pingRedis(): Promise<'ok' | 'not_configured' | 'error'> {
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
   const client = getClient();
-  if (!client) return memoryGet<T>(key);
+  if (!client) {
+    const value = memoryGet<T>(key);
+    recordCacheState(value == null ? 'memory-miss' : 'memory-hit', 'redis-not-configured');
+    return value;
+  }
   try {
-    return await client.get<T>(key);
+    const value = await client.get<T>(key);
+    recordCacheState(value == null ? 'redis-miss' : 'redis-hit');
+    return value;
   } catch {
-    return memoryGet<T>(key);
+    const value = memoryGet<T>(key);
+    recordCacheState(value == null ? 'memory-miss' : 'memory-hit', 'redis-read-failed');
+    return value;
   }
 }
 
@@ -111,15 +120,18 @@ export async function cacheSet<T>(key: string, value: T, ttlSec: number): Promis
   const client = getClient();
   if (!client) {
     memorySet(key, value, ttlSec);
+    recordCacheState('memory-write', 'redis-not-configured');
     return;
   }
   try {
     await client.set(key, value, { ex: ttlSec });
+    recordCacheState('redis-write');
   } catch {
     // Redis gagal tulis - request tetap lanjut dengan data yang baru dihitung, tapi
     // hasilnya disimpan di memori supaya request berikutnya di proses yang sama tidak
     // membayar komputasi yang sama lagi selama Redis masih bermasalah.
     memorySet(key, value, ttlSec);
+    recordCacheState('memory-write', 'redis-write-failed');
   }
 }
 

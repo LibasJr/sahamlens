@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { toErrorResponse } from '../errors/app-error';
 import { logger } from '../logger/logger';
+import {
+  currentRequestLogContext,
+  runWithRequestObservability,
+} from '@/shared/observability/request-context';
 import type { HttpResult } from '../types/http-result.types';
 
 function applyCookies(res: NextResponse, result: HttpResult): NextResponse {
@@ -15,6 +19,31 @@ function applyCookies(res: NextResponse, result: HttpResult): NextResponse {
 
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+function requestRoute(req?: Request): string | undefined {
+  if (!req) return undefined;
+  try {
+    return new URL(req.url).pathname;
+  } catch {
+    return undefined;
+  }
+}
+
+function responseResearchContext(body: unknown): Record<string, unknown> {
+  if (!isPlainObject(body)) return {};
+  const meta = isPlainObject(body.meta) ? body.meta : {};
+  const legacyMeta = isPlainObject(body._meta) ? body._meta : {};
+  const lensScoreModel = isPlainObject(legacyMeta.lensScoreModel) ? legacyMeta.lensScoreModel : {};
+  return {
+    source: typeof meta.source === 'string' ? meta.source : undefined,
+    dataAsOf: typeof meta.dataAsOf === 'string'
+      ? meta.dataAsOf
+      : typeof legacyMeta.dataTimestamp === 'string' ? legacyMeta.dataTimestamp : undefined,
+    modelVersion: typeof meta.modelVersion === 'string'
+      ? meta.modelVersion
+      : typeof lensScoreModel.version === 'string' ? lensScoreModel.version : undefined,
+  };
 }
 
 // requestId - selalu di header X-Request-Id (bisa dibaca tanpa parse body, termasuk
@@ -69,31 +98,51 @@ export function runController(handler: () => Promise<Response>, req?: Request): 
 export function runController(handler: () => Promise<HttpResult | Response>, req?: Request): Promise<Response>;
 export async function runController(handler: () => Promise<HttpResult | Response>, req?: Request): Promise<Response> {
   const requestId = crypto.randomUUID();
-  try {
-    const result = await handler();
-    // Streaming/raw responses (mis. LensAI NDJSON) tetap melewati adapter agar semua
-    // endpoint memiliki request-id yang dapat ditelusuri, tanpa memaksa body stream
-    // diserialisasi ulang sebagai JSON. Cookie/header khusus stream sudah dipasang oleh
-    // response producer; adapter hanya menambahkan request-id otoritatif.
-    if (result instanceof Response) {
-      result.headers.set('X-Request-Id', requestId);
-      return result;
+  const route = requestRoute(req);
+  const startedAt = performance.now();
+
+  return runWithRequestObservability({ requestId, route, method: req?.method }, async () => {
+    let statusCode: number | null = null;
+    let researchContext: Record<string, unknown> = {};
+    try {
+      const result = await handler();
+      // Streaming/raw responses (mis. LensAI NDJSON) tetap melewati adapter agar semua
+      // endpoint memiliki request-id yang dapat ditelusuri, tanpa memaksa body stream
+      // diserialisasi ulang sebagai JSON. Cookie/header khusus stream sudah dipasang oleh
+      // response producer; adapter hanya menambahkan request-id otoritatif.
+      if (result instanceof Response) {
+        statusCode = result.status;
+        result.headers.set('X-Request-Id', requestId);
+        return result;
+      }
+      statusCode = result.status;
+      researchContext = responseResearchContext(result.body);
+      return toNextResponse(result, requestId, req);
+    } catch (err) {
+      // Next.js melempar error internal bertanda `digest: 'DYNAMIC_SERVER_USAGE'` saat
+      // build mencoba pre-render statis sebuah route yang ternyata pakai cookies()/headers().
+      // Itu sinyal kontrol-alur Next.js sendiri, BUKAN error aplikasi - harus dilempar ulang
+      // apa adanya, jangan ditangkap jadi respons 500.
+      if (typeof (err as any)?.digest === 'string' && (err as any).digest.startsWith('DYNAMIC_SERVER_USAGE')) {
+        throw err;
+      }
+      const mapped = toErrorResponse(err);
+      statusCode = mapped.status;
+      if (mapped.status >= 500) {
+        logger.error('Unhandled controller error', { err, url: route, requestId });
+      }
+      const res = NextResponse.json(withRequestId(mapped.body, requestId), { status: mapped.status, headers: mapped.headers });
+      res.headers.set('X-Request-Id', requestId);
+      return res;
+    } finally {
+      if (statusCode != null) {
+        logger.info('HTTP request completed', {
+          ...currentRequestLogContext(),
+          ...researchContext,
+          statusCode,
+          durationMs: Math.round((performance.now() - startedAt) * 100) / 100,
+        });
+      }
     }
-    return toNextResponse(result, requestId, req);
-  } catch (err) {
-    // Next.js melempar error internal bertanda `digest: 'DYNAMIC_SERVER_USAGE'` saat
-    // build mencoba pre-render statis sebuah route yang ternyata pakai cookies()/headers().
-    // Itu sinyal kontrol-alur Next.js sendiri, BUKAN error aplikasi - harus dilempar ulang
-    // apa adanya, jangan ditangkap jadi respons 500.
-    if (typeof (err as any)?.digest === 'string' && (err as any).digest.startsWith('DYNAMIC_SERVER_USAGE')) {
-      throw err;
-    }
-    const mapped = toErrorResponse(err);
-    if (mapped.status >= 500) {
-      logger.error('Unhandled controller error', { err, url: req ? new URL(req.url).pathname : undefined, requestId });
-    }
-    const res = NextResponse.json(withRequestId(mapped.body, requestId), { status: mapped.status, headers: mapped.headers });
-    res.headers.set('X-Request-Id', requestId);
-    return res;
-  }
+  });
 }

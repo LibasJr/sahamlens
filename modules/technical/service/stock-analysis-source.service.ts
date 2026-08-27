@@ -5,6 +5,7 @@ import {
   recordProviderFailure,
   recordProviderSuccess,
 } from '@/shared/http/provider-circuit-breaker';
+import { recordDegradedMode } from '@/shared/observability/request-context';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 const ALLOWED_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '3y', '5y', '20y']);
@@ -78,6 +79,7 @@ export async function fetchStockAnalysisSource(ticker: string, range: string) {
 }
 
 export function buildStaleStockAnalysisPayload(stale: any) {
+  recordDegradedMode('technical-stale-cache-fallback');
   const staleComputedAt = stale?._meta?.computedAt;
   return {
     ...stale,
