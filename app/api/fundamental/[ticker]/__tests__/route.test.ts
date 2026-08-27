@@ -81,8 +81,17 @@ describe('GET /api/fundamental/[ticker]', () => {
     );
   });
 
-  it('cache hit mempertahankan field legacy sekaligus menambahkan envelope tanpa fetch ulang', async () => {
-    const cached = { ticker: 'BBCA.JK', price: 9000 };
+  it('cache hit mempertahankan field legacy sekaligus menambahkan envelope dan provenance tanpa fetch ulang', async () => {
+    const cached = {
+      ticker: 'BBCA.JK',
+      price: 9000,
+      source: {
+        provider: 'Yahoo Finance',
+        retrievedAt: '2026-08-27T07:00:00.000Z',
+        period: 'Snapshot terbaru yang tersedia',
+      },
+      fundamentals: { trailingPE: 18.4, priceToBook: 4.2 },
+    };
     vi.mocked(getOrCompute).mockResolvedValue(cached as any);
 
     const res = await GET(makeRequest('BBCA'), makeParams('BBCA'));
@@ -91,7 +100,18 @@ describe('GET /api/fundamental/[ticker]', () => {
     expect(res.status).toBe(200);
     expect(json).toEqual(expect.objectContaining(cached));
     expect(json.ok).toBe(true);
-    expect(json.data).toEqual(cached);
+    expect(json.data).toEqual(expect.objectContaining(cached));
+    expect(json.provenance.fundamentals.trailingPE).toEqual({
+      value: 18.4,
+      provenance: expect.objectContaining({
+        source: 'Yahoo Finance',
+        period: 'Snapshot terbaru yang tersedia',
+        retrievedAt: '2026-08-27T07:00:00.000Z',
+        confidence: 'unknown',
+        isEstimated: false,
+      }),
+    });
+    expect(json.data.provenance).toEqual(json.provenance);
     expect(json.meta).toEqual(expect.objectContaining({
       source: 'current-fundamental-computed-cache',
       requestId: expect.any(String),
