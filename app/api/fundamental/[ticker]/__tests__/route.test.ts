@@ -81,7 +81,7 @@ describe('GET /api/fundamental/[ticker]', () => {
     );
   });
 
-  it('cache hit tidak memanggil fetchCurrentFundamentalSource sama sekali', async () => {
+  it('cache hit mempertahankan field legacy sekaligus menambahkan envelope tanpa fetch ulang', async () => {
     const cached = { ticker: 'BBCA.JK', price: 9000 };
     vi.mocked(getOrCompute).mockResolvedValue(cached as any);
 
@@ -89,7 +89,14 @@ describe('GET /api/fundamental/[ticker]', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json).toEqual({ ...cached, meta: { requestId: expect.any(String) } });
+    expect(json).toEqual(expect.objectContaining(cached));
+    expect(json.ok).toBe(true);
+    expect(json.data).toEqual(cached);
+    expect(json.meta).toEqual(expect.objectContaining({
+      source: 'current-fundamental-computed-cache',
+      requestId: expect.any(String),
+    }));
+    expect(res.headers.get('X-Request-Id')).toBe(json.meta.requestId);
     expect(fetchCurrentFundamentalSource).not.toHaveBeenCalled();
   });
 

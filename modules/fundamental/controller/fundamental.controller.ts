@@ -2,6 +2,7 @@ import type { HttpResult } from '@/shared/types/http-result.types';
 import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { apiOk } from '@/shared/http/api-response';
 import { buildPitFundamentalAnalysis } from '../service/pit-fundamental-analysis.service';
 import { computeCurrentFundamentalAnalysis } from '../service/current-fundamental-analysis.service';
 
@@ -29,7 +30,16 @@ export async function handleGetFundamental(request: Request, rawTicker: string):
           },
         };
       }
-      return { status: 200, body: result };
+      return {
+        status: 200,
+        body: {
+          ...result,
+          ...apiOk(result, {
+            dataAsOf: asOfDate,
+            source: 'fundamental-history-pit',
+          }),
+        },
+      };
     }
 
     const result = await getOrCompute(
@@ -40,7 +50,15 @@ export async function handleGetFundamental(request: Request, rawTicker: string):
     if ('notFound' in result) {
       return { status: 404, body: { error: 'Failed to fetch Fundamental data' } };
     }
-    return { status: 200, body: result };
+    return {
+      status: 200,
+      body: {
+        ...result,
+        ...apiOk(result, {
+          source: 'current-fundamental-computed-cache',
+        }),
+      },
+    };
   } catch (error) {
     console.error('Fundamental API error:', error);
     return { status: 500, body: { error: 'Internal Server Error' } };
