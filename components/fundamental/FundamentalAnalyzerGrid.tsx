@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { Info, Layers, Lock } from 'lucide-react';
-import { Button, Card, EmptyState, LoadingFact, Skeleton } from '@/components/ui';
+import { Button, Card, EmptyState, LoadingFact, ResearchProvenanceDetails, Skeleton } from '@/components/ui';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
+import type { FundamentalAnalyzerResult } from '@/modules/fundamental/contracts';
+import type { ProvenancedFinancialValue } from '@/shared/finance/provenance';
 
 interface LocalObservationView {
   aligned: number;
@@ -12,8 +14,9 @@ interface LocalObservationView {
 }
 
 interface FundamentalAnalyzerGridProps {
-  displayedAnalyzers: any[];
-  filteredAnalyzers: any[];
+  displayedAnalyzers: FundamentalAnalyzerResult[];
+  filteredAnalyzers: FundamentalAnalyzerResult[];
+  metricProvenance?: Record<string, ProvenancedFinancialValue<number | string | null>>;
   loading: boolean;
   sortByConfidence: boolean;
   onToggleSort: () => void;
@@ -27,9 +30,34 @@ interface FundamentalAnalyzerGridProps {
   getLocalObservation: (label: string) => LocalObservationView | null;
 }
 
+const ANALYZER_METRIC_KEYS: ReadonlyArray<[RegExp, string]> = [
+  [/^P\/E/, 'trailingPE'],
+  [/^PBV/, 'priceToBook'],
+  [/^ROE|Return on Equity/, 'returnOnEquity'],
+  [/^ROA|Return on Assets/, 'returnOnAssets'],
+  [/^Debt\/Equity|Debt to Equity/, 'debtToEquity'],
+  [/^Current Ratio/, 'currentRatio'],
+  [/^Quick Ratio/, 'quickRatio'],
+  [/^Dividend Yield/, 'dividendYield'],
+  [/^Pertumbuhan Laba/, 'earningsGrowth'],
+  [/^Revenue Growth/, 'revenueGrowth'],
+  [/^Gross Margin/, 'grossMargins'],
+  [/^Operating Margin/, 'operatingMargins'],
+  [/^Net Profit Margin/, 'profitMargins'],
+];
+
+function provenanceForAnalyzer(
+  label: string,
+  provenance: FundamentalAnalyzerGridProps['metricProvenance'],
+) {
+  const metricKey = ANALYZER_METRIC_KEYS.find(([pattern]) => pattern.test(label))?.[1];
+  return metricKey ? provenance?.[metricKey] : undefined;
+}
+
 export default function FundamentalAnalyzerGrid({
   displayedAnalyzers,
   filteredAnalyzers,
+  metricProvenance,
   loading,
   sortByConfidence,
   onToggleSort,
@@ -87,7 +115,7 @@ export default function FundamentalAnalyzerGrid({
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2">
-          {displayedAnalyzers.length > 0 ? displayedAnalyzers.map((algo: any, idx: number) => {
+          {displayedAnalyzers.length > 0 ? displayedAnalyzers.map((algo, idx) => {
             const isTop3 = sortByConfidence && idx < 3;
             const lockedForGuest = isConfirmedGuest && !isVisibleForGuest(algo.label);
             if (lockedForGuest) {
@@ -109,6 +137,7 @@ export default function FundamentalAnalyzerGrid({
               );
             }
             const localStat = getLocalObservation(algo.label);
+            const metricSource = provenanceForAnalyzer(algo.label, metricProvenance);
             return (
               <Card key={`${algo.label}-${idx}`} padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className={`p-3 bg-tv-bg flex flex-col gap-2 transition-colors ${isTop3 ? 'border-tv-green shadow-[0_0_10px_rgba(34,197,94,0.2)]' : 'border-tv-border hover:border-tv-borderLight'}`}>
                 <div className="flex justify-between items-center text-sm">
@@ -116,6 +145,10 @@ export default function FundamentalAnalyzerGrid({
                   <span className={`font-sans text-xs font-bold px-2 py-0.5 rounded ${algo.decision === 'BULLISH' ? 'bg-tv-green/20 text-tv-green' : algo.decision === 'BEARISH' ? 'bg-tv-red/20 text-tv-red' : 'bg-tv-yellow/20 text-tv-yellow'}`}>{algo.decision}</span>
                 </div>
                 <div className="flex justify-between items-center text-xs font-mono text-tv-muted"><span>{algo.value}</span><span className="text-white">Rule: {algo.confidence}/100</span></div>
+                <ResearchProvenanceDetails
+                  label={`Sumber ${algo.label}`}
+                  entries={[{ label: algo.label, value: metricSource?.value ?? null, provenance: metricSource?.provenance }]}
+                />
                 <div className="pt-2 border-t border-tv-hover lens-meta">
                   {!localStat ? (
                     <span className="inline-flex rounded-full border border-tv-border bg-tv-card px-2 py-0.5 font-medium text-tv-muted" title={isEn ? 'No next-visit observation has been recorded on this device.' : 'Belum ada observasi kunjungan berikutnya yang tercatat di perangkat ini.'}>

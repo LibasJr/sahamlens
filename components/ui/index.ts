@@ -23,3 +23,8 @@ export { MetricBand, type MetricBandItem } from './MetricBand';
 export { InsightRow, type InsightDirection } from './InsightRow';
 export { StatusMeta, type StatusMetaItem } from './StatusMeta';
 export { ResearchTabs, type ResearchTab } from './ResearchTabs';
+export {
+  ResearchProvenanceDetails,
+  type ProvenanceDisplayEntry,
+  type ProvenanceModelIdentity,
+} from './ResearchProvenanceDetails';

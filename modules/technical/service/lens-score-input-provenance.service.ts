@@ -31,6 +31,9 @@ export function buildLensScoreInputProvenance(args: {
   technical: Record<string, unknown>;
   fundamental: Record<string, unknown>;
   flow: Record<string, unknown>;
+  period?: string;
+  asOf?: string;
+  retrievedAt?: string;
 }): LensScoreInputProvenance {
   const technical: ProvenanceMap = {};
   const fundamental: ProvenanceMap = {};
@@ -38,38 +41,60 @@ export function buildLensScoreInputProvenance(args: {
 
   const yahooChart: FinancialValueProvenance = {
     source: 'YAHOO_CHART',
+    period: args.period,
+    asOf: args.asOf,
+    retrievedAt: args.retrievedAt,
     confidence: 'unknown',
     isEstimated: false,
+    transformation: 'DIRECT',
     note: 'Harga, volume, MA, dan perubahan harga berasal atau diturunkan deterministik dari seri chart yang dipakai LensScore.',
   };
   const analyzer: FinancialValueProvenance = {
     source: 'TECHNICAL_ANALYZERS',
+    period: args.period,
+    asOf: args.asOf,
+    retrievedAt: args.retrievedAt,
     confidence: 'unknown',
     isEstimated: false,
+    transformation: 'DERIVED',
     note: 'Nilai indikator adalah raw output analyzer yang sama dengan input LensScore.',
   };
   const yahooFundamental: FinancialValueProvenance = {
     source: 'YAHOO_QUOTE_SUMMARY',
+    period: 'Snapshot terbaru yang tersedia',
+    asOf: args.asOf,
+    retrievedAt: args.retrievedAt,
     confidence: 'unknown',
     isEstimated: false,
+    transformation: 'DIRECT',
     note: 'Snapshot fundamental/sector yang dipakai langsung oleh pipeline LensScore.',
   };
   const normalizedEarnings: FinancialValueProvenance = {
     source: 'NORMALIZED_EARNINGS_HISTORY',
+    period: 'Histori earnings tahunan yang tersedia',
+    asOf: args.asOf,
+    retrievedAt: args.retrievedAt,
     confidence: 'unknown',
     isEstimated: false,
+    transformation: 'DERIVED',
     note: 'ROE ternormalisasi dihitung deterministik dari histori earnings untuk penjaga siklus; null bila tidak tersedia/tidak relevan.',
   };
   const derivedFlow: FinancialValueProvenance = {
     source: 'YAHOO_CHART_DERIVED_FLOW',
+    period: args.period,
+    asOf: args.asOf,
+    retrievedAt: args.retrievedAt,
     confidence: 'unknown',
     isEstimated: false,
+    transformation: 'DERIVED',
     note: 'Flow metrics diturunkan deterministik dari price/volume history yang sama dengan pipeline analisis saham.',
   };
 
   for (const [key, value] of Object.entries(args.technical)) {
     const source = key === 'rsi' || key.startsWith('macd') ? analyzer : yahooChart;
-    add(technical, key, value, source);
+    const isDirectChartValue = key === 'currentPrice' || key === 'currentRawPrice' ||
+      key === 'currentAdjustedPrice' || key === 'volToday';
+    add(technical, key, value, isDirectChartValue ? source : { ...source, transformation: 'DERIVED' });
   }
 
   for (const [key, value] of Object.entries(args.fundamental)) {

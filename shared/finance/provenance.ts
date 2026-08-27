@@ -1,4 +1,5 @@
 export type FinancialValueConfidence = 'official' | 'calculated' | 'estimated' | 'fallback' | 'stale' | 'unknown';
+export type FinancialValueTransformation = 'DIRECT' | 'DERIVED' | 'ESTIMATED';
 
 export interface FinancialValueProvenance {
   source: string;
@@ -7,6 +8,7 @@ export interface FinancialValueProvenance {
   retrievedAt?: string;
   confidence: FinancialValueConfidence;
   isEstimated: boolean;
+  transformation?: FinancialValueTransformation;
   note?: string;
 }
 

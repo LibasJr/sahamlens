@@ -32,6 +32,7 @@ function currentProvenance(result: Record<string, unknown>): FinancialValueProve
     retrievedAt: asOptionalString(source?.retrievedAt),
     confidence: 'unknown',
     isEstimated: false,
+    transformation: 'DIRECT',
     note: 'Nilai diteruskan dari snapshot fundamental provider; kualitas sumber dinilai terpisah.',
   };
 }
@@ -44,6 +45,7 @@ function pitProvenance(result: Record<string, unknown>): FinancialValueProvenanc
     asOf: asOptionalString(pit?.observed_date),
     confidence: 'unknown',
     isEstimated: false,
+    transformation: 'DIRECT',
     note: 'Nilai point-in-time yang diketahui pada observed_date; beberapa rasio dinormalisasi satuannya untuk kontrak API.',
   };
 }
