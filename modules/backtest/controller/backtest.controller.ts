@@ -1,6 +1,7 @@
 import type { HttpResult } from '@/shared/types/http-result.types';
 import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { logger } from '@/shared/logger/logger';
+import { apiOk } from '@/shared/http/api-response';
 import { computeActorFromRequest, consumeComputeBudget } from '@/shared/middleware/compute-budget';
 import {
   readOrIssueAnonymousTrial,
@@ -42,9 +43,16 @@ export async function handleRunBacktest(request: Request): Promise<HttpResult> {
     if (!result.ok) return { status: result.status, body: result.body };
 
     const cookie = anonTrial ? await buildAnonymousTrialCookie(anonTrial) : null;
+    const dataAsOf = typeof result.body.dataAsOf === 'string' ? result.body.dataAsOf : undefined;
     return {
       status: 200,
-      body: result.body,
+      body: {
+        ...result.body,
+        ...apiOk(result.body, {
+          dataAsOf,
+          source: cachedBacktest ? 'backtest-indicator-cache' : 'backtest-simulation',
+        }),
+      },
       cookiesToSet: cookie ? [cookie] : undefined,
     };
   } catch (error) {
