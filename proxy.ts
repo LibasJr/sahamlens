@@ -7,6 +7,7 @@ import { verifyAdminToken } from '@/shared/auth/admin-token';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 import { getTrustedClientIp } from '@/shared/http/client-ip';
 import { isSelfLimitedExpensiveApi } from '@/shared/security/expensive-api-policy';
+import { buildContentSecurityPolicy, createCspNonce } from '@/shared/security/content-security-policy';
 
 // Next.js 16 mengganti file convention "middleware" jadi "proxy" (nama fungsi
 // & file berubah, perilaku/matcher sama - lihat node_modules/next/dist/docs/
@@ -33,6 +34,36 @@ const RATE_LIMIT_CONFIG = {
 const AUTH_RATE_LIMIT_CONFIG = { windowMs: 60_000, maxPerWindow: 10, blockMs: 15 * 60_000 };
 const ADMIN_AUTH_RATE_LIMIT_CONFIG = { windowMs: 15 * 60_000, maxPerWindow: 5, blockMs: 60 * 60_000 };
 
+// Sebelum nonce CSP, matcher proxy hanya mencakup kelompok halaman ini. Matcher HTML
+// sekarang diperluas supaya setiap dokumen mendapat nonce, tetapi auth/rate-limit lama
+// TIDAK boleh ikut meluas ke halaman publik lain. Daftar ini mempertahankan boundary lama.
+const LEGACY_PAGE_PROXY_PREFIXES = [
+  '/admin-login',
+  '/home',
+  '/market-pulse',
+  '/calendar',
+  '/breakout-radar',
+  '/screener',
+  '/dashboard',
+  '/fundamental',
+  '/compare',
+  '/backtest',
+  '/technical',
+  '/portfolio',
+  '/watchlist',
+  '/risk-calculator',
+  '/recommendations',
+  '/multi-agent',
+  '/dcf',
+  '/macro',
+  '/moat',
+  '/pattern',
+  '/risk',
+  '/dividend',
+  '/earnings',
+  '/market',
+] as const;
+
 function hasLiveProEntitlement(payload: Record<string, unknown> | null): boolean {
   if (payload?.is_pro !== true || typeof payload.pro_expires_at !== 'string') return false;
   const expires = new Date(payload.pro_expires_at).getTime();
@@ -45,6 +76,35 @@ function hasLiveProEntitlement(payload: Record<string, unknown> | null): boolean
 // item terproteksi ditandai gembok dan diarahkan ke /login-required saat diklik.
 function getClientIp(req: NextRequest): string {
   return getTrustedClientIp(req.headers);
+}
+
+function isLegacyPageProxyPath(pathname: string): boolean {
+  return LEGACY_PAGE_PROXY_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+function shouldApplyDocumentCsp(req: NextRequest): boolean {
+  if (req.nextUrl.pathname.startsWith('/api/')) return false;
+  if (req.method !== 'GET' && req.method !== 'HEAD') return false;
+  if (req.headers.has('next-router-prefetch') || req.headers.get('purpose') === 'prefetch') return false;
+  return true;
+}
+
+function nextResponse(req: NextRequest): NextResponse {
+  if (!shouldApplyDocumentCsp(req)) return NextResponse.next();
+
+  const nonce = createCspNonce();
+  const csp = buildContentSecurityPolicy(nonce, process.env.NODE_ENV === 'production');
+  const requestHeaders = new Headers(req.headers);
+  // Next.js membaca nonce dari request CSP untuk menandai framework scripts yang
+  // dihasilkan saat render. x-nonce dipakai oleh inline script milik aplikasi sendiri.
+  requestHeaders.set('x-nonce', nonce);
+  requestHeaders.set('Content-Security-Policy', csp);
+
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  response.headers.set('Content-Security-Policy', csp);
+  return response;
 }
 
 function isPublicGuestApi(pathname: string): boolean {
@@ -254,9 +314,17 @@ export function isProxyExemptPath(pathname: string): boolean {
 }
 
 export async function proxy(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+
   // Paling awal, SEBELUM decrypt/verifyAdminToken: pekerjaan kriptografi itu tidak gratis
   // dan tidak satu pun dari path di atas membutuhkannya.
-  if (isProxyExemptPath(req.nextUrl.pathname)) return NextResponse.next();
+  if (isProxyExemptPath(pathname)) return NextResponse.next();
+
+  // Matcher diperluas untuk nonce CSP. Halaman yang sebelumnya tidak masuk proxy hanya
+  // menerima CSP; jangan diam-diam menambahkan auth, session refresh, atau limiter baru.
+  if (!pathname.startsWith('/api/') && !isLegacyPageProxyPath(pathname)) {
+    return nextResponse(req);
+  }
 
   const sessionCookie = req.cookies.get(SESSION_COOKIE)?.value;
   const decrypted = sessionCookie ? await decrypt(sessionCookie) : null;
@@ -274,10 +342,10 @@ export async function proxy(req: NextRequest) {
     '/api/auth/reset-password',
     '/admin-login/key',
   ]);
-  if (req.method === 'POST' && sensitiveAuthPaths.has(req.nextUrl.pathname)) {
+  if (req.method === 'POST' && sensitiveAuthPaths.has(pathname)) {
     const ip = getClientIp(req);
-    const authConfig = req.nextUrl.pathname === '/admin-login/key' ? ADMIN_AUTH_RATE_LIMIT_CONFIG : AUTH_RATE_LIMIT_CONFIG;
-    const authRate = await checkRateLimitShared(`auth:${req.nextUrl.pathname}:${ip}`, Date.now(), authConfig);
+    const authConfig = pathname === '/admin-login/key' ? ADMIN_AUTH_RATE_LIMIT_CONFIG : AUTH_RATE_LIMIT_CONFIG;
+    const authRate = await checkRateLimitShared(`auth:${pathname}:${ip}`, Date.now(), authConfig);
     if (!authRate.allowed) {
       return NextResponse.json(
         { error: 'Terlalu banyak percobaan autentikasi. Coba lagi nanti.' },
@@ -290,7 +358,7 @@ export async function proxy(req: NextRequest) {
     // CGNAT operator) bisa dipakai banyak perangkat/user. Sebelumnya login yang sah
     // ikut menghabiskan kuota umum dan akhirnya HP + laptop pada IP yang sama sama-sama
     // menerima 429 "Terlalu banyak request" meskipun percobaan login tidak berlebihan.
-    return NextResponse.next();
+    return nextResponse(req);
   }
 
   // GUEST (belum login sama sekali) -> tendang ke /login. Sengaja HANYA cek "ada sesi
@@ -303,9 +371,9 @@ export async function proxy(req: NextRequest) {
   // Hasil verifikasi dipakai ulang di bawah agar definisi auth tidak bercabang lagi.
   const hasVerifiedAdminSession = await verifyAdminToken(req.cookies.get(ADMIN_COOKIE)?.value);
 
-  if (isProtectedPage(req.nextUrl.pathname) && !payload && !hasVerifiedAdminSession) {
+  if (isProtectedPage(pathname) && !payload && !hasVerifiedAdminSession) {
     const loginUrl = new URL('/login', req.url);
-    loginUrl.searchParams.set('next', req.nextUrl.pathname);
+    loginUrl.searchParams.set('next', pathname);
     loginUrl.searchParams.set('notice', 'login_required');
     return NextResponse.redirect(loginUrl);
   }
@@ -315,14 +383,14 @@ export async function proxy(req: NextRequest) {
   // untuk semua guest. Endpoint mahal yang dibuka untuk guest tetap punya limiter
   // server-side sendiri (mis. compute budget /api/chat, /api/council, orchestrator).
   if (
-    isPublicGuestPage(req.nextUrl.pathname) ||
-    isPublicGuestApi(req.nextUrl.pathname) ||
-    hasOwnGuestLimiterApi(req.nextUrl.pathname)
+    isPublicGuestPage(pathname) ||
+    isPublicGuestApi(pathname) ||
+    hasOwnGuestLimiterApi(pathname)
   ) {
     // Ikut menyegarkan: pengguna yang login lalu hanya membuka halaman publik tetap
     // sedang MEMAKAI aplikasi, dan sesinya tidak boleh mati hanya karena ia belum
     // menyentuh halaman terproteksi.
-    return refreshSessionCookie(NextResponse.next(), payload);
+    return refreshSessionCookie(nextResponse(req), payload);
   }
 
   let isAdminOrTrial = false;
@@ -353,7 +421,7 @@ export async function proxy(req: NextRequest) {
   if (isAdminOrTrial) {
     // Jalur yang dilalui pengguna Pro/admin/trial. Tanpa penyegaran di sini, justru
     // mereka yang paling aktif memakai aplikasi yang sesinya tidak pernah diperpanjang.
-    return refreshSessionCookie(NextResponse.next(), payload);
+    return refreshSessionCookie(nextResponse(req), payload);
   }
 
   const ip = getClientIp(req);
@@ -367,7 +435,7 @@ export async function proxy(req: NextRequest) {
     // itu tetap digerbang lewat rate limit di panggilan API-nya sendiri (matcher path
     // /api/... di atas), jadi membiarkan shell HTML lewat di sini tidak membuka apa pun
     // yang berharga.
-    if (req.nextUrl.pathname.startsWith('/api/')) {
+    if (pathname.startsWith('/api/')) {
       return NextResponse.json(
         { error: 'Terlalu banyak request. Coba lagi nanti.' },
         { status: 429, headers: result.retryAfterSec ? { 'Retry-After': String(result.retryAfterSec) } : undefined }
@@ -375,11 +443,15 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  return refreshSessionCookie(NextResponse.next(), payload);
+  return refreshSessionCookie(nextResponse(req), payload);
 }
 
 export const config = {
   matcher: [
+    // CSP nonce harus tersedia untuk semua dokumen HTML, termasuk /, /login, /news,
+    // /transparency, dan halaman publik lain yang sebelumnya tidak membutuhkan proxy.
+    // API tetap punya matcher eksplisit di bawah dan tidak menerima CSP nonce.
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
     // DIBALIK 2026-08-19: dulu di sini ada 24 prefix /api/... yang ditulis satu per satu.
     // Bentuk itu adalah daftar-IZIN, dan daftar-izin gagal secara DIAM-DIAM: route API baru
     // lahir tanpa perlindungan apa pun sampai ada yang ingat menambahkannya ke sini. Yang

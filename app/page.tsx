@@ -1,3 +1,4 @@
+import { headers } from 'next/headers';
 import HomeWorkspace from '@/components/HomeWorkspace';
 
 const WEBSITE_STRUCTURED_DATA = {
@@ -10,10 +11,13 @@ const WEBSITE_STRUCTURED_DATA = {
   description: 'Screener dan analisis kuantitatif saham IDX dari rumus terbuka, dengan penjelasan AI, untuk membantu riset saham Indonesia.',
 };
 
-export default function HomePage() {
+export default async function HomePage() {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <>
       <script
+        nonce={nonce}
         type="application/ld+json"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(WEBSITE_STRUCTURED_DATA).replace(/</g, '\\u003c'),
