@@ -49,7 +49,9 @@ describe('handleGetFundamental', () => {
 
     expect(result.status).toBe(200);
     expect(body.ok).toBe(true);
-    expect(body.data).toEqual(pitPayload);
+    expect(body.data).toEqual(expect.objectContaining(pitPayload));
+    expect(body.data.provenance).toEqual({ fundamentals: {} });
+    expect(body.provenance).toEqual(body.data.provenance);
     expect(body.meta).toEqual(expect.objectContaining({
       dataAsOf: '2020-01-01',
       source: 'fundamental-history-pit',
@@ -78,7 +80,9 @@ describe('handleGetFundamental', () => {
 
     expect(result.status).toBe(200);
     expect(body.ok).toBe(true);
-    expect(body.data).toEqual(currentPayload);
+    expect(body.data).toEqual(expect.objectContaining(currentPayload));
+    expect(body.data.provenance).toEqual({ fundamentals: {} });
+    expect(body.provenance).toEqual(body.data.provenance);
     expect(body.meta).toEqual(expect.objectContaining({
       source: 'current-fundamental-computed-cache',
     }));
