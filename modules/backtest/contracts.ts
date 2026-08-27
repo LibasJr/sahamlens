@@ -1,6 +1,7 @@
 import type { BacktestSignificanceResult, IndicatorName, LiveFilterMatch, SimulateResult } from '@/modules/backtest';
 import type { PerformanceMetrics } from '@/modules/backtest/service/performance-metrics';
 import type { ReplayCandle } from '@/components/backtest/CandleReplayChart';
+import type { ResearchOutputProvenance } from '@/shared/research/provenance';
 
 export interface PublicChartReplayResponse {
   history?: ReplayCandle[];
@@ -29,6 +30,7 @@ export interface BacktestApiResponse {
   trades_locked_count: number;
   is_guest_limited: boolean;
   dataAsOf: string;
+  provenance: ResearchOutputProvenance;
   message?: string;
 }
 

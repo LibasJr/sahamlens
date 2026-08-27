@@ -1,6 +1,10 @@
 import { pool } from '../../../shared/database/postgres.client';
 import { logger } from '../../../shared/logger/logger';
-import { SCORE_VERSION, partitionByScoreVersion } from '../../lens-radar/constants/model-version';
+import {
+  DATA_SNAPSHOT_VERSION,
+  SCORE_VERSION,
+  partitionByScoreVersion,
+} from '../../lens-radar/constants/model-version';
 import { LENS_SCORE_MODEL_METADATA } from '../../technical/config/lens-score-model';
 import { RETURN_PRICE_BASIS, type PriceBasis } from '../../../shared/market/price-basis';
 import {
@@ -8,6 +12,7 @@ import {
   emptyValidationPopulationCounters,
   rejectFromValidationPopulation,
 } from '../../lens-radar/service/validation-population';
+import { researchOutputProvenance, type ResearchOutputProvenance } from '../../../shared/research/provenance';
 
 export const LENS_SCORE_ROUND_TRIP_COST_PCT = 0.5; // fee 0.4% + slippage 0.1%
 export const LENS_SCORE_MIN_HISTORY_DAYS = 90;
@@ -79,6 +84,7 @@ export interface LensScoreBucketBacktestResult {
   entryRule: string;
   buckets: LensScoreBucketStats[];
   tTests: Record<LensScoreHorizonKey, TTestResult>;
+  provenance: ResearchOutputProvenance & { universeMixed: boolean };
   note: string | null;
 }
 
@@ -214,7 +220,7 @@ function welchTTest(
 
 export function computeLensScoreBucketBacktest(
   rows: LensRadarHistoryRow[],
-  options: { scoreVersion?: string | null; scoreConfigHash?: string | null } = {}
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null; calculatedAt?: string } = {}
 ): LensScoreBucketBacktestResult {
   const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
   const requestedConfigHash = options.scoreConfigHash?.trim() || LENS_SCORE_MODEL_METADATA.configHash;
@@ -297,6 +303,12 @@ export function computeLensScoreBucketBacktest(
   }, {} as Record<LensScoreHorizonKey, TTestResult>);
 
   const ready = coverageDays > LENS_SCORE_MIN_HISTORY_DAYS;
+  const universeVersions = Array.from(new Set(
+    partition.accepted
+      .map((row) => typeof row.universe_version === 'string' ? row.universe_version.trim() : '')
+      .filter(Boolean),
+  ));
+  const universeMixed = universeVersions.length > 1;
   return {
     ready,
     scoreVersion: partition.version,
@@ -317,6 +329,22 @@ export function computeLensScoreBucketBacktest(
     entryRule: `Sinyal close T, entry close H+1 pada ${RETURN_PRICE_BASIS}; bar legacy/unknown price basis ditolak.`,
     buckets,
     tTests,
+    provenance: {
+      ...researchOutputProvenance({
+        source: 'lens_radar_history',
+        period: minDate && maxDate ? `${minDate} sampai ${maxDate}` : 'Belum ada periode valid',
+        asOf: maxDate ?? undefined,
+        retrievedAt: options.calculatedAt ?? new Date().toISOString(),
+        confidence: 'calculated',
+        isEstimated: false,
+        modelVersion: partition.version,
+        universeVersion: universeMixed ? null : (universeVersions[0] ?? null),
+        dataSnapshotVersion: DATA_SNAPSHOT_VERSION,
+        transformation: `Bucket LensScore; sinyal close T, entry close H+1; return memakai ${RETURN_PRICE_BASIS} setelah biaya round-trip.`,
+        note: 'Welch t-test memakai normal approximation dan merupakan bukti riset indikatif, bukan validasi final.',
+      }),
+      universeMixed,
+    },
     note: ready
       ? null
       : `Histori LensRadar baru ${coverageDays} hari kalender; tabel validasi bucket ditampilkan setelah > ${LENS_SCORE_MIN_HISTORY_DAYS} hari.`,

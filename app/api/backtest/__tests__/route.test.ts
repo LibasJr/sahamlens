@@ -87,6 +87,14 @@ describe('POST /api/backtest', () => {
     expect(json.totalTrades).toBe(5);
     expect(json.trades[0]).toEqual({ date: '2026-01-15', symbol: 'BBCA.JK', buy: 9000, pnl: '+5.56%' });
     expect(json.dataAsOf).toBe('2026-08-01T00:00:00.000Z');
+    expect(json.provenance).toMatchObject({
+      source: 'Yahoo Finance historical OHLCV via backtest indicator cache',
+      confidence: 'calculated',
+      isEstimated: false,
+      modelVersion: 'backtest-simulation-v1.0.0',
+      universeVersion: 'backtest-universe-2026-08-03',
+      dataSnapshotVersion: 'backtest-indicator-cache-v1.0.0',
+    });
   });
 
   it('fallback ke precompute sinkron kalau cache kosong', async () => {
