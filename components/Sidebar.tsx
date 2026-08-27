@@ -127,6 +127,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'calendar', name: 'Corporate Calendar', subtitle: 'Dividen, RUPS, earnings, dan aksi korporasi', path: '/calendar', icon: CalendarDays, guest: true },
       { id: 'macro', name: 'Macro', subtitle: 'Konteks ekonomi makro Indonesia', path: '/macro', icon: Waves },
       { id: 'about', name: 'Tentang', subtitle: 'Filosofi dan prinsip SahamLens', path: '/about', icon: Info, guest: true },
+      { id: 'transparency', name: 'Transparansi', subtitle: 'Metodologi, status model, sampel, dan batasan', path: '/transparency', icon: ShieldCheck, guest: true },
     ],
   },
 ];
