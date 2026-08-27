@@ -626,7 +626,7 @@ export default function EarningsPage() {
       )}
 
       {data && (
-        <div style={{ position: 'fixed', top: 0, left: 0, opacity: 0, pointerEvents: 'none', zIndex: -1 }}>
+        <div className="pointer-events-none fixed left-0 top-0 -z-[1] opacity-0">
           <div ref={exportRef}>
             <EarningsExportCard
               ticker={selectedTicker}

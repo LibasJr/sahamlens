@@ -73,7 +73,7 @@ export function ScoreCalibrationSection({
                 Sumbu-x prediksi, sumbu-y frekuensi menang yang teramati, batang vertikal = CI 95%
                 Wilson. Titik yang duduk di garis putus-putus berarti terkalibrasi.
               </div>
-              <div style={{ width: '100%', height: 280 }}>
+              <div className="h-[280px] w-full">
                 <ResponsiveContainer>
                   <ScatterChart margin={{ top: 10, right: 16, bottom: 24, left: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />

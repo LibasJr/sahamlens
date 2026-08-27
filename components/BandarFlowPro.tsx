@@ -18,6 +18,7 @@ import {
   formatFlowValue,
 } from '@/components/bandar-flow/bandar-flow-model';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
+import { percentageHeightClass, percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 interface BandarFlowProProps {
   symbol: string;
@@ -316,11 +317,7 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
                       className="flex-1 h-full flex flex-col justify-end items-center relative cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue rounded-sm"
                     >
                       <div
-                        className={`w-full rounded-t-sm transition-all duration-300 ${isPos ? 'bg-tv-green' : 'bg-tv-red'}`}
-                        style={{
-                          height: `${Math.max(5, heightPct)}%`,
-                          opacity: i === activeIdx ? 1 : isPos ? 0.8 : 0.7,
-                        }}
+                        className={`w-full rounded-t-sm transition-all duration-300 ${isPos ? 'bg-tv-green' : 'bg-tv-red'} ${percentageHeightClass(Math.max(5, heightPct))} ${i === activeIdx ? 'opacity-100' : isPos ? 'opacity-80' : 'opacity-70'}`}
                       />
                     </Button>
                   );
@@ -398,8 +395,8 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
             ) : (
               <>
                 <div className="flex h-4 w-full rounded-full overflow-hidden border border-tv-border">
-                  <div className="bg-tv-green h-full" style={{ width: `${buyPct}%` }} />
-                  <div className="bg-tv-red h-full" style={{ width: `${100 - buyPct}%` }} />
+                  <div className={`bg-tv-green h-full ${percentageWidthClass(buyPct)}`} />
+                  <div className={`bg-tv-red h-full ${percentageWidthClass(100 - buyPct)}`} />
                 </div>
                 <div className="mt-2 flex justify-between lens-meta font-mono">
                   <span className="text-tv-green">{buyPct.toFixed(1)}%</span>

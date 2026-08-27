@@ -19,6 +19,7 @@ import Badge from '@/components/ui/Badge';
 import Skeleton from '@/components/ui/Skeleton';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest } from '@/shared/http/api-client';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 interface BrokerSummaryPanelProps {
   symbol: string;
@@ -279,9 +280,9 @@ export default function BrokerSummaryPanel({ symbol }: BrokerSummaryPanelProps) 
                 <div className="space-y-2 text-xs">
                   {/* Multi-segment Bar */}
                   <div className="h-2 w-full rounded-full bg-tv-bg flex overflow-hidden">
-                    <div style={{ width: `${finiteNumber(comp.foreign?.pct) ?? 0}%` }} className="bg-tv-gold" title={`Asing: ${percentLabel(comp.foreign?.pct)}`} />
-                    <div style={{ width: `${finiteNumber(comp.retail?.pct) ?? 0}%` }} className="bg-tv-muted" title={`Ritel*: ${percentLabel(comp.retail?.pct)}`} />
-                    <div style={{ width: `${finiteNumber(comp.unknown?.pct) ?? 0}%` }} className="bg-tv-borderLight" title={`Belum terklasifikasi: ${percentLabel(comp.unknown?.pct)}`} />
+                    <div className={`bg-tv-gold ${percentageWidthClass(finiteNumber(comp.foreign?.pct))}`} title={`Asing: ${percentLabel(comp.foreign?.pct)}`} />
+                    <div className={`bg-tv-muted ${percentageWidthClass(finiteNumber(comp.retail?.pct))}`} title={`Ritel*: ${percentLabel(comp.retail?.pct)}`} />
+                    <div className={`bg-tv-borderLight ${percentageWidthClass(finiteNumber(comp.unknown?.pct))}`} title={`Belum terklasifikasi: ${percentLabel(comp.unknown?.pct)}`} />
                   </div>
 
                   {/* Legends */}
