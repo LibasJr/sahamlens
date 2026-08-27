@@ -89,6 +89,7 @@ describe('POST /api/backtest', () => {
     expect(json.dataAsOf).toBe('2026-08-01T00:00:00.000Z');
     expect(json.provenance).toMatchObject({
       source: 'Yahoo Finance historical OHLCV via backtest indicator cache',
+      dataMode: 'POINT_IN_TIME',
       confidence: 'calculated',
       isEstimated: false,
       modelVersion: 'backtest-simulation-v1.0.0',
