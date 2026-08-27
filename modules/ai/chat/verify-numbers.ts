@@ -35,6 +35,24 @@ export interface NumberVerification {
   checked: number;
 }
 
+export type EvidenceIssueKind =
+  | 'WRONG_PRICE'
+  | 'STALE_PRICE'
+  | 'WRONG_PERIOD'
+  | 'HALLUCINATED_METRIC'
+  | 'UNSUPPORTED_RECOMMENDATION'
+  | 'CONFLICTING_SOURCES';
+
+export interface EvidenceIssue {
+  kind: EvidenceIssueKind;
+  detail: string;
+}
+
+export interface StructuredEvidenceVerification {
+  ok: boolean;
+  issues: EvidenceIssue[];
+}
+
 /** Toleransi relatif untuk pembulatan (0,5%). Cukup untuk 62.34 -> 62,3, terlalu ketat untuk tebakan. */
 const RELATIVE_TOLERANCE = 0.005;
 
@@ -160,6 +178,84 @@ export function verifyAnswerNumbers(answer: string, sources: string[]): NumberVe
  * benar adalah menyatakan ketidakpastiannya kepada pengguna, dan membiarkan mereka
  * memutuskan - itu pun jauh lebih jujur daripada diam.
  */
+function sourceText(sources: string[]): string {
+  return sources.join('\n');
+}
+
+function hasLine(text: string, pattern: RegExp): boolean {
+  return pattern.test(text);
+}
+
+function collectRegexGroup(text: string, regex: RegExp): string[] {
+  const groups: string[] = [];
+  let match: RegExpExecArray | null;
+  regex.lastIndex = 0;
+  while ((match = regex.exec(text)) !== null) {
+    if (match[1]) groups.push(match[1]);
+  }
+  return groups;
+}
+
+/**
+ * Pemeriksaan evidence non-angka yang sengaja tipis dan deterministik.
+ * Numeric verifier tetap menjadi pagar utama untuk angka; fungsi ini menangkap klaim
+ * struktur evidence yang pernah lolos karena angkanya tidak cukup membuktikan konteks:
+ * harga current vs stale, periode laporan, metrik yang tidak ada, rekomendasi tanpa
+ * advisory, dan blok sumber yang saling bertentangan.
+ */
+export function verifyStructuredEvidence(answer: string, sources: string[]): StructuredEvidenceVerification {
+  const data = sourceText(sources);
+  const normalizedAnswer = answer.toLowerCase();
+  const issues: EvidenceIssue[] = [];
+
+  const unavailablePrice = hasLine(data, /(?:^|\n)\s*-?\s*Harga(?: terakhir| acuan)?\s*:\s*(?:tidak tersedia|belum tersedia)/i);
+  if (unavailablePrice && /\b(harga(?:nya)?|last price|harga terakhir)\b/i.test(answer) && collectNumbers(answer).some(({ value }) => Math.abs(value) >= 50)) {
+    issues.push({ kind: 'WRONG_PRICE', detail: 'jawaban menyebut harga meski sumber menyatakan harga tidak tersedia' });
+  }
+
+  if (/Kesegaran data:[^\n]*(STALE|stale|usang)|Status sesi IDX sekarang:\s*TUTUP|price_stale\s*:\s*true|market_status\s*:\s*closed/i.test(data)) {
+    if (/\b(saat ini|sekarang|live|real[- ]?time|hari ini bergerak)\b/i.test(answer) && !/\b(bar terakhir|sesi terakhir|sedang tutup|stale|usang|bukan live)\b/i.test(answer)) {
+      issues.push({ kind: 'STALE_PRICE', detail: 'jawaban membingkai data stale/tutup sebagai live/current' });
+    }
+  }
+
+  const periods = collectRegexGroup(data, /period_end:\s*(\d{4}-\d{2}-\d{2})/gi);
+  const answerPeriods = collectRegexGroup(answer, /\b(\d{4}-\d{2}-\d{2})\b/g);
+  for (const period of answerPeriods) {
+    if (!periods.includes(period) && /period|periode|kuartal|laporan/i.test(answer)) {
+      issues.push({ kind: 'WRONG_PERIOD', detail: `periode ${period} tidak ada di sumber terverifikasi` });
+    }
+  }
+
+  const metricAliases: Array<[RegExp, RegExp]> = [
+    [/\bPER\b|price earnings/i, /\bPER\b|price earnings/i],
+    [/\bPBV\b|price book/i, /\bPBV\b|price book/i],
+    [/\bROE\b/i, /\bROE\b/i],
+    [/\bDER\b/i, /\bDER\b/i],
+    [/\bRSI\b/i, /\bRSI\b/i],
+    [/\bMACD\b/i, /\bMACD\b/i],
+    [/\bEV\/EBITDA\b/i, /\bEV\/EBITDA\b/i],
+  ];
+  for (const [answerPattern, sourcePattern] of metricAliases) {
+    if (answerPattern.test(answer) && !sourcePattern.test(data)) {
+      issues.push({ kind: 'HALLUCINATED_METRIC', detail: `metrik ${answer.match(answerPattern)?.[0] ?? 'tersebut'} tidak ada di sumber terverifikasi` });
+    }
+  }
+
+  const asksRecommendation = /\b(beli|jual|hold|tahan|buy|sell|rekomendasi|akumulasi)\b/i.test(answer);
+  const advisoryAllowed = /Boleh dibaca sebagai rekomendasi transaksi\?\s*YA|decision\.advisory\s*=\s*true|advisory=true/i.test(data);
+  const advisoryDenied = /Boleh dibaca sebagai rekomendasi transaksi\?\s*TIDAK|Recommendation actionable:\s*(?:DINONAKTIFKAN|tidak)|advisory=false/i.test(data);
+  if (asksRecommendation && advisoryDenied && !advisoryAllowed && !/\b(sinyal model|bukan rekomendasi transaksi|tidak actionable|belum tervalidasi)\b/i.test(answer)) {
+    issues.push({ kind: 'UNSUPPORTED_RECOMMENDATION', detail: 'jawaban membuat rekomendasi actionable tanpa advisory=true' });
+  }
+
+  if (/KONFLIK SUMBER|CONFLICT|bertentangan/i.test(data) && !/\b(konflik|bertentangan|sumber.*berbeda|tidak saya simpulkan)\b/i.test(normalizedAnswer)) {
+    issues.push({ kind: 'CONFLICTING_SOURCES', detail: 'sumber menandai konflik tetapi jawaban tidak menyebut konflik tersebut' });
+  }
+
+  return { ok: issues.length === 0, issues };
+}
+
 export function unverifiedNumbersNotice(unverified: string[]): string {
   return (
     `\n\n---\n_Catatan: angka ${unverified.join(', ')} di atas tidak dapat saya telusuri ke data server ` +
