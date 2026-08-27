@@ -80,7 +80,7 @@ describe('GET /api/recommendations (akses tamu)', () => {
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.recommendations).toEqual([{
+    const expectedRecommendations = [{
       ticker: 'BBCA.JK', consensus: 'HOLD',
       // BUG FIX (2026-08-14): acuan freshness untuk entri cache (dibaca lewat cacheGet)
       // sekarang RECOMMENDATION_CRON (18 menit, TTL yang benar-benar dipakai penulis
@@ -88,7 +88,16 @@ describe('GET /api/recommendations (akses tamu)', () => {
       // dan salah kalau dipakai sebagai acuan entri yang ditulis cron. Lihat
       // shared/cache/ttl-policy.ts.
       _meta: { freshness: 'FRESH', cachedAgeSec: 0, cacheTtlSec: CACHE_TTL_SEC.RECOMMENDATION_CRON },
-    }]);
+    }];
+    expect(json.recommendations).toEqual(expectedRecommendations);
+    expect(json.ok).toBe(true);
+    expect(json.data.recommendations).toEqual(expectedRecommendations);
+    expect(json.meta).toEqual(expect.objectContaining({
+      requestId: expect.any(String),
+      calculatedAt: expect.any(String),
+      source: 'recommendation-cache-or-live-analysis',
+      modelVersion: 'MODEL_UNVALIDATED',
+    }));
   });
 
   it('tanpa session -> cookie trial anonim tetap ditempel (identitas kuota chat/telemetri)', async () => {

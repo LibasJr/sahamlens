@@ -60,17 +60,6 @@ const nextConfig = {
   async redirects() {
     return [
       { source: '/citadel', destination: '/', permanent: true },
-      // Transparansi pindah ke balik gerbang admin (23 Agustus 2026). Dialihkan, bukan
-      // dihapus: alamat lamanya sempat dipublikasikan lewat sitemap dan halaman /status,
-      // jadi masih ada tautan beredar di luar. Admin sampai ke halamannya; selain admin
-      // mendarat di /admin-login lewat gerbang halaman itu sendiri.
-      //
-      // SENGAJA `permanent: false` (307), bukan 308 seperti /citadel di atas: /citadel
-      // adalah duplikat yang memang hilang selamanya, sedangkan ini keputusan AKSES yang
-      // bisa ditinjau ulang. Peramban menyimpan 308 nyaris permanen - kalau suatu saat
-      // halaman ini dibuka lagi untuk publik, pengunjung lama tetap terlempar ke /admin
-      // tanpa cara membatalkannya dari sisi server.
-      { source: '/transparency', destination: '/admin/transparency', permanent: false },
     ];
   },
   /**

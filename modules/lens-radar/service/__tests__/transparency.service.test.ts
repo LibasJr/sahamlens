@@ -61,6 +61,10 @@ describe('transparency.service', () => {
     expect(result.latestStatsRunDate).toBe('2026-02-01');
     expect(high.avgT1).toBe(1.1);
     expect(high.avgT20).toBe(3.3);
+    expect(high.provenance.avgT20).toEqual(expect.objectContaining({
+      value: 3.3,
+      provenance: expect.objectContaining({ source: 'lens_bucket_stats', confidence: 'calculated', isEstimated: false }),
+    }));
     expect(high.avgT20Gross).toBe(3.8);
     // Dua observasi [10, -4]: P95 dan trade terburuk sama-sama jatuh di -4.
     expect(high.maxDdP95T20).toBe(-4);

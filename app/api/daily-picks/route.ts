@@ -4,6 +4,7 @@ import { parseBreakoutCache, type BreakoutCacheEntry, type CrossCacheEntry } fro
 import { getOrCompute, cacheGet } from '@/shared/cache/redis-cache';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
 import { CACHE_TTL_SEC, CDN_FRESHNESS_SEC, publicCacheHeaders } from '@/shared/cache/ttl-policy';
+import { apiOk } from '@/shared/http/api-response';
 
 // Publik (tanpa login) - dipakai widget "Hari Ini AI Menemukan" di halaman utama (Dashboard.tsx)
 // DAN halaman AI Pick (app/breakout-radar/page.tsx, tab per kategori via ?cat=) untuk
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
       // - baca cache dulu, fallback live scan kalau cache belum pernah terisi.
       const cachedBreakoutRaw = await cacheGet<unknown>(BREAKOUT_CACHE_KEY);
       // Batas proses: payload ini ditulis oleh job cron terpisah lewat Redis, jadi divalidasi
-      // runtime (parseBreakoutCache) alih-alih dipercaya sebagai `any`. Payload yang gagal
+      // runtime (parseBreakoutCache) alih-alih dipercaya sebagai data bertipe luas. Payload yang gagal
       // validasi diperlakukan sama seperti cache kosong: kategori breakout/cross tampil kosong
       // dan ditandai stale, bukan meneruskan bentuk data yang mungkin sudah salah field ke publik.
       const cachedBreakout = parseBreakoutCache(cachedBreakoutRaw);
@@ -66,9 +67,7 @@ export async function GET(request: Request) {
       // modules/market/service/foreign-flow-proxy.ts. Sudah dihitung di getMarketSummary().
       const foreignAccumulationList = summary.topForeignAccumulation;
 
-      return {
-        status: 200,
-        body: {
+      const data = {
           attractive: category(summary.topTechnical, (s) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `Skor ${s.score}` })),
           // BARU (2026-08-01) - kategori ke-8 widget "Hari Ini AI Menemukan" (menggantikan
           // tombol "Lihat Analisis {ticker}" yang dihapus, supaya tidak ada ruang kosong).
@@ -113,6 +112,20 @@ export async function GET(request: Request) {
           },
           foreignAccumulation: category(foreignAccumulationList, (s) => ({ symbol: s.symbol, price: s.price, changePct: s.changePct, metric: `${s.streak} hari akumulasi` })),
           timestamp: summary.timestamp,
+        };
+
+      return {
+        status: 200,
+        body: {
+          ...apiOk(data, {
+            dataAsOf: breakoutAsOf ?? summary.timestamp ?? undefined,
+            calculatedAt: summary.timestamp ?? undefined,
+            source: 'market-summary + breakout-radar-cache',
+            staleness: breakoutStale ? 'partially-stale' : 'fresh-cache',
+            modelVersion: 'LENS_RADAR_DAILY_PICKS',
+          }),
+          // Backward-compatible fields while clients migrate to { ok, data, meta }.
+          ...data,
         },
         headers: publicCacheHeaders(CDN_FRESHNESS_SEC.LENS_RADAR, CACHE_TTL_SEC.BREAKOUT_RADAR),
       };

@@ -242,7 +242,7 @@ export default function TransparencyClient() {
     setLoading(true);
     setError(null);
     try {
-      const json = await apiRequest<any>('/api/transparency');
+      const json = await apiRequest<TransparencyData>('/api/admin/transparency');
       setData(json);
     } catch {
       setError('Gagal memuat data transparansi');
