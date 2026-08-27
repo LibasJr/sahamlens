@@ -485,6 +485,7 @@ function FundamentalContent() {
           <FundamentalAnalyzerGrid
             displayedAnalyzers={displayedAnalyzers}
             filteredAnalyzers={filteredAnalyzers}
+            metricProvenance={data?.provenance?.fundamentals}
             loading={loading}
             sortByConfidence={sortByConfidence}
             onToggleSort={() => setSortByConfidence((value) => !value)}

@@ -4,6 +4,9 @@ import { buildLensScoreInputProvenance } from '../lens-score-input-provenance.se
 describe('buildLensScoreInputProvenance', () => {
   it('memetakan technical, fundamental, dan flow ke source yang sesuai tanpa mengubah value', () => {
     const provenance = buildLensScoreInputProvenance({
+      period: '1d history',
+      asOf: '2026-08-26T09:00:00.000Z',
+      retrievedAt: '2026-08-27T03:00:00.000Z',
       technical: {
         currentPrice: 9000,
         ma20: 8800,
@@ -28,16 +31,25 @@ describe('buildLensScoreInputProvenance', () => {
 
     expect(provenance.technical.currentPrice).toEqual({
       value: 9000,
-      provenance: expect.objectContaining({ source: 'YAHOO_CHART' }),
+      provenance: expect.objectContaining({
+        source: 'YAHOO_CHART',
+        period: '1d history',
+        asOf: '2026-08-26T09:00:00.000Z',
+        retrievedAt: '2026-08-27T03:00:00.000Z',
+        transformation: 'DIRECT',
+      }),
     });
     expect(provenance.technical.rsi).toEqual({
       value: 57.2,
-      provenance: expect.objectContaining({ source: 'TECHNICAL_ANALYZERS' }),
+      provenance: expect.objectContaining({ source: 'TECHNICAL_ANALYZERS', transformation: 'DERIVED' }),
     });
     expect(provenance.technical.macdHist.provenance.source).toBe('TECHNICAL_ANALYZERS');
     expect(provenance.technical.volToday.value).toBeNull();
 
-    expect(provenance.fundamental.per.provenance.source).toBe('YAHOO_QUOTE_SUMMARY');
+    expect(provenance.fundamental.per.provenance).toEqual(expect.objectContaining({
+      source: 'YAHOO_QUOTE_SUMMARY',
+      transformation: 'DIRECT',
+    }));
     expect(provenance.fundamental.normalizedRoe).toEqual({
       value: 21.5,
       provenance: expect.objectContaining({ source: 'NORMALIZED_EARNINGS_HISTORY' }),
@@ -47,7 +59,7 @@ describe('buildLensScoreInputProvenance', () => {
 
     expect(provenance.flow.cmf20).toEqual({
       value: 14.2,
-      provenance: expect.objectContaining({ source: 'YAHOO_CHART_DERIVED_FLOW' }),
+      provenance: expect.objectContaining({ source: 'YAHOO_CHART_DERIVED_FLOW', transformation: 'DERIVED' }),
     });
     expect(provenance.flow.accumulationStatus.value).toBe('AKUMULASI');
   });
