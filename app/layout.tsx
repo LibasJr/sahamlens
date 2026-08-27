@@ -1,5 +1,6 @@
 import './globals.css';
 import { Inter, JetBrains_Mono } from 'next/font/google';
+import { headers } from 'next/headers';
 import React from 'react';
 import type { Viewport } from 'next';
 import AppShell from '@/components/AppShell';
@@ -106,19 +107,21 @@ export const viewport: Viewport = {
 // harga yang jauh lebih mahal daripada masalah yang diperbaiki. Preferensinya memang milik
 // browser, jadi browser yang membacanya.
 //
-// Markup tetap lahir dengan lang="id" dan itu BENAR: tidak ada jalur render server
-// berbahasa Inggris di aplikasi ini (LanguageProvider seluruhnya 'use client'), jadi HTML
-// yang diterima crawler tanpa JS memang berbahasa Indonesia.
+// CSP nonce mengubah trade-off tersebut secara sengaja: Next.js perlu nonce request-scoped
+// untuk framework scripts, sehingga layout membaca x-nonce dari request dan seluruh pohon
+// HTML menjadi dynamic-rendered. Ini harga eksplisit untuk menghapus script-src unsafe-inline.
 const bootScript = `(function(){var d=document.documentElement;try{var saved=localStorage.getItem('sahamlens_theme');var system=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';var theme=saved==='light'||saved==='dark'?saved:system;d.classList.add(theme);d.style.colorScheme=theme;}catch(e){d.classList.add('dark');}try{var lang=localStorage.getItem('sahamlens_lang');if(lang==='en'||lang==='id')d.lang=lang;}catch(e){}})()`;
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
+
   return (
     <html lang="id" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
-      <head><script dangerouslySetInnerHTML={{ __html: bootScript }} /></head>
+      <head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: bootScript }} /></head>
       <body className={`${inter.className} bg-tv-bg text-tv-text antialiased min-h-screen relative selection:bg-tv-blue/25`}>
         <AppShell>{children}</AppShell>
       </body>
