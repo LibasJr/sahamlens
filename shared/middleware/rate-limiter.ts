@@ -7,11 +7,9 @@ import { Redis } from '../cache/redis-local';
 // tersebar geografis, masing-masing dengan globalThis sendiri - jadi limit
 // "20/hari" versi in-memory di bawah ini efektifnya "20/hari PER ISOLATE",
 // bukan benar-benar global. checkRateLimitShared() di bagian bawah file
-// memperbaikinya dengan counter Redis (Upstash, REST-based - aman dipakai dari
-// Edge Runtime, sama seperti @upstash/qstash yang sudah dipakai di middleware
-// lain) dan degradasi otomatis ke fungsi in-memory ini kalau Redis belum
-// dikonfigurasi/sedang down - request pengguna TIDAK PERNAH gagal karena
-// rate-limiter, paling buruk kembali ke perilaku lama (per-isolate).
+// memperbaikinya dengan counter Redis. Endpoint umum tetap boleh degradasi ke
+// in-memory untuk availability, sedangkan caller sensitif dapat memilih policy
+// `deny` agar tidak diam-diam kehilangan enforcement global ketika Redis down.
 
 export interface RateLimitConfig {
   windowMs: number;
@@ -25,9 +23,23 @@ interface IpEntry {
   blockedUntil: number;
 }
 
+export type RateLimitBackend = 'redis' | 'memory' | 'unavailable';
+export type RateLimitDegradedPolicy = 'memory' | 'deny';
+
 export interface RateLimitResult {
   allowed: boolean;
   retryAfterSec?: number;
+  /** Backend enforcement untuk shared limiter. Undefined untuk checkRateLimit() langsung. */
+  backend?: RateLimitBackend;
+  /** True bila distributed Redis enforcement tidak tersedia. */
+  degraded?: boolean;
+  /** True bila caller memilih fail-closed dan request ditolak karena limiter unavailable. */
+  unavailable?: boolean;
+}
+
+export interface SharedRateLimitOptions {
+  /** Default `memory` menjaga compatibility. Gunakan `deny` hanya untuk endpoint sensitif. */
+  degradedPolicy?: RateLimitDegradedPolicy;
 }
 
 const g = globalThis as unknown as { __sahamlensIpStore?: Map<string, IpEntry>; __sahamlensIpStoreLastSweep?: number };
@@ -94,12 +106,30 @@ function getRedisClient(): Redis | null {
   return gRedis.__sahamlensRateLimitRedis;
 }
 
+function degradedRateLimitResult(
+  ip: string,
+  now: number,
+  config: RateLimitConfig,
+  policy: RateLimitDegradedPolicy,
+): RateLimitResult {
+  if (policy === 'deny') {
+    return { allowed: false, backend: 'unavailable', degraded: true, unavailable: true };
+  }
+  return { ...checkRateLimit(ip, now, config), backend: 'memory', degraded: true };
+}
+
 // Fixed-window counter di Redis (INCR + EXPIRE sekali di hit pertama jendela) +
 // key blokir terpisah untuk periode blockMs setelah limit terlampaui - satu
 // counter global dipakai SEMUA isolate/region, bukan lagi per-instance.
-export async function checkRateLimitShared(ip: string, now: number, config: RateLimitConfig): Promise<RateLimitResult> {
+export async function checkRateLimitShared(
+  ip: string,
+  now: number,
+  config: RateLimitConfig,
+  options: SharedRateLimitOptions = {},
+): Promise<RateLimitResult> {
+  const degradedPolicy = options.degradedPolicy ?? 'memory';
   const client = getRedisClient();
-  if (!client) return checkRateLimit(ip, now, config);
+  if (!client) return degradedRateLimitResult(ip, now, config, degradedPolicy);
 
   const windowIndex = Math.floor(now / config.windowMs);
   const windowKey = `sahamlens:ratelimit:${ip}:${windowIndex}`;
@@ -108,7 +138,12 @@ export async function checkRateLimitShared(ip: string, now: number, config: Rate
   try {
     const blockedUntil = await client.get<number>(blockKey);
     if (blockedUntil && blockedUntil > now) {
-      return { allowed: false, retryAfterSec: Math.ceil((blockedUntil - now) / 1000) };
+      return {
+        allowed: false,
+        retryAfterSec: Math.ceil((blockedUntil - now) / 1000),
+        backend: 'redis',
+        degraded: false,
+      };
     }
 
     const count = await client.incr(windowKey);
@@ -119,12 +154,16 @@ export async function checkRateLimitShared(ip: string, now: number, config: Rate
     if (count > config.maxPerWindow) {
       const newBlockedUntil = now + config.blockMs;
       await client.set(blockKey, newBlockedUntil, { px: config.blockMs });
-      return { allowed: false, retryAfterSec: Math.ceil(config.blockMs / 1000) };
+      return {
+        allowed: false,
+        retryAfterSec: Math.ceil(config.blockMs / 1000),
+        backend: 'redis',
+        degraded: false,
+      };
     }
 
-    return { allowed: true };
+    return { allowed: true, backend: 'redis', degraded: false };
   } catch {
-    // Redis error di tengah jalan - degradasi ke in-memory, jangan pernah gagalkan request.
-    return checkRateLimit(ip, now, config);
+    return degradedRateLimitResult(ip, now, config, degradedPolicy);
   }
 }
