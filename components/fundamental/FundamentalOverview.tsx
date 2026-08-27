@@ -7,7 +7,8 @@ import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import ExportImageButton from '@/components/export/ExportImageButton';
 import FundamentalExportCard from '@/components/export/FundamentalExportCard';
 import { QuickWatchlistStar } from '@/components/QuickWatchlistStar';
-import { AnimatedNumber, Badge, Button, Card, TickerAvatar } from '@/components/ui';
+import { AnimatedNumber, Badge, Button, Card, ResearchProvenanceDetails, TickerAvatar } from '@/components/ui';
+import type { ProvenancedFinancialValue } from '@/shared/finance/provenance';
 import { isBlueChipConstituent, LQ45_BADGE_TITLE } from '@/lib/utils/blue-chip-index';
 import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import { buildExportFileName } from '@/shared/format/export-filename';
@@ -44,11 +45,25 @@ interface FundamentalOverviewProps {
   formatTime: (date: Date | null) => string;
 }
 
-function FundamentalMetric({ label, value, tone = 'text-white' }: { label: string; value: string; tone?: string }) {
+function FundamentalMetric({
+  label,
+  value,
+  tone = 'text-white',
+  provenance,
+}: {
+  label: string;
+  value: string;
+  tone?: string;
+  provenance?: ProvenancedFinancialValue<number | string | null>;
+}) {
   return (
     <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-bg p-3 flex flex-col justify-between">
       <span className="lens-meta uppercase text-tv-muted">{label}</span>
       <span className={`font-number text-lg font-bold ${tone}`}>{value}</span>
+      <ResearchProvenanceDetails
+        label={`Sumber ${label}`}
+        entries={[{ label, value: provenance?.value ?? null, provenance: provenance?.provenance }]}
+      />
     </Card>
   );
 }
@@ -285,23 +300,24 @@ export default function FundamentalOverview({
             </div>
 
             <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
-              <FundamentalMetric label="Market Cap" value={fmtTriliun(data?.fundamentals?.marketCap)} />
-              <FundamentalMetric label="P/E Ratio (TTM)" value={fmtKali(data?.fundamentals?.trailingPE)} />
-              <FundamentalMetric label="Price to Book (PBV)" value={fmtKali(data?.fundamentals?.priceToBook)} />
+              <FundamentalMetric label="Market Cap" value={fmtTriliun(data?.fundamentals?.marketCap)} provenance={data?.provenance?.fundamentals?.marketCap} />
+              <FundamentalMetric label="P/E Ratio (TTM)" value={fmtKali(data?.fundamentals?.trailingPE)} provenance={data?.provenance?.fundamentals?.trailingPE} />
+              <FundamentalMetric label="Price to Book (PBV)" value={fmtKali(data?.fundamentals?.priceToBook)} provenance={data?.provenance?.fundamentals?.priceToBook} />
               <FundamentalMetric
                 label="Return on Equity (ROE)"
                 value={fmtPersen(data?.fundamentals?.returnOnEquity)}
                 tone={data?.fundamentals?.returnOnEquity == null ? 'text-tv-muted' : data.fundamentals.returnOnEquity > 0 ? 'text-tv-green' : 'text-tv-red'}
+                provenance={data?.provenance?.fundamentals?.returnOnEquity}
               />
               {!isBankProfile ? (
                 <>
-                  <FundamentalMetric label="Gross Margin" value={fmtPersen(data?.fundamentals?.grossMargins)} />
-                  <FundamentalMetric label="Pendapatan (Revenue)" value={fmtTriliun(data?.fundamentals?.totalRevenue)} />
+                  <FundamentalMetric label="Gross Margin" value={fmtPersen(data?.fundamentals?.grossMargins)} provenance={data?.provenance?.fundamentals?.grossMargins} />
+                  <FundamentalMetric label="Pendapatan (Revenue)" value={fmtTriliun(data?.fundamentals?.totalRevenue)} provenance={data?.provenance?.fundamentals?.totalRevenue} />
                 </>
               ) : (
                 <>
                   <FundamentalMetric label="NIM (Net Interest Margin)" value={fmtBankPct(bank?.nimPct)} tone={bank?.nimPct == null ? 'text-tv-muted' : 'text-tv-green'} />
-                  <FundamentalMetric label="Pendapatan (Revenue)" value={fmtTriliun(data?.fundamentals?.totalRevenue)} />
+                  <FundamentalMetric label="Pendapatan (Revenue)" value={fmtTriliun(data?.fundamentals?.totalRevenue)} provenance={data?.provenance?.fundamentals?.totalRevenue} />
                 </>
               )}
             </div>
