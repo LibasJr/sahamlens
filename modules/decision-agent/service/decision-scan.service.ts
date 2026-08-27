@@ -29,6 +29,11 @@ export interface DecisionScanOptions {
 }
 
 function summarize(signals: DecisionAgentRun['signals']): DecisionAgentRunSummary {
+  // paperReady dulu mensyaratkan hybridStatus === 'CONFIRMED', tapi CONFIRM cuma 2,4%
+  // dari 82 run (2026-08-27) - itu bikin gerbang paper trading nyaris tidak pernah
+  // lepas walau rule-nya sendiri sudah siap. Hybrid review tetap jalan (dicatat buat
+  // shadow-evaluation), cuma tidak lagi jadi syarat kesiapan paper.
+  const rulePaperReady = signals.filter((signal) => signal.paperReadiness === 'PAPER_READY').length;
   return {
     total: signals.length,
     buyCandidates: signals.filter((signal) => signal.action === 'BUY_CANDIDATE').length,
@@ -36,8 +41,8 @@ function summarize(signals: DecisionAgentRun['signals']): DecisionAgentRunSummar
     hold: signals.filter((signal) => signal.action === 'HOLD').length,
     exitReview: signals.filter((signal) => signal.action === 'EXIT_REVIEW').length,
     noSignal: signals.filter((signal) => signal.action === 'NO_SIGNAL').length,
-    paperReady: signals.filter((signal) => signal.paperReadiness === 'PAPER_READY' && signal.hybridStatus === 'CONFIRMED').length,
-    rulePaperReady: signals.filter((signal) => signal.paperReadiness === 'PAPER_READY').length,
+    paperReady: rulePaperReady,
+    rulePaperReady,
     liveReady: 0,
   };
 }
