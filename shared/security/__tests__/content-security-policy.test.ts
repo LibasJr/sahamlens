@@ -24,6 +24,22 @@ describe('content security policy', () => {
     expect(csp).not.toContain('upgrade-insecure-requests');
   });
 
+  it('restricts style elements by nonce and isolates the temporary attribute exception', () => {
+    const csp = buildContentSecurityPolicy('style-nonce', true);
+    const directives = Object.fromEntries(
+      csp.split('; ').map((directive) => {
+        const [name, ...sources] = directive.split(' ');
+        return [name, sources];
+      }),
+    );
+
+    expect(directives['style-src']).toEqual(["'self'", "'nonce-style-nonce'"]);
+    expect(directives['style-src-elem']).toEqual(["'self'", "'nonce-style-nonce'"]);
+    expect(directives['style-src']).not.toContain("'unsafe-inline'");
+    expect(directives['style-src-elem']).not.toContain("'unsafe-inline'");
+    expect(directives['style-src-attr']).toEqual(["'unsafe-inline'"]);
+  });
+
   it('generates a fresh non-empty nonce source value', () => {
     const first = createCspNonce();
     const second = createCspNonce();
