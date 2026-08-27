@@ -49,6 +49,7 @@ jobs:
           npm run audit:market-labels
           npm run audit:risk-controls
           npm run audit:zero-dummy
+          npm run audit:data-quality
           npm run audit:adoption
           npm run audit:a11y
       - run: npm run typecheck
@@ -104,6 +105,23 @@ jobs:
       # shell sudah cukup dan unduhannya jauh lebih kecil daripada Chromium penuh.
       - run: npx playwright install --with-deps --only-shell chromium
       - run: npm run test:responsive
+
+
+  # Journey aplikasi nyata dengan Next dev server + Chromium. Request API browser
+  # di-fixture agar gerbang menguji routing, auth boundary, CSP, dan komposisi UI tanpa
+  # menjadi flaky karena database atau provider pasar eksternal.
+  critical-path:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npm run test:critical-path
 
   # Backend beku selama Visual Redesign V3. Hanya berjalan untuk PR yang menargetkan
   # branch redesign - PR biasa ke main memang boleh menyentuh backend.
