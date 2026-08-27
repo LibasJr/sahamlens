@@ -30,13 +30,41 @@ describe('handleRunBacktest', () => {
     vi.mocked(consumeComputeBudget).mockResolvedValue({ allowed: true } as any);
   });
 
-  it('keeps guest compute actor tied to anonymous trial identity', async () => {
-    vi.mocked(runBacktestSimulation).mockResolvedValue({ ok: true, body: { return: '+1%' } });
+  it('keeps guest identity/cookie and adds a backward-compatible success envelope', async () => {
+    const payload = { return: '+1%', dataAsOf: '2026-08-27T02:00:00.000Z', trades: [] };
+    vi.mocked(runBacktestSimulation).mockResolvedValue({ ok: true, body: payload });
     vi.mocked(buildAnonymousTrialCookie).mockResolvedValue({ name: 'anon', value: 'token', options: { httpOnly: true, sameSite: 'lax', path: '/' } } as any);
+
     const result = await handleRunBacktest(REQUEST());
+    const body = result.body as any;
+
     expect(result.status).toBe(200);
     expect(result.cookiesToSet).toHaveLength(1);
     expect(runBacktestSimulation).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ isGuest: true }));
+    expect(body.return).toBe('+1%');
+    expect(body.dataAsOf).toBe('2026-08-27T02:00:00.000Z');
+    expect(body.ok).toBe(true);
+    expect(body.data).toEqual(payload);
+    expect(body.meta).toEqual(expect.objectContaining({
+      dataAsOf: '2026-08-27T02:00:00.000Z',
+      source: 'backtest-indicator-cache',
+    }));
+  });
+
+  it('marks uncached success as backtest-simulation without inventing dataAsOf', async () => {
+    vi.mocked(readBacktestCache).mockResolvedValue(null);
+    const payload = { return: '+2%', trades: [] };
+    vi.mocked(runBacktestSimulation).mockResolvedValue({ ok: true, body: payload });
+    vi.mocked(buildAnonymousTrialCookie).mockResolvedValue(null as any);
+
+    const result = await handleRunBacktest(REQUEST());
+    const body = result.body as any;
+
+    expect(result.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.data).toEqual(payload);
+    expect(body.meta).toEqual(expect.objectContaining({ source: 'backtest-simulation' }));
+    expect(body.meta.dataAsOf).toBeUndefined();
   });
 
   it('returns compute-budget 429 before parsing/simulating the body', async () => {
@@ -47,10 +75,11 @@ describe('handleRunBacktest', () => {
     expect(runBacktestSimulation).not.toHaveBeenCalled();
   });
 
-  it('does not issue a new guest cookie for validation/service errors', async () => {
+  it('does not issue a new guest cookie or envelope for validation/service errors', async () => {
     vi.mocked(runBacktestSimulation).mockResolvedValue({ ok: false, status: 400, body: { error: 'Pilih minimal 1 filter' } });
     const result = await handleRunBacktest(REQUEST());
     expect(result.status).toBe(400);
+    expect(result.body).toEqual({ error: 'Pilih minimal 1 filter' });
     expect(buildAnonymousTrialCookie).not.toHaveBeenCalled();
   });
 });
