@@ -14,6 +14,7 @@ import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -430,7 +431,7 @@ export default function ResearchIdeasPage() {
                         {item.sentimentScore != null && (
                           <>
                             <div className="w-24 h-1.5 bg-tv-bg rounded-full overflow-hidden flex">
-                              <div className="h-full bg-gradient-to-r from-tv-red via-tv-yellow to-tv-green" style={{ width: `${item.sentimentScore}%` }} />
+                              <div className={`h-full bg-gradient-to-r from-tv-red via-tv-yellow to-tv-green ${percentageWidthClass(item.sentimentScore)}`} />
                             </div>
                             <span className="text-[10px] text-tv-muted font-mono">{item.sentimentScore}% bullish</span>
                           </>
