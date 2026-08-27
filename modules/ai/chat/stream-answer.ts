@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { generateAIStream, generateAIResult } from '@/lib/aiProviders';
 import { applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { createStreamGate } from './stream-gate';
-import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
+import { verifyAnswerNumbers, verifyStructuredEvidence, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
 import type { ChatIntent } from './chat-intent';
 
@@ -94,32 +94,47 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
         // kesatuan, dan menjadi satu-satunya sumber untuk `routing.numberCheck`.
         let answer = result.text;
         let numberCheck = verifyAnswerNumbers(answer, args.sources);
+        let evidenceCheck = verifyStructuredEvidence(answer, args.sources);
 
-        if (gate.isBlocked || !numberCheck.ok) {
-          console.warn('[LensAI:verify] angka tidak tertelusur (streaming)', {
+        if (gate.isBlocked || !numberCheck.ok || !evidenceCheck.ok) {
+          console.warn('[LensAI:verify] evidence tidak lolos (streaming)', {
             intent: args.intent,
             unverified: numberCheck.unverified,
+            evidenceIssues: evidenceCheck.issues.map((issue) => issue.kind),
           });
 
+          const issueLines = evidenceCheck.issues.map((issue) => `- ${issue.kind}: ${issue.detail}`).join('\n');
           const retry = await generateAIResult({
             system: args.system,
             prompt:
               `${args.prompt}\n\n## KOREKSI WAJIB (dari pemeriksa server, bukan dari pengguna):\n` +
-              `Jawaban sebelumnya memuat angka yang TIDAK ADA di Data Terverifikasi Server: ${numberCheck.unverified.join(', ')}.\n` +
-              'Tulis ulang jawabannya memakai HANYA angka yang benar-benar ada di data tersebut. ' +
-              'Kalau sebuah angka memang tidak tersedia, katakan tidak tersedia - jangan diganti perkiraan lain.',
+              `Jawaban sebelumnya memuat angka yang TIDAK ADA di Data Terverifikasi Server: ${numberCheck.unverified.join(', ') || '(tidak ada)'}.\n` +
+              (issueLines ? `Masalah structured evidence:\n${issueLines}\n` : '') +
+              'Tulis ulang jawabannya memakai HANYA angka, periode, metrik, kesegaran, dan status rekomendasi yang benar-benar ada di Data Terverifikasi Server. ' +
+              'Kalau sebuah angka/metric/periode/rekomendasi tidak tersedia atau sumber konflik, katakan apa adanya - jangan diganti perkiraan lain.',
             timeoutMs: STREAM_TIMEOUT_MS,
           });
 
           if (retry.text) {
-            const retryCheck = verifyAnswerNumbers(retry.text, args.sources);
-            if (retryCheck.unverified.length < numberCheck.unverified.length) {
+            const retryNumberCheck = verifyAnswerNumbers(retry.text, args.sources);
+            const retryEvidenceCheck = verifyStructuredEvidence(retry.text, args.sources);
+            if (retryNumberCheck.unverified.length + retryEvidenceCheck.issues.length < numberCheck.unverified.length + evidenceCheck.issues.length) {
               answer = retry.text;
-              numberCheck = retryCheck;
+              numberCheck = retryNumberCheck;
+              evidenceCheck = retryEvidenceCheck;
             }
           }
 
           if (!numberCheck.ok) answer += unverifiedNumbersNotice(numberCheck.unverified);
+        }
+
+        const finalEvidenceCheck = verifyStructuredEvidence(answer, args.sources);
+        if (!finalEvidenceCheck.ok) {
+          answer +=
+            '\n\n---\n_Catatan: sebagian klaim evidence di atas belum lolos pemeriksaan server: ' +
+            finalEvidenceCheck.issues.map((issue) => issue.kind).join(', ') +
+            '._';
+          evidenceCheck = finalEvidenceCheck;
         }
 
         const finalAnswer = withDyor(answer, args.intent);
@@ -137,6 +152,7 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
             ...args.routing,
             streamed: true,
             numberCheck: { ok: numberCheck.ok, checked: numberCheck.checked, unverified: numberCheck.unverified },
+            evidenceCheck: { ok: evidenceCheck.ok, issues: evidenceCheck.issues },
           },
         });
         controller.close();
