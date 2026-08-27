@@ -4,16 +4,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
 import { Target, Search, ArrowRightLeft, Lock } from 'lucide-react';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
-import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { ApiErrorHint, Button, Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar, Badge } from '@/components/ui';
+import { ApiErrorHint, Button, Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
@@ -24,6 +22,7 @@ const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 // narasi "siapa lebih unggul" adalah alasan utama untuk membuat akun, jadi tidak
 // ditampilkan sampai sesi terverifikasi.
 const GUEST_VISIBLE_COMPARE_KEYS = new Set(['score', 'ma', 'per', 'pbv']);
+const SIMPLE_COMPARE_KEYS = new Set(['score', 'ma', 'per', 'pbv']);
 
 function CompareGuestTeaser({ nextPath, lockedCount }: { nextPath: string; lockedCount: number }) {
   return (
@@ -73,7 +72,6 @@ function CompareContent() {
   const [loading, setLoading] = useState(true);
   const [initialRequestReady, setInitialRequestReady] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   // Sebelumnya tidak ada state apa pun untuk kegagalan. Cabang render berakhir dengan
   // `) : null}`, jadi saat fetch gagal atau akses ditolak, seluruh area hasil menjadi
   // kekosongan mutlak di bawah form - tanpa pesan, tanpa tombol, tanpa petunjuk bahwa
@@ -81,6 +79,7 @@ function CompareContent() {
   const [fetchError, setFetchError] = useState(false);
   const [fetchErrorRequestId, setFetchErrorRequestId] = useState<string | null>(null);
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
+  const [compareMode, setCompareMode] = useState<'simple' | 'advanced'>('simple');
   // Effect restore-dari-localStorage (di bawah) dan effect fetch (setelahnya) sama-sama
   // jalan saat mount - fetch pertama berangkat dengan symbol1 default 'BBCA.JK' SEBELUM
   // state ke-update dari localStorage, jadi dua request keluar. Sequence number ini
@@ -170,8 +169,35 @@ function CompareContent() {
   const lockForGuest = !authResolved || authLoading || !authUser;
   const publicRows = data?.rows?.filter((row: any) => GUEST_VISIBLE_COMPARE_KEYS.has(row.key)) ?? [];
   const lockedRows = data?.rows?.filter((row: any) => !GUEST_VISIBLE_COMPARE_KEYS.has(row.key)) ?? [];
-  const visibleRows = lockForGuest ? publicRows : (data?.rows ?? []);
+  const simpleRows = data?.rows?.filter((row: any) => SIMPLE_COMPARE_KEYS.has(row.key)) ?? [];
+  const visibleRows = lockForGuest ? publicRows : compareMode === 'simple' ? simpleRows : (data?.rows ?? []);
   const compareNextPath = `/compare?symbol1=${encodeURIComponent(symbol1)}&symbol2=${encodeURIComponent(symbol2)}`;
+
+  const copyShareLink = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+    } catch {}
+  };
+
+  const downloadSummary = () => {
+    if (!data || typeof window === 'undefined') return;
+    const payload = {
+      source: 'sahamlens-active-compare-data',
+      symbols: [data.data1?.symbol, data.data2?.symbol],
+      rows: visibleRows,
+      conclusion: data.conclusion ?? null,
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sahamlens-compare-${displayTicker(data.data1.symbol)}-${displayTicker(data.data2.symbol)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     if (!data || !lockForGuest || !authResolved || authLoading || authUser || trackedGuestLock.current) return;
@@ -304,6 +330,34 @@ function CompareContent() {
                         ? (isEn ? `${displayTicker(leader)} leads across more metrics overall.` : `${displayTicker(leader)} unggul di lebih banyak metrik perbandingan.`)
                         : (isEn ? 'Both stocks are evenly matched across metrics.' : 'Kedua emiten berimbang di jumlah metrik yang sama.')}
                     </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="inline-flex rounded-md border border-tv-border bg-tv-bg p-0.5">
+                        <Button
+                          variant="bare"
+                          size="none"
+                          type="button"
+                          onClick={() => setCompareMode('simple')}
+                          className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${compareMode === 'simple' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
+                        >
+                          Ringkas
+                        </Button>
+                        <Button
+                          variant="bare"
+                          size="none"
+                          type="button"
+                          onClick={() => setCompareMode('advanced')}
+                          className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${compareMode === 'advanced' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
+                        >
+                          Advanced
+                        </Button>
+                      </div>
+                      <Button variant="bare" size="none" type="button" onClick={copyShareLink} className="inline-flex items-center gap-1 rounded-md border border-tv-border px-2.5 py-1 text-[11px] text-tv-muted hover:text-tv-text">
+                        Share
+                      </Button>
+                      <Button variant="bare" size="none" type="button" onClick={downloadSummary} className="inline-flex items-center gap-1 rounded-md border border-tv-border px-2.5 py-1 text-[11px] text-tv-muted hover:text-tv-text">
+                        Export
+                      </Button>
+                    </div>
                   </div>
                 );
               })()}
@@ -383,7 +437,7 @@ function CompareContent() {
                   ))}
                 </div>
                 {visibleRows.map((row: any) => (
-                  <motion.div key={row.key} whileTap={{ scale: 0.995 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} className="px-4 py-3">
+                  <div key={row.key} className="px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-[11px] uppercase tracking-wide text-tv-muted">{row.label}</span>
                       {row.winner !== '-' && (
@@ -395,7 +449,7 @@ function CompareContent() {
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data2.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.b}</div>
                     </div>
                     {!lockForGuest && <p className="mt-1.5 font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>}
-                  </motion.div>
+                  </div>
                 ))}
               </div>
 
@@ -427,15 +481,6 @@ function CompareContent() {
           'Watchlist & Alert unlimited',
         ]}
         secondaryLabel="Tunggu Besok"
-      />
-      <PaywallModal
-        open={showLoginPrompt}
-        onClose={() => setShowLoginPrompt(false)}
-        title="Daftar Dulu untuk Lihat Hasil"
-        body="Compare Tool butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
-        ctaHref="/signup"
-        ctaLabel="Daftar Gratis"
-        secondaryLabel="Nanti"
       />
     </div>
   );
