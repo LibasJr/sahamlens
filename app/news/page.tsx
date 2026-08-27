@@ -10,6 +10,7 @@ import { staggerContainer } from '@/lib/motion';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 interface NewsItemDto {
   title: string;
@@ -152,16 +153,13 @@ export default function NewsPage() {
               })}
             >
               <div
-                className="h-full bg-tv-green transition-[width] duration-700 ease-settle"
-                style={{ width: `${(counts.POSITIF / newsItems.length) * 100}%` }}
+                className={`h-full bg-tv-green transition-[width] duration-700 ease-settle ${percentageWidthClass((counts.POSITIF / newsItems.length) * 100)}`}
               />
               <div
-                className="h-full bg-tv-muted transition-[width] duration-700 ease-settle"
-                style={{ width: `${(counts.NETRAL / newsItems.length) * 100}%` }}
+                className={`h-full bg-tv-muted transition-[width] duration-700 ease-settle ${percentageWidthClass((counts.NETRAL / newsItems.length) * 100)}`}
               />
               <div
-                className="h-full bg-tv-red transition-[width] duration-700 ease-settle"
-                style={{ width: `${(counts.NEGATIF / newsItems.length) * 100}%` }}
+                className={`h-full bg-tv-red transition-[width] duration-700 ease-settle ${percentageWidthClass((counts.NEGATIF / newsItems.length) * 100)}`}
               />
             </div>
 

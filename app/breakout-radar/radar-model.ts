@@ -102,8 +102,7 @@ export function fmtBacktestPct(value: number | null): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)}%`;
 }
 
-export function scoreBarWidth(value: number | null | undefined, max: number): string {
-  if (typeof value !== 'number' || !Number.isFinite(value) || max <= 0) return '0%';
-  return `${Math.min(100, Math.max(0, (value / max) * 100))}%`;
+export function scoreBarWidth(value: number | null | undefined, max: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || max <= 0) return 0;
+  return Math.min(100, Math.max(0, (value / max) * 100));
 }
-

@@ -45,10 +45,10 @@ describe('radar-model', () => {
   });
 
   it('membatasi lebar score bar ke 0-100%', () => {
-    expect(scoreBarWidth(20, 40)).toBe('50%');
-    expect(scoreBarWidth(100, 40)).toBe('100%');
-    expect(scoreBarWidth(-5, 40)).toBe('0%');
-    expect(scoreBarWidth(undefined, 40)).toBe('0%');
+    expect(scoreBarWidth(20, 40)).toBe(50);
+    expect(scoreBarWidth(100, 40)).toBe(100);
+    expect(scoreBarWidth(-5, 40)).toBe(0);
+    expect(scoreBarWidth(undefined, 40)).toBe(0);
   });
 
   it('menormalisasi ticker IDX untuk tampilan', () => {
