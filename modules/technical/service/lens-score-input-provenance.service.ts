@@ -39,26 +39,31 @@ export function buildLensScoreInputProvenance(args: {
   const yahooChart: FinancialValueProvenance = {
     source: 'YAHOO_CHART',
     confidence: 'unknown',
+    isEstimated: false,
     note: 'Harga, volume, MA, dan perubahan harga berasal atau diturunkan deterministik dari seri chart yang dipakai LensScore.',
   };
   const analyzer: FinancialValueProvenance = {
     source: 'TECHNICAL_ANALYZERS',
     confidence: 'unknown',
+    isEstimated: false,
     note: 'Nilai indikator adalah raw output analyzer yang sama dengan input LensScore.',
   };
   const yahooFundamental: FinancialValueProvenance = {
     source: 'YAHOO_QUOTE_SUMMARY',
     confidence: 'unknown',
+    isEstimated: false,
     note: 'Snapshot fundamental/sector yang dipakai langsung oleh pipeline LensScore.',
   };
   const normalizedEarnings: FinancialValueProvenance = {
     source: 'NORMALIZED_EARNINGS_HISTORY',
     confidence: 'unknown',
-    note: 'ROE ternormalisasi dihitung dari histori earnings untuk penjaga siklus; null bila tidak tersedia/tidak relevan.',
+    isEstimated: false,
+    note: 'ROE ternormalisasi dihitung deterministik dari histori earnings untuk penjaga siklus; null bila tidak tersedia/tidak relevan.',
   };
   const derivedFlow: FinancialValueProvenance = {
     source: 'YAHOO_CHART_DERIVED_FLOW',
     confidence: 'unknown',
+    isEstimated: false,
     note: 'Flow metrics diturunkan deterministik dari price/volume history yang sama dengan pipeline analisis saham.',
   };
 
