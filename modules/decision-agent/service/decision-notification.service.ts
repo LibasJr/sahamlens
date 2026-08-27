@@ -20,10 +20,11 @@ export async function notifyDecisionSignalTransitions(runId: string): Promise<nu
   );
   if (transitions.length === 0) return 0;
   const lines = transitions.slice(0, 20).map(({ signal, previousAction }) => {
-    const executable = signal.paperReadiness === 'PAPER_READY'
-      && signal.hybridStatus === 'CONFIRMED' && signal.hybridReview?.verdict === 'CONFIRM';
-    const blocker = executable ? 'siap ditinjau admin' : signal.invalidationReasons[0] || signal.opposingReasons[0] || `hybrid ${signal.hybridStatus}`;
-    return `<b>${escapeHtml(signal.ticker)}</b> ${previousAction} → ${signal.action} | score ${number(signal.lensScore, 1)} | ${escapeHtml(blocker)}`;
+    // Kesiapan paper sudah tidak digerbangi hybridStatus (2026-08-27) - lihat catatan
+    // di paper-execution.service.ts. Status hybrid tetap ditampilkan sebagai info, bukan blocker.
+    const executable = signal.paperReadiness === 'PAPER_READY';
+    const blocker = executable ? 'siap ditinjau admin' : signal.invalidationReasons[0] || signal.opposingReasons[0] || 'belum PAPER_READY';
+    return `<b>${escapeHtml(signal.ticker)}</b> ${previousAction} → ${signal.action} | score ${number(signal.lensScore, 1)} | ${escapeHtml(blocker)} | hybrid ${escapeHtml(signal.hybridStatus)}`;
   });
   const latest = transitions[0]!.signal;
   const message = [
