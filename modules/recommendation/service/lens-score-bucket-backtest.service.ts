@@ -333,6 +333,7 @@ export function computeLensScoreBucketBacktest(
       ...researchOutputProvenance({
         source: 'lens_radar_history',
         period: minDate && maxDate ? `${minDate} sampai ${maxDate}` : 'Belum ada periode valid',
+        dataMode: 'POINT_IN_TIME',
         asOf: maxDate ?? undefined,
         retrievedAt: options.calculatedAt ?? new Date().toISOString(),
         confidence: 'calculated',
