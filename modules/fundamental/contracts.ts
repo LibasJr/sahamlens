@@ -45,6 +45,9 @@ export interface FundamentalApiResponse {
     website: string;
   };
   fundamentals: Record<string, number | string | null>;
+  provenance?: {
+    fundamentals?: Record<string, ProvenancedFinancialValue<number | string | null>>;
+  };
   // Digabungkan manual dari /api/stock._meta (lihat fetchAnalyzerData).
   _meta?: { dataTimestamp?: string | null; [key: string]: unknown } | null;
 }
@@ -72,3 +75,4 @@ export type { CompoundingYear, DividendStock };
 export interface DividendPlanApiResponse {
   quant: DividendPlanResult;
 }
+import type { ProvenancedFinancialValue } from '@/shared/finance/provenance';

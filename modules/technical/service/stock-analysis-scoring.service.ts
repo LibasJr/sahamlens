@@ -153,10 +153,16 @@ export async function buildStockScoringContext(args: {
   };
 
   const scoringResult = calculateScore(ticker, technicalInput, fundamentalInput, flowInput);
+  const sourceUnixTime = typeof result.meta?.regularMarketTime === 'number'
+    ? result.meta.regularMarketTime
+    : null;
   const lensScoreInputProvenance = buildLensScoreInputProvenance({
     technical: technicalInput,
     fundamental: fundamentalInput,
     flow: flowInput,
+    period: 'Seri harian hingga observasi pasar terakhir',
+    asOf: sourceUnixTime == null ? undefined : new Date(sourceUnixTime * 1000).toISOString(),
+    retrievedAt: new Date().toISOString(),
   });
 
   return {

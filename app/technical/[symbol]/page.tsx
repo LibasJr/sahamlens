@@ -8,7 +8,7 @@ import { LogIn, Crown, Lock } from 'lucide-react';
 import { WA_NUMBER } from '@/shared/constants/app.constants';
 import { getPaymentMethods } from '@/shared/config/payment';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
-import { Card, InsightRow, PageContainer, SectionHeader, Skeleton, StatusMeta, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
+import { Card, InsightRow, PageContainer, ResearchProvenanceDetails, SectionHeader, Skeleton, StatusMeta, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import MarketDataIntegrityBanner from '@/components/MarketDataIntegrityBanner';
 import { JourneyBeacon, JourneyVisibilityBeacon } from '@/components/analytics/JourneyBeacon';
@@ -30,6 +30,7 @@ import type {
   StockAnalyzerResult,
   StockConsensusDimension,
 } from '@/modules/technical/contracts';
+import type { LensScoreInputProvenance } from '@/modules/technical/service/lens-score-input-provenance.service';
 
 
 
@@ -152,6 +153,15 @@ const GUEST_VISIBLE_ANALYZER_KEYWORDS = ['EMA', 'RSI', 'MA Trend'];
 function isGuestVisibleAnalyzer(label: unknown): boolean {
   const normalizedLabel = typeof label === 'string' ? label : '';
   return GUEST_VISIBLE_ANALYZER_KEYWORDS.some((keyword) => normalizedLabel.includes(keyword));
+}
+
+function lensInputLabel(group: string, key: string): string {
+  const readableKey = key
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\./g, ' · ')
+    .replace(/^./, (letter) => letter.toUpperCase());
+  const groupLabel = group === 'technical' ? 'Teknikal' : group === 'fundamental' ? 'Fundamental' : 'Flow';
+  return `${groupLabel} · ${readableKey}`;
 }
 
 async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
@@ -335,6 +345,17 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
    *  shared/presentation/freshness-labels.ts. */
   const kesegaran = describeFreshness(data._meta?.freshness, data._meta?.dataTimestamp);
 
+  const lensScoreInputGroups = Object.entries(data.provenance?.lensScoreInputs ?? {}) as Array<
+    [string, LensScoreInputProvenance[keyof LensScoreInputProvenance]]
+  >;
+  const lensScoreInputEntries = lensScoreInputGroups.flatMap(
+    ([group, inputs]) => Object.entries(inputs).map(([key, item]) => ({
+      label: lensInputLabel(group, key),
+      value: item.value,
+      provenance: item.provenance,
+    })),
+  );
+
   const temuan = susunTemuanDimensi(dimensi);
   const directionGap = bullPct - bearPct;
   const primaryRead = directionGap >= 20
@@ -400,6 +421,16 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
                 yang menyanggahnya di tempat yang sama - dan model ini belum lolos
                 validasi backtest out-of-sample. */}
             <div className="mt-0.5 text-xs text-tv-muted">Informasi riset, bukan probabilitas harga.</div>
+            <ResearchProvenanceDetails
+              label="Audit sumber & input LensScore"
+              entries={lensScoreInputEntries}
+              model={{
+                version: data._meta?.lensScoreModel?.version,
+                configHash: data._meta?.lensScoreModel?.configHash,
+                status: data._meta?.lensScoreModel?.status,
+                universeVersion: data._meta?.lq45UniverseVersion,
+              }}
+            />
           </div>
         </div>
 
