@@ -1,7 +1,7 @@
-import YahooFinanceClass from 'yahoo-finance2';
 import { getUsdIdrRate } from '../../../shared/market/usd-idr-rate';
 import { impliedMultiples, MACRO_ASSUMPTIONS } from './fair-multiples.service';
 import { resolveSectorProfile } from '../../sector/service/sector-classifier.service';
+import { fetchYahooFundamentalQuote } from '../provider/yahoo-fundamental-quote.provider';
 
 // BUILD 004 (AI Architecture) - dipindah verbatim dari app/api/intrinsic/[ticker]/route.ts
 // supaya bisa dipakai ulang oleh Valuation Agent di modules/ai/service/orchestrator.service.ts
@@ -79,8 +79,6 @@ const SECTOR_METHODS: Record<string, readonly ValuationMethodKey[]> = {
   DEFAULT: ['per', 'dcf', 'pbv', 'ddm', 'graham'],
 };
 
-const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
-
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
 }
@@ -95,9 +93,7 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     ticker = `${ticker}.JK`;
   }
 
-  const quoteSummary = await yahooFinance.quoteSummary(ticker, {
-    modules: ['assetProfile', 'defaultKeyStatistics', 'financialData', 'summaryDetail', 'price']
-  });
+  const quoteSummary = await fetchYahooFundamentalQuote(ticker);
 
   if (!quoteSummary) {
     return null;
@@ -165,7 +161,7 @@ export async function calculateIntrinsicValue(rawTicker: string) {
     fcf_per_share = null;
   }
 
-  const methods: any = {};
+  const methods: Partial<Record<ValuationMethodKey, { name: string; value: number; color: string }>> = {};
   let validFairValues: number[] = [];
 
   let intrinsic_pbv = 0;
@@ -504,9 +500,7 @@ export async function calculateDcfModel(rawTicker: string) {
     ticker = `${ticker}.JK`;
   }
 
-  const quoteSummary = await yahooFinance.quoteSummary(ticker, {
-    modules: ['assetProfile', 'defaultKeyStatistics', 'financialData', 'summaryDetail', 'price']
-  });
+  const quoteSummary = await fetchYahooFundamentalQuote(ticker);
 
   if (!quoteSummary) return null;
 
@@ -700,7 +694,7 @@ export async function calculateDcfModel(rawTicker: string) {
   const discountRateRows = [discountRatePct - 1, discountRatePct, discountRatePct + 1];
   const growthCols = [3.0, 3.5, 4.0];
   const sensitivityTable = discountRateRows.map((rateRow) => {
-    const row: Record<string, any> = { discount_rate_pct: rateRow.toFixed(2) };
+    const row: Record<string, string | number | null> = { discount_rate_pct: rateRow.toFixed(2) };
     growthCols.forEach((g) => {
       const result = rateRow > g ? buildProjection(rateRow / 100, g / 100) : null;
       row[`g_${g.toFixed(1)}%`] = result ? Math.round(result.fairValue) : null;

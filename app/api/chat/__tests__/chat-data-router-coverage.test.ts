@@ -160,6 +160,13 @@ describe('blok valuasi menyertakan dasar angkanya, bukan cuma hasilnya', () => {
         },
       })),
     }));
+    // Fokus test ini hanya kontrak blok valuasi. Tanpa mock ini ia terlebih dahulu
+    // mencoba Yahoo Finance untuk blok fundamental dan dapat timeout karena jaringan,
+    // sehingga hasil test bergantung pada provider eksternal yang sama sekali tidak
+    // sedang diuji.
+    vi.doMock('@/modules/fundamental/service/current-fundamental-source.service', () => ({
+      fetchCurrentFundamentalSource: vi.fn(async () => null),
+    }));
 
     vi.resetModules();
     const { buildChatVerifiedData: build } = await import('../chat-data-router');
@@ -184,5 +191,6 @@ describe('blok valuasi menyertakan dasar angkanya, bukan cuma hasilnya', () => {
     expect(block).toContain('belum tervalidasi sudah dihapus');
     expect(block).toContain('EQUAL_WEIGHT_AVAILABLE_APPLICABLE_METHODS');
     vi.doUnmock('@/modules/fundamental');
+    vi.doUnmock('@/modules/fundamental/service/current-fundamental-source.service');
   });
 });
