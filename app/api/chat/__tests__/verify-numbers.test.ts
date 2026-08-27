@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseLooseNumber, verifyAnswerNumbers } from '../verify-numbers';
+import { parseLooseNumber, verifyAnswerNumbers, verifyStructuredEvidence } from '../verify-numbers';
 
 /**
  * Lapisan ini menuduh model mengarang, jadi ambang salah-tuduhnya harus rendah:
@@ -106,5 +106,55 @@ describe('tidak boleh salah tuduh', () => {
     const result = verifyAnswerNumbers('Datanya belum tersedia, jadi saya belum bisa menyimpulkan.', [DATA_BLOCK]);
     expect(result.ok).toBe(true);
     expect(result.checked).toBe(0);
+  });
+});
+
+describe('structured evidence acceptance cases', () => {
+  it('menandai wrong price ketika jawaban mengklaim harga yang sumber sebut tidak tersedia', () => {
+    const result = verifyStructuredEvidence('Harga terakhir saham ini 8250 dan masih layak dipantau.', [
+      'Harga terakhir: tidak tersedia',
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.kind)).toContain('WRONG_PRICE');
+  });
+
+  it('menandai stale price ketika data stale dibingkai sebagai live/current', () => {
+    const result = verifyStructuredEvidence('Harga live/current sekarang masih kuat.', [
+      'price_stale: true\nmarket_status: closed',
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.kind)).toContain('STALE_PRICE');
+  });
+
+  it('menandai wrong period ketika periode jawaban tidak ada di sumber', () => {
+    const result = verifyStructuredEvidence('Untuk periode 2026-06-30, labanya membaik.', [
+      'period_end: 2026-03-31\nNet income: 1200000',
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.kind)).toContain('WRONG_PERIOD');
+  });
+
+  it('menandai hallucinated metric ketika metrik tidak ada di sumber', () => {
+    const result = verifyStructuredEvidence('PER emiten ini masih murah.', [
+      'PBV: 1.2\nROE: 14%',
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.kind)).toContain('HALLUCINATED_METRIC');
+  });
+
+  it('menandai unsupported recommendation ketika rekomendasi actionable tidak didukung', () => {
+    const result = verifyStructuredEvidence('Rekomendasi saya: beli sekarang.', [
+      'decision.advisory=false\nrecommendation_supported: false',
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.kind)).toContain('UNSUPPORTED_RECOMMENDATION');
+  });
+
+  it('menandai conflicting sources ketika konflik sumber tidak disebutkan di jawaban', () => {
+    const result = verifyStructuredEvidence('Kesimpulannya stabil dan datanya jelas.', [
+      'conflicting_sources: true\nIDX dan provider lain berbeda',
+    ]);
+    expect(result.ok).toBe(false);
+    expect(result.issues.map((issue) => issue.kind)).toContain('CONFLICTING_SOURCES');
   });
 });
