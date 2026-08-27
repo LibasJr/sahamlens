@@ -1,7 +1,8 @@
-import YahooFinanceClass from 'yahoo-finance2';
 import { getUsdIdrRate } from '@/shared/market/usd-idr-rate';
-
-const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
+import {
+  fetchYahooFundamentalQuote,
+  type YahooFundamentalQuote,
+} from '@/modules/fundamental/provider/yahoo-fundamental-quote.provider';
 
 function isFinitePositive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -15,20 +16,11 @@ function isFinitePositive(value: unknown): value is number {
 export async function fetchCurrentFundamentalSource(
   rawTicker: string,
   options: { timeoutMs?: number } = {},
-): Promise<any | null> {
+): Promise<YahooFundamentalQuote | null> {
   let ticker = rawTicker.trim().toUpperCase();
   if (!ticker.includes('.')) ticker = `${ticker}.JK`;
 
-  const request = yahooFinance.quoteSummary(ticker, {
-    modules: ['defaultKeyStatistics', 'financialData', 'summaryDetail', 'price', 'assetProfile'],
-  });
-
-  const quoteSummary = options.timeoutMs
-    ? await Promise.race([
-        request,
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('fundamental timeout')), options.timeoutMs)),
-      ])
-    : await request;
+  const quoteSummary = await fetchYahooFundamentalQuote(ticker, options);
 
   if (!quoteSummary) return null;
 
