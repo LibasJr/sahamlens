@@ -12,11 +12,11 @@ export default defineConfig({
     },
   },
   test: {
-    // e2e/ dijalankan Playwright (npm run test:responsive), bukan Vitest. Tanpa exclude
+    // e2e*/ dijalankan Playwright (npm run test:responsive/test:critical-path), bukan Vitest. Tanpa exclude
     // ini pola bawaan Vitest ikut memungut *.spec.ts di sana, lalu gagal mengimpor
     // @playwright/test - kegagalan yang terbaca seperti test rusak, padahal runner-nya
     // yang salah.
-    exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', 'e2e/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/.next/**', 'e2e/**', 'e2e-app/**'],
     // Mengosongkan cadangan cache di memori sebelum tiap test - lihat vitest.setup.ts.
     setupFiles: ['./vitest.setup.ts'],
     env: {
