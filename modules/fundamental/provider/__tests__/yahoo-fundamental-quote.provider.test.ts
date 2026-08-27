@@ -4,32 +4,41 @@ import { parseYahooFundamentalQuote } from '../yahoo-fundamental-quote.provider'
 describe('parseYahooFundamentalQuote', () => {
   it('keeps the validated subset needed by valuation services', () => {
     const quote = parseYahooFundamentalQuote({
-      assetProfile: { sector: 'Industrials', industry: 'Engineering' },
+      assetProfile: {
+        sector: 'Industrials',
+        industry: 'Engineering',
+        longBusinessSummary: 'Validated company description',
+        website: 'https://example.com',
+      },
       defaultKeyStatistics: {
         trailingEps: 105.5,
         bookValue: 800,
         sharesOutstanding: 1_000_000,
         beta: 1.1,
         priceToBook: 2.3,
+        earningsQuarterlyGrowth: 0.12,
       },
       financialData: {
         returnOnEquity: 0.15,
         freeCashflow: 500_000,
         totalDebt: 300_000,
         totalCash: 50_000,
+        operatingCashflow: 750_000,
+        revenueGrowth: 0.08,
+        currentRatio: 1.5,
         financialCurrency: 'IDR',
       },
-      summaryDetail: { dividendRate: 20, payoutRatio: 0.4 },
-      price: { regularMarketPrice: 1500, currency: 'IDR' },
+      summaryDetail: { dividendRate: 20, payoutRatio: 0.4, trailingPE: 14, marketCap: 1_500_000_000 },
+      price: { regularMarketPrice: 1500, regularMarketVolume: 25_000, currency: 'IDR', longName: 'Example Tbk' },
       providerOnlyField: 'ignored by domain services',
     });
 
     expect(quote).toMatchObject({
-      assetProfile: { sector: 'Industrials', industry: 'Engineering' },
+      assetProfile: { sector: 'Industrials', longBusinessSummary: 'Validated company description' },
       defaultKeyStatistics: { trailingEps: 105.5, sharesOutstanding: 1_000_000 },
-      financialData: { freeCashflow: 500_000, financialCurrency: 'IDR' },
-      summaryDetail: { payoutRatio: 0.4 },
-      price: { regularMarketPrice: 1500, currency: 'IDR' },
+      financialData: { freeCashflow: 500_000, operatingCashflow: 750_000, financialCurrency: 'IDR' },
+      summaryDetail: { payoutRatio: 0.4, trailingPE: 14 },
+      price: { regularMarketPrice: 1500, regularMarketVolume: 25_000, currency: 'IDR' },
     });
   });
 
