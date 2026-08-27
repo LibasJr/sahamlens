@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { APICallError, generateText } from 'ai';
 import { z } from 'zod';
 import { logger } from '@/shared/logger/logger';
 import type {
@@ -264,12 +264,30 @@ async function callHybridAgent(args: { model: string; evidence: Array<{ ticker: 
     temperature: 0,
     maxOutputTokens: 10_000,
     timeout: { totalMs: TIMEOUT_MS },
+    // AI SDK default (2) retry SAMA model dengan backoff berorde detik. Diamati
+    // langsung di 9Router (2026-08-27): kegagalan dominan adalah 429 usage-limit yang
+    // reset-nya berorde MENIT (4-12 menit untuk akun codex, ~5 menit untuk akun
+    // claude) - retry dalam hitungan detik tidak pernah punya peluang menang, cuma
+    // menambah request ke akun yang sudah penuh dan menunda giliran model berikutnya
+    // di daftar fallback. Fail-fast ke model berikutnya lebih berguna daripada retry
+    // buta ke model yang sama.
+    maxRetries: 0,
   });
   return {
     output: normalizeHybridOutput(result.text),
     inputTokens: result.totalUsage.inputTokens ?? null,
     outputTokens: result.totalUsage.outputTokens ?? null,
   };
+}
+
+// Membedakan penyebab kegagalan provider supaya operator (dan keputusan
+// shadow-evaluation akhir September) tidak perlu grep log mentah untuk tahu apakah
+// kegagalan itu 429 usage-limit 9Router (bisa reda sendiri, bukan bug) atau sesuatu
+// yang lain. err.name generik (mis. AI_APICallError) tetap dipakai sebagai fallback
+// kalau statusCode tidak tersedia.
+function classifyProviderError(err: unknown): string {
+  if (APICallError.isInstance(err) && err.statusCode === 429) return 'RATE_LIMITED';
+  return err instanceof Error ? err.name : 'PROVIDER_ERROR';
 }
 
 function invalidMeta(model: string | null, status: HybridRunMeta['status'], errorCode: string): HybridRunMeta {
@@ -349,7 +367,7 @@ export async function applyHybridAnalysis(args: {
       logger.warn('Hybrid decision analyst - satu model gagal, mencoba fallback berikutnya bila ada', {
         module: 'decision-agent', model, err, remainingModels: models.slice(models.indexOf(model) + 1),
       });
-      lastFailure = { model, status: 'PROVIDER_FAILED', errorCode: err instanceof Error ? err.name : 'PROVIDER_ERROR' };
+      lastFailure = { model, status: 'PROVIDER_FAILED', errorCode: classifyProviderError(err) };
     }
   }
 

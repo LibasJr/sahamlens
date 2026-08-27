@@ -1,3 +1,4 @@
+import { APICallError } from 'ai';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScoredStock } from '@/modules/recommendation/service/ai-pick.service';
 import { buildDecisionSignal } from '../decision-engine';
@@ -109,6 +110,15 @@ describe('hybrid analyst evidence gate', () => {
     const result = await applyHybridAnalysis({ signals: [candidate()], runner: async () => { throw new Error('timeout'); } });
     expect(result.meta.status).toBe('PROVIDER_FAILED');
     expect(result.signals[0].hybridStatus).toBe('PROVIDER_FAILED');
+  });
+
+  it('menandai errorCode RATE_LIMITED khusus untuk 429, bukan nama exception generik', async () => {
+    const rateLimited = new APICallError({
+      message: 'usage limit reached', url: 'http://127.0.0.1:20128/v1/chat/completions',
+      requestBodyValues: {}, statusCode: 429, isRetryable: true,
+    });
+    const result = await applyHybridAnalysis({ signals: [candidate()], runner: async () => { throw rateLimited; } });
+    expect(result.meta).toMatchObject({ status: 'PROVIDER_FAILED', errorCode: 'RATE_LIMITED' });
   });
 
   it('fallback ke model berikutnya bila model pertama gagal (exception)', async () => {
