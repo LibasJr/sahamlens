@@ -58,4 +58,12 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('maksimal 3 bullet');
   });
 
+  it('memaksa LensAI memakai pola trust untuk skor, backtest, dan data yang belum tersedia', () => {
+    const prompt = buildSystemPrompt('', false);
+    expect(prompt).toContain('pola trust');
+    expect(prompt).toContain('Sebutkan sumber/umur data');
+    expect(prompt).toContain('coverage/confidence/label riset');
+    expect(prompt).toContain('data yang belum tersedia');
+  });
+
 });

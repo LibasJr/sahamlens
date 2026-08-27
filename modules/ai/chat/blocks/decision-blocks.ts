@@ -43,6 +43,8 @@ export async function decisionBlock(ticker: string): Promise<string> {
     `- Sumber: mesin analisis yang SAMA dengan halaman Recommendations (analyzeStock)`,
     `- Harga: ${safe(analysis.price)}${finite(analysis.changePct) ? ` (${signed(analysis.changePct)}%)` : ''}`,
     `- LensScore: ${analysis.totalScore ?? 'tidak tersedia'}, kategori model: ${analysis.scoringKategori ?? 'tidak tersedia'}`,
+    `- Label riset: ${analysis.explainability?.research_label ?? 'tidak tersedia'}`,
+    `- Coverage/confidence skor: ${analysis.coverage ?? 'tidak tersedia'}% / ${analysis.explainability?.confidence_level ?? 'tidak tersedia'}`,
     `- Label ringkas aplikasi: ${label}`,
     `- Boleh dibaca sebagai rekomendasi transaksi? ${analysis.decision?.advisory ? 'YA' : 'TIDAK'}`,
   ];
@@ -62,6 +64,12 @@ export async function decisionBlock(ticker: string): Promise<string> {
     `- Status kelayakan: ${analysis.eligibilityStatus ?? 'tidak tersedia'}`,
     Array.isArray(analysis.eligibilityReasons) && analysis.eligibilityReasons.length
       ? `- Kode alasan kelayakan: ${analysis.eligibilityReasons.join(', ')}`
+      : '',
+    Array.isArray(analysis.topReasons) && analysis.topReasons.length
+      ? `- Alasan utama skor: ${analysis.topReasons.slice(0, 3).join('; ')}`
+      : '',
+    Array.isArray(analysis.riskFlags) && analysis.riskFlags.length
+      ? `- Risk flags: ${analysis.riskFlags.slice(0, 4).join('; ')}`
       : '',
     `- Konsensus analyzer: ${analysis.consensus ?? 'tidak tersedia'} (${analysis.bullishVotes ?? 0} bullish / ${analysis.bearishVotes ?? 0} bearish)`,
     // Wajib ikut - field `confidence` bernama menyesatkan sejak lama.

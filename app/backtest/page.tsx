@@ -227,6 +227,18 @@ export default function BacktestPage() {
             drawdown, 3-60 bulan terakhir). <b>Live Filter Check</b>: cek saham mana yang memenuhi
             kombinasi filter yang sama SEKARANG (data live, bukan simulasi).
           </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            {[
+              ['Point-in-time', 'Hasil memakai data historis sesuai periode uji, bukan angka yang ditebak dari kondisi hari ini.'],
+              ['Biaya & risiko', 'Baca return bersama win rate, drawdown, jumlah transaksi, dan biaya simulasi.'],
+              ['Bukan jaminan', 'Backtest membantu menyaring strategi, tetapi tidak membuktikan performa masa depan.'],
+            ].map(([title, desc]) => (
+              <div key={title} className="rounded-lg border border-tv-border bg-tv-surface p-4">
+                <div className="lens-label text-tv-text">{title}</div>
+                <p className="mt-2 text-xs leading-relaxed text-tv-muted">{desc}</p>
+              </div>
+            ))}
+          </div>
         </PageContainer>
 
         <PageContainer className="px-6 pt-4">
