@@ -6,6 +6,7 @@ import type {
   QuantitativeMarketRegime,
 } from '@/modules/market/service/market-regime.service';
 import { Card } from '@/components/ui/Card';
+import { percentageLeftClass, percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 // Token, bukan hex mati. Hex-nya dulu nilai tema GELAP yang ikut terpakai di tema
 // terang: terukur di atas kartu putih, #eab308 = 1,92:1 dan #22c55e = 2,28:1 - di bawah
@@ -22,6 +23,15 @@ function scoreColor(score: number | null): string {
   if (score < 60) return 'rgb(var(--lens-yellow))';
   if (score < 80) return 'rgb(var(--lens-green))';
   return 'rgb(var(--lens-green-hover))';
+}
+
+function scoreBackgroundClass(score: number | null): string {
+  if (score == null) return 'bg-tv-muted';
+  if (score < 20) return 'bg-tv-red';
+  if (score < 40) return 'bg-tv-warning';
+  if (score < 60) return 'bg-tv-yellow';
+  if (score < 80) return 'bg-tv-green';
+  return 'bg-tv-greenHover';
 }
 
 function signalClass(signal: MarketRegimeIndicator['signal']): string {
@@ -80,8 +90,7 @@ function IndicatorCard({ indicator }: { indicator: MarketRegimeIndicator }) {
           di kartu ini; 8px membuatnya terbaca tanpa menggeser tata letak. */}
       <div className="mt-2 h-2 overflow-hidden rounded-full bg-tv-hover">
         <div
-          className="h-full rounded-full transition-[width] duration-700"
-          style={{ width: String(score ?? 0) + '%', backgroundColor: scoreColor(score) }}
+          className={`h-full rounded-full transition-[width] duration-700 ${scoreBackgroundClass(score)} ${percentageWidthClass(score)}`}
         />
       </div>
       <p className="mt-2 min-h-8 text-[10px] leading-relaxed text-tv-text/80">{rawSummary(indicator)}</p>
@@ -217,8 +226,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
           >
             {score != null && (
               <span
-                className="absolute top-1/2 h-5 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-tv-text shadow"
-                style={{ left: String(score) + '%' }}
+                className={`absolute top-1/2 h-5 w-1 -translate-x-1/2 -translate-y-1/2 rounded-full border border-white bg-tv-text shadow ${percentageLeftClass(score)}`}
               />
             )}
           </div>
