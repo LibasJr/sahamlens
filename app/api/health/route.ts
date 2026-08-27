@@ -62,9 +62,11 @@ export async function GET(request: NextRequest) {
     // degrade dengan aman.
     const redisDegraded = isProduction() && checks.redis !== 'ok';
     const databaseDown = checks.database !== 'ok';
+    const sourceDegradedCount = sourceSummary.DEGRADED + sourceSummary.DOWN;
     const degraded = [
       ...(databaseDown ? ['database'] : []),
       ...(redisDegraded ? [`redis:${checks.redis}`] : []),
+      ...(sourceDegradedCount > 0 ? [`data_source:${sourceDegradedCount}`] : []),
     ];
     return {
       status: databaseDown ? 503 : 200,
@@ -72,6 +74,12 @@ export async function GET(request: NextRequest) {
         status: degraded.length > 0 ? 'degraded' : 'ok',
         checks,
         degraded,
+        operationalReadiness: {
+          servingTraffic: !databaseDown,
+          deployBlocking: databaseDown,
+          dataSourceDegraded: sourceDegradedCount > 0,
+          dataSourceDegradedCount: sourceDegradedCount,
+        },
         sources: { summary: sourceSummary, items: dataSources },
         timestamp: new Date().toISOString(),
       },

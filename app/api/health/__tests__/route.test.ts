@@ -140,4 +140,34 @@ describe('GET /api/health - database satu-satunya alasan 503', () => {
     expect(status).toBe(200);
     expect(body.sources.items).toEqual([]);
   });
+
+  it('data source DOWN membuat body degraded tanpa memblokir traffic', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.mocked(pingRedis).mockResolvedValue('ok');
+    vi.mocked(listDataSourceHealth).mockResolvedValue([
+      {
+        sourceId: 'yahoo-chart',
+        status: 'DOWN',
+        lastSuccessAt: null,
+        lastFailureAt: '2026-08-27T02:00:00.000Z',
+        lastLatencyMs: null,
+        consecutiveFailures: 3,
+        dataObservedAt: null,
+        detail: {},
+        updatedAt: '2026-08-27T02:01:00.000Z',
+      },
+    ]);
+
+    const { status, body } = await callHealth();
+
+    expect(status).toBe(200);
+    expect(body.status).toBe('degraded');
+    expect(body.degraded).toContain('data_source:1');
+    expect(body.operationalReadiness).toEqual(expect.objectContaining({
+      servingTraffic: true,
+      deployBlocking: false,
+      dataSourceDegraded: true,
+      dataSourceDegradedCount: 1,
+    }));
+  });
 });

@@ -407,8 +407,8 @@ describe('calculateScore - LensScore v1 tetap bekerja (backward compatibility)',
   it('bentuk hasil v1 tidak berubah - seluruh field lama masih ada', () => {
     const r = calculateScore('BBCA', fullTechnical, fullFundamental, fullFlow);
     expect(Object.keys(r).sort()).toEqual([
-      'alasan_3_poin', 'available_max', 'coverage_pct', 'detail', 'flow_score',
-      'fundamental_score', 'harga', 'kategori', 'missing', 'not_applicable', 'price',
+      'alasan_3_poin', 'available_max', 'coverage_pct', 'detail', 'explainability',
+      'flow_score', 'fundamental_score', 'harga', 'kategori', 'missing', 'not_applicable', 'price',
       'risk', 'simbol', 'technical_score', 'total_score',
     ]);
     expect(r.simbol).toBe('BBCA');
@@ -417,6 +417,32 @@ describe('calculateScore - LensScore v1 tetap bekerja (backward compatibility)',
     expect(r.total_score).toBeLessThanOrEqual(100);
     expect(['STRONG BUY', 'BUY', 'HOLD', 'SELL', 'DATA TIDAK CUKUP']).toContain(r.kategori);
     expect(r.alasan_3_poin).toHaveLength(3);
+  });
+
+  it('menyertakan explainability contract untuk UI, LensAI, dan audit skor', () => {
+    const r = calculateScore('BBCA', fullTechnical, fullFundamental, fullFlow);
+
+    expect(r.explainability).toEqual(expect.objectContaining({
+      confidence_level: 'TINGGI',
+      confidence_score: 100,
+      actionability: 'INFORMATIONAL_SIGNAL',
+      score_band: '>75',
+    }));
+    expect(['KANDIDAT KUAT', 'UNDERVALUED CANDIDATE', 'LAYAK PANTAU']).toContain(r.explainability.research_label);
+    expect(r.explainability.weights.technical).toEqual({ declared: 40, available: 40, score: 40 });
+    expect(r.explainability.positive_drivers.length).toBeGreaterThan(0);
+    expect(r.explainability.negative_drivers.length).toBeGreaterThan(0);
+  });
+
+  it('explainability fail-closed saat coverage terlalu tipis', () => {
+    const r = calculateScore('X', fullTechnical, emptyFundamental, emptyFlow);
+
+    expect(r.kategori).toBe('DATA TIDAK CUKUP');
+    expect(r.explainability.research_label).toBe('DATA BELUM CUKUP');
+    expect(r.explainability.confidence_level).toBe('RENDAH');
+    expect(r.explainability.actionability).toBe('DATA_INSUFFICIENT');
+    expect(r.explainability.risk_flags.join(' ')).toContain('coverage di bawah');
+    expect(r.explainability.data_gaps.join(' ')).toContain('Valuasi');
   });
 
   it('input rusak (NaN / undefined) tidak melempar dan tidak jadi angka finansial palsu', () => {

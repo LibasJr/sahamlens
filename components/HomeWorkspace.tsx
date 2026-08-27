@@ -11,6 +11,8 @@ import {
   TrendingDown,
   BarChart3,
   Radar,
+  Bot,
+  Bell,
 } from 'lucide-react';
 import {
   Card,
@@ -56,6 +58,33 @@ const SENTIMENT_BADGE_VARIANT: Record<NewsInsight['sentiment'], 'success' | 'dan
   NEGATIF: 'danger',
   NETRAL: 'info',
 };
+
+const TRUST_WORKFLOWS = [
+  {
+    title: 'Cek Saham',
+    desc: 'Buka LensScore, alasan skor, confidence, risiko, dan sumber data per emiten.',
+    href: '/technical/BBCA',
+    icon: BarChart3,
+  },
+  {
+    title: 'Screener',
+    desc: 'Cari kandidat berdasarkan profil risiko dan filter kuantitatif.',
+    href: '/screener',
+    icon: Radar,
+  },
+  {
+    title: 'Backtest',
+    desc: 'Uji strategi pada data historis sebelum dipakai sebagai ide riset.',
+    href: '/backtest',
+    icon: Activity,
+  },
+  {
+    title: 'Watchlist Alert',
+    desc: 'Simpan saham pilihan dan pantau perubahan penting berikutnya.',
+    href: '/watchlist',
+    icon: Bell,
+  },
+] as const;
 
 export default function HomeWorkspace() {
   const { t, dictionary, language } = useLanguage();
@@ -241,6 +270,44 @@ export default function HomeWorkspace() {
       {/* First-run guidance stays available, but no longer interrupts the brand →
           market-context path on every fresh session. */}
       <GettingStartedGuide />
+
+      <motion.section initial="hidden" animate="show" variants={fadeUp} className="space-y-4">
+        <SectionHeader
+          eyebrow="Alur riset"
+          title="Mulai dari data, cek buktinya, baru pantau"
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { prompt: 'Jelaskan cara riset saham di SahamLens dari awal sampai pantau watchlist' } }))}
+              className="gap-2"
+            >
+              <Bot className="h-4 w-4" /> Tanya LensAI
+            </Button>
+          }
+        />
+        <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          {TRUST_WORKFLOWS.map((item) => {
+            const Icon = item.icon;
+            return (
+              <Link
+                key={item.title}
+                href={item.href}
+                className="rounded-lg border border-tv-border bg-tv-surface p-4 transition hover:border-tv-blue/60 hover:bg-tv-hover"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-md border border-tv-border bg-tv-bg text-tv-blue">
+                    <Icon className="h-4 w-4" />
+                  </span>
+                  <span className="font-heading font-bold text-tv-text">{item.title}</span>
+                </div>
+                <p className="mt-3 text-sm leading-relaxed text-tv-muted">{item.desc}</p>
+              </Link>
+            );
+          })}
+        </div>
+      </motion.section>
 
       {/* Detail pasar: evidence layer setelah ringkasan "Hari ini" di atas.
           Pengguna mendapat konteks + peluang + risiko lebih dulu, baru drill-down. */}
