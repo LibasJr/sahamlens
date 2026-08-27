@@ -34,6 +34,8 @@
 // dicek (267 punya data transaksi >= 30 hari dalam 3 bulan; sisanya nyaris tanpa transaksi).
 // Bursa memang tidak menyediakan lebih banyak yang memenuhi syarat - jangan dikejar ke 200
 // dengan melonggarkan floor, itu cuma menambah emiten yang sinyalnya tidak bisa dieksekusi.
+export const BACKTEST_UNIVERSE_VERSION = 'backtest-universe-2026-08-03';
+
 export const BACKTEST_UNIVERSE: string[] = [
   'BBCA.JK', 'TPIA.JK', 'BMRI.JK', 'BBRI.JK', 'BRPT.JK', 'DSSA.JK', 'AMMN.JK', 'ANTM.JK', 'TLKM.JK',
   'ASII.JK', 'CUAN.JK', 'DEWA.JK', 'BRMS.JK', 'BREN.JK', 'BBNI.JK', 'MDKA.JK', 'TINS.JK', 'RAJA.JK',
