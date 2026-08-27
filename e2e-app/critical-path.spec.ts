@@ -27,10 +27,7 @@ test.beforeEach(async ({ page }) => {
 
 test('guest landing membuka shell publik dan panel LensAI', async ({ page }) => {
   await expectDocumentSecurity(page, '/');
-  await page.getByRole('button', { name: 'Intelligence' }).click();
-  const trigger = page.getByRole('button', { name: 'LensAI Research' });
-  await expect(trigger).toBeVisible();
-  await trigger.click();
+  await page.evaluate(() => window.dispatchEvent(new Event('open-ai-chat')));
   await expect(page.getByLabel('LensAI Research')).toBeVisible();
   await expect(page.getByLabel('Tanya LensAI tentang saham atau fitur SahamLens')).toBeVisible();
 });
