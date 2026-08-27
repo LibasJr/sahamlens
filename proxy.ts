@@ -57,6 +57,7 @@ function isPublicGuestApi(pathname: string): boolean {
     pathname === '/api/ai-pick' ||
     pathname === '/api/daily-picks' ||
     pathname === '/api/market-summary' ||
+    pathname === '/api/transparency' ||
     pathname === '/api/emiten' ||
     pathname.startsWith('/api/public-chart/') ||
     // BARU (2026-08-14, laporan pengguna: "menu bisa diklik tapi datanya kosong" untuk
@@ -104,6 +105,7 @@ function isPublicGuestPage(pathname: string): boolean {
     pathname === '/news' ||
     pathname.startsWith('/news/') ||
     pathname === '/market-pulse' ||
+    pathname === '/transparency' ||
     pathname.startsWith('/market-pulse/') ||
     pathname === '/calendar' ||
     pathname.startsWith('/calendar/') ||

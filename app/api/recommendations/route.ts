@@ -9,10 +9,11 @@ import { describeCacheAge } from '@/shared/http/freshness';
 import { readOrIssueAnonymousTrial, applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { getLensScoreValidationStatus } from '@/modules/validation';
 import { runController } from '@/shared/http/next-response.adapter';
+import { apiOk } from '@/shared/http/api-response';
 
 // Bentuk hasil analyzeStock() ini yang ditulis job cron (app/api/cron/recommendation-scan)
 // ke Redis DAN yang dikembalikan langsung saat cache miss (fallback live di bawah) - kedua
-// jalur harus sama persis, jadi tipenya diturunkan dari analyzeStock() sendiri (bukan `any`)
+// jalur harus sama persis, jadi tipenya diturunkan dari analyzeStock() sendiri (bukan tipe longgar)
 // supaya field baru/berubah di sana otomatis tercermin di sini tanpa disunting manual.
 type AnalyzeStockResult = NonNullable<Awaited<ReturnType<typeof analyzeStock>>>;
 type CachedRecommendation = AnalyzeStockResult & { _meta?: unknown };
@@ -83,16 +84,26 @@ export async function GET(request: Request) {
       results.push(...chunkResults.filter(Boolean));
     }
 
+    const dataTimestamp = results
+      .map((result: CachedRecommendation | null) => result?.dataTimestamp)
+      .filter((timestamp): timestamp is string => typeof timestamp === 'string')
+      .sort()
+      .at(-1) ?? null;
+    const modelValidation = getLensScoreValidationStatus();
+    const data = { recommendations: results, dataTimestamp, modelValidation };
+
     return {
       status: 200,
       body: {
-        recommendations: results,
-        dataTimestamp: results
-          .map((result: CachedRecommendation | null) => result?.dataTimestamp)
-          .filter((timestamp): timestamp is string => typeof timestamp === 'string')
-          .sort()
-          .at(-1) ?? null,
-        modelValidation: getLensScoreValidationStatus(),
+        ...apiOk(data, {
+          dataAsOf: dataTimestamp ?? undefined,
+          calculatedAt: new Date().toISOString(),
+          source: 'recommendation-cache-or-live-analysis',
+          staleness: results.some((result) => (result as CachedRecommendation | null)?._meta != null) ? 'cache-described' : 'fresh-or-empty',
+          modelVersion: modelValidation.reasonCode,
+        }),
+        // Backward-compatible fields while clients migrate to { ok, data, meta }.
+        ...data,
       },
     };
   }, request);
