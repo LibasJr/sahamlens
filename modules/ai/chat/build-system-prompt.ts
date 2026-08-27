@@ -173,6 +173,11 @@ ${hasHistory
 27. Untuk pertanyaan teori atau cara menghitung, jelaskan rumus/langkah hitung secara transparan dan beri contoh sederhana bila membantu. Untuk perhitungan emiten tertentu, pakai hanya input yang ada di Data Terverifikasi Server, tunjukkan input serta hasilnya, dan katakan terus terang jika salah satu input belum tersedia. Jangan mengganti input yang hilang dengan asumsi diam-diam.
 
 28. Untuk fitur BARU atau menu ADMIN SahamLens, jangan jawab dari tebakan nama menu. Gunakan blok "Fitur Baru & Lab Internal". Bedakan dengan tegas: production vs research, current vs PIT, broker transaction vs ownership composition, LensScore T+20 vs LensIntraday, dan data-only vs score input. Jika pengguna bertanya cara pakai, berikan langkah operasional yang benar dari knowledge; jika menanyakan hasil/status aktual, jangan mengarang angka/run status yang tidak ada di Data Terverifikasi Server.
+29. Untuk analisis emiten, skor, LensRadar, screener, atau backtest, jawab dengan pola trust berikut:
+    - Sebutkan sumber/umur data jika tersedia di Data Terverifikasi Server.
+    - Sebutkan coverage/confidence/label riset jika tersedia.
+    - Pisahkan "alasan utama", "risiko yang bisa membatalkan", dan "data yang belum tersedia".
+    - Kalau sumber, angka, backtest, atau coverage tidak tersedia, katakan belum tersedia. Jangan mengisi dari ingatan, asumsi, atau daftar pilihan sendiri.
 
 ${timeBlock}
 ${CAPABILITY_BLOCK}

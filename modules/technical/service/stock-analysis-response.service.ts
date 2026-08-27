@@ -55,6 +55,26 @@ export async function buildStockAnalysisResponse(args: {
   const decision = toAdvisoryDecision(scoringResult.kategori, eligibility);
   const freshness = classifyFreshness(result.meta?.regularMarketTime);
   const dataIntegrity = await getLatestMarketIntegrity(ticker);
+  const trust = {
+    data_status: freshness.freshness,
+    data_timestamp: freshness.dataTimestamp,
+    score_confidence: scoringResult.explainability.confidence_level,
+    score_confidence_pct: scoringResult.explainability.confidence_score,
+    research_label: scoringResult.explainability.research_label,
+    model_actionability: scoringResult.explainability.actionability,
+    advisory_enabled: decision.advisory === true,
+    blocking_reasons: [
+      ...scoringResult.explainability.risk_flags,
+      ...eligibility.reasonCodes,
+    ],
+    data_gaps: scoringResult.explainability.data_gaps,
+    source_quality: {
+      eod_history: eodHistory.source,
+      adjusted_close: eodHistory.adjustedCloseSource,
+      reconciliation_status: eodHistory.latestCloseReconciliation,
+      market_integrity: dataIntegrity?.status ?? null,
+    },
+  };
 
   // Zero Dummy Policy: incomplete candles are excluded from ATR/trading-level inputs.
   const setupHistory = analyzerHistory.flatMap((h: any) => {
@@ -106,6 +126,7 @@ export async function buildStockAnalysisResponse(args: {
     consensusData,
     bestPerformer,
     scoring: scoringResult,
+    trust,
     provenance: {
       lensScoreInputs: lensScoreInputProvenance,
     },
@@ -149,6 +170,7 @@ export async function buildStockAnalysisResponse(args: {
       dataTimestamp: freshness.dataTimestamp,
       freshness: freshness.freshness,
       dataIntegrity,
+      trust,
     },
   };
 }
