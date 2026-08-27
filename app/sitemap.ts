@@ -14,6 +14,7 @@ const PUBLIC_ROUTES = [
   { path: 'news', priority: 0.8, changeFrequency: 'hourly' as const },
   { path: 'calendar', priority: 0.7, changeFrequency: 'daily' as const },
   { path: 'about', priority: 0.6, changeFrequency: 'monthly' as const },
+  { path: 'transparency', priority: 0.6, changeFrequency: 'daily' as const },
 ];
 
 export default function sitemap(): MetadataRoute.Sitemap {
