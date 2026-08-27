@@ -27,7 +27,8 @@ test.beforeEach(async ({ page }) => {
 
 test('guest landing membuka shell publik dan panel LensAI', async ({ page }) => {
   await expectDocumentSecurity(page, '/');
-  const trigger = page.getByRole('button', { name: 'Ask LensAI' });
+  await page.getByRole('button', { name: 'Intelligence' }).click();
+  const trigger = page.getByRole('button', { name: 'LensAI Research' });
   await expect(trigger).toBeVisible();
   await trigger.click();
   await expect(page.getByLabel('LensAI Research')).toBeVisible();
