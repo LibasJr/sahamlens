@@ -3,6 +3,10 @@ import { resolveSectorProfile } from '@/modules/sector';
 import { fetchNormalizedEarnings } from '@/modules/fundamental/service/normalized-earnings.service';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 import type { StockAnalysisFlowMetrics } from '@/modules/technical/service/stock-analysis-flow.service';
+import {
+  buildLensScoreInputProvenance,
+  type LensScoreInputProvenance,
+} from '@/modules/technical/service/lens-score-input-provenance.service';
 
 function isFinitePositive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -29,6 +33,7 @@ export interface StockScoringContext {
   adjustedCloses: number[] | null;
   currentAdjustedPrice: number | null;
   scoringResult: any;
+  lensScoreInputProvenance: LensScoreInputProvenance;
 }
 
 /**
@@ -102,53 +107,57 @@ export async function buildStockScoringContext(args: {
     ? await fetchNormalizedEarnings(ticker).catch(() => null)
     : null;
 
-  const scoringResult = calculateScore(
-    ticker,
-    {
-      currentPrice,
-      currentRawPrice: currentPrice,
-      currentAdjustedPrice,
-      currentPriceBasis: currentAdjustedPrice == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
-      maPriceBasis: adjustedCloses == null ? 'UNKNOWN' : RETURN_PRICE_BASIS,
-      adjustmentVersion: PRICE_ADJUSTMENT_VERSION,
-      corporateActionStatus: 'NONE',
-      ma20: maOf(20),
-      ma50: maOf(50),
-      ma200: maOf(200),
-      rsi: rsiVal,
-      macdHist: macdHistVal,
-      macdLine: macdLineVal,
-      macdSignal: macdSigVal,
-      volToday,
-      volAvg20: volAvg20v,
-      changePct: typeof result.meta?.regularMarketChangePercent === 'number'
-        ? result.meta.regularMarketChangePercent * 100
-        : null,
+  const technicalInput = {
+    currentPrice,
+    currentRawPrice: currentPrice,
+    currentAdjustedPrice,
+    currentPriceBasis: currentAdjustedPrice == null ? 'UNKNOWN' as const : RETURN_PRICE_BASIS,
+    maPriceBasis: adjustedCloses == null ? 'UNKNOWN' as const : RETURN_PRICE_BASIS,
+    adjustmentVersion: PRICE_ADJUSTMENT_VERSION,
+    corporateActionStatus: 'NONE' as const,
+    ma20: maOf(20),
+    ma50: maOf(50),
+    ma200: maOf(200),
+    rsi: rsiVal,
+    macdHist: macdHistVal,
+    macdLine: macdLineVal,
+    macdSignal: macdSigVal,
+    volToday,
+    volAvg20: volAvg20v,
+    changePct: typeof result.meta?.regularMarketChangePercent === 'number'
+      ? result.meta.regularMarketChangePercent * 100
+      : null,
+  };
+  const fundamentalInput = {
+    per: fundamentals.per,
+    pbv: fundamentals.pbv,
+    roe: fundamentals.roe,
+    der: fundamentals.der,
+    currentRatio: fundamentals.currentRatio,
+    revenueGrowth: fundamentals.revenueGrowth,
+    normalizedRoe: normalizedEarnings?.normalizedRoePct ?? null,
+    sector: {
+      yahooSector: quoteSummary?.assetProfile?.sector ?? null,
+      yahooIndustry: quoteSummary?.assetProfile?.industry ?? null,
+      payoutRatio: quoteSummary?.summaryDetail?.payoutRatio ?? null,
+      beta: null,
     },
-    {
-      per: fundamentals.per,
-      pbv: fundamentals.pbv,
-      roe: fundamentals.roe,
-      der: fundamentals.der,
-      currentRatio: fundamentals.currentRatio,
-      revenueGrowth: fundamentals.revenueGrowth,
-      normalizedRoe: normalizedEarnings?.normalizedRoePct ?? null,
-      sector: {
-        yahooSector: quoteSummary?.assetProfile?.sector ?? null,
-        yahooIndustry: quoteSummary?.assetProfile?.industry ?? null,
-        payoutRatio: quoteSummary?.summaryDetail?.payoutRatio ?? null,
-        beta: null,
-      },
-    },
-    {
-      cmf20: flowMetrics.flowPressure20,
-      accumulationStatus: flowMetrics.accumulationStatus,
-      consecutiveBuyDays: flowMetrics.consecutiveBuyDays,
-      consecutiveSellDays: flowMetrics.consecutiveSellDays,
-      volRatio: volToday != null && isFinitePositive(volAvg20v) ? volToday / volAvg20v : null,
-      mfmPositiveRatio20: flowMetrics.mfmPositiveRatio20,
-    },
-  );
+  };
+  const flowInput = {
+    cmf20: flowMetrics.flowPressure20,
+    accumulationStatus: flowMetrics.accumulationStatus,
+    consecutiveBuyDays: flowMetrics.consecutiveBuyDays,
+    consecutiveSellDays: flowMetrics.consecutiveSellDays,
+    volRatio: volToday != null && isFinitePositive(volAvg20v) ? volToday / volAvg20v : null,
+    mfmPositiveRatio20: flowMetrics.mfmPositiveRatio20,
+  };
+
+  const scoringResult = calculateScore(ticker, technicalInput, fundamentalInput, flowInput);
+  const lensScoreInputProvenance = buildLensScoreInputProvenance({
+    technical: technicalInput,
+    fundamental: fundamentalInput,
+    flow: flowInput,
+  });
 
   return {
     bestPerformer,
@@ -157,5 +166,6 @@ export async function buildStockScoringContext(args: {
     adjustedCloses,
     currentAdjustedPrice,
     scoringResult,
+    lensScoreInputProvenance,
   };
 }
