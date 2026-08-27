@@ -1,4 +1,5 @@
 import * as Sentry from '@sentry/nextjs';
+import { currentRequestLogContext } from '@/shared/observability/request-context';
 
 // Logger terstruktur minimal, tanpa dependency tambahan. Menggantikan pola
 // `console.log`/`console.error` polos yang tersebar di 73+ tempat (temuan L5) dengan
@@ -40,6 +41,7 @@ function write(level: LogLevel, message: string, context: LogContext = {}) {
     level,
     time: new Date().toISOString(),
     message,
+    ...currentRequestLogContext(),
     ...redact(context),
   };
   const line = JSON.stringify(entry);
@@ -54,12 +56,13 @@ export const logger = {
   warn: (message: string, context?: LogContext) => write('warn', message, context),
   error: (message: string, context?: LogContext & { err?: unknown }) => {
     const { err, ...rest } = context || {};
+    const requestContext = currentRequestLogContext();
     const errInfo = err instanceof Error ? { errName: err.name, errMessage: err.message, errStack: err.stack } : err ? { err } : {};
     write('error', message, { ...rest, ...errInfo });
 
     try {
       Sentry.withScope((scope) => {
-        scope.setContext('log', redact(rest) as Record<string, unknown>);
+        scope.setContext('log', redact({ ...requestContext, ...rest }) as Record<string, unknown>);
         if (err instanceof Error) {
           Sentry.captureException(err, { extra: { message } });
         } else {

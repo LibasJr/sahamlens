@@ -7,6 +7,7 @@ import { fetchLiveProFields } from './pro-status';
 import { TESTING_OPEN_ACCESS } from '../constants/access';
 import { evaluateEntitlement } from './entitlement';
 import { SYNTHETIC_ADMIN_SESSION_ID } from '../constants/identity';
+import { setRequestUserClass } from '@/shared/observability/request-context';
 
 export type { SessionPayload };
 
@@ -25,6 +26,7 @@ export async function getSession(): Promise<SessionPayload | null> {
     // sesi asli SELALU punya id user string, payload lain harus ditolak di sini, bukan
     // lolos sebagai "user yang login" dengan id kosong.
     if (payload && typeof payload.id === 'string' && payload.id) {
+      setRequestUserClass(payload.role === 'admin' ? 'admin' : payload.is_pro ? 'pro' : 'free');
       // Fire-and-forget - "siapa sedang aktif" untuk panel admin, tidak boleh pernah
       // menahan atau menggagalkan request pengguna biasa kalau Redis lambat/down.
       touchPresence(payload).catch(() => {});
@@ -38,6 +40,7 @@ export async function getSession(): Promise<SessionPayload | null> {
   // Fallback ini menyatukan kedua jalur otorisasi tanpa mempercayai badge cookie
   // client-side: hanya ADMIN_COOKIE HttpOnly yang JWT-nya lolos verifyAdminToken().
   if (await verifyAdminTokenLive(cookieStore.get(ADMIN_COOKIE)?.value)) {
+    setRequestUserClass('admin');
     return {
       id: SYNTHETIC_ADMIN_SESSION_ID,
       email: 'admin@sahamlens.local',
@@ -48,6 +51,7 @@ export async function getSession(): Promise<SessionPayload | null> {
     };
   }
 
+  setRequestUserClass('anonymous');
   return null;
 }
 

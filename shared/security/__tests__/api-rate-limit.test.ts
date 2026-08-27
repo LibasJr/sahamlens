@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { checkAiAccountBudget, rateLimitResult } from '../api-rate-limit';
+import {
+  currentRequestLogContext,
+  runWithRequestObservability,
+} from '@/shared/observability/request-context';
 
 describe('sensitive API rate-limit degraded behavior', () => {
   afterEach(() => {
@@ -31,6 +35,23 @@ describe('sensitive API rate-limit degraded behavior', () => {
       backend: 'memory',
       degraded: true,
     }));
+  });
+
+  it('records the low-cardinality degraded mode without account identifiers', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('REDIS_URL', '');
+    const userId = `private-user-${Math.random()}`;
+
+    await runWithRequestObservability({ requestId: 'req-rate-limit' }, async () => {
+      await checkAiAccountBudget(userId, 'lens-ai');
+      const context = currentRequestLogContext();
+
+      expect(context).toEqual(expect.objectContaining({
+        degraded: true,
+        degradedReason: ['rate-limit-backend-unavailable'],
+      }));
+      expect(JSON.stringify(context)).not.toContain(userId);
+    });
   });
 
   it('maps limiter unavailability to service unavailable instead of quota exceeded', () => {

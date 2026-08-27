@@ -4,6 +4,10 @@ import {
   buildStockAnalysisCacheKeys,
   resolveStockAnalysisRange,
 } from '../stock-analysis-source.service';
+import {
+  currentRequestLogContext,
+  runWithRequestObservability,
+} from '@/shared/observability/request-context';
 
 afterEach(() => {
   delete process.env.IDX_LQ45_EOD_PRIMARY_ENABLED;
@@ -41,5 +45,16 @@ describe('stock analysis source contract', () => {
     expect(fallback._meta.staleReason).toContain('Yahoo Finance fetch gagal');
     expect(fallback._meta.ageSeconds).toBeGreaterThanOrEqual(3_599);
     expect(original._meta.source).toBe('live');
+  });
+
+  it('adds the stale-cache fallback to the request completion context', () => {
+    runWithRequestObservability({ requestId: 'req-stale' }, () => {
+      buildStaleStockAnalysisPayload({ _meta: {} });
+
+      expect(currentRequestLogContext()).toEqual(expect.objectContaining({
+        degraded: true,
+        degradedReason: ['technical-stale-cache-fallback'],
+      }));
+    });
   });
 });

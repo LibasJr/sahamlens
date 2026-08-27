@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { runController } from '../next-response.adapter';
+import { logger } from '@/shared/logger/logger';
 
 describe('runController raw Response support', () => {
   it('preserves streaming/raw body and adds X-Request-Id', async () => {
@@ -17,5 +18,33 @@ describe('runController raw Response support', () => {
     const response = await runController(async () => ({ status: 200, body: { ok: true } }));
     const json = await response.json();
     expect(json).toEqual(expect.objectContaining({ ok: true, meta: expect.objectContaining({ requestId: expect.any(String) }) }));
+  });
+
+  it('mencatat completion terstruktur dengan requestId, latency, status, dan metadata riset', async () => {
+    const info = vi.spyOn(logger, 'info').mockImplementation(() => {});
+    const response = await runController(async () => ({
+      status: 200,
+      body: {
+        ok: true,
+        meta: {
+          source: 'YAHOO_CHART',
+          dataAsOf: '2026-08-27T09:00:00.000Z',
+          modelVersion: 'lens-score-v1.5.0',
+        },
+      },
+    }), new Request('http://localhost/api/stock/BBCA.JK'));
+
+    expect(info).toHaveBeenCalledWith('HTTP request completed', expect.objectContaining({
+      requestId: response.headers.get('X-Request-Id'),
+      route: '/api/stock/BBCA.JK',
+      method: 'GET',
+      userClass: 'unknown',
+      statusCode: 200,
+      durationMs: expect.any(Number),
+      source: 'YAHOO_CHART',
+      dataAsOf: '2026-08-27T09:00:00.000Z',
+      modelVersion: 'lens-score-v1.5.0',
+    }));
+    info.mockRestore();
   });
 });

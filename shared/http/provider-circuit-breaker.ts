@@ -1,4 +1,5 @@
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
+import { recordProviderOutcome } from '@/shared/observability/request-context';
 
 type CircuitState = {
   failures: number;
@@ -44,13 +45,18 @@ async function write(provider: string, value: CircuitState): Promise<void> {
 export async function isProviderCircuitOpen(provider: string): Promise<boolean> {
   const value = await read(provider);
   if (value.openedAt == null) return false;
-  if (Date.now() - value.openedAt < getOpenMs()) return true;
+  if (Date.now() - value.openedAt < getOpenMs()) {
+    recordProviderOutcome(provider, 'circuit-open');
+    return true;
+  }
   await write(provider, { failures: 0, openedAt: null, lastFailureAt: value.lastFailureAt });
+  recordProviderOutcome(provider, 'circuit-reset');
   return false;
 }
 
 export async function recordProviderSuccess(provider: string): Promise<void> {
   await write(provider, { failures: 0, openedAt: null, lastFailureAt: null });
+  recordProviderOutcome(provider, 'success');
 }
 
 export async function recordProviderFailure(provider: string, options?: { immediateOpen?: boolean }): Promise<void> {
@@ -62,6 +68,7 @@ export async function recordProviderFailure(provider: string, options?: { immedi
     openedAt: shouldOpen ? (previous.openedAt ?? Date.now()) : null,
     lastFailureAt: Date.now(),
   });
+  recordProviderOutcome(provider, 'failure');
 }
 
 export async function getProviderCircuitState(provider: string): Promise<CircuitState & { open: boolean }> {
