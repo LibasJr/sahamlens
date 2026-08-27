@@ -39,6 +39,7 @@ export async function buildStockAnalysisResponse(args: {
     adjustedCloses,
     currentAdjustedPrice,
     scoringResult,
+    lensScoreInputProvenance,
   } = scoring;
 
   const eligibility = evaluateMinimalEligibility({
@@ -105,6 +106,9 @@ export async function buildStockAnalysisResponse(args: {
     consensusData,
     bestPerformer,
     scoring: scoringResult,
+    provenance: {
+      lensScoreInputs: lensScoreInputProvenance,
+    },
     eligibility: {
       status: eligibility.status,
       reasonCodes: eligibility.reasonCodes,
