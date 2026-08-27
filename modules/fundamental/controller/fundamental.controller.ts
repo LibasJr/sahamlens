@@ -5,6 +5,7 @@ import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { apiOk } from '@/shared/http/api-response';
 import { buildPitFundamentalAnalysis } from '../service/pit-fundamental-analysis.service';
 import { computeCurrentFundamentalAnalysis } from '../service/current-fundamental-analysis.service';
+import { buildFundamentalMetricProvenance } from '../service/fundamental-metric-provenance.service';
 
 export async function handleGetFundamental(request: Request, rawTicker: string): Promise<HttpResult> {
   try {
@@ -30,11 +31,15 @@ export async function handleGetFundamental(request: Request, rawTicker: string):
           },
         };
       }
+      const enriched = {
+        ...result,
+        provenance: buildFundamentalMetricProvenance(result),
+      };
       return {
         status: 200,
         body: {
-          ...result,
-          ...apiOk(result, {
+          ...enriched,
+          ...apiOk(enriched, {
             dataAsOf: asOfDate,
             source: 'fundamental-history-pit',
           }),
@@ -50,11 +55,15 @@ export async function handleGetFundamental(request: Request, rawTicker: string):
     if ('notFound' in result) {
       return { status: 404, body: { error: 'Failed to fetch Fundamental data' } };
     }
+    const enriched = {
+      ...result,
+      provenance: buildFundamentalMetricProvenance(result),
+    };
     return {
       status: 200,
       body: {
-        ...result,
-        ...apiOk(result, {
+        ...enriched,
+        ...apiOk(enriched, {
           source: 'current-fundamental-computed-cache',
         }),
       },
