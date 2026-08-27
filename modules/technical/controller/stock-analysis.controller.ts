@@ -1,6 +1,7 @@
 import type { HttpResult } from '@/shared/types/http-result.types';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
+import { apiOk, type ApiResponseMeta } from '@/shared/http/api-response';
 import {
   attachStockAnalysisQuota,
   resolveStockAnalysisAccess,
@@ -12,6 +13,37 @@ import {
   resolveStockAnalysisRange,
 } from '@/modules/technical/service/stock-analysis-source.service';
 import { computeStockAnalysisPayload } from '@/modules/technical/service/stock-analysis-compute.service';
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function stockResponseMeta(
+  payload: Record<string, unknown>,
+  source: string,
+  staleness?: string,
+): Omit<ApiResponseMeta, 'requestId'> {
+  const legacyMeta = isRecord(payload._meta) ? payload._meta : {};
+  return {
+    source,
+    dataAsOf: typeof legacyMeta.dataTimestamp === 'string' ? legacyMeta.dataTimestamp : undefined,
+    calculatedAt: typeof legacyMeta.computedAt === 'string' ? legacyMeta.computedAt : undefined,
+    staleness: staleness ?? (typeof legacyMeta.freshness === 'string' ? legacyMeta.freshness.toLowerCase() : undefined),
+    modelVersion: isRecord(legacyMeta.lensScoreModel) && typeof legacyMeta.lensScoreModel.version === 'string'
+      ? legacyMeta.lensScoreModel.version
+      : undefined,
+  };
+}
+
+function withStockEnvelope<T extends Record<string, unknown>>(
+  payload: T,
+  meta: Omit<ApiResponseMeta, 'requestId'>,
+) {
+  return {
+    ...payload,
+    ...apiOk(payload, meta),
+  };
+}
 
 /**
  * Thin HTTP-facing orchestrator for stock analysis.
@@ -32,11 +64,12 @@ export async function handleGetStockAnalysis(
     const range = resolveStockAnalysisRange(request);
     const { cacheKey, staleFallbackKey } = buildStockAnalysisCacheKeys(context.ticker, range);
 
-    const cached = await cacheGet<any>(cacheKey);
+    const cached = await cacheGet<Record<string, unknown>>(cacheKey);
     if (cached) {
+      const payload = await attachStockAnalysisQuota(cached, context);
       return {
         status: 200,
-        body: await attachStockAnalysisQuota(cached, context),
+        body: withStockEnvelope(payload, stockResponseMeta(payload, 'technical-analysis-cache')),
       };
     }
 
@@ -44,12 +77,13 @@ export async function handleGetStockAnalysis(
     try {
       source = await fetchStockAnalysisSource(context.ticker, range);
     } catch (error) {
-      const stale = await cacheGet<any>(staleFallbackKey);
+      const stale = await cacheGet<Record<string, unknown>>(staleFallbackKey);
       if (stale) {
         console.warn(`Yahoo fetch failed, returning stale fallback cache for ${context.ticker}`);
+        const payload = await attachStockAnalysisQuota(buildStaleStockAnalysisPayload(stale), context);
         return {
           status: 200,
-          body: await attachStockAnalysisQuota(buildStaleStockAnalysisPayload(stale), context),
+          body: withStockEnvelope(payload, stockResponseMeta(payload, 'technical-analysis-stale-cache', 'stale')),
         };
       }
 
@@ -64,15 +98,22 @@ export async function handleGetStockAnalysis(
       source.quoteSummary,
     );
     if (computed.status !== 200) return computed;
+    if (!isRecord(computed.body)) {
+      console.error('Stock analysis produced a non-object success payload');
+      return { status: 500, body: { error: 'Internal Server Error' } };
+    }
 
+    // Cache only the domain payload. HTTP envelope and user-specific quota are attached
+    // after the cache boundary so shared cache entries stay transport/user agnostic.
     await Promise.all([
       cacheSet(cacheKey, computed.body, TTL.TECHNICAL),
       cacheSet(staleFallbackKey, computed.body, TTL.STALE_FALLBACK),
     ]);
 
+    const payload = await attachStockAnalysisQuota(computed.body, context);
     return {
       status: 200,
-      body: await attachStockAnalysisQuota(computed.body, context),
+      body: withStockEnvelope(payload, stockResponseMeta(payload, 'technical-analysis-live')),
     };
   } catch (error) {
     console.error('Stock API error:', error);
