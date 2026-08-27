@@ -1,5 +1,9 @@
 import { NextResponse } from 'next/server';
-import { checkRateLimitShared, type RateLimitConfig } from '@/shared/middleware/rate-limiter';
+import {
+  checkRateLimitShared,
+  type RateLimitConfig,
+  type RateLimitResult,
+} from '@/shared/middleware/rate-limiter';
 import { getTrustedClientIp } from '@/shared/http/client-ip';
 import type { HttpResult } from '@/shared/types/http-result.types';
 
@@ -33,13 +37,30 @@ export async function checkPublicComputeBudget(headers: Headers, scope: string) 
 }
 
 export async function checkAiAccountBudget(userId: string, scope: string) {
-  return checkRateLimitShared(`ai-account:${scope}:${userId}`, Date.now(), aiAccountRateLimitConfig());
+  return checkRateLimitShared(
+    `ai-account:${scope}:${userId}`,
+    Date.now(),
+    aiAccountRateLimitConfig(),
+    {
+      // Production AI usage is account-sensitive and potentially provider-costly.
+      // Never silently replace the global counter with a per-instance counter there.
+      degradedPolicy: process.env.NODE_ENV === 'production' ? 'deny' : 'memory',
+    },
+  );
 }
 
 export function rateLimitResult(
-  result: { retryAfterSec?: number },
+  result: Pick<RateLimitResult, 'retryAfterSec' | 'unavailable'>,
   message = 'Terlalu banyak permintaan. Coba lagi nanti.',
 ): HttpResult<{ error: string }> {
+  if (result.unavailable) {
+    return {
+      status: 503,
+      body: { error: 'Layanan pembatas penggunaan sementara tidak tersedia. Coba lagi nanti.' },
+      headers: { 'Retry-After': '30' },
+    };
+  }
+
   return {
     status: 429,
     body: { error: message },
@@ -48,7 +69,7 @@ export function rateLimitResult(
 }
 
 // Compatibility helper for legacy routes that have not migrated to runController yet.
-export function rateLimitExceeded(result: { retryAfterSec?: number }, message = 'Terlalu banyak permintaan. Coba lagi nanti.') {
+export function rateLimitExceeded(result: Pick<RateLimitResult, 'retryAfterSec' | 'unavailable'>, message = 'Terlalu banyak permintaan. Coba lagi nanti.') {
   const mapped = rateLimitResult(result, message);
   return NextResponse.json(mapped.body, { status: mapped.status, headers: mapped.headers });
 }
