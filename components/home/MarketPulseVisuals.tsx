@@ -5,6 +5,7 @@ import { Activity, BarChart3 } from 'lucide-react';
 import { AnimatedNumber, EmptyState } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 /**
  * Breadth sebagai satu batang proporsional, bukan dua angka bersebelahan.
@@ -73,18 +74,15 @@ export function MarketBreadthBar({ breadth }: { breadth: { advancing: number; de
       <div className="space-y-1.5">
         <div className="flex h-3.5 sm:h-4 w-full overflow-hidden rounded-full bg-tv-hover/80 p-0.5 border border-tv-border/50 shadow-inner" role="img" aria-label={`${advancing} saham naik, ${declining} saham turun`}>
           <div
-            className="h-full bg-gradient-to-r from-emerald-600 to-tv-green rounded-l-full transition-all duration-700 ease-settle shadow-sm"
-            style={{ width: `${advPct}%` }}
+            className={`h-full bg-gradient-to-r from-emerald-600 to-tv-green rounded-l-full transition-all duration-700 ease-settle shadow-sm ${percentageWidthClass(advPct)}`}
           />
           {unchanged > 0 && (
             <div
-              className="h-full bg-tv-muted/40 transition-all duration-700 ease-settle"
-              style={{ width: `${unchPct}%` }}
+              className={`h-full bg-tv-muted/40 transition-all duration-700 ease-settle ${percentageWidthClass(unchPct)}`}
             />
           )}
           <div
-            className="h-full bg-gradient-to-r from-tv-red to-rose-600 rounded-r-full transition-all duration-700 ease-settle shadow-sm"
-            style={{ width: `${decPct}%` }}
+            className={`h-full bg-gradient-to-r from-tv-red to-rose-600 rounded-r-full transition-all duration-700 ease-settle shadow-sm ${percentageWidthClass(decPct)}`}
           />
         </div>
       </div>
@@ -214,4 +212,3 @@ export function SectorHeatmap({ sectors }: { sectors: { sector: string; changePc
     </div>
   );
 }
-

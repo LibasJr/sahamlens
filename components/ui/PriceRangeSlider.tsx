@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { percentageLeftClass, percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 interface PriceRangeSliderProps {
   currentPrice: number;
@@ -39,14 +40,12 @@ export function PriceRangeSlider({
       <div className="relative h-2 w-full rounded-full bg-tv-hover overflow-visible my-3">
         {/* Active Gradient Fill Track */}
         <div
-          className="absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 opacity-90"
-          style={{ width: `${clampedPct}%` }}
+          className={`absolute left-0 top-0 h-full rounded-full bg-gradient-to-r from-rose-500 via-amber-400 to-emerald-400 opacity-90 ${percentageWidthClass(clampedPct)}`}
         />
 
         {/* Current-session price indicator dot */}
         <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center"
-          style={{ left: `${clampedPct}%` }}
+          className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center ${percentageLeftClass(clampedPct)}`}
         >
           <div className="h-4 w-4 rounded-full bg-white border-2 border-tv-blue shadow-[0_0_10px_rgba(59,130,246,0.6)] animate-pulse" />
         </div>

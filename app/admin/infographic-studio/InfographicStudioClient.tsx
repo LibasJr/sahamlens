@@ -585,7 +585,7 @@ export default function InfographicStudioClient() {
               className="shadow-[0_20px_60px_rgba(0,0,0,0.95)] rounded-3xl overflow-hidden border-2 border-slate-700/80 transform-gpu origin-top transition-transform duration-200"
               style={{ transform: `scale(${zoomScale})` }}
             >
-              <div ref={canvasRef} style={{ width: '1080px' }}>
+              <div ref={canvasRef} className="w-[1080px]">
                 {data ? (
                   cardMode === 'technical' ? (
                     <TechnicalResearchCard
