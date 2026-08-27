@@ -120,6 +120,7 @@ export async function runBacktestSimulation(
     provenance: researchOutputProvenance({
       source: 'Yahoo Finance historical OHLCV via backtest indicator cache',
       period: `${period} bulan; jendela aktual mengikuti hari bursa yang tersedia`,
+      dataMode: 'POINT_IN_TIME',
       asOf: result.computedAt,
       retrievedAt: new Date().toISOString(),
       confidence: 'calculated',

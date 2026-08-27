@@ -41,6 +41,7 @@
     "restore:verify": "node scripts/verify-restore-drill-target.mjs",
     "audit:risk-controls": "node scripts/audit-risk-controls.mjs",
     "audit:zero-dummy": "node scripts/audit-zero-dummy-policy.mjs",
+    "audit:data-quality": "vitest run shared/research/__tests__/data-quality.test.ts app/api/backtest/__tests__/route.test.ts modules/recommendation/service/__tests__/lens-score-bucket-backtest.service.test.ts",
     "audit:broker-forensics": "node scripts/audit-broker-summary-forensics.mjs",
     "sync:idx-foreign-flow": "python scripts/sync-idx-foreign-flow.py",
     "sync:idx-broker-summary": "python scripts/sync-idx-broker-summary.py",
@@ -50,6 +51,7 @@
     "audit:adoption": "node scripts/audit-adoption-ratchet.mjs",
     "audit:frontend-only": "node scripts/audit-frontend-only.mjs",
     "test:responsive": "vitest run components/ui/__tests__/workbench-fixture.test.tsx && playwright test",
+    "test:critical-path": "playwright test -c playwright.app.config.ts",
     "maintain:weekly": "node scripts/weekly-maintenance.mjs",
     "maintain:weekly:audit": "node scripts/weekly-maintenance.mjs --no-data",
     "maintain:weekly:dry": "node scripts/weekly-maintenance.mjs --dry-run --sync"
