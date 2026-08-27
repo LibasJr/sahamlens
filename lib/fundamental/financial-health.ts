@@ -73,8 +73,20 @@ export interface FundamentalHealthSuiteResult {
   valuationPercentile: ValuationPercentileResult;
 }
 
+type UnknownRecord = Record<string, unknown>;
+
+function record(value: unknown): UnknownRecord {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+    ? value as UnknownRecord
+    : {};
+}
+
 function finite(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function text(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value : null;
 }
 
 function check(
@@ -96,21 +108,22 @@ function unavailableDetail(): string {
  * SahamLens tidak boleh mengganti data historis yang hilang dengan proxy current snapshot.
  * Score hanya diterbitkan bila seluruh 9 kriteria benar-benar dapat dievaluasi.
  */
-export function calculatePiotroskiFScore(fundamentals: any = {}, _analyzers: any[] = []): PiotroskiResult {
-  const roa = finite(fundamentals.returnOnAssets);
-  const priorRoa = finite(fundamentals.priorReturnOnAssets);
-  const ocf = finite(fundamentals.operatingCashflow);
-  const netIncome = finite(fundamentals.netIncome);
-  const leverage = finite(fundamentals.longTermDebtToAssets);
-  const priorLeverage = finite(fundamentals.priorLongTermDebtToAssets);
-  const currentRatio = finite(fundamentals.currentRatio);
-  const priorCurrentRatio = finite(fundamentals.priorCurrentRatio);
-  const shares = finite(fundamentals.sharesOutstanding);
-  const priorShares = finite(fundamentals.priorSharesOutstanding);
-  const grossMargin = finite(fundamentals.grossMargins);
-  const priorGrossMargin = finite(fundamentals.priorGrossMargins);
-  const assetTurnover = finite(fundamentals.assetTurnover);
-  const priorAssetTurnover = finite(fundamentals.priorAssetTurnover);
+export function calculatePiotroskiFScore(fundamentals: unknown = {}, _analyzers: readonly unknown[] = []): PiotroskiResult {
+  const input = record(fundamentals);
+  const roa = finite(input.returnOnAssets);
+  const priorRoa = finite(input.priorReturnOnAssets);
+  const ocf = finite(input.operatingCashflow);
+  const netIncome = finite(input.netIncome);
+  const leverage = finite(input.longTermDebtToAssets);
+  const priorLeverage = finite(input.priorLongTermDebtToAssets);
+  const currentRatio = finite(input.currentRatio);
+  const priorCurrentRatio = finite(input.priorCurrentRatio);
+  const shares = finite(input.sharesOutstanding);
+  const priorShares = finite(input.priorSharesOutstanding);
+  const grossMargin = finite(input.grossMargins);
+  const priorGrossMargin = finite(input.priorGrossMargins);
+  const assetTurnover = finite(input.assetTurnover);
+  const priorAssetTurnover = finite(input.priorAssetTurnover);
 
   const checks: PiotroskiCheck[] = [
     check('POSITIVE_ROA', 'ROA Positif', 'PROFITABILITY', roa == null ? null : roa > 0, roa == null ? unavailableDetail() : `ROA ${(roa * 100).toFixed(1)}%`),
@@ -179,11 +192,15 @@ export function calculatePiotroskiFScore(fundamentals: any = {}, _analyzers: any
  * Ia juga memakai NILAI BUKU ekuitas, bukan kapitalisasi pasar, sehingga skornya tidak
  * ikut bergerak setiap harga saham bergerak.
  */
-export function calculateAltmanZScore(fundamentals: any = {}, profile: any = {}): AltmanZResult {
+export function calculateAltmanZScore(fundamentals: unknown = {}, profile: unknown = {}): AltmanZResult {
+  const input = record(fundamentals);
+  const profileInput = record(profile);
+  const sector = text(profileInput.sector);
+  const industry = text(profileInput.industry);
   const isFinancialSector = Boolean(
-    profile?.sector?.includes('Financial') ||
-    profile?.industry?.includes('Bank') ||
-    profile?.industry?.includes('Insurance'),
+    sector?.includes('Financial') ||
+    industry?.includes('Bank') ||
+    industry?.includes('Insurance'),
   );
 
   if (isFinancialSector) {
@@ -196,11 +213,11 @@ export function calculateAltmanZScore(fundamentals: any = {}, profile: any = {})
     };
   }
 
-  const workingCapital = finite(fundamentals.workingCapital);
-  const totalAssets = finite(fundamentals.totalAssets);
-  const retainedEarnings = finite(fundamentals.retainedEarnings);
-  const ebit = finite(fundamentals.ebit);
-  const totalLiabilities = finite(fundamentals.totalLiabilities);
+  const workingCapital = finite(input.workingCapital);
+  const totalAssets = finite(input.totalAssets);
+  const retainedEarnings = finite(input.retainedEarnings);
+  const ebit = finite(input.ebit);
+  const totalLiabilities = finite(input.totalLiabilities);
 
   if (
     workingCapital == null || totalAssets == null || totalAssets <= 0 || retainedEarnings == null ||
@@ -264,12 +281,13 @@ export interface SectorMedianInput {
 /** Sector benchmark hanya diterbitkan jika median peer yang nyata diberikan caller. */
 export function calculateSectorBenchmark(
   sector: string = '',
-  fundamentals: any = {},
+  fundamentals: unknown = {},
   median: SectorMedianInput | null = null,
 ): SectorBenchmarkResult {
-  const emitenPE = finite(fundamentals.trailingPE);
-  const emitenPBV = finite(fundamentals.priceToBook);
-  const roe = finite(fundamentals.returnOnEquity);
+  const input = record(fundamentals);
+  const emitenPE = finite(input.trailingPE);
+  const emitenPBV = finite(input.priceToBook);
+  const roe = finite(input.returnOnEquity);
   const emitenROE = roe == null ? null : roe * 100;
   const sectorMedianPE = median && finite(median.pe) != null && Number(median.pe) > 0 ? Number(median.pe) : null;
   const sectorMedianPBV = median && finite(median.pbv) != null && Number(median.pbv) > 0 ? Number(median.pbv) : null;
@@ -315,10 +333,11 @@ export function calculateSectorBenchmark(
  * Dividend safety adalah screening DERIVED dari data yang tersedia, bukan fakta audit.
  * Missing dividendYield tidak boleh disamakan dengan "tidak membayar dividen".
  */
-export function calculateDividendSafety(fundamentals: any = {}): DividendSafetyResult {
-  const rawYield = finite(fundamentals.dividendYield);
-  const rawPayout = finite(fundamentals.payoutRatio);
-  const fcf = finite(fundamentals.freeCashflow);
+export function calculateDividendSafety(fundamentals: unknown = {}): DividendSafetyResult {
+  const input = record(fundamentals);
+  const rawYield = finite(input.dividendYield);
+  const rawPayout = finite(input.payoutRatio);
+  const fcf = finite(input.freeCashflow);
   const dividendYieldPct = rawYield == null ? null : Math.round(rawYield * 10_000) / 100;
   const payoutRatioPct = rawPayout == null ? null : Math.round(rawPayout * 10_000) / 100;
 
@@ -404,11 +423,12 @@ function percentileZone(value: number | null): ValuationPercentileResult['peZone
 }
 
 /** Historical percentile hanya dari historical series nyata yang diberikan caller. */
-export function calculateValuationPercentile(fundamentals: any = {}): ValuationPercentileResult {
-  const pe = finite(fundamentals.trailingPE);
-  const pbv = finite(fundamentals.priceToBook);
-  const peResult = empiricalPercentile(pe, fundamentals.historicalPE);
-  const pbvResult = empiricalPercentile(pbv, fundamentals.historicalPBV);
+export function calculateValuationPercentile(fundamentals: unknown = {}): ValuationPercentileResult {
+  const input = record(fundamentals);
+  const pe = finite(input.trailingPE);
+  const pbv = finite(input.priceToBook);
+  const peResult = empiricalPercentile(pe, input.historicalPE);
+  const pbvResult = empiricalPercentile(pbv, input.historicalPBV);
   return {
     pePercentile: peResult.percentile,
     pbvPercentile: pbvResult.percentile,
@@ -419,18 +439,31 @@ export function calculateValuationPercentile(fundamentals: any = {}): ValuationP
   };
 }
 
+function parseSectorMedian(value: unknown): SectorMedianInput | null {
+  if (value == null || typeof value !== 'object' || Array.isArray(value)) return null;
+  const candidate = value as UnknownRecord;
+  const source = text(candidate.source);
+  if (!source) return null;
+  return {
+    pe: finite(candidate.pe),
+    pbv: finite(candidate.pbv),
+    roePct: finite(candidate.roePct),
+    source,
+  };
+}
+
 export function buildFundamentalHealthSuite(
-  fundamentals: any = {},
-  profile: any = {},
-  analyzers: any[] = [],
+  fundamentals: unknown = {},
+  profile: unknown = {},
+  analyzers: readonly unknown[] = [],
 ): FundamentalHealthSuiteResult {
-  const sectorMedian = profile?.sectorMedian && typeof profile.sectorMedian === 'object'
-    ? profile.sectorMedian as SectorMedianInput
-    : null;
+  const profileInput = record(profile);
+  const sectorMedian = parseSectorMedian(profileInput.sectorMedian);
+  const sectorName = text(profileInput.sector) ?? text(profileInput.industry) ?? '';
   return {
     piotroski: calculatePiotroskiFScore(fundamentals, analyzers),
-    altmanZ: calculateAltmanZScore(fundamentals, profile),
-    sectorBenchmark: calculateSectorBenchmark(profile?.sector || profile?.industry || '', fundamentals, sectorMedian),
+    altmanZ: calculateAltmanZScore(fundamentals, profileInput),
+    sectorBenchmark: calculateSectorBenchmark(sectorName, fundamentals, sectorMedian),
     dividendSafety: calculateDividendSafety(fundamentals),
     valuationPercentile: calculateValuationPercentile(fundamentals),
   };
