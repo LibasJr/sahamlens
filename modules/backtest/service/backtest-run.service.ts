@@ -30,6 +30,18 @@ export const VALID_BACKTEST_FILTERS: IndicatorName[] = [
 const VALID_BACKTEST_PERIODS: readonly number[] = BACKTEST_PERIOD_MONTHS;
 const MAX_TRADES_IN_RESPONSE = 30;
 
+type UnknownRecord = Record<string, unknown>;
+
+function asRecord(value: unknown): UnknownRecord {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+    ? value as UnknownRecord
+    : {};
+}
+
+function isIndicatorName(value: unknown): value is IndicatorName {
+  return typeof value === 'string' && VALID_BACKTEST_FILTERS.includes(value as IndicatorName);
+}
+
 function fmtPct(n: number): string {
   const formatted = n.toFixed(2).replace(/\.?0+$/, '');
   return `${n >= 0 ? '+' : ''}${formatted}%`;
@@ -52,18 +64,20 @@ export async function runBacktestSimulation(
   rawBody: unknown,
   options: { cachedBacktest?: BacktestIndicatorCache | null; isGuest: boolean },
 ): Promise<BacktestRunResult> {
-  const body = rawBody as any;
-  const rawFilters: unknown[] = Array.isArray(body?.filters) ? body.filters : [];
-  const hasUnknownFilter = rawFilters.some(
-    (filter): boolean => !(typeof filter === 'string' && VALID_BACKTEST_FILTERS.includes(filter as IndicatorName)),
-  );
-  if (hasUnknownFilter) return { ok: false, status: 400, body: { error: 'Filter tidak dikenal' } };
+  // HTTP JSON is untrusted. Normalize the outer container before reading fields instead
+  // of asserting `any`; malformed primitives/arrays retain the previous empty-body
+  // behavior and are rejected by the normal validation below.
+  const body = asRecord(rawBody);
+  const rawFilters: unknown[] = Array.isArray(body.filters) ? body.filters : [];
+  const filters = rawFilters.filter(isIndicatorName);
+  if (filters.length !== rawFilters.length) {
+    return { ok: false, status: 400, body: { error: 'Filter tidak dikenal' } };
+  }
 
-  const filters = rawFilters as IndicatorName[];
   if (filters.length === 0) return { ok: false, status: 400, body: { error: 'Pilih minimal 1 filter' } };
 
-  const modal = Number(body?.modal);
-  const period = Number(body?.period);
+  const modal = Number(body.modal);
+  const period = Number(body.period);
   if (!Number.isFinite(modal) || modal <= 0) {
     return { ok: false, status: 400, body: { error: 'Modal awal harus lebih dari 0' } };
   }
