@@ -6,6 +6,17 @@ import {
 } from '@/shared/middleware/rate-limiter';
 import { getTrustedClientIp } from '@/shared/http/client-ip';
 import type { HttpResult } from '@/shared/types/http-result.types';
+import { recordDegradedMode } from '@/shared/observability/request-context';
+
+function observeRateLimitDegradation(result: RateLimitResult): RateLimitResult {
+  if (!result.degraded) return result;
+  recordDegradedMode(
+    result.unavailable
+      ? 'rate-limit-backend-unavailable'
+      : 'rate-limit-memory-fallback',
+  );
+  return result;
+}
 
 function envInt(name: string, fallback: number, min: number, max: number): number {
   const raw = Number(process.env[name]);
@@ -33,11 +44,16 @@ export function aiAccountRateLimitConfig(): RateLimitConfig {
 
 export async function checkPublicComputeBudget(headers: Headers, scope: string) {
   const ip = getTrustedClientIp(headers);
-  return checkRateLimitShared(`public-compute:${scope}:${ip}`, Date.now(), publicComputeRateLimitConfig());
+  const result = await checkRateLimitShared(
+    `public-compute:${scope}:${ip}`,
+    Date.now(),
+    publicComputeRateLimitConfig(),
+  );
+  return observeRateLimitDegradation(result);
 }
 
 export async function checkAiAccountBudget(userId: string, scope: string) {
-  return checkRateLimitShared(
+  const result = await checkRateLimitShared(
     `ai-account:${scope}:${userId}`,
     Date.now(),
     aiAccountRateLimitConfig(),
@@ -47,6 +63,7 @@ export async function checkAiAccountBudget(userId: string, scope: string) {
       degradedPolicy: process.env.NODE_ENV === 'production' ? 'deny' : 'memory',
     },
   );
+  return observeRateLimitDegradation(result);
 }
 
 export function rateLimitResult(

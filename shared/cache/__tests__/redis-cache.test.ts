@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getOrCompute } from '../redis-cache';
+import {
+  currentRequestLogContext,
+  runWithRequestObservability,
+} from '@/shared/observability/request-context';
 
 const originalRedisUrl = process.env.REDIS_URL;
 
@@ -68,5 +72,22 @@ describe('getOrCompute memory fallback saat Redis tidak tersedia', () => {
     await getOrCompute('test:memory-fallback:ttl', 60, compute);
 
     expect(compute).toHaveBeenCalledTimes(2);
+  });
+
+  it('mencatat memory miss/hit dan Redis degraded tanpa menaruh cache key di telemetry', async () => {
+    delete process.env.REDIS_URL;
+    const context = await runWithRequestObservability({ requestId: 'cache-observe' }, async () => {
+      const key = `test:observability:${Date.now()}`;
+      await getOrCompute(key, 60, async () => ({ value: 1 }));
+      await getOrCompute(key, 60, async () => ({ value: 2 }));
+      return currentRequestLogContext();
+    });
+
+    expect(context).toMatchObject({
+      cacheState: expect.arrayContaining(['memory-miss', 'memory-write', 'memory-hit']),
+      degraded: true,
+      degradedReason: ['redis-not-configured'],
+    });
+    expect(JSON.stringify(context)).not.toContain('test:observability:');
   });
 });
