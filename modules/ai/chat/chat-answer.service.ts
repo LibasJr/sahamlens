@@ -167,6 +167,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
       requestedAsOf: date.requestedAsOf,
       providerUsed: true,
       dataStatus: verified.dataError,
+      dataProvenance,
       numberCheck: { ok: numberCheck.ok, checked: numberCheck.checked, unverified: numberCheck.unverified },
     },
   });

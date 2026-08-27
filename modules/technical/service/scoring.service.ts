@@ -150,6 +150,14 @@ export interface FlowInput {
 }
 
 export type ScoringKategori = 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'DATA TIDAK CUKUP';
+export type LensScoreResearchLabel =
+  | 'KANDIDAT KUAT'
+  | 'UNDERVALUED CANDIDATE'
+  | 'LAYAK PANTAU'
+  | 'WAIT'
+  | 'HIGH RISK'
+  | 'DATA BELUM CUKUP';
+export type LensScoreConfidenceLevel = 'TINGGI' | 'SEDANG' | 'RENDAH';
 
 /** Satu komponen skor.
  *
@@ -249,6 +257,22 @@ export interface ScoringResult {
   not_applicable: string[];
   alasan_3_poin: string[];
   risk: string;
+  explainability: {
+    research_label: LensScoreResearchLabel;
+    confidence_level: LensScoreConfidenceLevel;
+    confidence_score: number;
+    score_band: string;
+    actionability: 'INFORMATIONAL_SIGNAL' | 'DATA_INSUFFICIENT';
+    weights: {
+      technical: { declared: number; available: number; score: number };
+      fundamental: { declared: number; available: number; score: number };
+      flow: { declared: number; available: number; score: number };
+    };
+    positive_drivers: string[];
+    negative_drivers: string[];
+    risk_flags: string[];
+    data_gaps: string[];
+  };
 }
 
 const NA = (key: string, declaredMax: number, what: string): Component => ({
@@ -798,6 +822,62 @@ function getKategori(total: number, coveragePct: number): ScoringKategori {
   return 'SELL';
 }
 
+function getConfidenceLevel(coveragePct: number): LensScoreConfidenceLevel {
+  if (coveragePct >= 90) return 'TINGGI';
+  if (coveragePct >= 70) return 'SEDANG';
+  return 'RENDAH';
+}
+
+function getResearchLabel(args: {
+  totalScore: number;
+  coveragePct: number;
+  valuasi: Component;
+  profitabilitas: Component;
+  riskFlags: string[];
+}): LensScoreResearchLabel {
+  if (args.coveragePct < MIN_COVERAGE_PCT) return 'DATA BELUM CUKUP';
+  if (args.totalScore < SCORING_KATEGORI_THRESHOLDS.HOLD) return 'HIGH RISK';
+  if (args.totalScore < SCORING_KATEGORI_THRESHOLDS.BUY) return 'WAIT';
+
+  const valuationPct = args.valuasi.availableMax > 0 ? (args.valuasi.score / args.valuasi.availableMax) * 100 : null;
+  const profitabilityPct = args.profitabilitas.availableMax > 0 ? (args.profitabilitas.score / args.profitabilitas.availableMax) * 100 : null;
+  if (
+    args.totalScore >= SCORING_KATEGORI_THRESHOLDS.BUY &&
+    valuationPct != null && valuationPct >= 80 &&
+    profitabilityPct != null && profitabilityPct >= 70
+  ) {
+    return 'UNDERVALUED CANDIDATE';
+  }
+
+  if (args.totalScore > SCORING_KATEGORI_THRESHOLDS.STRONG_BUY && args.riskFlags.length === 0) {
+    return 'KANDIDAT KUAT';
+  }
+  return 'LAYAK PANTAU';
+}
+
+function scoreBand(totalScore: number, coveragePct: number): string {
+  if (coveragePct < MIN_COVERAGE_PCT) return `coverage < ${MIN_COVERAGE_PCT}%`;
+  if (totalScore > SCORING_KATEGORI_THRESHOLDS.STRONG_BUY) return `>${SCORING_KATEGORI_THRESHOLDS.STRONG_BUY}`;
+  if (totalScore >= SCORING_KATEGORI_THRESHOLDS.BUY) return `${SCORING_KATEGORI_THRESHOLDS.BUY}-${SCORING_KATEGORI_THRESHOLDS.STRONG_BUY}`;
+  if (totalScore >= SCORING_KATEGORI_THRESHOLDS.HOLD) return `${SCORING_KATEGORI_THRESHOLDS.HOLD}-${SCORING_KATEGORI_THRESHOLDS.BUY - 1}`;
+  return `<${SCORING_KATEGORI_THRESHOLDS.HOLD}`;
+}
+
+function buildRiskFlags(args: {
+  components: Component[];
+  coveragePct: number;
+  technical: TechnicalInput;
+}): string[] {
+  const flags: string[] = [];
+  if (args.coveragePct < MIN_COVERAGE_PCT) flags.push(`coverage di bawah ${MIN_COVERAGE_PCT}%`);
+  else if (args.coveragePct < 90) flags.push(`coverage belum penuh (${args.coveragePct}%)`);
+  if (args.technical.rsi != null && args.technical.rsi > 78) flags.push(`RSI overbought ${args.technical.rsi.toFixed(1)}`);
+  for (const c of args.components) {
+    if (c.caveat) flags.push(c.caveat);
+  }
+  return [...new Set(flags)];
+}
+
 export function calculateScore(
   simbol: string,
   technical: TechnicalInput,
@@ -873,6 +953,19 @@ export function calculateScore(
   }
 
   const pick = (c: Component) => (c.available ? Math.round(c.score) : null);
+  const negativeDrivers = [...allComponents]
+    .filter((c) => c.available && c.availableMax > 0 && c.reason)
+    .sort((a, b) => (a.score / a.availableMax) - (b.score / b.availableMax))
+    .slice(0, 3)
+    .map((c) => c.reason);
+  const riskFlags = buildRiskFlags({ components: allComponents, coveragePct, technical });
+  const researchLabel = getResearchLabel({
+    totalScore,
+    coveragePct,
+    valuasi,
+    profitabilitas,
+    riskFlags,
+  });
 
   return {
     simbol,
@@ -911,5 +1004,33 @@ export function calculateScore(
     not_applicable: notApplicable,
     alasan_3_poin: alasan3,
     risk,
+    explainability: {
+      research_label: researchLabel,
+      confidence_level: getConfidenceLevel(coveragePct),
+      confidence_score: coveragePct,
+      score_band: scoreBand(totalScore, coveragePct),
+      actionability: coveragePct < MIN_COVERAGE_PCT ? 'DATA_INSUFFICIENT' : 'INFORMATIONAL_SIGNAL',
+      weights: {
+        technical: {
+          declared: LENS_SCORE_WEIGHTS.technical,
+          available: Number(technicalGroup.availableMax.toFixed(2)),
+          score: Math.round(technicalGroup.score),
+        },
+        fundamental: {
+          declared: LENS_SCORE_WEIGHTS.fundamental,
+          available: Number(fundamentalGroup.availableMax.toFixed(2)),
+          score: Math.round(fundamentalGroup.score),
+        },
+        flow: {
+          declared: LENS_SCORE_WEIGHTS.flow,
+          available: Number(flowGroup.availableMax.toFixed(2)),
+          score: Math.round(flowGroup.score),
+        },
+      },
+      positive_drivers: alasan3.slice(0, 3),
+      negative_drivers: negativeDrivers,
+      risk_flags: riskFlags,
+      data_gaps: [...missing, ...notApplicable],
+    },
   };
 }

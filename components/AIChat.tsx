@@ -285,6 +285,15 @@ export default function AIChat() {
        if (activeContextData.modelSignal) {
          context += `\nSinyal model LensScore (INFORMASIONAL): ${activeContextData.modelSignal}`;
        }
+       if (activeContextData.scoreExplainability) {
+         context += `\nExplainability LensScore: ${JSON.stringify(activeContextData.scoreExplainability)}`;
+       }
+       if (activeContextData.trust) {
+         context += `\nStatus trust data/skor: ${JSON.stringify(activeContextData.trust)}`;
+       }
+       if (activeContextData.dataFreshness || activeContextData.dataTimestamp) {
+         context += `\nKesegaran data halaman: ${JSON.stringify({ freshness: activeContextData.dataFreshness, dataTimestamp: activeContextData.dataTimestamp })}`;
+       }
        if (activeContextData.decision) {
          context += `\nStatus decision SahamLens: ${JSON.stringify(activeContextData.decision)}`;
        }
@@ -607,4 +616,3 @@ export default function AIChat() {
     </div>
   );
 }
-

@@ -310,6 +310,13 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     ? data.stock.change_pct
     : null;
   const coveragePct: number | null = typeof data.scoring?.coverage_pct === 'number' ? Math.round(data.scoring.coverage_pct) : null;
+  const researchLabel: string | null = typeof data.trust?.research_label === 'string'
+    ? data.trust.research_label
+    : (typeof data.scoring?.explainability?.research_label === 'string' ? data.scoring.explainability.research_label : null);
+  const scoreConfidence: string | null = typeof data.trust?.score_confidence === 'string'
+    ? data.trust.score_confidence
+    : (typeof data.scoring?.explainability?.confidence_level === 'string' ? data.scoring.explainability.confidence_level : null);
+  const advisoryEnabled = data.trust?.advisory_enabled === true || data.decision?.advisory === true;
 
   /** Skor kelompok dinormalkan ke 0-100 memakai bobot yang BENAR-BENAR punya data.
    *
@@ -422,6 +429,20 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
                 yang menyanggahnya di tempat yang sama - dan model ini belum lolos
                 validasi backtest out-of-sample. */}
             <div className="mt-0.5 text-xs text-tv-muted">Informasi riset, bukan probabilitas harga.</div>
+            {(researchLabel || scoreConfidence) && (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {researchLabel && (
+                  <span className="lens-meta rounded border border-tv-border px-2 py-1 font-semibold text-tv-text">
+                    {researchLabel.replaceAll('_', ' ')}
+                  </span>
+                )}
+                {scoreConfidence && (
+                  <span className="lens-meta rounded border border-tv-border px-2 py-1 font-semibold text-tv-muted">
+                    Confidence {scoreConfidence}
+                  </span>
+                )}
+              </div>
+            )}
             <ResearchProvenanceDetails
               label="Audit sumber & input LensScore"
               entries={lensScoreInputEntries}
@@ -507,6 +528,13 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               label: kesegaran.label,
               tone: kesegaran.tone.includes('yellow') ? 'caution' : 'neutral',
               title: kesegaran.detail,
+            },
+            {
+              label: advisoryEnabled ? 'Advisory aktif' : 'Sinyal informasional',
+              tone: 'neutral',
+              title: advisoryEnabled
+                ? 'Model dan eligibility mengizinkan rekomendasi actionable.'
+                : 'Sinyal model tetap ditampilkan untuk riset, tetapi belum menjadi rekomendasi transaksi.',
             },
           ]}
         />
