@@ -1,4 +1,4 @@
-import { listPendingAlerts, markTriggered } from '@/modules/watchlist';
+import { listPendingAlerts, markTriggered, type Alert, type AlertConditionType } from '@/modules/watchlist';
 import { internalServiceHeaders } from '@/shared/auth/internal-service';
 import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
 
@@ -7,7 +7,27 @@ import { getKategoriPresentationLabel } from '@/shared/presentation/signal-label
 // tandai terpicu) - watchlist tidak pernah balik mengimpor notification, jadi tidak ada
 // circular dependency (pola sama seperti modules/watchlist -> shared/auth/session).
 
-async function fetchJson(url: string) {
+type UnknownRecord = Record<string, unknown>;
+
+function record(value: unknown): UnknownRecord {
+  return value != null && typeof value === 'object' && !Array.isArray(value)
+    ? value as UnknownRecord
+    : {};
+}
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function text(value: unknown): string | null {
+  return typeof value === 'string' ? value : null;
+}
+
+function nested(value: unknown, key: string): UnknownRecord {
+  return record(record(value)[key]);
+}
+
+async function fetchJson(url: string): Promise<unknown | null> {
   try {
     // Header internal (lihat shared/auth/internal-service.ts) - tanpa ini panggilan
     // server-to-server ke /api/stock, /api/breakout-radar, /api/market-pulse selalu
@@ -15,7 +35,7 @@ async function fetchJson(url: string) {
     // browser user, bukan job evaluasi alert ini.
     const res = await fetch(url, { cache: 'no-store', headers: internalServiceHeaders() });
     if (!res.ok) return null;
-    return await res.json();
+    return await res.json() as unknown;
   } catch {
     return null;
   }
@@ -26,62 +46,98 @@ async function fetchJson(url: string) {
 // `harga <= target`, sehingga 0 <= target SELALU true: alert terkirim ke pengguna
 // ("harga sudah turun ke bawah X!") justru saat harga TIDAK diketahui. null sekarang, dan
 // evaluasi dilewati.
-function getPrice(data: any): number | null {
-  const p = data?.stock?.current_price ?? data?.price;
-  return typeof p === 'number' && p > 0 ? p : null;
+function getPrice(data: unknown): number | null {
+  const input = record(data);
+  const stock = record(input.stock);
+  const p = finiteNumber(stock.current_price) ?? finiteNumber(input.price);
+  return p != null && p > 0 ? p : null;
 }
 
 // `raw.rsi` dulu, string hanya cadangan (anti-pola parsing tampilan, temuan M-03).
-function getRsi(data: any): number | null {
-  const rsiAnalyzer = data?.analyzers?.find((a: any) => a.label?.includes('RSI'));
-  if (typeof rsiAnalyzer?.raw?.rsi === 'number') return rsiAnalyzer.raw.rsi;
-  const match = rsiAnalyzer?.value?.match(/RSI:\s*([\d.]+)/);
-  return match ? Number(match[1]) : null;
+function getRsi(data: unknown): number | null {
+  const analyzers = record(data).analyzers;
+  if (!Array.isArray(analyzers)) return null;
+  const rsiAnalyzer = analyzers
+    .map(record)
+    .find((analyzer) => text(analyzer.label)?.includes('RSI'));
+  if (!rsiAnalyzer) return null;
+
+  const rawRsi = finiteNumber(record(rsiAnalyzer.raw).rsi);
+  if (rawRsi != null) return rawRsi;
+
+  const value = text(rsiAnalyzer.value);
+  const match = value?.match(/RSI:\s*([\d.]+)/);
+  if (!match) return null;
+  const parsed = Number(match[1]);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 /** Alert TIDAK boleh dipicu dari payload cache darurat - `_meta.source === 'stale-cache'`
  * bisa berumur sampai 24 jam (lihat TTL.STALE_FALLBACK). Notifikasi harga yang dikirim
  * dari harga kemarin lebih buruk daripada tidak ada notifikasi (temuan M-9). */
-function isFreshEnoughForAlert(data: any): boolean {
-  const meta = data?._meta;
-  if (!meta) return true; // payload lama tanpa _meta - jangan matikan alert yang sudah jalan
+function isFreshEnoughForAlert(data: unknown): boolean {
+  const input = record(data);
+  if (!('_meta' in input)) return true; // payload lama tanpa _meta - jangan matikan alert yang sudah jalan
+  const meta = record(input._meta);
   return meta.source !== 'stale-cache' && meta.freshness !== 'STALE';
 }
 
-export function isTriggered(alert: any, ctx: { stock?: any; breakoutEntry?: any; breadth?: any }): boolean {
-  const target = Number(alert.condition_value);
+export interface AlertEvaluationContext {
+  stock?: unknown;
+  breakoutEntry?: unknown;
+  breadth?: unknown;
+}
+
+function alertTarget(alert: Alert): number | null {
+  return finiteNumber(alert.condition_value);
+}
+
+export function isTriggered(alert: Alert, ctx: AlertEvaluationContext): boolean {
+  const target = alertTarget(alert);
   switch (alert.condition_type) {
     case 'PRICE_BELOW': {
       const p = getPrice(ctx.stock);
-      return p != null && p <= target;
+      return target != null && p != null && p <= target;
     }
     case 'PRICE_ABOVE': {
       const p = getPrice(ctx.stock);
-      return p != null && p >= target;
+      return target != null && p != null && p >= target;
     }
     case 'CONSENSUS_STRONG_BUY': {
       // Alert ini adalah jalur actionable. Fail-closed: payload lama/tidak lengkap tanpa
       // `decision` TIDAK boleh menghidupkan ajakan beli. Selain advisory=true, arah aksi
       // resmi juga harus BUY/STRONG BUY; consensus teknikal saja tidak cukup.
-      if (ctx.stock?.decision?.advisory !== true) return false;
-      const action = ctx.stock?.decision?.action;
+      const stock = record(ctx.stock);
+      const decision = record(stock.decision);
+      if (decision.advisory !== true) return false;
+      const action = text(decision.action);
       if (action !== 'BUY' && action !== 'STRONG BUY') return false;
-      return ctx.stock?.consensusData?.kategori === 'STRONG BUY';
+      return text(record(stock.consensusData).kategori) === 'STRONG BUY';
     }
     case 'RSI_OVERSOLD': {
       const rsi = getRsi(ctx.stock);
       return rsi !== null && rsi < 30;
     }
-    case 'BREAKOUT_SCORE_ABOVE':
-      return typeof ctx.breakoutEntry?.score === 'number' && ctx.breakoutEntry.score >= target;
-    case 'BREADTH_ADVANCING_BELOW':
-      return typeof ctx.breadth?.advancing === 'number' && ctx.breadth.advancing < target;
+    case 'BREAKOUT_SCORE_ABOVE': {
+      const score = finiteNumber(record(ctx.breakoutEntry).score);
+      return target != null && score != null && score >= target;
+    }
+    case 'BREADTH_ADVANCING_BELOW': {
+      const advancing = finiteNumber(record(ctx.breadth).advancing);
+      return target != null && advancing != null && advancing < target;
+    }
     default:
       return false;
   }
 }
 
-export function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: any; breadth?: any }): string {
+function displayValue(value: unknown): string {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  if (typeof value === 'string') return value;
+  return '-';
+}
+
+export function formatMessage(alert: Alert, ctx: AlertEvaluationContext): string {
   switch (alert.condition_type) {
     case 'PRICE_BELOW':
     case 'PRICE_ABOVE':
@@ -92,8 +148,9 @@ export function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: an
         : alert.condition_type === 'PRICE_ABOVE' ? `Harga naik ke atas ${alert.condition_value}`
         : alert.condition_type === 'CONSENSUS_STRONG_BUY' ? 'Konsensus Sangat Positif'
         : 'RSI Oversold (< 30)';
-      const score = ctx.stock?.scoring?.total_score;
-      const kategori = ctx.stock?.scoring?.kategori;
+      const scoring = nested(ctx.stock, 'scoring');
+      const score = finiteNumber(scoring.total_score);
+      const kategori = text(scoring.kategori);
       const kategoriLabel = kategori ? getKategoriPresentationLabel(kategori) : '';
       return [
         '🚨 <b>SahamLens LensAlert</b>',
@@ -103,21 +160,23 @@ export function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: an
       ].join('\n');
     }
     case 'BREAKOUT_SCORE_ABOVE': {
-      const e = ctx.breakoutEntry;
+      const entry = record(ctx.breakoutEntry);
+      const score = finiteNumber(entry.score);
+      const price = finiteNumber(entry.price);
       return [
         '🚨 <b>SahamLens LensAlert - LensRadar</b>',
-        `${alert.symbol} Score ${e?.score}/8 (target >= ${alert.condition_value})!`,
-        `Price: ${e?.price?.toLocaleString?.('id-ID') ?? e?.price} | Change: ${e?.change} | RR: ${e?.rr}`,
-        `Sinyal: ${e?.reason || '-'}`,
-        `Cek: /breakout-radar`,
+        `${alert.symbol} Score ${score ?? 'N/A'}/8 (target >= ${alert.condition_value})!`,
+        `Price: ${price != null ? price.toLocaleString('id-ID') : displayValue(entry.price)} | Change: ${displayValue(entry.change)} | RR: ${displayValue(entry.rr)}`,
+        `Sinyal: ${text(entry.reason) || '-'}`,
+        'Cek: /breakout-radar',
       ].join('\n');
     }
     case 'BREADTH_ADVANCING_BELOW': {
-      const b = ctx.breadth;
+      const breadth = record(ctx.breadth);
       return [
         '🚨 <b>SahamLens LensAlert - LensMarket Breadth</b>',
-        `Breadth IDX bearish: ${b?.advancing} saham naik vs ${b?.declining} turun (target advancing < ${alert.condition_value}).`,
-        `Cek: /market-pulse`,
+        `Breadth IDX bearish: ${displayValue(breadth.advancing)} saham naik vs ${displayValue(breadth.declining)} turun (target advancing < ${alert.condition_value}).`,
+        'Cek: /market-pulse',
       ].join('\n');
     }
     default:
@@ -125,7 +184,25 @@ export function formatMessage(alert: any, ctx: { stock?: any; breakoutEntry?: an
   }
 }
 
-const STOCK_BASED_TYPES = ['PRICE_BELOW', 'PRICE_ABOVE', 'CONSENSUS_STRONG_BUY', 'RSI_OVERSOLD'];
+const STOCK_BASED_TYPES = new Set<AlertConditionType>([
+  'PRICE_BELOW',
+  'PRICE_ABOVE',
+  'CONSENSUS_STRONG_BUY',
+  'RSI_OVERSOLD',
+]);
+
+function breakoutEntries(payload: unknown): Map<string, unknown> {
+  const data = record(payload).data;
+  if (!Array.isArray(data)) return new Map();
+  const entries: Array<[string, unknown]> = [];
+  for (const rawEntry of data) {
+    const entry = record(rawEntry);
+    const symbol = text(entry.symbol);
+    if (!symbol) continue;
+    entries.push([symbol.replace('.JK', ''), rawEntry]);
+  }
+  return new Map(entries);
+}
 
 export interface AlertCheckResult {
   checked: number;
@@ -142,41 +219,44 @@ export async function checkAndTriggerAlerts(origin: string): Promise<AlertCheckR
     return { checked: 0, triggered: 0, triggeredAlerts: [] };
   }
 
-  const stockSymbols = Array.from(new Set<string>(active.filter((a: any) => STOCK_BASED_TYPES.includes(a.condition_type)).map((a: any) => a.symbol)));
-  const stockBySymbol = new Map<string, any>();
+  const stockSymbols = Array.from(new Set(
+    active.filter((alert) => STOCK_BASED_TYPES.has(alert.condition_type)).map((alert) => alert.symbol),
+  ));
+  const stockBySymbol = new Map<string, unknown>();
   // Paralel, bukan for-await sekuensial (Performance Roadmap Fase 1 poin 4) -
   // sebelumnya total waktu = JUMLAH semua fetch simbol unik, bukan MAKSIMUM
   // salah satu (pola yang sama sudah benar di breakout-radar, disamakan di sini).
   const stockResults = await Promise.all(stockSymbols.map((symbol) => fetchJson(`${origin}/api/stock/${symbol}`)));
   stockSymbols.forEach((symbol, i) => {
-    if (stockResults[i]) stockBySymbol.set(symbol, stockResults[i]);
+    if (stockResults[i] != null) stockBySymbol.set(symbol, stockResults[i]);
   });
 
-  const hasBreakoutAlert = active.some((a: any) => a.condition_type === 'BREAKOUT_SCORE_ABOVE');
+  const hasBreakoutAlert = active.some((alert) => alert.condition_type === 'BREAKOUT_SCORE_ABOVE');
   const breakoutData = hasBreakoutAlert ? await fetchJson(`${origin}/api/breakout-radar`) : null;
-  const breakoutBySymbol = new Map<string, any>((breakoutData?.data || []).map((e: any) => [e.symbol.replace('.JK', ''), e]));
+  const breakoutBySymbol = breakoutEntries(breakoutData);
 
-  const hasBreadthAlert = active.some((a: any) => a.condition_type === 'BREADTH_ADVANCING_BELOW');
+  const hasBreadthAlert = active.some((alert) => alert.condition_type === 'BREADTH_ADVANCING_BELOW');
   const pulseData = hasBreadthAlert ? await fetchJson(`${origin}/api/market-pulse`) : null;
+  const pulse = record(pulseData);
 
   let triggeredCount = 0;
   const triggeredAlertsData: { id: string; message: string }[] = [];
 
   for (const alert of active) {
-    const ctx = {
+    const ctx: AlertEvaluationContext = {
       stock: stockBySymbol.get(alert.symbol),
       breakoutEntry: breakoutBySymbol.get(alert.symbol.replace('.JK', '')),
-      breadth: pulseData?.breadth,
+      breadth: pulse.breadth,
     };
 
-    const hasData = STOCK_BASED_TYPES.includes(alert.condition_type) ? !!ctx.stock
-      : alert.condition_type === 'BREAKOUT_SCORE_ABOVE' ? !!ctx.breakoutEntry
-      : alert.condition_type === 'BREADTH_ADVANCING_BELOW' ? !!ctx.breadth
+    const hasData = STOCK_BASED_TYPES.has(alert.condition_type) ? ctx.stock != null
+      : alert.condition_type === 'BREAKOUT_SCORE_ABOVE' ? ctx.breakoutEntry != null
+      : alert.condition_type === 'BREADTH_ADVANCING_BELOW' ? ctx.breadth != null
       : false;
 
     if (!hasData) continue;
     // Jangan pernah mengirim notifikasi harga dari data cache darurat (temuan M-9).
-    if (STOCK_BASED_TYPES.includes(alert.condition_type) && !isFreshEnoughForAlert(ctx.stock)) continue;
+    if (STOCK_BASED_TYPES.has(alert.condition_type) && !isFreshEnoughForAlert(ctx.stock)) continue;
 
     if (isTriggered(alert, ctx)) {
       const msg = formatMessage(alert, ctx);
