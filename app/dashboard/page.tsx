@@ -30,6 +30,7 @@ import { getDecisionPresentation, getSimpleDecisionLabel } from '@/modules/eligi
 import { Activity, CheckCircle2, Download, FileText, Radar, RefreshCw, Sparkles } from 'lucide-react';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import type { DashboardData } from '@/components/dashboard/dashboard-analysis';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 function stockCurrentPrice(data: DashboardData | null): number | null {
   const price = data?.stock?.current_price;
@@ -250,7 +251,7 @@ function DashboardContent() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-tv-muted font-sans w-28">Technical (0-40)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-tv-green/80 to-tv-green rounded-full transition-[width] duration-700 ease-settle" style={{width: `${(data.scoring.technical_score / 40) * 100}%`}}></div>
+                    <div className={`h-full bg-gradient-to-r from-tv-green/80 to-tv-green rounded-full transition-[width] duration-700 ease-settle ${percentageWidthClass((data.scoring.technical_score / 40) * 100)}`}></div>
                   </div>
                   <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.technical_score}</span>
                 </div>
@@ -260,7 +261,7 @@ function DashboardContent() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-tv-muted font-sans w-28">Momentum (0-100)</span>
                     <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-tv-purple/80 to-tv-purple rounded-full transition-[width] duration-700 ease-settle" style={{width: `${momentum}%`}}></div>
+                      <div className={`h-full bg-gradient-to-r from-tv-purple/80 to-tv-purple rounded-full transition-[width] duration-700 ease-settle ${percentageWidthClass(momentum)}`}></div>
                     </div>
                     <span className="text-sm font-bold text-white font-number w-8 text-right">{momentum}</span>
                   </div>
@@ -269,7 +270,7 @@ function DashboardContent() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-tv-muted font-sans w-28">Fundamental (0-30)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-tv-blue/80 to-tv-blue rounded-full transition-[width] duration-700 ease-settle" style={{width: `${(data.scoring.fundamental_score / 30) * 100}%`}}></div>
+                    <div className={`h-full bg-gradient-to-r from-tv-blue/80 to-tv-blue rounded-full transition-[width] duration-700 ease-settle ${percentageWidthClass((data.scoring.fundamental_score / 30) * 100)}`}></div>
                   </div>
                   <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.fundamental_score}</span>
                 </div>
@@ -277,7 +278,7 @@ function DashboardContent() {
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-tv-muted font-sans w-28">Money Flow (0-30)</span>
                   <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                    <div className="h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-[width] duration-700 ease-settle" style={{width: `${(data.scoring.flow_score / 30) * 100}%`}}></div>
+                    <div className={`h-full bg-gradient-to-r from-tv-yellow/80 to-tv-yellow rounded-full transition-[width] duration-700 ease-settle ${percentageWidthClass((data.scoring.flow_score / 30) * 100)}`}></div>
                   </div>
                   <span className="text-sm font-bold text-white font-number w-8 text-right">{data.scoring.flow_score}</span>
                 </div>
@@ -288,7 +289,7 @@ function DashboardContent() {
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-tv-muted font-sans w-28">Risk (0-100)</span>
                     <div className="flex-1 bg-tv-hover rounded-full h-3 overflow-hidden">
-                      <div className="h-full bg-gradient-to-r from-tv-red/80 to-tv-red rounded-full transition-[width] duration-700 ease-settle" style={{width: `${risk}%`}}></div>
+                      <div className={`h-full bg-gradient-to-r from-tv-red/80 to-tv-red rounded-full transition-[width] duration-700 ease-settle ${percentageWidthClass(risk)}`}></div>
                     </div>
                     <span className="text-sm font-bold text-white font-number w-8 text-right">{risk}</span>
                   </div>

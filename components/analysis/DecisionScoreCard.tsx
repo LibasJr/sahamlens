@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button';
 import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { RadialScoreGauge } from '@/components/ui/RadialScoreGauge';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 interface DecisionScoreCardProps {
   verdict: string;
@@ -95,8 +96,7 @@ export default function DecisionScoreCard({
                 <div className="h-2 overflow-hidden rounded-full bg-tv-hover" aria-hidden="true">
                   {score !== null && (
                     <div
-                      className={`h-full rounded-full ${part.color}`}
-                      style={{ width: `${(score / part.max) * 100}%` }}
+                      className={`h-full rounded-full ${part.color} ${percentageWidthClass((score / part.max) * 100)}`}
                     />
                   )}
                 </div>

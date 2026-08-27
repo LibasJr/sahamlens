@@ -109,6 +109,13 @@ const metrics = {
       0,
     ),
   },
+  inlineStyleAttributes: {
+    label: 'atribut style inline (migrasi style-src-attr CSP)',
+    value: tsxFiles.reduce(
+      (sum, file) => sum + (stripComments(fs.readFileSync(file, 'utf8')).match(/\bstyle=\{\{/g) || []).length,
+      0,
+    ),
+  },
   routesWithoutRunController: {
     label: 'route API tanpa response adapter',
     value: routeFiles.filter((f) => {

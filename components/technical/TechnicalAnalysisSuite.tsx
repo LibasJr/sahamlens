@@ -27,6 +27,7 @@ import {
 } from '@/lib/technical/technical-levels';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest } from '@/shared/http/api-client';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 interface TechnicalAnalysisSuiteProps {
   symbol: string;
@@ -205,8 +206,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
             </div>
             <div className="relative h-2 w-full rounded-full bg-white/[0.06] overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-tv-green via-tv-yellow to-tv-blue transition-all duration-700"
-                style={{ width: `${range52w.positionPct}%` }}
+                className={`h-full rounded-full bg-gradient-to-r from-tv-green via-tv-yellow to-tv-blue transition-all duration-700 ${percentageWidthClass(range52w.positionPct)}`}
               />
             </div>
             <div className="flex items-center justify-between lens-meta text-tv-muted font-number">

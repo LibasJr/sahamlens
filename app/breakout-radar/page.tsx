@@ -23,6 +23,7 @@ import {
 } from './radar-model';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 // Halaman ini dulu punya 8 tab (Breakout, Rekomendasi, Menarik, Undervalue, Berisiko,
 // Golden Cross, Dead Cross, Akumulasi Asing). Audit 2026-08-03 menemukan tab-tab itu
@@ -371,8 +372,7 @@ export default function AiPickPage() {
                               <span>{it.finalScore}</span>
                               <span className="h-1 w-14 rounded-full bg-tv-hover overflow-hidden">
                                 <span
-                                  className={`block h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'}`}
-                                  style={{ width: `${Math.min(100, Math.max(0, it.finalScore))}%` }}
+                                  className={`block h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'} ${percentageWidthClass(it.finalScore)}`}
                                 />
                               </span>
                             </div>
@@ -381,7 +381,7 @@ export default function AiPickPage() {
                             <div className="flex flex-col items-end gap-1">
                               <span>{it.breakdown?.technical ?? 'N/A'}<span className="text-[10px] text-tv-muted">/40</span></span>
                               <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
-                                <span className="block h-full rounded-full bg-tv-blue" style={{ width: scoreBarWidth(it.breakdown?.technical, 40) }} />
+                                <span className={`block h-full rounded-full bg-tv-blue ${percentageWidthClass(scoreBarWidth(it.breakdown?.technical, 40))}`} />
                               </span>
                             </div>
                           </td>
@@ -389,7 +389,7 @@ export default function AiPickPage() {
                             <div className="flex flex-col items-end gap-1">
                               <span>{it.breakdown?.fundamental ?? 'N/A'}<span className="text-[10px] text-tv-muted">/30</span></span>
                               <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
-                                <span className="block h-full rounded-full bg-tv-purple" style={{ width: scoreBarWidth(it.breakdown?.fundamental, 30) }} />
+                                <span className={`block h-full rounded-full bg-tv-purple ${percentageWidthClass(scoreBarWidth(it.breakdown?.fundamental, 30))}`} />
                               </span>
                             </div>
                           </td>
@@ -397,7 +397,7 @@ export default function AiPickPage() {
                             <div className="flex flex-col items-end gap-1">
                               <span>{it.breakdown?.flow ?? 'N/A'}<span className="text-[10px] text-tv-muted">/30</span></span>
                               <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
-                                <span className="block h-full rounded-full bg-tv-green" style={{ width: scoreBarWidth(it.breakdown?.flow, 30) }} />
+                                <span className={`block h-full rounded-full bg-tv-green ${percentageWidthClass(scoreBarWidth(it.breakdown?.flow, 30))}`} />
                               </span>
                             </div>
                           </td>
@@ -530,8 +530,7 @@ export default function AiPickPage() {
                               <div className="font-number font-bold text-tv-text">{it.finalScore}</div>
                               <div className="mt-1 h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
                                 <div
-                                  className={`h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'}`}
-                                  style={{ width: `${Math.min(100, Math.max(0, it.finalScore))}%` }}
+                                  className={`h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'} ${percentageWidthClass(it.finalScore)}`}
                                 />
                               </div>
                             </div>
@@ -564,7 +563,7 @@ export default function AiPickPage() {
                                       {value ?? 'N/A'}<span className="text-tv-muted text-[10px] font-normal">/{max}</span>
                                     </div>
                                     <div className="mt-1 h-1 rounded-full bg-tv-hover overflow-hidden">
-                                      <div className="h-full rounded-full bg-tv-blue" style={{ width: `${value == null ? 0 : (value / max) * 100}%` }} />
+                                      <div className={`h-full rounded-full bg-tv-blue ${percentageWidthClass(value == null ? 0 : (value / max) * 100)}`} />
                                     </div>
                                   </div>
                                 ))}

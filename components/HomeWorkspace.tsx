@@ -43,6 +43,7 @@ import HomeUpgradePrompt from '@/components/home/HomeUpgradePrompt';
 import HomeBrandHero from '@/components/home/HomeBrandHero';
 import HomeTodayBrief from '@/components/home/HomeTodayBrief';
 import { PRO_UI_ENABLED } from '@/shared/constants/access';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 
 // Jeda antar insight LensConsensus (permintaan user 2026-08-06: 50 detik SEBELUMNYA
@@ -487,8 +488,7 @@ export default function HomeWorkspace() {
                           </div>
                           <div className="mt-1 h-1 w-full rounded-full bg-tv-hover overflow-hidden">
                             <div
-                              className={`h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'}`}
-                              style={{ width: `${Math.min(100, Math.max(0, it.finalScore))}%` }}
+                              className={`h-full rounded-full ${it.flagged ? 'bg-tv-warning' : 'bg-tv-green'} ${percentageWidthClass(it.finalScore)}`}
                             />
                           </div>
                           <div className="lens-meta text-tv-muted font-number mt-1">Rp {Math.round(it.price).toLocaleString('id-ID')}</div>

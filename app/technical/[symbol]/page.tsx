@@ -31,6 +31,7 @@ import type {
   StockConsensusDimension,
 } from '@/modules/technical/contracts';
 import type { LensScoreInputProvenance } from '@/modules/technical/service/lens-score-input-provenance.service';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 
 
@@ -540,9 +541,9 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               role="img"
               aria-label={`Arah analyzer: ${buyPct}% bullish, ${holdPct}% netral, ${sellPct}% bearish`}
             >
-              {buyPct > 0 && <div style={{ width: `${buyPct}%` }} className="bg-tv-green transition-[width] duration-1000 ease-settle" />}
-              {holdPct > 0 && <div style={{ width: `${holdPct}%` }} className="bg-tv-blue transition-[width] duration-1000 ease-settle" />}
-              {sellPct > 0 && <div style={{ width: `${sellPct}%` }} className="bg-tv-red transition-[width] duration-1000 ease-settle" />}
+              {buyPct > 0 && <div className={`bg-tv-green transition-[width] duration-1000 ease-settle ${percentageWidthClass(buyPct)}`} />}
+              {holdPct > 0 && <div className={`bg-tv-blue transition-[width] duration-1000 ease-settle ${percentageWidthClass(holdPct)}`} />}
+              {sellPct > 0 && <div className={`bg-tv-red transition-[width] duration-1000 ease-settle ${percentageWidthClass(sellPct)}`} />}
             </div>
             <div className="flex flex-wrap gap-4 text-xs font-number font-bold">
               {buyPct > 0 && <span className="text-tv-green">{buyPct}% BULLISH</span>}

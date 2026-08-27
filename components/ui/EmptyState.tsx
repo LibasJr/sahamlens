@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '../../lib/utils/cn';
 import { Button } from './Button';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 export type EmptyIllustration = 'collecting' | 'empty' | 'search' | 'locked';
 
@@ -145,8 +146,7 @@ export function EmptyState({
             aria-valuemax={progress.total}
           >
             <div
-              className="h-full rounded-full bg-gradient-accent transition-[width] duration-700 ease-settle"
-              style={{ width: `${pct}%` }}
+              className={`h-full rounded-full bg-gradient-accent transition-[width] duration-700 ease-settle ${percentageWidthClass(pct)}`}
             />
           </div>
         </div>
