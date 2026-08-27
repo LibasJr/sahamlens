@@ -19,6 +19,7 @@ function row(date: string, ticker: string, score: number, close: number): LensRa
     price_basis: RETURN_PRICE_BASIS,
     score_version: SCORE_VERSION,
     score_config_hash: LENS_SCORE_MODEL_METADATA.configHash,
+    universe_version: 'idx-liquid-v2026-08-17',
     coverage_pct: 100,
     eligibility_status: 'ELIGIBLE',
     universe_eligible: true,
@@ -46,6 +47,15 @@ describe('computeLensScoreBucketBacktest', () => {
     expect(result.buckets.find((b) => b.bucket === '80-100')?.horizons.t5.samples).toBe(1);
     expect(result.roundTripCostPct).toBe(LENS_SCORE_ROUND_TRIP_COST_PCT);
     expect(result.entryRule).toMatch(/entry close H\+1/i);
+    expect(result.provenance).toMatchObject({
+      source: 'lens_radar_history',
+      asOf: dateFromStart(6),
+      confidence: 'calculated',
+      isEstimated: false,
+      modelVersion: SCORE_VERSION,
+      universeVersion: 'idx-liquid-v2026-08-17',
+      universeMixed: false,
+    });
   });
 
   it('menghasilkan t-test sederhana untuk bucket 80-100 dibanding 60-69', () => {
@@ -133,5 +143,17 @@ describe('computeLensScoreBucketBacktest', () => {
 
     expect(result.rowsRead).toBe(0);
     expect(result.buckets.every((b) => Object.values(b.horizons).every((h) => h.samples === 0))).toBe(true);
+  });
+
+  it('does not invent one universe version when accepted rows are mixed', () => {
+    const first = row('2026-01-01', 'AAAA.JK', 85, 100);
+    const result = computeLensScoreBucketBacktest([
+      first,
+      { ...first, date: '2026-01-02', universe_version: 'idx-liquid-v-next' },
+    ], { calculatedAt: '2026-08-27T12:00:00.000Z' });
+
+    expect(result.provenance.universeVersion).toBeNull();
+    expect(result.provenance.universeMixed).toBe(true);
+    expect(result.provenance.retrievedAt).toBe('2026-08-27T12:00:00.000Z');
   });
 });

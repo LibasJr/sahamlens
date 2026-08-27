@@ -8,6 +8,12 @@ import {
   type BacktestIndicatorCache,
 } from '@/modules/backtest';
 import { BACKTEST_PERIOD_MONTHS } from '@/modules/backtest/constants/backtest-periods';
+import { BACKTEST_UNIVERSE_VERSION } from '@/modules/backtest/constants/backtest-universe';
+import {
+  BACKTEST_DATA_SNAPSHOT_VERSION,
+  BACKTEST_MODEL_VERSION,
+} from '@/modules/backtest/constants/model-version';
+import { researchOutputProvenance } from '@/shared/research/provenance';
 
 export const VALID_BACKTEST_FILTERS: IndicatorName[] = [
   'EMA 20/50 Cross',
@@ -111,6 +117,19 @@ export async function runBacktestSimulation(
     trades_locked_count: tradesLockedCount,
     is_guest_limited: options.isGuest,
     dataAsOf: result.computedAt,
+    provenance: researchOutputProvenance({
+      source: 'Yahoo Finance historical OHLCV via backtest indicator cache',
+      period: `${period} bulan; jendela aktual mengikuti hari bursa yang tersedia`,
+      asOf: result.computedAt,
+      retrievedAt: new Date().toISOString(),
+      confidence: 'calculated',
+      isEstimated: false,
+      modelVersion: BACKTEST_MODEL_VERSION,
+      universeVersion: BACKTEST_UNIVERSE_VERSION,
+      dataSnapshotVersion: BACKTEST_DATA_SNAPSHOT_VERSION,
+      transformation: 'Sinyal teknikal point-in-time; eksekusi paling cepat open H+1; hasil dibandingkan dengan IHSG.',
+      note: 'Keluaran riset historis, bukan prediksi atau rekomendasi investasi.',
+    }),
   };
 
   if (result.totalTrades === 0) {
