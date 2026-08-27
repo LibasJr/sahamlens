@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, X } from 'lucide-react';
 import { Button, Card, TickerAvatar } from '@/components/ui';
+import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 
 // Mini Sparkline SVG
 export function Sparkline({ data, color, width = 120, height = 32 }: { data: number[]; color: string; width?: number; height?: number }) {
@@ -290,13 +291,13 @@ export function BreadthBar({ advancing, declining, unchanged, total }: any) {
         role="img"
         aria-label={`${advancing} saham naik, ${unchanged} stagnan, ${declining} turun, dari ${total} saham terpantau`}
       >
-        <div className="bg-tv-green transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${advPct}%` }}>
+        <div className={`bg-tv-green transition-[width] duration-700 ease-settle flex items-center justify-center ${percentageWidthClass(advPct)}`}>
           {advPct > 10 && <span className="text-[10px] font-number font-bold text-white">{advancing}</span>}
         </div>
-        <div className="bg-tv-muted transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${uncPct}%` }}>
+        <div className={`bg-tv-muted transition-[width] duration-700 ease-settle flex items-center justify-center ${percentageWidthClass(uncPct)}`}>
           {uncPct > 10 && <span className="text-[10px] font-number font-bold text-white">{unchanged}</span>}
         </div>
-        <div className="bg-tv-red transition-[width] duration-700 ease-settle flex items-center justify-center" style={{ width: `${decPct}%` }}>
+        <div className={`bg-tv-red transition-[width] duration-700 ease-settle flex items-center justify-center ${percentageWidthClass(decPct)}`}>
           {decPct > 10 && <span className="text-[10px] font-number font-bold text-white">{declining}</span>}
         </div>
       </div>
