@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { Shield, Calculator, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, DollarSign, Copy, Check } from 'lucide-react';
+import { Shield, Calculator, AlertTriangle, TrendingUp, TrendingDown, CheckCircle2, DollarSign, Copy, Check, X } from 'lucide-react';
 import { Card, CardHeader, CardTitle, Badge } from '@/components/ui';
 import { calculatePositionSize } from '@/lib/utils/position-sizer';
 import { formatRupiah } from '@/shared/config/pricing';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
+import { copyText } from '@/shared/browser/copy-text';
 
 interface PositionSizingCalculatorProps {
   entryPrice: number;
@@ -24,7 +25,7 @@ export function PositionSizingCalculator({
 }: PositionSizingCalculatorProps) {
   const [capital, setCapital] = useState<number>(10_000_000);
   const [riskPct, setRiskPct] = useState<number>(1.0);
-  const [isCopied, setIsCopied] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
 
   const cleanTicker = ticker.replace('.JK', '');
 
@@ -39,7 +40,7 @@ export function PositionSizingCalculator({
     });
   }, [capital, riskPct, entryPrice, cutLossPrice, takeProfit1Price, takeProfit2Price]);
 
-  const handleCopyPlan = () => {
+  const handleCopyPlan = async () => {
     if (!result.isValid) return;
     const text = `🎯 TRADING PLAN SAHAMLENS (${cleanTicker})
 • Entry: Rp ${entryPrice.toLocaleString('id-ID')}
@@ -48,11 +49,9 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
 • Batas Risiko: ${riskPct}% (${formatRupiah(result.actualRiskLossIdr)})
 • Alokasi Modal: ${result.portfolioAllocationPct}% dari ${formatRupiah(capital)}`;
 
-    if (navigator?.clipboard) {
-      navigator.clipboard.writeText(text);
-      setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
-    }
+    const copied = await copyText(text);
+    setCopyState(copied ? 'copied' : 'error');
+    window.setTimeout(() => setCopyState('idle'), 2000);
   };
 
   if (!entryPrice || !cutLossPrice || cutLossPrice >= entryPrice) {
@@ -83,13 +82,15 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
           onClick={handleCopyPlan}
           title="Salin Rencana Trading ke Clipboard"
           className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-            isCopied
+            copyState === 'copied'
               ? 'bg-emerald-500/20 text-emerald-500 dark:text-emerald-300 border-emerald-500/40 shadow-sm'
-              : 'bg-tv-hover text-tv-muted hover:text-tv-text border-tv-border'
+              : copyState === 'error'
+                ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
+                : 'bg-tv-hover text-tv-muted hover:text-tv-text border-tv-border'
           }`}
         >
-          {isCopied ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
-          <span>{isCopied ? 'Tersalin!' : 'Salin Trading Plan'}</span>
+          {copyState === 'copied' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : copyState === 'error' ? <X className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          <span>{copyState === 'copied' ? 'Tersalin!' : copyState === 'error' ? 'Gagal menyalin' : 'Salin Trading Plan'}</span>
         </PrimitiveButton>
       </CardHeader>
 
