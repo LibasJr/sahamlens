@@ -15,6 +15,7 @@ import {
 } from '@/modules/technical/service/stock-analysis-source.service';
 import { computeStockAnalysisPayload } from '@/modules/technical/service/stock-analysis-compute.service';
 import { validateNoDummyStockPayload } from '@/modules/technical/service/stock-analysis-contract.service';
+import { getLensScoreValidationStatus } from '@/modules/validation';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -45,9 +46,15 @@ function withStockEnvelope<T extends Record<string, unknown>>(
   payload: T,
   meta: Omit<ApiResponseMeta, 'requestId'>,
 ) {
+  const modelValidation = getLensScoreValidationStatus();
+  const data = { ...payload, modelValidation };
   return {
     ...payload,
-    ...apiOk(payload, meta),
+    modelValidation,
+    ...apiOk(data, {
+      ...meta,
+      modelVersion: meta.modelVersion ?? modelValidation.reasonCode,
+    }),
   };
 }
 

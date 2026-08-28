@@ -8,6 +8,7 @@ import { getSession } from '@/modules/user';
 import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
 import { runController } from '@/shared/http/next-response.adapter';
 import { apiOk } from '@/shared/http/api-response';
+import { getLensScoreValidationStatus } from '@/modules/validation';
 
 export const dynamic = 'force-dynamic';
 // 120 (bukan 60) - disamakan dengan app/api/cron/screener-scan yang mengerjakan
@@ -96,6 +97,7 @@ export async function GET(request: Request) {
 
     const ttlRemaining = await getCacheTtlRemaining(CACHE_KEY);
     const _meta = describeCacheAge(ttlRemaining, CACHE_TTL_SEC.SCREENER_UNIVERSE);
+    const modelValidation = getLensScoreValidationStatus();
     const data = {
       profile,
       analysis: {
@@ -106,6 +108,7 @@ export async function GET(request: Request) {
       },
       availableSectors,
       momentumScored,
+      modelValidation,
       _meta,
     };
 
@@ -116,6 +119,7 @@ export async function GET(request: Request) {
         ...apiOk(data, {
           source: 'screener-universe-cache',
           staleness: _meta.freshness.toLowerCase(),
+          modelVersion: modelValidation.reasonCode,
         }),
         // Backward-compatible top-level fields while clients migrate to
         // the standard { ok, data, meta } response contract.

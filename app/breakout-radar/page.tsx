@@ -37,22 +37,7 @@ export default function AiPickPage() {
   const [computedAt, setComputedAt] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [bucketBacktest, setBucketBacktest] = useState<BucketBacktest | null>(null);
-  // Validasi bucket LensScore adalah alat kalibrasi internal - isinya statistik
-  // backtest per rentang skor, bukan informasi yang berguna buat user biasa dan
-  // gampang salah dibaca sebagai janji hasil. Ditampilkan khusus admin.
-  //
-  // Dua sumber status admin digabung persis seperti di components/Sidebar.tsx:
-  // cookie admin HttpOnly (dibaca lewat /api/admin-status karena client tidak bisa
-  // membacanya sendiri) ATAU role pada sesi login.
-  const { effectiveRole, resolved: authResolved, loading: authLoading, user: authUser } = useAuthUser();
-  const [hasAdminCookie, setHasAdminCookie] = useState(false);
-  const canSeeBucketBacktest = hasAdminCookie || (authResolved && effectiveRole === 'admin');
-
-  useEffect(() => {
-    apiRequest<any>('/api/admin-status')
-      .then((d) => setHasAdminCookie(Boolean(d.isAdmin)))
-      .catch(() => setHasAdminCookie(false));
-  }, []);
+  const { resolved: authResolved, loading: authLoading, user: authUser } = useAuthUser();
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -137,9 +122,7 @@ export default function AiPickPage() {
   }, [fetchPicks]);
 
   useEffect(() => {
-    // Non-admin tidak perlu request ini sama sekali - menyembunyikan di render saja
-    // menyisakan payload backtest di tab network setiap kali halaman dibuka.
-    if (!canSeeBucketBacktest) {
+    if (loading || gated || loadError || !ready) {
       setBucketBacktest(null);
       return;
     }
@@ -148,7 +131,7 @@ export default function AiPickPage() {
         if (d && !d.error) setBucketBacktest(d);
       })
       .catch(console.error);
-  }, [canSeeBucketBacktest]);
+  }, [gated, loadError, loading, ready]);
 
   // Jam diambil dari computedAt milik cache, BUKAN jam client saat halaman dibuka -
   // label lama memakai new Date() sehingga selalu menampilkan waktu klik seolah-olah
@@ -266,9 +249,9 @@ export default function AiPickPage() {
               />
             )}
 
-            {!loading && !gated && !loadError && ready && canSeeBucketBacktest && bucketBacktest?.ready ? (
+            {!loading && !gated && !loadError && ready && bucketBacktest?.ready ? (
               <BucketBacktestCard data={bucketBacktest} />
-            ) : !loading && !gated && !loadError && ready && canSeeBucketBacktest && bucketBacktest ? (
+            ) : !loading && !gated && !loadError && ready && bucketBacktest ? (
               /* Histori belum cukup panjang - dulu kondisi ini cuma menghasilkan satu
                  baris teks kuning, dan kalau `note` kebetulan null tidak menghasilkan
                  apa pun sama sekali. */
