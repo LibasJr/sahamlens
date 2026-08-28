@@ -272,11 +272,16 @@ export function rankAiPicks(
       // tanpa guard ini, UI yang mengakses item.breakdown.technical akan crash.
       breakdown: s.breakdown ?? { technical: 0, fundamental: 0, flow: 0 },
       topReasons: s.topReasons ?? [],
-      tp1: s.tradeSetup?.tp1 ?? null,
-      tp2: s.tradeSetup?.tp2 ?? null,
-      cl1: s.tradeSetup?.cl1 ?? null,
+      // TradePlan v1.0 (formula terbaru) diutamakan; tradeSetup lama cuma fallback
+      // untuk entri cache ai-pick-scores lama (TTL 3 hari) yang belum punya field
+      // tradePlan. cl2/emergencyRiskLevel TIDAK ada padanannya di TradePlan v1.0 -
+      // field itu sendiri sudah ditandai @deprecated di trading-setup.ts, jadi tetap
+      // dari tradeSetup selama masih ditampilkan.
+      tp1: s.tradePlan?.takeProfit1 ?? s.tradeSetup?.tp1 ?? null,
+      tp2: s.tradePlan?.takeProfit2 ?? s.tradeSetup?.tp2 ?? null,
+      cl1: s.tradePlan?.cutLoss ?? s.tradeSetup?.cl1 ?? null,
       cl2: s.tradeSetup?.cl2 ?? null,
-      rr: s.tradeSetup?.rr ?? null,
+      rr: s.tradePlan?.riskReward ?? s.tradeSetup?.rr ?? null,
       tradePlan: s.tradePlan ?? null,
     };
   });
