@@ -23,6 +23,16 @@ import {
   RETURN_PRICE_BASIS,
   TRADING_PRICE_BASIS,
 } from '@/shared/market/price-basis';
+import { fetchYahooChartJson } from '@/shared/market/data-provider-adapter';
+import { classifyFreshness } from '@/shared/http/freshness';
+import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
+import {
+  buildRecommendationAuditTrail,
+  buildStockDataQualityContract,
+} from '@/modules/technical/service/stock-analysis-contract.service';
+import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
+import { recordRecommendationAuditTrail } from '@/modules/recommendation/repository/recommendation-audit.repository';
+import { logger } from '@/shared/logger/logger';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -53,23 +63,26 @@ function isFiniteNonNegative(value: unknown): value is number {
 // Market cap >= Rp500M ditambahkan sebagai filter keras sesuai permintaan eksplisit.
 export async function analyzeStock(ticker: string) {
   try {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=1y&interval=1d`;
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 8000);
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'
-      },
-      signal: controller.signal
-    }).catch(e => {
-      clearTimeout(timeoutId);
-      throw e;
+    const chart = await fetchYahooChartJson(ticker, { range: '1y', interval: '1d', timeoutMs: 8000 }).catch(async (error) => {
+      await recordDataSourceHealth({
+        sourceId: 'YAHOO_CHART',
+        ok: false,
+        detail: {
+          ticker,
+          range: '1y',
+          surface: 'recommendation',
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+      throw error;
     });
-    clearTimeout(timeoutId);
-
-    if (!res.ok) return null;
-
-    const data = await res.json();
+    await recordDataSourceHealth({
+      sourceId: chart.sourceId,
+      ok: true,
+      latencyMs: chart.latencyMs,
+      detail: { ticker, range: '1y', surface: 'recommendation' },
+    });
+    const data = chart.payload as any;
     const result = data.chart.result?.[0];
     if (!result) return null;
 
@@ -391,10 +404,63 @@ export async function analyzeStock(ticker: string) {
       coveragePct: scoring.coverage_pct,
     });
     const decision = toAdvisoryDecision(scoring.kategori, eligibility);
+    const freshness = classifyFreshness(sourceUnixTime);
+    const calculatedAt = new Date().toISOString();
+    const dataQuality = buildStockDataQualityContract({
+      source: chart.sourceId,
+      dataTimestamp,
+      calculatedAt,
+      freshness: freshness.freshness,
+      criticalGaps: [
+        ...scoring.explainability.data_gaps,
+        ...eligibility.reasonCodes,
+      ],
+    });
+    const recommendationAudit = buildRecommendationAuditTrail({
+      ticker,
+      createdAt: calculatedAt,
+      dataQuality,
+      scoring,
+      decision,
+      lensScoreInputs: {
+        technical: {
+          ma20: { value: ma20 },
+          ma50: { value: ma50 },
+          ma200: { value: ma200 },
+          rsi: { value: rsiVal },
+          macdHist: { value: macdHistVal },
+          volToday: { value: scoringVolume },
+          volAvg20: { value: volAvg20 },
+        },
+        fundamental: {
+          per: { value: per },
+          pbv: { value: pbv },
+          roe: { value: roe },
+          der: { value: der },
+          currentRatio: { value: currentRatio },
+          revenueGrowth: { value: revenueGrowth },
+          marketCap: { value: marketCap },
+        },
+        flow: {
+          cmf20: { value: bandarmology.cmf20 },
+          accumulationStatus: { value: accumulation.status },
+          consecutiveBuyDays: { value: buyStreak },
+          consecutiveSellDays: { value: sellStreak },
+          volRatio: { value: volRatio },
+        },
+      },
+    });
+    void recordRecommendationAuditTrail({
+      audit: recommendationAudit,
+      dataQuality,
+      inputSnapshot: recommendationAudit.inputs,
+    });
 
     return {
       ticker: ticker.replace('.JK', ''),
       dataTimestamp,
+      dataQuality,
+      recommendationAudit,
       sector: sector,
       price: currentPrice,
       priceMeta: {
@@ -430,6 +496,9 @@ export async function analyzeStock(ticker: string) {
       valuationScore: scoring.detail.valuasi,
       totalScore: scoring.total_score,
       scoringKategori: scoring.kategori,
+      scoreVersion: LENS_SCORE_MODEL_METADATA.version,
+      scoreConfigHash: LENS_SCORE_MODEL_METADATA.configHash,
+      scoringModel: LENS_SCORE_MODEL_METADATA,
       coverage: scoring.coverage_pct,
       explainability: scoring.explainability,
       topReasons: scoring.alasan_3_poin,
@@ -438,8 +507,24 @@ export async function analyzeStock(ticker: string) {
       eligibilityStatus: eligibility.status,
       eligibilityReasons: eligibility.reasonCodes,
       foreignAccumStreak,
+      _meta: {
+        source: chart.sourceId,
+        dataTimestamp,
+        lastUpdated: dataQuality.lastUpdated,
+        computedAt: calculatedAt,
+        freshness: freshness.freshness,
+        staleReason: dataQuality.staleReason,
+        lensScoreModel: LENS_SCORE_MODEL_METADATA,
+        dataQuality,
+        recommendationAudit,
+      },
     };
   } catch (e) {
+    logger.warn('Recommendation analysis failed closed', {
+      module: 'recommendation',
+      ticker,
+      err: e instanceof Error ? e.message : String(e),
+    });
     return null;
   }
 }

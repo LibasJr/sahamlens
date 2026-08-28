@@ -16,7 +16,7 @@ import { apiOk } from '@/shared/http/api-response';
 // jalur harus sama persis, jadi tipenya diturunkan dari analyzeStock() sendiri (bukan tipe longgar)
 // supaya field baru/berubah di sana otomatis tercermin di sini tanpa disunting manual.
 type AnalyzeStockResult = NonNullable<Awaited<ReturnType<typeof analyzeStock>>>;
-type CachedRecommendation = AnalyzeStockResult & { _meta?: unknown };
+type CachedRecommendation = Omit<AnalyzeStockResult, '_meta'> & { _meta?: unknown };
 
 // BUILD 006/007 - simbol yang rutin di-scan app/api/cron/recommendation-scan dibaca
 // cache-first (per simbol); simbol lain di luar daftar itu tetap dihitung live.

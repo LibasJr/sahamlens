@@ -42,6 +42,20 @@ const context = {
   hasPro: false,
 };
 const request = () => new Request('https://sahamlens.id/api/stock/BBCA.JK?range=1y');
+const dataQuality = {
+  contractVersion: 'stock-analysis-contract-v1.0.0',
+  source: 'YAHOO_CHART',
+  lastUpdated: '2026-08-27T02:00:00.000Z',
+  calculatedAt: '2026-08-27T02:01:00.000Z',
+  freshness: 'DELAYED',
+  staleReason: null,
+  noDummyPolicy: {
+    mode: 'FAIL_CLOSED',
+    missingNumericValues: 'NULL_NOT_ZERO',
+    missingLabels: 'NULL_NOT_SYNTHETIC_LABEL',
+  },
+  criticalGaps: [],
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -129,7 +143,13 @@ describe('handleGetStockAnalysis contract', () => {
     const computedPayload = {
       stock: { symbol: 'BBCA.JK' },
       scoring: { total_score: 77 },
-      _meta: { computedAt: '2026-08-27T02:01:00.000Z', freshness: 'DELAYED' },
+      price: 9000,
+      dataQuality,
+      _meta: {
+        computedAt: '2026-08-27T02:01:00.000Z',
+        freshness: 'DELAYED',
+        dataQuality,
+      },
     };
     mocks.cacheGet.mockResolvedValueOnce(null);
     mocks.fetchSource.mockResolvedValue({ data: { chart: {} }, quoteSummary: { price: {} } });
@@ -155,6 +175,30 @@ describe('handleGetStockAnalysis contract', () => {
     expect(computedPayload).not.toHaveProperty('ok');
     expect(computedPayload).not.toHaveProperty('data');
     expect(computedPayload).not.toHaveProperty('_quota');
+  });
+
+  it('rejects computed success payloads that miss the no-dummy contract', async () => {
+    const computedPayload = {
+      stock: { symbol: 'BBCA.JK' },
+      scoring: { total_score: 77 },
+      price: 9000,
+      _meta: { computedAt: '2026-08-27T02:01:00.000Z', freshness: 'DELAYED' },
+    };
+    mocks.cacheGet.mockResolvedValueOnce(null);
+    mocks.fetchSource.mockResolvedValue({ data: { chart: {} }, quoteSummary: { price: {} } });
+    mocks.compute.mockResolvedValue({ status: 200, body: computedPayload });
+
+    const result = await handleGetStockAnalysis(request(), 'BBCA.JK');
+
+    expect(result).toEqual({
+      status: 503,
+      body: {
+        error: 'Data saham tidak memenuhi kontrak no-dummy',
+        code: 'NO_DUMMY_CONTRACT_MISSING',
+      },
+    });
+    expect(mocks.cacheSet).not.toHaveBeenCalled();
+    expect(mocks.attachQuota).not.toHaveBeenCalled();
   });
 
   it('does not cache domain failures returned by the compute pipeline', async () => {

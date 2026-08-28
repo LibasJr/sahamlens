@@ -6,6 +6,9 @@ import {
   recordProviderSuccess,
 } from '@/shared/http/provider-circuit-breaker';
 import { recordDegradedMode } from '@/shared/observability/request-context';
+import { fetchYahooChartJson } from '@/shared/market/data-provider-adapter';
+import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
+import { logger } from '@/shared/logger/logger';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 const ALLOWED_RANGES = new Set(['1mo', '3mo', '6mo', '1y', '3y', '5y', '20y']);
@@ -28,34 +31,36 @@ export function buildStockAnalysisCacheKeys(ticker: string, range: string) {
 }
 
 export async function fetchStockAnalysisSource(ticker: string, range: string) {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?range=${range}&interval=1d`;
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000);
-
   const yahooCircuitOpen = await isProviderCircuitOpen('YAHOO_CHART');
-  if (yahooCircuitOpen) clearTimeout(timeoutId);
 
   const chartPromise = yahooCircuitOpen
     ? Promise.reject(new Error('YAHOO_CIRCUIT_OPEN'))
-    : fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
-        signal: controller.signal,
-      })
-        .then(async (res) => {
-          clearTimeout(timeoutId);
-          if (!res.ok) {
-            await recordProviderFailure('YAHOO_CHART', {
-              immediateOpen: res.status === 403 || res.status === 429,
-            });
-            throw new Error(`Failed to fetch Yahoo data: ${res.status}`);
-          }
+    : fetchYahooChartJson(ticker, { range, interval: '1d', timeoutMs: 8000 })
+        .then(async (result) => {
           await recordProviderSuccess('YAHOO_CHART');
-          return res.json();
+          await recordDataSourceHealth({
+            sourceId: 'YAHOO_CHART',
+            ok: true,
+            latencyMs: result.latencyMs,
+            detail: { ticker, range, adapter: 'fetchYahooChartJson' },
+          });
+          return result.payload;
         })
         .catch(async (error: any) => {
-          clearTimeout(timeoutId);
           if (!(error instanceof Error && error.message === 'YAHOO_CIRCUIT_OPEN')) {
-            await recordProviderFailure('YAHOO_CHART');
+            await recordProviderFailure('YAHOO_CHART', {
+              immediateOpen: error instanceof Error && /YAHOO_CHART_HTTP_(403|429)/.test(error.message),
+            });
+            await recordDataSourceHealth({
+              sourceId: 'YAHOO_CHART',
+              ok: false,
+              detail: {
+                ticker,
+                range,
+                adapter: 'fetchYahooChartJson',
+                error: error instanceof Error ? error.message : String(error),
+              },
+            });
           }
           throw error;
         });
@@ -70,7 +75,12 @@ export async function fetchStockAnalysisSource(ticker: string, range: string) {
         }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('quoteSummary timeout')), 8000)),
       ]).catch((error: any) => {
-        console.warn('Failed to fetch fundamental data for scoring:', error);
+        logger.warn('Failed to fetch fundamental data for scoring', {
+          module: 'stock-analysis',
+          sourceId: 'YAHOO_QUOTE_SUMMARY',
+          ticker,
+          err: error instanceof Error ? error.message : String(error),
+        });
         return null;
       });
 

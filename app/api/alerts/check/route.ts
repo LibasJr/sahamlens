@@ -7,6 +7,7 @@ import { checkAndTriggerAlerts } from '@/modules/notification';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getSession } from '@/modules/user';
+import { logger } from '@/shared/logger/logger';
 
 // WAJIB - route ini tidak memanggil cookies()/headers() sama sekali, jadi tanpa
 // penanda ini Next.js men-static-generate-nya SEKALI saat `next build` dan
@@ -36,25 +37,25 @@ function getClientIp(req: Request): string {
 export async function GET(req: Request) {
   return runController(async () => {
     try {
-    if (!(await getSession())) {
-      return { status: 401, body: { error: 'Belum login' } };
-    }
+      if (!(await getSession())) {
+        return { status: 401, body: { error: 'Belum login' } };
+      }
 
-    const ip = getClientIp(req);
-    const rate = await checkRateLimitShared(ip, Date.now(), RATE_LIMIT_CONFIG);
-    if (!rate.allowed) {
-      return {
-        status: 429,
-        body: { error: 'Terlalu banyak request. Coba lagi nanti.' },
-        headers: rate.retryAfterSec ? { 'Retry-After': String(rate.retryAfterSec) } : undefined,
-      };
-    }
+      const ip = getClientIp(req);
+      const rate = await checkRateLimitShared(ip, Date.now(), RATE_LIMIT_CONFIG);
+      if (!rate.allowed) {
+        return {
+          status: 429,
+          body: { error: 'Terlalu banyak request. Coba lagi nanti.' },
+          headers: rate.retryAfterSec ? { 'Retry-After': String(rate.retryAfterSec) } : undefined,
+        };
+      }
 
-    const result = await checkAndTriggerAlerts(getTrustedAppOrigin());
-    return { status: 200, body: result };
-  } catch (err) {
-    console.error('Error checking alerts:', err);
-    return { status: 500, body: { error: 'Internal Server Error' } };
+      const result = await checkAndTriggerAlerts(getTrustedAppOrigin());
+      return { status: 200, body: result };
+    } catch (err) {
+      logger.error('Manual alert check failed', { module: 'watchlist-alert', err });
+      return { status: 500, body: { error: 'Internal Server Error' } };
     }
   }, req);
 }
