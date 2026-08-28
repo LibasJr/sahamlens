@@ -94,6 +94,7 @@ export default function DividendPage() {
       title={isTickerMode ? (isEn ? 'Ticker Dividend Cash Flow Simulation' : 'Simulasi Cash Flow Dividen per Ticker') : (isEn ? 'IDX Dividend Cash Flow Simulation' : 'Simulasi Cash Flow Dividen IDX')}
       subtitle={isTickerMode ? (isEn ? 'Dividend-yield and DRIP scenario for the selected ticker.' : 'Skenario yield dividen & DRIP untuk ticker yang dipilih.') : (isEn ? 'Universe-based dividend-yield and DRIP scenario from provider data.' : 'Skenario yield dividen & DRIP berbasis universe saham dividen terpantau.')}
       stockNav={isTickerMode}
+      tickerSearch={isTickerMode}
       headerExtra={
         <div className="flex flex-wrap items-end gap-3">
           <div className="flex items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-0.5 text-[11px]">
