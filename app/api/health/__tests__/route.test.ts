@@ -176,7 +176,7 @@ describe('GET /api/health - database satu-satunya alasan 503', () => {
     expect(body.sources.warnings).toEqual([]);
   });
 
-  it('data source DEGRADED terlihat sebagai warning nonblocking, bukan DOWN', async () => {
+  it('sumber IDX deprecated tetap terlihat, tetapi tidak menggagalkan readiness', async () => {
     vi.stubEnv('NODE_ENV', 'production');
     vi.mocked(pingRedis).mockResolvedValue('ok');
     vi.mocked(listDataSourceHealth).mockResolvedValue([
@@ -196,18 +196,45 @@ describe('GET /api/health - database satu-satunya alasan 503', () => {
     const { status, body } = await callHealth();
 
     expect(status).toBe(200);
-    expect(body.status).toBe('degraded');
-    expect(body.degraded).toEqual(['data_source:1']);
+    expect(body.status).toBe('ok');
+    expect(body.degraded).toEqual([]);
     expect(body.operationalReadiness).toEqual(expect.objectContaining({
       servingTraffic: true,
       deployBlocking: false,
-      dataSourceDegraded: true,
-      dataSourceDegradedCount: 1,
+      dataSourceDegraded: false,
+      dataSourceDegradedCount: 0,
       dataSourceDown: false,
       dataSourceDownCount: 0,
-      dataSourceWarningCount: 1,
+      dataSourceWarningCount: 0,
     }));
     expect(body.sources.down).toEqual([]);
-    expect(body.sources.warnings).toEqual(['IDX_PUBLIC_STOCK_SUMMARY']);
+    expect(body.sources.warnings).toEqual([]);
+    expect(body.sources.items).toHaveLength(1);
+    expect(body.sources.items[0].sourceId).toBe('IDX_PUBLIC_STOCK_SUMMARY');
+  });
+
+  it('sumber aktif DEGRADED tetap menjadi warning', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.mocked(pingRedis).mockResolvedValue('ok');
+    vi.mocked(listDataSourceHealth).mockResolvedValue([
+      {
+        sourceId: 'IDX_TRADING_INFO_SS_ARTIFACT',
+        status: 'DEGRADED',
+        lastSuccessAt: null,
+        lastFailureAt: '2026-08-27T02:00:00.000Z',
+        lastLatencyMs: null,
+        consecutiveFailures: 1,
+        dataObservedAt: null,
+        detail: {},
+        updatedAt: '2026-08-27T02:01:00.000Z',
+      },
+    ]);
+
+    const { status, body } = await callHealth();
+
+    expect(status).toBe(200);
+    expect(body.status).toBe('degraded');
+    expect(body.degraded).toEqual(['data_source:1']);
+    expect(body.sources.warnings).toEqual(['IDX_TRADING_INFO_SS_ARTIFACT']);
   });
 });

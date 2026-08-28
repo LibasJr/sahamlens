@@ -6,6 +6,10 @@ import { runController } from '@/shared/http/next-response.adapter';
 
 export const dynamic = 'force-dynamic';
 
+// Sumber ini sudah tidak dipakai oleh jalur data aktif. Record telemetry lamanya
+// dipertahankan untuk audit, tetapi tidak boleh membuat readiness terlihat gagal.
+const DEPRECATED_DATA_SOURCE_IDS = new Set(['IDX_PUBLIC_STOCK_SUMMARY']);
+
 // Dibaca DI DALAM handler, bukan sebagai konstanta modul: konstanta modul membekukan
 // nilainya saat impor pertama, sehingga test tidak bisa menguji cabang produksi tanpa
 // memuat ulang modulnya - dan cabang yang tidak bisa diuji akan lolos diam-diam.
@@ -32,12 +36,13 @@ export async function GET(request: NextRequest) {
       }));
     } catch { dataSources = []; }
 
-    const sourceSummary = dataSources.reduce((acc, row) => {
+    const activeDataSources = dataSources.filter((row) => !DEPRECATED_DATA_SOURCE_IDS.has(row.sourceId));
+    const sourceSummary = activeDataSources.reduce((acc, row) => {
       acc[row.status] += 1;
       return acc;
     }, { HEALTHY: 0, DEGRADED: 0, DOWN: 0, UNKNOWN: 0 } as Record<'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN', number>);
-    const sourceDown = dataSources.filter((row) => row.status === 'DOWN');
-    const sourceWarnings = dataSources.filter((row) => row.status === 'DEGRADED' || row.status === 'UNKNOWN');
+    const sourceDown = activeDataSources.filter((row) => row.status === 'DOWN');
+    const sourceWarnings = activeDataSources.filter((row) => row.status === 'DEGRADED' || row.status === 'UNKNOWN');
     // Redis TERLIHAT lewat body.degraded, dan HANYA dianggap degradasi di produksi -
     // tapi TIDAK LAGI menentukan kode status HTTP. Alasannya bukan performa cache -
     // `cacheGet`/`cacheSet` memang sengaja degrade diam-diam ke cache memori dan itu
