@@ -9,6 +9,7 @@ export interface ComputeBudgetResult {
   limit: number;
   remaining: number;
   retryAfterSec?: number;
+  unavailable?: boolean;
 }
 
 const WINDOW_SEC = 10 * 60;
@@ -71,7 +72,10 @@ export async function consumeComputeBudget(
   const safeCost = Math.max(1, Math.min(25, Math.floor(cost)));
   const limit = LIMITS[tier];
   const client = redisClient();
-  if (!client) return localConsume(actor, safeCost, tier, now);
+  if (!client) {
+    if (process.env.NODE_ENV === 'production') return { allowed: false, used: 0, limit, remaining: limit, unavailable: true };
+    return localConsume(actor, safeCost, tier, now);
+  }
 
   const windowIndex = Math.floor(now / (WINDOW_SEC * 1000));
   const key = `sahamlens:compute-budget:${tier}:${actor}:${windowIndex}`;
@@ -87,6 +91,7 @@ export async function consumeComputeBudget(
       retryAfterSec: allowed ? undefined : WINDOW_SEC,
     };
   } catch {
+    if (process.env.NODE_ENV === 'production') return { allowed: false, used: 0, limit, remaining: limit, unavailable: true };
     return localConsume(actor, safeCost, tier, now);
   }
 }
