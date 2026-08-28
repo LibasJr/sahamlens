@@ -1,10 +1,12 @@
 export interface ApiResponseMeta {
   requestId?: string;
   dataAsOf?: string;
+  lastUpdated?: string;
   calculatedAt?: string;
   marketDate?: string;
   source?: string;
   staleness?: string;
+  staleReason?: string | null;
   modelVersion?: string;
   universeVersion?: string;
 }

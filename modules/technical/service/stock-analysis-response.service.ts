@@ -10,6 +10,12 @@ import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
 import type { StockFundamentalSnapshot, StockScoringContext } from '@/modules/technical/service/stock-analysis-scoring.service';
 import type { StockIndicatorContext } from '@/modules/technical/service/stock-analysis-indicators.service';
+import {
+  attachLensScoreModel,
+  buildRecommendationAuditTrail,
+  buildStockDataQualityContract,
+} from '@/modules/technical/service/stock-analysis-contract.service';
+import { recordRecommendationAuditTrail } from '@/modules/recommendation/repository/recommendation-audit.repository';
 
 /**
  * Final response assembly. This layer owns eligibility, TP/CL construction, freshness
@@ -54,10 +60,37 @@ export async function buildStockAnalysisResponse(args: {
   });
   const decision = toAdvisoryDecision(scoringResult.kategori, eligibility);
   const freshness = classifyFreshness(result.meta?.regularMarketTime);
+  const calculatedAt = new Date().toISOString();
+  const scoringWithModel = attachLensScoreModel(scoringResult);
+  const dataQuality = buildStockDataQualityContract({
+    source: 'YAHOO_CHART',
+    dataTimestamp: freshness.dataTimestamp,
+    calculatedAt,
+    freshness: freshness.freshness,
+    criticalGaps: [
+      ...scoringResult.explainability.data_gaps,
+      ...eligibility.reasonCodes,
+    ],
+  });
+  const recommendationAudit = buildRecommendationAuditTrail({
+    ticker,
+    createdAt: calculatedAt,
+    dataQuality,
+    scoring: scoringResult,
+    decision,
+    lensScoreInputs: lensScoreInputProvenance,
+  });
+  void recordRecommendationAuditTrail({
+    audit: recommendationAudit,
+    dataQuality,
+    inputSnapshot: lensScoreInputProvenance as unknown as Record<string, unknown>,
+  });
   const dataIntegrity = await getLatestMarketIntegrity(ticker);
   const trust = {
     data_status: freshness.freshness,
     data_timestamp: freshness.dataTimestamp,
+    data_source: dataQuality.source,
+    stale_reason: dataQuality.staleReason,
     score_confidence: scoringResult.explainability.confidence_level,
     score_confidence_pct: scoringResult.explainability.confidence_score,
     research_label: scoringResult.explainability.research_label,
@@ -125,10 +158,13 @@ export async function buildStockAnalysisResponse(args: {
     consensus,
     consensusData,
     bestPerformer,
-    scoring: scoringResult,
+    scoring: scoringWithModel,
     trust,
+    dataQuality,
+    recommendationAudit,
     provenance: {
       lensScoreInputs: lensScoreInputProvenance,
+      recommendationAudit,
     },
     eligibility: {
       status: eligibility.status,
@@ -159,6 +195,8 @@ export async function buildStockAnalysisResponse(args: {
     technical: {},
     _meta: {
       lensScoreModel: LENS_SCORE_MODEL_METADATA,
+      scoreVersion: LENS_SCORE_MODEL_METADATA.version,
+      scoreConfigHash: LENS_SCORE_MODEL_METADATA.configHash,
       source: 'live',
       eodHistorySource: eodHistory.source,
       liveQuoteSource: 'YAHOO_CHART',
@@ -166,9 +204,13 @@ export async function buildStockAnalysisResponse(args: {
       lq45UniverseVersion: eodHistory.universeVersion,
       eodLatestTradeDate: eodHistory.latestTradeDate,
       eodReconciliationStatus: eodHistory.latestCloseReconciliation,
-      computedAt: new Date().toISOString(),
+      computedAt: calculatedAt,
       dataTimestamp: freshness.dataTimestamp,
+      lastUpdated: dataQuality.lastUpdated,
       freshness: freshness.freshness,
+      staleReason: dataQuality.staleReason,
+      dataQuality,
+      recommendationAudit,
       dataIntegrity,
       trust,
     },
