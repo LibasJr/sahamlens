@@ -149,13 +149,13 @@ export default function PortfolioPage() {
           if (s?.scoring) {
             const presentation = getDecisionPresentation(s.scoring.kategori, s.decision);
             if (presentation.actionable && s.decision?.action) {
-              scoreLabel = `${s.scoring.total_score} · ${s.decision.action}`;
+              scoreLabel = `${s.scoring.total_score} · ${presentation.recommendationLabel || s.decision.action}`;
             } else if (presentation.kind === 'MODEL_UNVALIDATED') {
-              scoreLabel = `${s.scoring.total_score} · sinyal ${presentation.modelSignal || 'N/A'} · model belum tervalidasi`;
+              scoreLabel = `${s.scoring.total_score} · ${presentation.modelSignalLabel || 'Sinyal belum tersedia'} · ${presentation.statusLabel || 'Masih tahap uji'}`;
             } else if (presentation.kind === 'INELIGIBLE') {
-              scoreLabel = `${s.scoring.total_score} · sinyal ${presentation.modelSignal || 'N/A'} · tidak layak direkomendasikan`;
+              scoreLabel = `${s.scoring.total_score} · ${presentation.modelSignalLabel || 'Sinyal belum tersedia'} · ${presentation.statusLabel || 'Belum layak direkomendasikan'}`;
             } else {
-              scoreLabel = `${s.scoring.total_score} · ${presentation.modelSignal || 'sinyal N/A'} · rekomendasi tidak tersedia`;
+              scoreLabel = `${s.scoring.total_score} · ${presentation.modelSignalLabel || 'Sinyal belum tersedia'} · ${presentation.statusLabel || 'Rekomendasi belum tersedia'}`;
             }
           }
         } catch(e) {
@@ -333,8 +333,8 @@ export default function PortfolioPage() {
             <p className="mt-0.5 text-xs text-tv-muted">Simulasikan posisi, pantau P/L, dan evaluasi disiplin trading tanpa dana riil.</p>
           </div>
           <div className="flex gap-2">
-            <Button variant="bare" size="none" onClick={() => openOrder('BUY')} className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-4 py-2 text-xs font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]">BUY Virtual</Button>
-            <Button variant="bare" size="none" onClick={() => openOrder('SELL')} className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-4 py-2 text-xs font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white">SELL Virtual</Button>
+            <Button variant="bare" size="none" onClick={() => openOrder('BUY')} className="rounded-xl border border-tv-green/20 bg-tv-green/10 px-4 py-2 text-xs font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]">Beli Virtual</Button>
+            <Button variant="bare" size="none" onClick={() => openOrder('SELL')} className="rounded-xl border border-tv-red/20 bg-tv-red/10 px-4 py-2 text-xs font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white">Jual Virtual</Button>
           </div>
         </div>
       </header>
@@ -480,7 +480,7 @@ export default function PortfolioPage() {
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-bold text-white leading-tight font-number">{tickerCode(h.symbol)}</span>
                               {h.scoreLabel && (
-                                <span className={`lens-chip font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('BUY') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('SELL') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
+                                <span className={`lens-chip font-bold px-1.5 py-0.5 rounded ${h.scoreLabel.includes('POSITIF') ? 'bg-tv-green/15 text-tv-green' : h.scoreLabel.includes('NEGATIF') ? 'bg-tv-red/15 text-tv-red' : 'bg-tv-hover text-tv-muted'}`}>
                                   {h.scoreLabel}
                                 </span>
                               )}
