@@ -35,11 +35,11 @@ const TERMS = [
 
 export default function AnalysisGlossary({ compact = false }: { compact?: boolean }) {
   return (
-    <details className="group rounded-lg border border-tv-border bg-tv-bg/60">
-      <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-tv-muted transition-colors hover:text-tv-text">
+    <details className="group border-y border-tv-border/70">
+      <summary className="cursor-pointer list-none py-2.5 text-[11px] font-semibold text-tv-muted transition-colors hover:text-tv-text">
         Istilah analisis <span className="font-normal text-tv-muted/80">— penjelasan singkat untuk pemula</span>
       </summary>
-      <div className={`border-t border-tv-border px-3 py-3 ${compact ? 'grid-cols-1' : 'sm:grid-cols-2'} grid gap-x-5 gap-y-2`}>
+      <div className={`border-t border-tv-border/70 py-3 ${compact ? 'grid-cols-1' : 'sm:grid-cols-2'} grid gap-x-5 gap-y-2`}>
         {TERMS.map(([term, meaning]) => (
           <div key={term} className="text-[11px] leading-relaxed text-tv-muted">
             <span className="font-semibold text-tv-text">{term}</span> — {meaning}
