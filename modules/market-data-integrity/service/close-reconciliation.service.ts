@@ -7,7 +7,7 @@ import { finishReconciliationRun, startReconciliationRun, upsertCloseReconciliat
 import type { CloseObservation, CloseReconciliationRow, ReconciliationStatus } from '../types';
 
 import { CURRENT_LQ45_UNIVERSE } from '@/modules/market/constants/lq45-universe';
-const PRIMARY_SOURCE = 'IDX_PUBLIC_STOCK_SUMMARY';
+const PRIMARY_SOURCE = 'IDX_TRADING_INFO_SS_ARTIFACT';
 const SECONDARY_SOURCE = 'YAHOO_CHART';
 
 function limitUniverse(): string[] {
@@ -69,10 +69,10 @@ export async function runDailyCloseReconciliation(): Promise<Record<string, unkn
   const runId = randomUUID();
   await startReconciliationRun({ runId, primarySource: PRIMARY_SOURCE, secondarySource: SECONDARY_SOURCE, universeCount: universe.length });
 
-  const idxBatch = await fetchLatestIdxCloseBatch();
+  const idxBatch = await fetchLatestIdxCloseBatch(universe);
   if (!idxBatch) {
-    await finishReconciliationRun({ runId, tradeDate: null, status: 'FAILED', compared: 0, matches: 0, mismatches: 0, primaryOnly: 0, secondaryOnly: 0, noData: 0, detail: { reason: 'secondary_source_unavailable' } });
-    return { status: 'FAILED', runId, reason: 'secondary_source_unavailable' };
+    await finishReconciliationRun({ runId, tradeDate: null, status: 'FAILED', compared: 0, matches: 0, mismatches: 0, primaryOnly: 0, secondaryOnly: 0, noData: 0, detail: { reason: 'primary_source_unavailable' } });
+    return { status: 'FAILED', runId, reason: 'primary_source_unavailable' };
   }
 
   const idxMap = new Map(idxBatch.rows.map((row) => [row.ticker, row]));
