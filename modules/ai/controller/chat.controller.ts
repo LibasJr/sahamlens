@@ -23,9 +23,11 @@ export async function handleChatRequest(request: Request): Promise<HttpResult | 
     if (!budget.allowed) {
       return json({
         role: 'assistant',
-        content: 'LensAI menerima terlalu banyak permintaan komputasi dalam waktu singkat. Silakan coba lagi sebentar.',
-        errorCode: 'RATE_LIMIT',
-      }, { status: 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined });
+        content: budget.unavailable
+          ? 'Pembatas penggunaan sementara tidak tersedia. Silakan coba lagi nanti.'
+          : 'LensAI menerima terlalu banyak permintaan komputasi dalam waktu singkat. Silakan coba lagi sebentar.',
+        errorCode: budget.unavailable ? 'RATE_LIMIT_UNAVAILABLE' : 'RATE_LIMIT',
+      }, { status: budget.unavailable ? 503 : 429, headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined });
     }
 
     const parsed = await parseChatRequest(request);
