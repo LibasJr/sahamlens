@@ -1,8 +1,25 @@
+import { isIP } from 'node:net';
 import type { HttpResult } from '@/shared/types/http-result.types';
 
+function normalizeCompanyDomain(value: string): string | null {
+  const candidate = value.trim().toLowerCase();
+  if (!candidate || candidate.length > 253 || candidate.includes('/') || candidate.includes('@')) return null;
+
+  try {
+    const parsed = new URL(`https://${candidate}`);
+    if (parsed.hostname !== candidate || parsed.port || parsed.pathname !== '/' || parsed.search || parsed.hash) return null;
+    if (!candidate.includes('.') || candidate.includes('..') || isIP(candidate) !== 0) return null;
+    if (!candidate.split('.').every((label) => /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(label))) return null;
+    return candidate;
+  } catch {
+    return null;
+  }
+}
+
 export async function handleCompanyLogo(request: Request): Promise<HttpResult | Response> {
-  const domain = new URL(request.url).searchParams.get('domain');
-  if (!domain) return { status: 400, body: { error: 'Parameter domain wajib diisi', code: 'VALIDATION_ERROR' } };
+  const rawDomain = new URL(request.url).searchParams.get('domain');
+  const domain = rawDomain ? normalizeCompanyDomain(rawDomain) : null;
+  if (!domain) return { status: 400, body: { error: 'Domain perusahaan tidak valid', code: 'VALIDATION_ERROR' } };
 
   try {
     const upstream = await fetch(

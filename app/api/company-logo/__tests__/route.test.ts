@@ -22,6 +22,13 @@ describe('GET /api/company-logo', () => {
     expect(res.status).toBe(400);
   });
 
+  it.each(['localhost', '127.0.0.1', 'https://internal.example/path', 'foo..example.com', 'foo.example.com:8080'])
+    ('rejects non-domain input %s before contacting upstream', async (domain) => {
+      const res = await GET(makeRequest(domain));
+      expect(res.status).toBe(400);
+      expect(global.fetch).not.toHaveBeenCalled();
+    });
+
   it('proxies upstream image bytes with same content-type when upstream succeeds', async () => {
     const fakeBytes = new Uint8Array([1, 2, 3, 4]).buffer;
     (global.fetch as any).mockResolvedValue({
