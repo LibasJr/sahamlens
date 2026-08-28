@@ -32,6 +32,13 @@ vi.mock('@/modules/technical/service/stock-analysis-source.service', () => ({
 vi.mock('@/modules/technical/service/stock-analysis-compute.service', () => ({
   computeStockAnalysisPayload: mocks.compute,
 }));
+vi.mock('@/modules/validation', () => ({
+  getLensScoreValidationStatus: vi.fn(() => ({
+    validated: false,
+    reasonCode: 'MODEL_UNVALIDATED',
+    message: 'LensScore belum tervalidasi.',
+  })),
+}));
 
 import { handleGetStockAnalysis } from '../stock-analysis.controller';
 
@@ -103,8 +110,14 @@ describe('handleGetStockAnalysis contract', () => {
     expect(body.stock.symbol).toBe('BBCA.JK');
     expect(body._quota.remaining).toBe(2);
     expect(body.ok).toBe(true);
+    expect(body.modelValidation).toEqual({
+      validated: false,
+      reasonCode: 'MODEL_UNVALIDATED',
+      message: 'LensScore belum tervalidasi.',
+    });
     expect(body.data.stock.symbol).toBe('BBCA.JK');
     expect(body.data._quota.remaining).toBe(2);
+    expect(body.data.modelValidation).toEqual(body.modelValidation);
     expect(body.meta).toEqual(expect.objectContaining({
       source: 'technical-analysis-cache',
       dataAsOf: '2026-08-27T02:00:00.000Z',
@@ -131,7 +144,9 @@ describe('handleGetStockAnalysis contract', () => {
     expect(result.status).toBe(200);
     expect(body._meta.source).toBe('stale-cache');
     expect(body.ok).toBe(true);
+    expect(body.modelValidation.reasonCode).toBe('MODEL_UNVALIDATED');
     expect(body.data._meta.source).toBe('stale-cache');
+    expect(body.data.modelValidation).toEqual(body.modelValidation);
     expect(body.meta).toEqual(expect.objectContaining({
       source: 'technical-analysis-stale-cache',
       staleness: 'stale',
@@ -165,7 +180,9 @@ describe('handleGetStockAnalysis contract', () => {
     expect(mocks.attachQuota).toHaveBeenCalledWith(computedPayload, context);
     expect(body._quota.remaining).toBe(2);
     expect(body.ok).toBe(true);
+    expect(body.modelValidation.reasonCode).toBe('MODEL_UNVALIDATED');
     expect(body.data._quota.remaining).toBe(2);
+    expect(body.data.modelValidation).toEqual(body.modelValidation);
     expect(body.meta).toEqual(expect.objectContaining({
       source: 'technical-analysis-live',
       calculatedAt: '2026-08-27T02:01:00.000Z',

@@ -1,5 +1,5 @@
 import type { HttpResult } from '@/shared/types/http-result.types';
-import { getSession, hasOpenOrProAccess, isAdminServer } from '@/modules/user';
+import { getSession, hasOpenOrProAccess } from '@/modules/user';
 import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { isInternalServiceRequest } from '@/shared/auth/internal-service';
 import { runLensScoreBucketBacktest } from '../service/lens-score-bucket-backtest.service';
@@ -22,9 +22,6 @@ export async function handleLensScoreBucketBacktest(request: Request): Promise<H
 
     if (!isInternal && !(await hasOpenOrProAccess(session))) {
       return { status: 402, body: { error: 'Fitur ini butuh akun Pro', code: 'SUBSCRIPTION_REQUIRED' } };
-    }
-    if (!isInternal && !(await isAdminServer()) && session?.role !== 'admin') {
-      return { status: 403, body: { error: 'Khusus admin', code: 'ADMIN_REQUIRED' } };
     }
 
     const searchParams = new URL(request.url).searchParams;
