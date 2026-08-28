@@ -74,6 +74,17 @@ export interface TechnicalInput {
   macdHist: number | null;
   macdLine: number | null;
   macdSignal: number | null;
+  /** LensScore v1.6.0: konfirmasi tren dari ADX/DMI. ADX sendiri mengukur kekuatan,
+   * arah dibaca dari +DI vs -DI. Null kalau histori OHLC belum cukup/valid. */
+  adx?: number | null;
+  plusDi?: number | null;
+  minusDi?: number | null;
+  /** LensScore v1.6.0: posisi harga di Bollinger Band 20,2. 0=lower, 1=upper,
+   * bisa di luar rentang kalau tembus band. Null kalau band tidak terdefinisi. */
+  bollingerPercentB?: number | null;
+  /** LensScore v1.6.0: Slow Stochastic 14,3,3. */
+  stochasticK?: number | null;
+  stochasticD?: number | null;
   volToday: number | null;
   volAvg20: number | null;
   /** Perubahan harga hari ini dalam persen. Dipakai `scoreVolume()` untuk membedakan
@@ -130,23 +141,28 @@ export interface FundamentalInput {
 }
 
 export interface FlowInput {
-  /** Chaikin Money Flow 20 hari, persen -100..100 (modules/market/service/
-   * foreign-flow-proxy.ts). `null` = tidak bisa dihitung -> seluruh kelompok Flow
-   * dikeluarkan dari skor, bukan diberi nilai tengah. */
-  cmf20: number | null;
-  /** Hasil konfirmasi 4-lapis analyzeAccumulationSignal(). `null` kalau tidak dihitung. */
+  /** Net foreign flow resmi IDX 20 hari, persen -100..100 dari transaksi asing.
+   * `null` = artefak IDX belum ada/tidak valid -> Flow keluar dari LensScore, bukan
+   * fallback ke proxy CMF/Yahoo. */
+  officialNetPressure20?: number | null;
+  /** Legacy proxy field kept only so older call sites compile during migration.
+   * LensScore v1.6.0 never reads this value. */
+  cmf20?: number | null;
+  /** Hasil klasifikasi dari net foreign flow resmi IDX. `null` kalau tidak tersedia. */
   accumulationStatus: 'AKUMULASI' | 'DISTRIBUSI' | 'NETRAL' | null;
   consecutiveBuyDays: number;
   consecutiveSellDays: number;
-  /** volume hari ini / rata-rata 20 hari - dipakai HANYA sebagai konfirmasi persistensi
-   * di kelompok Flow. Besaran volume itu sendiri sudah dinilai penuh di scoreVolume()
-   * (kelompok Technical), jadi TIDAK boleh disekor lagi sebagai poin tersendiri. */
-  volRatio: number | null;
-  /** Proporsi hari dengan MFM > 0 dalam 20 hari terakhir (0-1), dari
-   * `analyzeAccumulationSignal()`. Ini ukuran PERSISTENSI yang benar - lihat P1-9 di
-   * `scoreFlowPersistensi()`. `null`/tidak diisi = jendela belum penuh, penilaian jatuh
-   * balik ke streak dengan alasan yang menyatakannya. */
+  /** Legacy proxy fields kept for compatibility; ignored by LensScore v1.6.0. */
+  volRatio?: number | null;
   mfmPositiveRatio20?: number | null;
+  /** Proporsi hari dengan net asing positif dalam 20 hari terakhir (0-1), dari data
+   * IDX official foreign flow. Ini ukuran persistensi, bukan panjang streak. */
+  officialPositiveRatio20?: number | null;
+  /** LensScore v1.6.0: slope OBV 10 hari sebagai konfirmasi flow tambahan.
+   * Null kalau adjusted close/volume tidak lengkap. */
+  obvSlope10?: number | null;
+  /** Volume rata-rata 10 hari untuk menormalisasi OBV slope lintas saham. */
+  obvAvgVolume10?: number | null;
 }
 
 export type ScoringKategori = 'STRONG BUY' | 'BUY' | 'HOLD' | 'SELL' | 'DATA TIDAK CUKUP';
@@ -240,12 +256,16 @@ export interface ScoringResult {
     ma_trend: number | null;
     rsi: number | null;
     macd: number | null;
+    adx_trend: number | null;
+    bollinger_position: number | null;
+    stochastic_momentum: number | null;
     volume: number | null;
     valuasi: number | null;
     profitabilitas: number | null;
     kesehatan: number | null;
     flow_tekanan: number | null;
     flow_persistensi: number | null;
+    obv_flow: number | null;
   };
   /** Komponen yang tidak punya data - ditampilkan apa adanya ke pengguna, bukan
    * disembunyikan seolah semuanya terhitung. */
@@ -416,14 +436,71 @@ function scoreRsi(t: TechnicalInput): Component {
 }
 
 function scoreMacd(t: TechnicalInput): Component {
-  const MAX = 7;
+  const MAX = 6;
   // Histogram = macdLine - macdSignal (lihat macd-analyzer.ts), jadi `macdHist > 0` dan
   // `macdLine > macdSignal` identik secara matematis - cukup satu yang diperiksa
   // (catatan temuan H-06 audit 2026-08-03 tetap berlaku).
   if (t.macdHist == null) return NA('macd', MAX, 'MACD');
-  if (t.macdHist > 0) return { key: 'macd', availableMax: MAX, declaredMax: MAX, available: true, score: 7, reason: `MACD bullish (Hist:${t.macdHist.toFixed(2)})` };
+  if (t.macdHist > 0) return { key: 'macd', availableMax: MAX, declaredMax: MAX, available: true, score: 6, reason: `MACD bullish (Hist:${t.macdHist.toFixed(2)})` };
   if (t.macdHist < 0) return { key: 'macd', availableMax: MAX, declaredMax: MAX, available: true, score: 0, reason: `MACD bearish (Hist:${t.macdHist.toFixed(2)})` };
   return { key: 'macd', availableMax: MAX, declaredMax: MAX, available: true, score: 3, reason: 'MACD netral (Hist:0.00)' };
+}
+
+function scoreAdxTrend(t: TechnicalInput): Component {
+  const MAX = 4;
+  if (t.adx == null || t.plusDi == null || t.minusDi == null) return NA('adx_trend', MAX, 'ADX/DMI 14');
+  const { adx, plusDi, minusDi } = t;
+  if (![adx, plusDi, minusDi].every(Number.isFinite)) return NA('adx_trend', MAX, 'ADX/DMI 14');
+  const regime = trendRegime(t);
+  const mk = (score: number, reason: string): Component =>
+    ({ key: 'adx_trend', availableMax: MAX, declaredMax: MAX, available: true, score, reason });
+
+  if (adx < 20) return mk(2, `ADX ${adx.toFixed(1)} - tren lemah/ranging`);
+  if (adx < 25) {
+    if (plusDi > minusDi && regime !== 'DOWN') return mk(3, `ADX ${adx.toFixed(1)} mulai menguat, +DI di atas -DI`);
+    if (minusDi > plusDi && regime !== 'UP') return mk(1, `ADX ${adx.toFixed(1)} mulai menguat, -DI di atas +DI`);
+    return mk(2, `ADX ${adx.toFixed(1)} transisi, arah belum bersih`);
+  }
+  if (plusDi > minusDi) {
+    return mk(regime === 'DOWN' ? 2 : 4, `ADX ${adx.toFixed(1)} tren kuat dengan +DI dominan`);
+  }
+  if (minusDi > plusDi) {
+    return mk(regime === 'UP' ? 2 : 0, `ADX ${adx.toFixed(1)} tren kuat dengan -DI dominan`);
+  }
+  return mk(2, `ADX ${adx.toFixed(1)} kuat tapi +DI/-DI seimbang`);
+}
+
+function scoreBollingerPosition(t: TechnicalInput): Component {
+  const MAX = 3;
+  const b = t.bollingerPercentB;
+  if (b == null || !Number.isFinite(b)) return NA('bollinger_position', MAX, 'Bollinger %B 20,2');
+  const regime = trendRegime(t);
+  const mk = (score: number, reason: string): Component =>
+    ({ key: 'bollinger_position', availableMax: MAX, declaredMax: MAX, available: true, score, reason });
+
+  if (b <= 0) {
+    return mk(regime === 'DOWN' ? 1 : 3, `Bollinger %B ${b.toFixed(2)} dekat/di bawah lower band`);
+  }
+  if (b < 0.25) return mk(regime === 'DOWN' ? 1 : 2.5, `Bollinger %B ${b.toFixed(2)} area bawah band`);
+  if (b <= 0.75) return mk(2, `Bollinger %B ${b.toFixed(2)} area tengah band`);
+  if (b < 1) return mk(regime === 'UP' ? 2 : 1, `Bollinger %B ${b.toFixed(2)} area atas band`);
+  return mk(regime === 'UP' ? 1.5 : 0, `Bollinger %B ${b.toFixed(2)} tembus upper band - risiko pullback`);
+}
+
+function scoreStochasticMomentum(t: TechnicalInput): Component {
+  const MAX = 3;
+  if (t.stochasticK == null || t.stochasticD == null) return NA('stochastic_momentum', MAX, 'Stochastic 14,3,3');
+  const { stochasticK: k, stochasticD: d } = t;
+  if (!Number.isFinite(k) || !Number.isFinite(d)) return NA('stochastic_momentum', MAX, 'Stochastic 14,3,3');
+  const regime = trendRegime(t);
+  const mk = (score: number, reason: string): Component =>
+    ({ key: 'stochastic_momentum', availableMax: MAX, declaredMax: MAX, available: true, score, reason });
+
+  if (k >= 85) return mk(regime === 'UP' ? 1 : 0, `Stochastic %K ${k.toFixed(1)} overbought`);
+  if (k <= 20) return mk(regime === 'DOWN' ? 1 : 3, `Stochastic %K ${k.toFixed(1)} oversold`);
+  if (k > d) return mk(2.5, `Stochastic %K ${k.toFixed(1)} di atas %D ${d.toFixed(1)} - momentum membaik`);
+  if (k < d) return mk(1, `Stochastic %K ${k.toFixed(1)} di bawah %D ${d.toFixed(1)} - momentum melemah`);
+  return mk(2, `Stochastic %K/%D ${k.toFixed(1)} seimbang`);
 }
 
 /**
@@ -444,7 +521,7 @@ function scoreMacd(t: TechnicalInput): Component {
  * tengah dengan alasan yang menyatakan keterbatasannya - bukan nilai penuh.
  */
 function scoreVolume(t: TechnicalInput): Component {
-  const MAX = 10;
+  const MAX = 8;
   if (t.volToday == null || t.volAvg20 == null || !Number.isFinite(t.volToday) || !Number.isFinite(t.volAvg20)) {
     return NA('volume', MAX, 'Volume');
   }
@@ -469,11 +546,11 @@ function scoreVolume(t: TechnicalInput): Component {
 
   // Volume di bawah rata-rata: partisipasi tipis, tidak mengonfirmasi apa pun.
   if (ratio < 1.0) return mk(1, `Volume ${rasio} (RENDAH - pergerakan tidak terkonfirmasi partisipasi)`);
-  if (ratio < 1.5) return mk(4, `Volume ${rasio} (NORMAL)`);
+  if (ratio < 1.5) return mk(3, `Volume ${rasio} (NORMAL)`);
 
   if (!arahDiketahui) {
     // Ramai, tapi kita tidak tahu ramai ke arah mana. Nilai tengah, dinyatakan apa adanya.
-    return mk(5, `Volume ${rasio} (TINGGI, arah harga tidak diketahui - tidak dinilai sebagai konfirmasi beli)`);
+    return mk(4, `Volume ${rasio} (TINGGI, arah harga tidak diketahui - tidak dinilai sebagai konfirmasi beli)`);
   }
 
   const naik = (chg as number) > 0.5;
@@ -481,15 +558,15 @@ function scoreVolume(t: TechnicalInput): Component {
   const chgLabel = `${(chg as number) >= 0 ? '+' : ''}${(chg as number).toFixed(1)}%`;
 
   if (ratio >= 2.0) {
-    if (naik) return mk(10, `Volume ${rasio} SANGAT TINGGI mengonfirmasi kenaikan ${chgLabel}`);
+    if (naik) return mk(8, `Volume ${rasio} SANGAT TINGGI mengonfirmasi kenaikan ${chgLabel}`);
     if (turun) return mk(0, `Volume ${rasio} SANGAT TINGGI menyertai penurunan ${chgLabel} - tekanan jual berat`);
-    return mk(5, `Volume ${rasio} SANGAT TINGGI tapi harga nyaris datar ${chgLabel} - kemungkinan pergantian tangan`);
+    return mk(4, `Volume ${rasio} SANGAT TINGGI tapi harga nyaris datar ${chgLabel} - kemungkinan pergantian tangan`);
   }
 
   // ratio 1.5 - 2.0
-  if (naik) return mk(8, `Volume ${rasio} mengonfirmasi kenaikan ${chgLabel}`);
+  if (naik) return mk(6, `Volume ${rasio} mengonfirmasi kenaikan ${chgLabel}`);
   if (turun) return mk(1, `Volume ${rasio} menyertai penurunan ${chgLabel} - distribusi`);
-  return mk(4, `Volume ${rasio} di atas rata-rata, harga datar ${chgLabel}`);
+  return mk(3, `Volume ${rasio} di atas rata-rata, harga datar ${chgLabel}`);
 }
 
 // ==================== FUNDAMENTAL (maks 30) ====================
@@ -722,17 +799,17 @@ function scoreKesehatan(f: FundamentalInput): Component {
 
 function scoreFlowTekanan(flow: FlowInput): Component {
   const MAX = 20;
-  if (flow.cmf20 == null) return NA('flow_tekanan', MAX, 'Arus dana (CMF20)');
-  const cmf = flow.cmf20;
-  if (cmf > 20) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 20, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli kuat` };
-  if (cmf > 5) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 14, reason: `CMF20 +${cmf.toFixed(1)}% - tekanan beli moderat` };
-  if (cmf >= -5) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 8, reason: `CMF20 ${cmf.toFixed(1)}% - arus dana seimbang` };
-  if (cmf >= -20) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 3, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual moderat` };
-  return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 0, reason: `CMF20 ${cmf.toFixed(1)}% - tekanan jual kuat` };
+  if (flow.officialNetPressure20 == null) return NA('flow_tekanan', MAX, 'Arus dana asing IDX 20D');
+  const pressure = flow.officialNetPressure20;
+  if (pressure > 20) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 20, reason: `Net asing IDX 20D +${pressure.toFixed(1)}% - akumulasi asing kuat` };
+  if (pressure > 5) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 14, reason: `Net asing IDX 20D +${pressure.toFixed(1)}% - akumulasi asing moderat` };
+  if (pressure >= -5) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 8, reason: `Net asing IDX 20D ${pressure.toFixed(1)}% - arus asing seimbang` };
+  if (pressure >= -20) return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 3, reason: `Net asing IDX 20D ${pressure.toFixed(1)}% - distribusi asing moderat` };
+  return { key: 'flow_tekanan', availableMax: MAX, declaredMax: MAX, available: true, score: 0, reason: `Net asing IDX 20D ${pressure.toFixed(1)}% - distribusi asing kuat` };
 }
 
 /**
- * PERSISTENSI ARUS DANA - diukur atas JENDELA 20 hari, bukan dari panjang streak
+ * PERSISTENSI ARUS DANA ASING IDX - diukur atas JENDELA 20 hari, bukan dari panjang streak
  * berturut-turut (temuan P1-9).
  *
  * Kenapa streak salah untuk mengukur persistensi: streak putus total begitu ada SATU
@@ -741,9 +818,9 @@ function scoreFlowTekanan(flow: FlowInput): Component {
  * yang memang tidak punya arus dana searah sama sekali. Itu mengukur "hari terakhir",
  * bukan "persistensi".
  *
- * Ukuran yang dipakai sekarang: `mfmPositiveRatio20` = proporsi hari dengan Money Flow
- * Multiplier positif dalam 20 hari. Stabil dari hari ke hari, dan tetap turun kalau
- * tekanannya memang benar-benar berbalik.
+ * Ukuran yang dipakai sekarang: `officialPositiveRatio20` = proporsi hari dengan net
+ * foreign positif dalam 20 hari. Stabil dari hari ke hari, dan tetap turun kalau arus
+ * asing memang benar-benar berbalik.
  *
  * `consecutiveBuyDays`/`consecutiveSellDays` tetap diterima dan tetap ditampilkan
  * sebagai konteks di alasan - streak bukan angka yang salah, ia hanya bukan ukuran
@@ -751,15 +828,17 @@ function scoreFlowTekanan(flow: FlowInput): Component {
  * jatuh balik ke streak dengan alasan yang menyatakan keterbatasannya.
  */
 function scoreFlowPersistensi(flow: FlowInput): Component {
-  const MAX = 10;
-  if (flow.accumulationStatus == null) return NA('flow_persistensi', MAX, 'Persistensi arus dana');
+  const MAX = 8;
+  if (flow.officialNetPressure20 == null || flow.accumulationStatus == null) {
+    return NA('flow_persistensi', MAX, 'Persistensi arus dana asing IDX');
+  }
 
   const mk = (score: number, reason: string): Component =>
     ({ key: 'flow_persistensi', availableMax: MAX, declaredMax: MAX, available: true, score, reason });
 
   const buy = flow.consecutiveBuyDays;
   const sell = flow.consecutiveSellDays;
-  const ratio = flow.mfmPositiveRatio20;
+  const ratio = flow.officialPositiveRatio20;
 
   if (ratio != null) {
     const pct = (ratio * 100).toFixed(0);
@@ -767,13 +846,13 @@ function scoreFlowPersistensi(flow: FlowInput): Component {
     // penguat arah, bukan sebagai penentu tunggal.
     if (ratio >= 0.65) {
       return mk(
-        flow.accumulationStatus === 'AKUMULASI' ? 10 : 8,
+        flow.accumulationStatus === 'AKUMULASI' ? 8 : 6,
         `Tekanan beli persisten: ${pct}% dari 20 hari terakhir arus dana positif (streak berjalan ${buy} hari)`
       );
     }
-    if (ratio >= 0.55) return mk(7, `Tekanan beli condong positif: ${pct}% dari 20 hari terakhir (streak ${buy} hari)`);
-    if (ratio >= 0.45) return mk(5, `Arus dana berimbang: ${pct}% dari 20 hari terakhir positif`);
-    if (ratio >= 0.35) return mk(3, `Tekanan jual condong dominan: hanya ${pct}% dari 20 hari terakhir positif`);
+    if (ratio >= 0.55) return mk(6, `Tekanan beli condong positif: ${pct}% dari 20 hari terakhir (streak ${buy} hari)`);
+    if (ratio >= 0.45) return mk(4, `Arus dana berimbang: ${pct}% dari 20 hari terakhir positif`);
+    if (ratio >= 0.35) return mk(2, `Tekanan jual condong dominan: hanya ${pct}% dari 20 hari terakhir positif`);
     return mk(
       flow.accumulationStatus === 'DISTRIBUSI' ? 0 : 1,
       `Tekanan jual persisten: hanya ${pct}% dari 20 hari terakhir arus dana positif (streak jual ${sell} hari)`
@@ -782,12 +861,29 @@ function scoreFlowPersistensi(flow: FlowInput): Component {
 
   // Histori < 20 bar - proporsi jendela belum bisa dihitung.
   if (flow.accumulationStatus === 'AKUMULASI') {
-    return mk(7, `Akumulasi terkonfirmasi (${buy} hari berturut) - jendela 20 hari belum penuh, persistensi belum terukur`);
+    return mk(6, `Akumulasi terkonfirmasi (${buy} hari berturut) - jendela 20 hari belum penuh, persistensi belum terukur`);
   }
   if (flow.accumulationStatus === 'DISTRIBUSI') {
     return mk(2, `Distribusi terkonfirmasi (${sell} hari berturut) - jendela 20 hari belum penuh, persistensi belum terukur`);
   }
-  return mk(5, 'Belum ada arus dana yang konsisten searah');
+  return mk(4, 'Belum ada arus dana yang konsisten searah');
+}
+
+function scoreObvFlow(flow: FlowInput): Component {
+  const MAX = 2;
+  if (flow.officialNetPressure20 == null) return NA('obv_flow', MAX, 'OBV slope 10D (menunggu data asing IDX)');
+  if (flow.obvSlope10 == null || flow.obvAvgVolume10 == null) return NA('obv_flow', MAX, 'OBV slope 10D');
+  const slope = flow.obvSlope10;
+  const avgVolume = flow.obvAvgVolume10;
+  if (!Number.isFinite(slope) || !Number.isFinite(avgVolume) || avgVolume <= 0) return NA('obv_flow', MAX, 'OBV slope 10D');
+  const normalized = slope / (avgVolume * 10);
+  const mk = (score: number, reason: string): Component =>
+    ({ key: 'obv_flow', availableMax: MAX, declaredMax: MAX, available: true, score, reason });
+  if (normalized >= 0.25) return mk(2, `OBV slope 10D positif kuat (${normalized.toFixed(2)}x volume jendela)`);
+  if (normalized > 0.05) return mk(1.5, `OBV slope 10D positif (${normalized.toFixed(2)}x volume jendela)`);
+  if (normalized >= -0.05) return mk(1, `OBV slope 10D netral (${normalized.toFixed(2)}x volume jendela)`);
+  if (normalized > -0.25) return mk(0.5, `OBV slope 10D negatif (${normalized.toFixed(2)}x volume jendela)`);
+  return mk(0, `OBV slope 10D negatif kuat (${normalized.toFixed(2)}x volume jendela)`);
 }
 
 // ==================== PENGGABUNGAN ====================
@@ -887,8 +983,11 @@ export function calculateScore(
   const maTrend = scoreMATrend(technical);
   const rsi = scoreRsi(technical);
   const macd = scoreMacd(technical);
+  const adxTrend = scoreAdxTrend(technical);
+  const bollingerPosition = scoreBollingerPosition(technical);
+  const stochasticMomentum = scoreStochasticMomentum(technical);
   const volume = scoreVolume(technical);
-  const technicalGroup = combine([maTrend, rsi, macd, volume], LENS_SCORE_WEIGHTS.technical);
+  const technicalGroup = combine([maTrend, rsi, macd, adxTrend, bollingerPosition, stochasticMomentum, volume], LENS_SCORE_WEIGHTS.technical);
 
   const valuasi = scoreValuasi(fundamental);
   const profitabilitas = scoreProfitabilitas(fundamental);
@@ -897,9 +996,10 @@ export function calculateScore(
 
   const flowTekanan = scoreFlowTekanan(flow);
   const flowPersistensi = scoreFlowPersistensi(flow);
-  const flowGroup = combine([flowTekanan, flowPersistensi], LENS_SCORE_WEIGHTS.flow);
+  const obvFlow = scoreObvFlow(flow);
+  const flowGroup = combine([flowTekanan, flowPersistensi, obvFlow], LENS_SCORE_WEIGHTS.flow);
 
-  const allComponents = [maTrend, rsi, macd, volume, valuasi, profitabilitas, kesehatan, flowTekanan, flowPersistensi];
+  const allComponents = [maTrend, rsi, macd, adxTrend, bollingerPosition, stochasticMomentum, volume, valuasi, profitabilitas, kesehatan, flowTekanan, flowPersistensi, obvFlow];
   const availableMaxTotal = technicalGroup.availableMax + fundamentalGroup.availableMax + flowGroup.availableMax;
   // Penyebut = jumlah bobot kelompok yang DIDEKLARASIKAN, konstan. Dihitung dari
   // LENS_SCORE_WEIGHTS, bukan ditulis 100, supaya hubungannya dengan groupMax di atas
@@ -993,12 +1093,16 @@ export function calculateScore(
       ma_trend: pick(maTrend),
       rsi: pick(rsi),
       macd: pick(macd),
+      adx_trend: pick(adxTrend),
+      bollinger_position: pick(bollingerPosition),
+      stochastic_momentum: pick(stochasticMomentum),
       volume: pick(volume),
       valuasi: pick(valuasi),
       profitabilitas: pick(profitabilitas),
       kesehatan: pick(kesehatan),
       flow_tekanan: pick(flowTekanan),
       flow_persistensi: pick(flowPersistensi),
+      obv_flow: pick(obvFlow),
     },
     missing,
     not_applicable: notApplicable,

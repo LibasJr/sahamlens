@@ -5,12 +5,12 @@ describe('frozen LensScore model specification', () => {
   it('has an explicit research-only identity', () => {
     expect(LENS_SCORE_MODEL_METADATA).toMatchObject({
       id: 'lens-score',
-      version: 'lens-score-v1.5.0',
+      version: 'lens-score-v1.6.0',
       status: 'RESEARCH_ONLY',
     });
     // Perubahan parameter tanpa update versi/hash harus terlihat sebagai kegagalan test,
     // bukan diam-diam mengubah arti skor historis dengan nama model yang sama.
-    expect(LENS_SCORE_MODEL_HASH).toBe('fnv1a32-86968e1a');
+    expect(LENS_SCORE_MODEL_HASH).toBe('fnv1a32-2b2f012f');
   });
 
   it('hashes object keys canonically', () => {
