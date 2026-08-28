@@ -63,8 +63,8 @@
       "path": "/api/cron/idx-financial-sync",
       "provider": "systemd",
       "schedule": "0 20 * * *",
-      "scheduleStatus": "verify-server",
-      "source": "BARU 2026-08-22. Unit tersedia di deploy/idx-financial-sync/ (install.sh memasang service+timer lalu enable). Status DISENGAJA 'verify-server', bukan 'known': timer belum pernah teramati jalan di VPS. Menandainya 'known' berdasar niat pemasangan adalah kesalahan yang persis membuat entri broker-summary-scan basi berbulan-bulan.\n\nJadwal HARIAN 20:00 WIB termasuk akhir pekan - laporan keuangan diserahkan emiten kapan saja, tidak terikat sesi bursa. Jam 20:00 dipilih agar tidak berebut dengan gerombolan timer 17:30 yang sama-sama memanggil idx.co.id.\n\nMenarget DUA periode tiap jalan (lihat resolveIdxFinancialSyncTargets): periode yang jendelanya terbuka plus periode sebelumnya, karena pelapor telat terus masuk. Diverifikasi ke endpoint BEI 2026-08-22: TW2 2026 = 787 emiten, TW1 2026 = 848, TW3 2026 = 0 (belum jatuh tempo), AUDIT 2025 = 882.\n\nSetelah satu siklus berhasil teramati lewat `systemctl list-timers` dan job_run_log, kembalikan scheduleStatus ke 'known' dengan mencantumkan LAST/NEXT yang teramati."
+      "scheduleStatus": "known",
+      "source": "BARU 2026-08-22. Unit tersedia di deploy/idx-financial-sync/ (install.sh memasang service+timer lalu enable). Jadwal HARIAN 20:00 WIB termasuk akhir pekan - laporan keuangan diserahkan emiten kapan saja, tidak terikat sesi bursa. Jam 20:00 dipilih supaya tidak berebut dengan gerombolan timer 17:30 yang sama-sama memanggil idx.co.id.\n\nMenarget DUA periode tiap jalan (lihat resolveIdxFinancialSyncTargets): periode yang jendelanya terbuka plus periode sebelumnya, karena pelapor telat terus masuk. DIVERIFIKASI AKTUAL di VPS 2026-08-29: `systemctl status` menunjukkan timer aktif; eksekusi terakhir Jum 2026-08-28 20:08:23 WIB sukses (HTTP 200, status SUCCESS), TW2 2026 menulis 18 baris, gagal=0; NEXT Sab 2026-08-29 sekitar 20:06 WIB (RandomizedDelaySec sampai 600 detik)."
     },
     {
       "path": "/api/cron/idx-flow-sync",
@@ -154,8 +154,8 @@
       "path": "/api/cron/screener-scan",
       "provider": "systemd",
       "schedule": "Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta; Sat,Sun 09:00 Asia/Jakarta",
-      "scheduleStatus": "verify-server",
-      "source": "BARU 2026-08-14 (laporan pengguna: LensScanner lama sekali dimuat - /api/screener sebelumnya tidak punya cron warmer, giliran pengunjung pertama setelah cache 30 menit basi menanggung fetchScreenerUniverse() live). QStash sudah penuh 10/10, jadi dipasang sebagai timer systemd baru (pola sama seperti lens-bucket-backtest/lens-score-optimizer/broker-summary-scan). Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar). DIPERLUAS 2026-08-21 (laporan pengguna: LensScanner tidak menampilkan data): jadwal lama berhenti jam 16:40 Senin-Jumat sementara TTL cuma 30 menit, jadi tiap malam & seluruh akhir pekan cache SELALU dingin dan pengunjung pertama menanggung scan 200 ticker live. Baris Sat,Sun 09:00 ditambahkan, dan CACHE_TTL_SEC.SCREENER_UNIVERSE dibuat sadar jam pasar (24 jam saat bursa tutup) supaya satu run harian menutup penuh sampai run berikutnya. Baris akhir pekan BELUM dipasang di VPS - lihat docs/operations/DEPLOYMENT.md."
+      "scheduleStatus": "known",
+      "source": "BARU 2026-08-14 (laporan pengguna: LensScanner lama sekali dimuat - /api/screener sebelumnya tidak punya cron warmer, giliran pengunjung pertama setelah cache 30 menit basi menanggung fetchScreenerUniverse() live). QStash sudah penuh 10/10, jadi dipasang sebagai timer systemd baru (pola sama seperti lens-bucket-backtest/lens-score-optimizer/broker-summary-scan). DIPERLUAS 2026-08-21: jadwal akhir pekan Sat,Sun 09:00 ditambahkan dan CACHE_TTL_SEC.SCREENER_UNIVERSE dibuat sadar jam pasar (24 jam saat bursa tutup). DIVERIFIKASI AKTUAL di VPS 2026-08-29: timer aktif dengan OnCalendar Mon..Fri 09,10,11,12,13,14,15,16:00,20,40 dan Sat,Sun 09:00 Asia/Jakarta; eksekusi terakhir Jum 2026-08-28 16:40:00 WIB sukses (HTTP 200, count 200); NEXT Sab 2026-08-29 09:00 WIB."
     },
     {
       "path": "/api/cron/tpcl-validation-worker",
