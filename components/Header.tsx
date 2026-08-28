@@ -21,6 +21,8 @@ interface HeaderProps {
    *  /screener, /macro, dan /ownership-flow yang mengirim kode saham sebagai konteks
    *  pencarian, bukan sebagai emiten yang sedang dianalisis. */
   stockNav?: boolean;
+  /** Tampilkan command palette pencarian ticker di header. */
+  tickerSearch?: boolean;
 }
 
 export default function Header({
@@ -32,6 +34,7 @@ export default function Header({
   analisaTotal = 5,
   isAdmin = false,
   stockNav = false,
+  tickerSearch = true,
 }: HeaderProps) {
   return (
     <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 backdrop-blur-xl">
@@ -41,7 +44,7 @@ export default function Header({
             <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/15 bg-tv-blue/[0.08] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-tv-blue">
               <Sparkles className="h-3 w-3" /> {moduleBank}
             </span>
-            {currentTicker && (
+            {tickerSearch && currentTicker && (
               <span className="font-number text-[10px] font-semibold text-tv-muted">
                 {currentTicker.startsWith('^') ? 'IHSG' : currentTicker.replace(/\.JK$/i, '')}
               </span>
@@ -51,24 +54,28 @@ export default function Header({
         </div>
 
         <div className="flex w-full items-center gap-2 md:w-auto">
-          {/* BUG FIX (2026-08-14, laporan pengguna - dua ikon kaca pembesar tumpang
-              tindih di HP): CommandPalette sudah merender ikon Search-nya sendiri di
-              dalam tombol trigger-nya. Overlay ikon absolute + `[&_button]:pl-9` di
-              sini dulunya menambahkan ikon KEDUA di atasnya - di layar sempit (teks
-              placeholder disembunyikan, tersisa cuma ikon) kelihatan sebagai dua ikon
-              search bersisian. */}
-          <div className="relative min-w-0 flex-1 md:w-[320px] md:flex-none">
-            <CommandPalette
-              onSelect={(symbol) => {
-                // Penyebut metrik "search-to-analysis". Dicatat di titik PILIH, bukan di
-                // setiap ketikan: yang ditanyakan PRD adalah apakah pencarian berlanjut
-                // menjadi analisis, bukan seberapa banyak orang mengetik.
-                trackJourneyEvent('stock_search_submit', 'other');
-                onTickerChange(symbol.toUpperCase());
-              }}
-              enableShortcut={false}
-            />
-          </div>
+          {tickerSearch && (
+            <>
+              {/* BUG FIX (2026-08-14, laporan pengguna - dua ikon kaca pembesar tumpang
+                  tindih di HP): CommandPalette sudah merender ikon Search-nya sendiri di
+                  dalam tombol trigger-nya. Overlay ikon absolute + `[&_button]:pl-9` di
+                  sini dulunya menambahkan ikon KEDUA di atasnya - di layar sempit (teks
+                  placeholder disembunyikan, tersisa cuma ikon) kelihatan sebagai dua ikon
+                  search bersisian. */}
+              <div className="relative min-w-0 flex-1 md:w-[320px] md:flex-none">
+                <CommandPalette
+                  onSelect={(symbol) => {
+                    // Penyebut metrik "search-to-analysis". Dicatat di titik PILIH, bukan di
+                    // setiap ketikan: yang ditanyakan PRD adalah apakah pencarian berlanjut
+                    // menjadi analisis, bukan seberapa banyak orang mengetik.
+                    trackJourneyEvent('stock_search_submit', 'other');
+                    onTickerChange(symbol.toUpperCase());
+                  }}
+                  enableShortcut={false}
+                />
+              </div>
+            </>
+          )}
 
           {!isAdmin && typeof analisaRemaining === 'number' && Number.isFinite(analisaRemaining) && (
             <span className={`hidden whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold sm:inline-flex ${
