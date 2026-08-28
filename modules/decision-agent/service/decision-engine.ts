@@ -55,7 +55,16 @@ function newsEvidence(ticker: string, items: NewsItem[]): DecisionNewsEvidence {
 }
 
 function riskSetup(stock: ScoredStock): DecisionRiskSetup | null {
-  const setup = stock.tradeSetup;
+  // TradePlan v1.0 (formula terbaru) diutamakan; tradeSetup lama cuma fallback untuk
+  // entri cache lama (lihat catatan di ai-pick.service.ts). Angka cl1/tp1/tp2/rr
+  // pada dasarnya sama nilainya - TradePlan v1.0 membungkus buildLongTradingSetup
+  // yang sama - tapi menyamakan sumbernya di sini menjaga Decision Agent konsisten
+  // dengan apa yang ditampilkan UI, bukan menghitung ulang dari sumber berbeda.
+  const setup = stock.tradePlan
+    ? { cl1: stock.tradePlan.cutLoss, tp1: stock.tradePlan.takeProfit1, tp2: stock.tradePlan.takeProfit2, rr: stock.tradePlan.riskReward }
+    : stock.tradeSetup
+      ? { cl1: stock.tradeSetup.cl1, tp1: stock.tradeSetup.tp1, tp2: stock.tradeSetup.tp2, rr: stock.tradeSetup.rr }
+      : null;
   if (!setup || !finite(stock.price) || stock.price <= 0) return null;
   if (![setup.cl1, setup.tp1, setup.tp2, setup.rr].every(finite)) return null;
   const risk = stock.price - setup.cl1;
