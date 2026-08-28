@@ -15,6 +15,46 @@ export interface MarketDataProvider {
   fetchQuote(symbol: string): Promise<MarketQuote | null>;
 }
 
+export interface YahooChartFetchOptions {
+  range: string;
+  interval: string;
+  timeoutMs?: number;
+}
+
+export interface YahooChartFetchResult {
+  payload: unknown;
+  sourceId: 'YAHOO_CHART';
+  url: string;
+  latencyMs: number;
+}
+
+export async function fetchYahooChartJson(
+  symbol: string,
+  options: YahooChartFetchOptions,
+): Promise<YahooChartFetchResult> {
+  const timeoutMs = options.timeoutMs ?? 8000;
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?range=${encodeURIComponent(options.range)}&interval=${encodeURIComponent(options.interval)}`;
+  const controller = new AbortController();
+  const startedAt = Date.now();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+      signal: controller.signal,
+    });
+    if (!res.ok) throw new Error(`YAHOO_CHART_HTTP_${res.status}`);
+    return {
+      payload: await res.json() as unknown,
+      sourceId: 'YAHOO_CHART',
+      url,
+      latencyMs: Date.now() - startedAt,
+    };
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 export class YahooFinanceProvider implements MarketDataProvider {
   name = 'YAHOO_FINANCE';
 
