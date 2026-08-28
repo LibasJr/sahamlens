@@ -29,13 +29,17 @@ export interface CompoundingYear {
   monthly_passive_income: number;
 }
 
+export type DividendPlanMode = 'universe' | 'ticker';
+
 export interface DividendPlanResult {
+  mode: DividendPlanMode;
   average_portfolio_yield: number;
   est_monthly_income_now: number;
   est_annual_income_now: number;
   required_capital_for_target: number;
   div_stocks: DividendStock[];
   compounding_schedule: CompoundingYear[];
+  ticker_stock?: DividendStock | null;
 }
 
 // Payout rendah (masih banyak laba ditahan) + histori panjang = lebih aman. Payout
@@ -53,7 +57,20 @@ function safetyScore(payoutRatio: number | null, consistencyYears: number): numb
   return Math.max(1, Math.min(10, Math.round(score)));
 }
 
-async function fetchDividendStock(ticker: string): Promise<DividendStock | null> {
+type FetchDividendStockOptions = {
+  requireCurrentDividend?: boolean;
+};
+
+export function normalizeIdxDividendTicker(input: string): string | null {
+  const cleaned = input.trim().toUpperCase().replace(/[^A-Z0-9.]/g, '');
+  if (!cleaned) return null;
+  const withoutSuffix = cleaned.endsWith('.JK') ? cleaned.slice(0, -3) : cleaned;
+  if (!/^[A-Z0-9]{2,8}$/.test(withoutSuffix)) return null;
+  return withoutSuffix + '.JK';
+}
+
+async function fetchDividendStock(ticker: string, options: FetchDividendStockOptions = {}): Promise<DividendStock | null> {
+  const requireCurrentDividend = options.requireCurrentDividend ?? true;
   try {
     const [summary, chart] = await Promise.all([
       yahooFinance.quoteSummary(ticker, { modules: ['summaryDetail'] }),
@@ -63,9 +80,13 @@ async function fetchDividendStock(ticker: string): Promise<DividendStock | null>
     ]);
 
     const yieldRaw = summary?.summaryDetail?.dividendYield;
-    if (!yieldRaw || yieldRaw <= 0) return null; // tidak bagi dividen - skip dari daftar
+    const yieldPct = typeof yieldRaw === 'number' && Number.isFinite(yieldRaw) && yieldRaw > 0
+      ? yieldRaw * 100
+      : 0;
+    if (requireCurrentDividend && yieldPct <= 0) return null; // tidak bagi dividen - skip dari daftar universe
 
-    const payoutRatio = summary?.summaryDetail?.payoutRatio != null ? summary.summaryDetail.payoutRatio * 100 : null;
+    const payoutRaw = summary?.summaryDetail?.payoutRatio;
+    const payoutRatio = typeof payoutRaw === 'number' && Number.isFinite(payoutRaw) ? payoutRaw * 100 : null;
 
     const dividendEvents: { date: string | Date }[] = (chart as any)?.events?.dividends || [];
     const yearsWithDividend = new Set(dividendEvents.map((d) => new Date(d.date).getFullYear()));
@@ -79,12 +100,12 @@ async function fetchDividendStock(ticker: string): Promise<DividendStock | null>
       }
     }
 
-    const currentSafety = safetyScore(payoutRatio, consistencyYears);
-    const isAristocrat = consistencyYears >= 5 && (payoutRatio == null || (payoutRatio > 0 && payoutRatio <= 85)) && currentSafety >= 7;
+    const currentSafety = yieldPct > 0 ? safetyScore(payoutRatio, consistencyYears) : 1;
+    const isAristocrat = yieldPct > 0 && consistencyYears >= 5 && (payoutRatio == null || (payoutRatio > 0 && payoutRatio <= 85)) && currentSafety >= 7;
 
     return {
       ticker: ticker.replace('.JK', ''),
-      yield_pct: parseFloat((yieldRaw * 100).toFixed(2)),
+      yield_pct: parseFloat(yieldPct.toFixed(2)),
       safety_score: currentSafety,
       payout_ratio: payoutRatio != null ? parseFloat(payoutRatio.toFixed(1)) : null,
       consistency_years: consistencyYears,
@@ -114,7 +135,7 @@ export async function fetchDividendUniverse(): Promise<DividendStock[]> {
 
   for (let i = 0; i < SCREENER_UNIVERSE.length; i += BATCH_SIZE) {
     const batch = SCREENER_UNIVERSE.slice(i, i + BATCH_SIZE);
-    const batchResults = await Promise.all(batch.map(fetchDividendStock));
+    const batchResults = await Promise.all(batch.map((ticker) => fetchDividendStock(ticker, { requireCurrentDividend: true })));
     batchResults.forEach((r) => { if (r) results.push(r); });
   }
 
@@ -128,6 +149,41 @@ const DISPLAY_CAP = 18;
 
 // Bagian murah (matematika dari input modal/target user) - DIHITUNG ULANG tiap
 // request dari universe yang di-cache, tidak ikut di-cache (beda per user/input).
+function buildPlanFromYield(yieldPct: number, capital: number, targetMonthly: number): Omit<DividendPlanResult, 'mode' | 'div_stocks' | 'ticker_stock'> {
+  const estAnnualIncomeNow = capital * (yieldPct / 100);
+  const estMonthlyIncomeNow = estAnnualIncomeNow / 12;
+  const requiredCapitalForTarget = yieldPct > 0 ? (targetMonthly * 12) / (yieldPct / 100) : 0;
+
+  // Simulasi DRIP (reinvestasi penuh) 10 tahun - proyeksi compound growth dari yield
+  // yang sedang dipilih. Ini simulasi matematis, bukan prediksi harga/dividen.
+  const compoundingSchedule: CompoundingYear[] = [];
+  let runningCapital = capital;
+  for (let year = 1; year <= 10; year++) {
+    runningCapital *= 1 + yieldPct / 100;
+    compoundingSchedule.push({
+      year,
+      capital_end_of_year: Math.round(runningCapital),
+      monthly_passive_income: Math.round((runningCapital * (yieldPct / 100)) / 12),
+    });
+  }
+
+  return {
+    average_portfolio_yield: parseFloat(yieldPct.toFixed(2)),
+    est_monthly_income_now: Math.round(estMonthlyIncomeNow),
+    est_annual_income_now: Math.round(estAnnualIncomeNow),
+    required_capital_for_target: Math.round(requiredCapitalForTarget),
+    compounding_schedule: compoundingSchedule,
+  };
+}
+
+export async function fetchTickerDividendStock(input: string): Promise<DividendStock | null> {
+  const ticker = normalizeIdxDividendTicker(input);
+  if (!ticker) return null;
+  return fetchDividendStock(ticker, { requireCurrentDividend: false });
+}
+
+// Bagian murah (matematika dari input modal/target user) - DIHITUNG ULANG tiap
+// request dari universe yang di-cache, tidak ikut di-cache (beda per user/input).
 export function buildDividendPlan(universe: DividendStock[], capital: number, targetMonthly: number): DividendPlanResult {
   // avgYield dari SELURUH universe (bukan cuma yang ditampilkan) - representatif untuk
   // "portofolio saham dividen" pada umumnya, bukan cuma yield tertinggi.
@@ -135,33 +191,21 @@ export function buildDividendPlan(universe: DividendStock[], capital: number, ta
     ? universe.reduce((sum, s) => sum + s.yield_pct, 0) / universe.length
     : 0;
 
-  const estAnnualIncomeNow = capital * (avgYield / 100);
-  const estMonthlyIncomeNow = estAnnualIncomeNow / 12;
-  const requiredCapitalForTarget = avgYield > 0 ? (targetMonthly * 12) / (avgYield / 100) : 0;
-
-  // Simulasi DRIP (reinvestasi penuh) 10 tahun - proyeksi compound growth dari rata-rata
-  // yield REAL di atas (harga saham diasumsikan tetap, cuma dividen yang di-compound).
-  // Ini SIMULASI/proyeksi matematis dari asumsi yield konstan, bukan prediksi harga -
-  // dilabeli "Simulasi" di UI, konsisten dengan cara kalkulator finansial lain bekerja.
-  const compoundingSchedule: CompoundingYear[] = [];
-  let runningCapital = capital;
-  for (let year = 1; year <= 10; year++) {
-    runningCapital *= 1 + avgYield / 100;
-    compoundingSchedule.push({
-      year,
-      capital_end_of_year: Math.round(runningCapital),
-      monthly_passive_income: Math.round((runningCapital * (avgYield / 100)) / 12),
-    });
-  }
-
   return {
-    average_portfolio_yield: parseFloat(avgYield.toFixed(2)),
-    est_monthly_income_now: Math.round(estMonthlyIncomeNow),
-    est_annual_income_now: Math.round(estAnnualIncomeNow),
-    required_capital_for_target: Math.round(requiredCapitalForTarget),
+    mode: 'universe',
+    ...buildPlanFromYield(avgYield, capital, targetMonthly),
     // Ditampilkan hanya DISPLAY_CAP teratas (sudah terurut yield desc dari
     // fetchDividendUniverse) - avgYield DI ATAS tetap dari universe penuh.
     div_stocks: universe.slice(0, DISPLAY_CAP),
-    compounding_schedule: compoundingSchedule,
+    ticker_stock: null,
+  };
+}
+
+export function buildTickerDividendPlan(stock: DividendStock, capital: number, targetMonthly: number): DividendPlanResult {
+  return {
+    mode: 'ticker',
+    ...buildPlanFromYield(stock.yield_pct, capital, targetMonthly),
+    div_stocks: [stock],
+    ticker_stock: stock,
   };
 }
