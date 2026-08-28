@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "backfill:lens-history": "node scripts/backfill-lens-history.mjs",
+    "calibrate:intraday-v02": "node scripts/calibrate-intraday-v02-components.mjs",
     "validate:premarkup": "node scripts/backfill-premarkup-history.mjs",
     "backfill:fundamental-history": "node scripts/backfill-fundamental-history.mjs",
     "audit:ui": "node scripts/audit-ui-consistency.mjs",
