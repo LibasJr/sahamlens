@@ -85,17 +85,17 @@ export default function StockPerspectiveNav({ symbol }: { symbol: string | null 
   return (
     <nav
       aria-label={`Sudut pandang analisis ${code}`}
-      className="lens-stock-nav -mx-1 flex items-center gap-1 overflow-x-auto px-1"
+      className="lens-stock-nav flex items-center gap-5 overflow-x-auto border-b border-tv-border/70"
     >
       {tabs.map(({ id, label, href, active }) => (
         <Link
           key={id}
           href={href}
           aria-current={active ? 'page' : undefined}
-          className={`inline-flex min-h-11 shrink-0 items-center rounded-lg px-3 lens-label transition-colors ${
+          className={`relative inline-flex min-h-11 shrink-0 items-center border-b-2 px-0.5 lens-label transition-colors ${
             active
-              ? 'bg-tv-blue/10 text-tv-blue'
-              : 'text-tv-muted hover:bg-white/[0.05] hover:text-tv-text'
+              ? 'border-tv-blue text-tv-blue'
+              : 'border-transparent text-tv-muted hover:border-tv-borderLight hover:text-tv-text'
           }`}
         >
           {label}
