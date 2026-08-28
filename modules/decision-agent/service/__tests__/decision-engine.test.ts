@@ -34,6 +34,28 @@ describe('buildDecisionSignal', () => {
     expect(result.liveReadiness).toBe('BLOCKED_MODEL_UNVALIDATED');
   });
 
+  it('riskSetup memakai TradePlan v1.0 (formula terbaru) kalau tersedia, bukan tradeSetup lama', () => {
+    const result = buildDecisionSignal({
+      stock: stock({
+        // tradeSetup lama sengaja beda nilainya dari tradePlan supaya test ini
+        // benar-benar membuktikan precedence, bukan kebetulan sama.
+        tradePlan: {
+          version: 'TRADE_PLAN_V1_0', entryReference: 'OPEN_H_PLUS_1',
+          entry: 10_050, stopLoss: 9_600, cutLoss: 9_700, takeProfit1: 11_200, takeProfit2: 11_800,
+          riskReward: 2.2, riskPercent: 3.5, riskAtr: 0.9, riskLevel: 'MEDIUM',
+          confidenceScore: 70, confidenceLevel: 'MEDIUM',
+          support: null, nearestSupport: null, resistance: null,
+          reasons: [], missingData: [], caveats: [], dataPoints: [],
+        },
+      }),
+      bearish: false, newsItems: [], dataAsOf, now, modelValidated: false, sector: 'Financials',
+    });
+    expect(result.riskSetup?.stop).toBe(9_700);
+    expect(result.riskSetup?.target1).toBe(11_200);
+    expect(result.riskSetup?.target2).toBe(11_800);
+    expect(result.riskSetup?.riskReward).toBe(2.2);
+  });
+
   it('fail-closed menjadi NO_SIGNAL saat coverage tidak cukup', () => {
     const result = buildDecisionSignal({ stock: stock({ coverage: 60 }), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false, sector: 'Financials' });
     expect(result.action).toBe('NO_SIGNAL');

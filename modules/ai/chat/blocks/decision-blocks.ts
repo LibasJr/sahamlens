@@ -148,7 +148,14 @@ export async function tradingSetupBlock(ticker: string): Promise<string> {
     ].join('\n');
   }
 
-  const setup = scored.tradeSetup;
+  // TradePlan v1.0 (formula terbaru) diutamakan; tradeSetup lama cuma fallback untuk
+  // entri cache lama - lihat catatan di ai-pick.service.ts. Nilai tp1/tp2/cl1/rr pada
+  // dasarnya sama (TradePlan v1.0 membungkus buildLongTradingSetup yang sama), tapi
+  // sumbernya perlu disamakan supaya jawaban chat konsisten dengan yang ditampilkan UI.
+  const plan = scored.tradePlan;
+  const setup = plan
+    ? { tp1: plan.takeProfit1, tp2: plan.takeProfit2, cl1: plan.cutLoss, cl2: scored.tradeSetup?.cl2 ?? null, rr: plan.riskReward }
+    : scored.tradeSetup;
   if (!setup) {
     return [
       `### ${code}`,
@@ -164,8 +171,9 @@ export async function tradingSetupBlock(ticker: string): Promise<string> {
     `- TP1: ${safe(setup.tp1)} | TP2: ${safe(setup.tp2)}`,
     `- CL1: ${safe(setup.cl1)} | CL2: ${safe(setup.cl2)}`,
     `- Risk/reward: ${safe(setup.rr)}`,
+    plan ? `- Entry reference: ${plan.entryReference} | Confidence: ${plan.confidenceLevel} (${safe(plan.confidenceScore)}%) | Risk level: ${plan.riskLevel}` : null,
     '- Level sudah dibulatkan ke fraksi harga IDX oleh engine, jangan dibulatkan ulang.',
     '- BATAS: ini setup long berbasis struktur + ATR dari sesi pemindaian terakhir, bukan',
     '  jaminan harga akan mencapainya, dan bukan perintah transaksi.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 }
