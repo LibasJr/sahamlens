@@ -52,6 +52,31 @@ describe('proxy guest public access', () => {
       'auth:/api/auth/login:unknown',
       expect.any(Number),
       expect.objectContaining({ maxPerWindow: 10 }),
+      { degradedPolicy: 'memory' },
+    );
+  });
+
+  it('fail-closed untuk auth saat limiter Redis tidak tersedia di production', async () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.mocked(checkRateLimitShared).mockResolvedValueOnce({
+      allowed: false,
+      backend: 'unavailable',
+      degraded: true,
+      unavailable: true,
+    });
+
+    const res = await proxy(request('/api/auth/login', { method: 'POST' }));
+
+    expect(res.status).toBe(503);
+    expect(res.headers.get('Retry-After')).toBe('30');
+    expect(await res.json()).toEqual({
+      error: 'Layanan autentikasi sementara tidak tersedia. Coba lagi nanti.',
+    });
+    expect(checkRateLimitShared).toHaveBeenCalledWith(
+      'auth:/api/auth/login:unknown',
+      expect.any(Number),
+      expect.objectContaining({ maxPerWindow: 10 }),
+      { degradedPolicy: 'deny' },
     );
   });
 });
