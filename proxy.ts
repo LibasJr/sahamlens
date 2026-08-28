@@ -345,7 +345,18 @@ export async function proxy(req: NextRequest) {
   if (req.method === 'POST' && sensitiveAuthPaths.has(pathname)) {
     const ip = getClientIp(req);
     const authConfig = pathname === '/admin-login/key' ? ADMIN_AUTH_RATE_LIMIT_CONFIG : AUTH_RATE_LIMIT_CONFIG;
-    const authRate = await checkRateLimitShared(`auth:${pathname}:${ip}`, Date.now(), authConfig);
+    const authRate = await checkRateLimitShared(
+      `auth:${pathname}:${ip}`,
+      Date.now(),
+      authConfig,
+      { degradedPolicy: process.env.NODE_ENV === 'production' ? 'deny' : 'memory' },
+    );
+    if (authRate.unavailable) {
+      return NextResponse.json(
+        { error: 'Layanan autentikasi sementara tidak tersedia. Coba lagi nanti.' },
+        { status: 503, headers: { 'Retry-After': '30' } },
+      );
+    }
     if (!authRate.allowed) {
       return NextResponse.json(
         { error: 'Terlalu banyak percobaan autentikasi. Coba lagi nanti.' },
