@@ -1,19 +1,35 @@
 // LensIntraday - identitas model RISET yang SENGAJA TERPISAH dari LensScore T+20.
 //
 // Tidak ada satu pun konstanta di file ini yang dibaca oleh scoring produksi
-// (modules/lens-radar/constants/model-version.ts, SCORE_VERSION lens-score-v1.5.0,
+// (modules/lens-radar/constants/model-version.ts, SCORE_VERSION lens-score-v1.6.0,
 // bobot Teknikal 40 / Fundamental 30 / Flow 30). Bobot di bawah adalah bobot
 // LensIntraday sendiri, atas komponen yang sama sekali berbeda (mikrostruktur
 // intraday), dan mengubahnya TIDAK mengubah apa pun di produksi.
 //
 // Horizon LensIntraday diukur dalam MENIT pada hari bursa yang sama. Hasil T+20
 // tidak pernah boleh dipakai sebagai bukti keberhasilan intraday, dan sebaliknya.
+//
+// v0.2.0 TIDAK "mengikuti" LensScore v1.6 - horizon dan data mentahnya berbeda total
+// (bar 5 menit dalam satu sesi vs harga harian), jadi ADX/Bollinger/Stochastic/OBV
+// versi harian v1.6 tidak bisa dipasang apa adanya. Yang ditambahkan di sini adalah
+// PADANAN bar-5-menit dari dua di antaranya yang benar-benar menambah dimensi baru
+// (bukan duplikat trendPersistence/rangePosition yang sudah ada): obvAccumulation dan
+// bollingerPctB. Lihat catatan versi di bawah.
 
 export const LENS_INTRADAY_MODEL_NAME = 'LensIntraday' as const;
 export const LENS_INTRADAY_MODEL_KEY = 'lens_intraday' as const;
 // v0.1.1: slippage sisi jual memakai harga exit (bukan harga entry) dan TP/SL
 // menghormati gap pada open candle. Hasil v0.1.0 tetap tersimpan terpisah di DB.
-export const LENS_INTRADAY_MODEL_VERSION = 'lens-intraday-v0.1.1' as const;
+//
+// v0.2.0: tambah dua komponen skor - obvAccumulation (OBV standar dinormalisasi
+// terhadap volume sesi) dan bollingerPctB (%B Bollinger atas 12 bar/60 menit
+// terakhir, K=2). Lima komponen lama TIDAK berubah nilainya. Rentang pemetaan kedua
+// komponen baru diukur dari sebaran fitur MENTAH lewat
+// scripts/calibrate-intraday-v02-components.mjs (26.606 titik grid nyata, 60 emiten
+// universe riset default, lookback maksimum provider) - BUKAN dari hasil return, lihat
+// catatan di IntradayComponentMapping. Hasil v0.1.x tetap tersimpan terpisah di DB
+// lewat kunci (model_version, config_hash).
+export const LENS_INTRADAY_MODEL_VERSION = 'lens-intraday-v0.2.0' as const;
 
 /** Status awal. Sengaja bukan enum bebas - lihat IntradayModelStatus di bawah. */
 export const LENS_INTRADAY_INITIAL_STATUS = 'RESEARCH_ONLY' as const;
@@ -352,6 +368,20 @@ export interface IntradayWeights {
   rangePosition: number;
   /** Konsistensi arah 12 bar terakhir - lebih pendek di titik grid paling pagi, lihat fullLookback. */
   trendPersistence: number;
+  /**
+   * v0.2.0. OBV standar (unchanged close = kontribusi nol, BUKAN setengah - beda
+   * sengaja dari trendPersistence) dalam sesi, dinormalisasi terhadap total volume
+   * sesi supaya sebanding lintas emiten. Beda dari volumeSurge: ini mengukur ARAH
+   * volume (naik vs turun), volumeSurge cuma mengukur BESARANNYA.
+   */
+  obvAccumulation: number;
+  /**
+   * v0.2.0. %B Bollinger atas 12 bar/60 menit terakhir (K=2 deviasi standar) - lihat
+   * bollingerWindowBars/bollingerK di IntradayComponentMapping. Beda dari
+   * rangePosition: itu statis terhadap high-low SELURUH sesi berjalan, ini dinamis
+   * terhadap rata-rata bergerak jendela pendek.
+   */
+  bollingerPctB: number;
 }
 
 /**
@@ -369,12 +399,22 @@ export const INTRADAY_COMPONENT_KEYS: readonly (keyof IntradayWeights)[] = [
   'volumeSurge',
   'rangePosition',
   'trendPersistence',
+  'obvAccumulation',
+  'bollingerPctB',
 ] as const;
 
 /**
  * Semuanya mikrostruktur intraday. TIDAK ADA komponen fundamental jangka panjang di
  * sini: PER/PBV/ROE tidak berubah dalam 15 menit, jadi memasukkannya hanya akan
  * menambah konstanta per emiten yang menyamar sebagai sinyal.
+ *
+ * obvAccumulation dan bollingerPctB (v0.2.0) sengaja diberi bobot awal KECIL, di
+ * ujung bawah INTRADAY_WEIGHT_BOUNDS. Lima bobot lama TIDAK diturunkan - totalnya
+ * jadi 120, dan intradayScoreFromComponents() menormalisasi otomatis lewat
+ * totalWeight, jadi ini murni mengencerkan proporsi lima komponen lama, bukan
+ * mengklaim dua komponen baru ini sudah terbukti setara pentingnya. Kalau OOS nanti
+ * menunjukkan keduanya tidak menambah apa pun, bobotnya turun ke nol - bukan dihapus
+ * diam-diam, supaya riwayatnya tetap terlihat.
  */
 export const LENS_INTRADAY_WEIGHTS: IntradayWeights = {
   momentum: 30,
@@ -382,6 +422,8 @@ export const LENS_INTRADAY_WEIGHTS: IntradayWeights = {
   volumeSurge: 20,
   rangePosition: 15,
   trendPersistence: 15,
+  obvAccumulation: 10,
+  bollingerPctB: 10,
 };
 
 /** Batas bobot untuk optimizer - mencegah usulan yang menaruh 100% di satu komponen. */
@@ -437,6 +479,22 @@ export interface IntradayComponentMapping {
    * pada sebaran yang sama (3,466), dan menurunkan saturasi ke 9,76% (7,01% / 2,75%).
    */
   volumeSurgeSpan: number;
+  /**
+   * v0.2.0. Return 30 menit OBV dipetakan linear (-Abs..+Abs) ke 0-100, simetris
+   * di 0 seperti momentum/vwapDeviation (OBV bertanda dan sudah dinormalisasi
+   * terhadap volume sesi, jadi tidak butuh titik pusat seperti volumeSurge).
+   *
+   * DIUKUR EMPIRIS lewat scripts/calibrate-intraday-v02-components.mjs: 26.606 titik
+   * grid (60 emiten universe riset default, lookback maksimum provider 60 hari).
+   * Median -0,009 (praktis 0, sesuai ekspektasi ukuran bertanda). p90=0,3505 (saturasi
+   * 22,15%), p95=0,4587 (saturasi 11,31%). Dipilih 0,46 (~p95) supaya saturasinya
+   * sepadan dengan volumeSurgeSpan (9,76%) - bukan angka bulat tebakan.
+   */
+  obvAccumulationAbs: number;
+  /** v0.2.0. Jumlah bar 5-menit untuk mean/stdev %B Bollinger. Sama dengan TREND_DOC_BARS (60 menit) - konsisten skala dengan trendPersistence. */
+  bollingerWindowBars: number;
+  /** v0.2.0. Lebar pita Bollinger dalam kelipatan deviasi standar. */
+  bollingerK: number;
 }
 
 export const DEFAULT_INTRADAY_COMPONENT_MAPPING: IntradayComponentMapping = {
@@ -444,6 +502,9 @@ export const DEFAULT_INTRADAY_COMPONENT_MAPPING: IntradayComponentMapping = {
   vwapDeviationAbs: 0.01,
   volumeSurgeCenter: 0.72,
   volumeSurgeSpan: 3.5,
+  obvAccumulationAbs: 0.46,
+  bollingerWindowBars: 12,
+  bollingerK: 2,
 };
 
 /**

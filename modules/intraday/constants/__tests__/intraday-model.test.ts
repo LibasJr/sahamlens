@@ -40,9 +40,15 @@ describe('identitas model terpisah', () => {
     expect(INTRADAY_MODEL_STATUSES).toContain('CANDIDATE_VALIDATED');
   });
 
-  it('bobot LensIntraday berjumlah 100 dan hanya berisi komponen intraday', () => {
+  it('bobot LensIntraday menutup seluruh komponen dan hanya berisi komponen intraday', () => {
     const total = INTRADAY_COMPONENT_KEYS.reduce((sum, key) => sum + LENS_INTRADAY_WEIGHTS[key], 0);
-    expect(total).toBe(100);
+    // v0.2.0: TIDAK lagi 100. obvAccumulation/bollingerPctB ditambah dengan bobot
+    // kecil TANPA menurunkan lima bobot lama - intradayScoreFromComponents()
+    // menormalisasi lewat totalWeight, jadi total selain 100 tetap valid. Memaksanya
+    // balik ke 100 berarti mengecilkan lima komponen yang sudah beredar demi dua
+    // komponen yang belum lolos OOS sama sekali - klaim yang tidak berhak dibuat di
+    // sini.
+    expect(total).toBe(120);
     // Tidak ada komponen fundamental jangka panjang yang menyamar sebagai sinyal menit.
     expect(Object.keys(LENS_INTRADAY_WEIGHTS)).not.toContain('fundamental');
     expect(Object.keys(LENS_INTRADAY_WEIGHTS)).not.toContain('flow');

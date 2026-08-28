@@ -199,12 +199,44 @@ export function computeIntradayComponents(
   const trendPersistence = moves > 0 ? upScore / moves : 0.5;
   const fullLookback = momentumBack >= MOMENTUM_LOOKBACK_BARS && moves >= TREND_LOOKBACK_BARS;
 
+  // v0.2.0. OBV standar dalam sesi: unchanged close = kontribusi NOL (bukan
+  // setengah - beda sengaja dari trendPersistence, ini definisi baku OBV, bukan
+  // konvensi lokal modul ini). Dinormalisasi terhadap total volume sesi (`volume`,
+  // sudah dihitung di atas) supaya sebanding lintas emiten besar/kecil.
+  let obv = 0;
+  for (let i = 1; i < completedBars.length; i++) {
+    const prevClose = completedBars[i - 1]!.close;
+    const close = completedBars[i]!.close;
+    const barVolume = completedBars[i]!.volume;
+    if (close > prevClose) obv += barVolume;
+    else if (close < prevClose) obv -= barVolume;
+  }
+  const obvAccumulation = volume > 0 ? obv / volume : 0;
+
+  // v0.2.0. %B Bollinger atas `bollingerWindowBars` bar terakhir (default 12 = 60
+  // menit, K=2). Beda dari rangePosition: itu statis terhadap high-low SELURUH sesi
+  // berjalan, ini dinamis terhadap rata-rata bergerak jendela pendek - dan BISA
+  // keluar dari [0,1] kalau harga menembus pita, persis Bollinger asli. Diverifikasi
+  // empiris (scripts/calibrate-intraday-v02-components.mjs, 26.606 titik grid):
+  // saturasi di luar [0,1] cuma 6,5% - tidak perlu span tambahan, klem polos cukup.
+  const bbWindow = closes.slice(-mapping.bollingerWindowBars);
+  const bbMean = bbWindow.reduce((a, b) => a + b, 0) / bbWindow.length;
+  const bbVariance = bbWindow.reduce((a, b) => a + (b - bbMean) ** 2, 0) / bbWindow.length;
+  const bbStdev = Math.sqrt(bbVariance);
+  const bbUpper = bbMean + mapping.bollingerK * bbStdev;
+  const bbLower = bbMean - mapping.bollingerK * bbStdev;
+  // Stdev nol (harga datar sepanjang jendela) -> %B tidak terdefinisi, dijawab 0,5
+  // (netral), sama seperti rangePosition menjawab high==low.
+  const bollingerPctB = bbUpper > bbLower ? (lastClose - bbLower) / (bbUpper - bbLower) : 0.5;
+
   const raw = {
     momentum: round(momentum),
     vwapDeviation: round(vwapDeviation),
     volumeSurge: round(volumeSurge),
     rangePosition: round(rangePosition),
     trendPersistence: round(trendPersistence),
+    obvAccumulation: round(obvAccumulation),
+    bollingerPctB: round(bollingerPctB),
   };
 
   // Rentang pemetaan dipilih dari besaran wajar gerakan 5-30 menit saham IDX likuid.
@@ -228,6 +260,13 @@ export function computeIntradayComponents(
     ),
     rangePosition: round(rangePosition * 100, 2),
     trendPersistence: round(trendPersistence * 100, 2),
+    // v0.2.0. Simetris di 0 seperti momentum/vwapDeviation - lihat catatan kalibrasi
+    // obvAccumulationAbs di konstanta.
+    obvAccumulation: round(linearScore(obvAccumulation, -mapping.obvAccumulationAbs, mapping.obvAccumulationAbs), 2),
+    // v0.2.0. linearScore(0,1) sudah mengklem ujungnya - itu tepat perlakuannya:
+    // saturasi cuma 6,5% pada sebaran nyata (lihat catatan di atas), jadi tidak
+    // butuh span tambahan seperti volumeSurge.
+    bollingerPctB: round(linearScore(bollingerPctB, 0, 1), 2),
   };
 
   return {
