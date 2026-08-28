@@ -26,7 +26,13 @@ function runGuard(env: Record<string, string> = {}) {
   const r = spawnSync('node', [SCRIPT], {
     cwd: ROOT,
     encoding: 'utf8',
-    env: { ...process.env, ...env },
+    // Default test harus merepresentasikan worktree biasa walau suite kebetulan dijalankan
+    // dari checkout produksi. Test yang memang menguji produksi menimpa nilai ini lewat env.
+    env: {
+      ...process.env,
+      SAHAMLENS_PRODUCTION_CHECKOUT: '/nonexistent/sahamlens-production-checkout',
+      ...env,
+    },
   });
   return { code: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
