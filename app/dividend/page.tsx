@@ -12,27 +12,34 @@ import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import type { CompoundingYear, DividendPlanApiResponse, DividendStock } from '@/modules/fundamental/contracts';
 
+type DividendMode = 'universe' | 'ticker';
+
 export default function DividendPage() {
   const { t, language } = useLanguage();
   const isEn = language === 'en';
   const [capital, setCapital] = useState(200_000_000);
   const [targetMonthly, setTargetMonthly] = useState(10_000_000);
+  const [mode, setMode] = useState<DividendMode>('universe');
   const [ticker, setTicker] = useState('BBCA');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<DividendPlanApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const isTickerMode = mode === 'ticker';
 
-  // Catatan: kalkulator ini menghitung statistik dari universe saham dividen yang berhasil dibaca provider
-  // (universe likuid, lihat modules/fundamental/service/dividend-plan.service.ts),
-  // BUKAN dividend yield khusus `ticker` yang dipilih di header - input ticker di sini
-  // sengaja tetap ada untuk konsistensi shell (TickerAnalysisShellProps mewajibkannya),
-  // tapi tidak memengaruhi hasil simulasi di bawah.
+  // Mode Universe memakai rata-rata universe saham dividen; mode Ticker memakai yield
+  // ticker yang dipilih di header. Search ticker sengaja hanya muncul pada mode Ticker.
   const fetchDividendPlan = async () => {
     setLoading(true);
     setError(null);
     try {
-      const json = await apiRequest<DividendPlanApiResponse>(`/api/dividend-plan?capital=${capital}&targetMonthly=${targetMonthly}`);
+      const params = new URLSearchParams({
+        capital: String(capital),
+        targetMonthly: String(targetMonthly),
+        mode,
+      });
+      if (isTickerMode) params.set('ticker', ticker);
+      const json = await apiRequest<DividendPlanApiResponse>('/api/dividend-plan?' + params.toString());
       setData(json);
     } catch (e) {
       // BUG FIX (2026-08-22): sebelumnya SEMUA error (termasuk 402 SUBSCRIPTION_REQUIRED
@@ -52,24 +59,29 @@ export default function DividendPage() {
   };
 
   useEffect(() => {
-    // Ketikan angka tidak perlu mengirim satu request untuk setiap digit. Nilai nol
+    // Ketikan angka/ticker tidak perlu mengirim satu request untuk setiap digit. Nilai nol
     // sementara saat field dikosongkan juga bukan simulasi yang bermakna.
     if (capital <= 0 || targetMonthly < 0) return;
+    if (isTickerMode && !ticker.trim()) return;
     const timeout = window.setTimeout(fetchDividendPlan, 500);
     return () => window.clearTimeout(timeout);
-  }, [capital, targetMonthly]);
+  }, [capital, targetMonthly, ticker, mode]);
 
   const quant = data?.quant ?? null;
   const stocks: DividendStock[] = quant?.div_stocks ?? [];
   const schedule: CompoundingYear[] = quant?.compounding_schedule ?? [];
+  const isTickerResponse = quant?.mode === 'ticker';
+  const tickerStock = quant?.ticker_stock ?? null;
+  const activeTickerLabel = tickerStock?.ticker ?? ticker;
   const [aristocratFilter, setAristocratFilter] = useState<'all' | 'aristocrats'>('all');
 
   const filteredStocks = React.useMemo(() => {
+    if (isTickerResponse) return stocks;
     if (aristocratFilter === 'aristocrats') {
       return stocks.filter((s) => s.is_aristocrat);
     }
     return stocks;
-  }, [stocks, aristocratFilter]);
+  }, [stocks, aristocratFilter, isTickerResponse]);
 
   return (
     <TickerAnalysisShell
@@ -79,19 +91,50 @@ export default function DividendPage() {
       moduleBank="SAHAMLENS MODEL"
       icon={<Coins className="w-6 h-6" />}
       accent="green"
-      title={isEn ? 'IDX Dividend Cash Flow Simulation' : 'Simulasi Cash Flow Dividen IDX'}
-      subtitle={isEn ? 'Dividend-yield and DRIP scenario from provider data; tax treatment follows applicable rules.' : 'Skenario yield dividen & DRIP dari data provider; perlakuan pajak mengikuti ketentuan yang berlaku.'}
+      title={isTickerMode ? (isEn ? 'Ticker Dividend Cash Flow Simulation' : 'Simulasi Cash Flow Dividen per Ticker') : (isEn ? 'IDX Dividend Cash Flow Simulation' : 'Simulasi Cash Flow Dividen IDX')}
+      subtitle={isTickerMode ? (isEn ? 'Dividend-yield and DRIP scenario for the selected ticker.' : 'Skenario yield dividen & DRIP untuk ticker yang dipilih.') : (isEn ? 'Universe-based dividend-yield and DRIP scenario from provider data.' : 'Skenario yield dividen & DRIP berbasis universe saham dividen terpantau.')}
+      stockNav={isTickerMode}
       headerExtra={
         <div className="flex flex-wrap items-end gap-3">
-      <MenuUsageGuide
-        menuKey="dividend"
-        whatItAnswers="Berapa arus kas dividen yang bisa diharapkan dari saham ini?"
-        steps={[
-          "Yield dihitung dari dividen terakhir terhadap harga sekarang.",
-          "Periksa payout ratio - yield tinggi dari laba yang menipis tidak berkelanjutan.",
-          "Perhatikan tanggal cum dividen; membeli setelahnya tidak mendapat dividennya.",
-        ]}
-      />
+          <div className="flex items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-0.5 text-[11px]">
+            <PrimitiveButton
+              variant="bare"
+              size="none"
+              type="button"
+              onClick={() => setMode('universe')}
+              className={[
+                'rounded-lg px-3 py-1.5 font-bold transition-all',
+                mode === 'universe' ? 'bg-tv-green text-white shadow-sm' : 'text-tv-muted hover:text-white',
+              ].join(' ')}
+            >
+              Universe
+            </PrimitiveButton>
+            <PrimitiveButton
+              variant="bare"
+              size="none"
+              type="button"
+              onClick={() => setMode('ticker')}
+              className={[
+                'rounded-lg px-3 py-1.5 font-bold transition-all',
+                mode === 'ticker' ? 'bg-tv-blue text-white shadow-sm' : 'text-tv-muted hover:text-white',
+              ].join(' ')}
+            >
+              Ticker
+            </PrimitiveButton>
+          </div>
+          <MenuUsageGuide
+            menuKey="dividend"
+            whatItAnswers={isTickerMode ? 'Berapa arus kas dividen dari ticker yang dipilih?' : 'Berapa arus kas dividen dari portofolio berbasis universe?'}
+            steps={isTickerMode ? [
+              'Pilih mode Ticker, lalu cari emiten di header.',
+              'Yield, payout ratio, dan track record dibaca untuk ticker itu saja.',
+              'Gunakan hasil sebagai simulasi, bukan kepastian dividen masa depan.',
+            ] : [
+              'Mode Universe memakai rata-rata saham dividen yang berhasil dibaca provider.',
+              'Isi modal awal dan target pasif bulanan.',
+              'Pakai tabel kandidat untuk lanjut riset per emiten.',
+            ]}
+          />
           <Input
             label={isEn ? 'Initial Capital (IDR)' : 'Modal Awal (IDR)'}
             type="number"
@@ -142,15 +185,15 @@ export default function DividendPage() {
       {quant && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">Rata-rata Yield Universe</div>
+            <div className="text-[11px] text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Yield ' + activeTickerLabel : 'Rata-rata Yield Universe'}</div>
             <div className="text-2xl font-bold text-tv-yellow font-number mt-1">
               {quant.average_portfolio_yield}%
             </div>
-            <div className="text-[11px] text-tv-muted mt-0.5">Equal-weight snapshot universe · {stocks.length} saham tampil</div>
+            <div className="text-[11px] text-tv-muted mt-0.5">{isTickerResponse ? 'Snapshot ticker dari provider' : 'Equal-weight snapshot universe - ' + stocks.length + ' saham tampil'}</div>
           </Card>
 
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">Skenario Income / Bulan</div>
+            <div className="text-[11px] text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Income / Bulan ' + activeTickerLabel : 'Skenario Income / Bulan'}</div>
             <div className="text-2xl font-bold text-tv-green font-number mt-1">
               Rp {quant.est_monthly_income_now?.toLocaleString('id-ID')}
             </div>
@@ -158,11 +201,11 @@ export default function DividendPage() {
           </Card>
 
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">Skenario Income / Tahun</div>
+            <div className="text-[11px] text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Income / Tahun ' + activeTickerLabel : 'Skenario Income / Tahun'}</div>
             <div className="text-2xl font-bold text-tv-blue font-number mt-1">
               Rp {quant.est_annual_income_now?.toLocaleString('id-ID')}
             </div>
-            <div className="text-[11px] text-tv-muted mt-0.5">Yield snapshot diasumsikan konstan</div>
+            <div className="text-[11px] text-tv-muted mt-0.5">{isTickerResponse ? 'Yield ticker diasumsikan konstan' : 'Yield snapshot diasumsikan konstan'}</div>
           </Card>
 
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
@@ -178,7 +221,7 @@ export default function DividendPage() {
       {quant && (
         <div className="mb-6 rounded-lg border border-tv-blue/20 bg-tv-blue/[0.04] px-3.5 py-3 text-[11px] leading-relaxed text-tv-muted">
           <span className="font-semibold text-tv-text">Metodologi:</span>{' '}
-          rata-rata yield adalah equal-weight snapshot dari universe yang berhasil dibaca provider, bukan yield portofolio aktual. Safety 1-10 adalah skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.
+          {isTickerResponse ? 'yield memakai ticker yang dipilih di header. Safety 1-10 tetap skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.' : 'rata-rata yield adalah equal-weight snapshot dari universe yang berhasil dibaca provider, bukan yield portofolio aktual. Safety 1-10 adalah skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.'}
         </div>
       )}
 
@@ -188,11 +231,11 @@ export default function DividendPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-tv-border pb-3">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-tv-green" />
-              Kandidat Dividen dari Universe Terpantau
+              {isTickerResponse ? 'Ringkasan Dividen ' + activeTickerLabel : 'Kandidat Dividen dari Universe Terpantau'}
             </h3>
 
             {/* Filter Toggle */}
-            <div className="flex items-center gap-1 bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.06] text-[11px]">
+            <div className={['flex items-center gap-1 bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.06] text-[11px]', isTickerResponse ? 'hidden' : ''].join(' ')}>
               <PrimitiveButton variant="bare" size="none"
                 type="button"
                 onClick={() => setAristocratFilter('all')}
@@ -267,7 +310,7 @@ export default function DividendPage() {
         <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-5 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <Repeat className="w-5 h-5 text-tv-blue" />
-            Skenario Compounding 10-Tahun (DRIP, yield konstan)
+            {isTickerResponse ? 'Skenario Compounding 10-Tahun (' + activeTickerLabel + ', DRIP)' : 'Skenario Compounding 10-Tahun (DRIP, yield konstan)'}
           </h3>
 
           <div className="lens-table-sticky-col overflow-x-auto">
