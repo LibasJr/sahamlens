@@ -13,6 +13,9 @@ const fullTechnical: TechnicalInput = {
   currentPriceBasis: RETURN_PRICE_BASIS,
   maPriceBasis: RETURN_PRICE_BASIS,
   rsi: 60, macdHist: 5, macdLine: 10, macdSignal: 5,
+  adx: 32, plusDi: 30, minusDi: 12,
+  bollingerPercentB: 0.1,
+  stochasticK: 18, stochasticD: 22,
   volToday: 2_000_000, volAvg20: 1_000_000,
   // Arah harga WAJIB dipasok untuk mendapat nilai volume penuh (P1-8): volume 2x
   // rata-rata saat harga TURUN adalah distribusi, bukan akumulasi.
@@ -24,9 +27,11 @@ const fullFundamental: FundamentalInput = {
 };
 
 const fullFlow: FlowInput = {
-  cmf20: 25, accumulationStatus: 'AKUMULASI', consecutiveBuyDays: 5, consecutiveSellDays: 0, volRatio: 2,
+  officialNetPressure20: 25, accumulationStatus: 'AKUMULASI', consecutiveBuyDays: 5, consecutiveSellDays: 0,
   // Persistensi diukur dari proporsi jendela 20 hari, bukan panjang streak (P1-9).
-  mfmPositiveRatio20: 0.7,
+  officialPositiveRatio20: 0.7,
+  obvSlope10: 3_000_000,
+  obvAvgVolume10: 1_000_000,
 };
 
 const emptyFundamental: FundamentalInput = {
@@ -34,7 +39,8 @@ const emptyFundamental: FundamentalInput = {
 };
 
 const emptyFlow: FlowInput = {
-  cmf20: null, accumulationStatus: null, consecutiveBuyDays: 0, consecutiveSellDays: 0, volRatio: null,
+  officialNetPressure20: null, accumulationStatus: null, consecutiveBuyDays: 0, consecutiveSellDays: 0,
+  obvSlope10: null, obvAvgVolume10: null,
 };
 
 /** Sektor keuangan - DER & Current Ratio TIDAK BERLAKU (P1-11). */
@@ -65,14 +71,14 @@ describe('calculateScore - ketiadaan data tidak menghasilkan poin (temuan C-7)',
 
 describe('calculateScore - renormalisasi bobot (temuan H-14)', () => {
   it('bank tanpa DER/CR tidak kehilangan skor gara-gara field yang tidak disediakan sumber data', () => {
-    const bank = calculateScore('BBCA', fullTechnical, { ...fullFundamental, der: null, currentRatio: null }, fullFlow);
-    const lengkap = calculateScore('BBCA', fullTechnical, fullFundamental, fullFlow);
+    const bank = calculateScore('BBCA', fullTechnical, { ...fullFundamental, der: null, currentRatio: null, sector: bankSector }, fullFlow);
+    const lengkap = calculateScore('BBCA', fullTechnical, { ...fullFundamental, sector: bankSector }, fullFlow);
 
     expect(bank.detail.kesehatan).toBeNull();
     // Nilai semua komponen lain identik & maksimal, jadi skor akhir tidak boleh turun
     // hanya karena satu komponen datanya tidak ada.
     expect(bank.total_score).toBe(lengkap.total_score);
-    expect(bank.coverage_pct).toBeLessThan(100);
+    expect(bank.coverage_pct).toBe(100);
   });
 
   it('emiten rugi tanpa PER tetap dinilai dari PBV selama ROE tersedia, bukan dihukum nol', () => {
@@ -196,13 +202,13 @@ describe('P1-8 - volume tinggi tidak lagi diberi poin penuh tanpa arah harga', (
   it('volume 3x saat harga ANJLOK tidak dinilai sama dengan volume 3x saat harga NAIK', () => {
     const naik = calculateScore('X', { ...fullTechnical, volToday: 3_000_000, changePct: 5 }, fullFundamental, fullFlow);
     const anjlok = calculateScore('X', { ...fullTechnical, volToday: 3_000_000, changePct: -12 }, fullFundamental, fullFlow);
-    expect(naik.detail.volume).toBe(10);
+    expect(naik.detail.volume).toBe(8);
     expect(anjlok.detail.volume).toBe(0);
   });
 
   it('arah harga tidak diketahui -> volume tinggi diberi nilai tengah, bukan penuh', () => {
     const tanpaArah = calculateScore('X', { ...fullTechnical, changePct: null }, fullFundamental, fullFlow);
-    expect(tanpaArah.detail.volume).toBe(5);
+    expect(tanpaArah.detail.volume).toBe(4);
   });
 
   it('volume 0 adalah fakta bearish/illiquid, bukan data hilang yang direnormalisasi', () => {
@@ -359,14 +365,14 @@ describe('calculateScore - coverage_pct = bobot tersedia / bobot dideklarasikan 
     expect(r.kategori).toBe('DATA TIDAK CUKUP');
   });
 
-  it('RSI hilang (8 bobot) => 92', () => {
+  it('RSI hilang (8 bobot mentah teknikal) => 93', () => {
     const r = calculateScore('X', { ...fullTechnical, rsi: null }, fullFundamental, fullFlow);
-    expect(r.coverage_pct).toBe(92);
+    expect(r.coverage_pct).toBe(93);
   });
 
-  it('Persistensi arus dana hilang (10 bobot) => 90', () => {
+  it('Persistensi arus dana hilang (8 bobot) => 92', () => {
     const r = calculateScore('X', fullTechnical, fullFundamental, { ...fullFlow, accumulationStatus: null });
-    expect(r.coverage_pct).toBe(90);
+    expect(r.coverage_pct).toBe(92);
   });
 
   it('sub-faktor hilang TIDAK diperlakukan sebagai nol maupun nilai netral', () => {
@@ -461,28 +467,29 @@ describe('calculateScore - LensScore v1 tetap bekerja (backward compatibility)',
 });
 
 describe('calculateScore - arus dana dinilai sekali (temuan H-1)', () => {
-  it('kelompok Flow maksimal 30 poin dan berasal dari CMF + persistensinya', () => {
+  it('kelompok Flow maksimal 30 poin dan berasal dari net asing IDX + persistensinya', () => {
     const result = calculateScore('X', fullTechnical, fullFundamental, fullFlow);
     expect(result.flow_score).toBeLessThanOrEqual(30);
     expect(result.detail.flow_tekanan).toBe(20);
-    expect(result.detail.flow_persistensi).toBe(10);
+    expect(result.detail.flow_persistensi).toBe(8);
+    expect(result.detail.obv_flow).toBe(2);
   });
 
   it('persistensi diukur dari proporsi jendela 20 hari, bukan panjang streak (P1-9)', () => {
     // Saham yang 18 dari 20 hari terakhir bertekanan beli tapi hari terakhirnya merah
     // (streak = 0) dulu dinilai sama dengan saham tanpa arus dana searah sama sekali.
     const streakPutus = calculateScore('X', fullTechnical, fullFundamental, {
-      ...fullFlow, consecutiveBuyDays: 0, consecutiveSellDays: 1, mfmPositiveRatio20: 0.9,
+      ...fullFlow, consecutiveBuyDays: 0, consecutiveSellDays: 1, officialPositiveRatio20: 0.9,
     });
     const tanpaArus = calculateScore('X', fullTechnical, fullFundamental, {
-      ...fullFlow, accumulationStatus: 'NETRAL', consecutiveBuyDays: 0, mfmPositiveRatio20: 0.5,
+      ...fullFlow, accumulationStatus: 'NETRAL', consecutiveBuyDays: 0, officialPositiveRatio20: 0.5,
     });
     expect(streakPutus.detail.flow_persistensi).toBeGreaterThan(tanpaArus.detail.flow_persistensi as number);
   });
 
   it('streak panjang TIDAK menutupi jendela yang sebenarnya bertekanan jual', () => {
     const streakPanjangTapiJendelaJual = calculateScore('X', fullTechnical, fullFundamental, {
-      ...fullFlow, consecutiveBuyDays: 6, mfmPositiveRatio20: 0.2,
+      ...fullFlow, consecutiveBuyDays: 6, officialPositiveRatio20: 0.2,
     });
     expect(streakPanjangTapiJendelaJual.detail.flow_persistensi).toBeLessThanOrEqual(1);
   });
@@ -493,10 +500,27 @@ describe('calculateScore - arus dana dinilai sekali (temuan H-1)', () => {
     expect(volRendah.flow_score).toBe(volTinggi.flow_score);
   });
 
-  it('cmf20 null membuat seluruh kelompok arus dana tidak dihitung', () => {
+  it('tanpa net asing IDX membuat seluruh kelompok arus dana tidak dihitung', () => {
     const result = calculateScore('X', fullTechnical, fullFundamental, emptyFlow);
     expect(result.detail.flow_tekanan).toBeNull();
     expect(result.detail.flow_persistensi).toBeNull();
+    expect(result.detail.obv_flow).toBeNull();
+    expect(result.flow_score).toBe(0);
+  });
+
+  it('field legacy CMF diabaikan oleh LensScore v1.6.0', () => {
+    const result = calculateScore('X', fullTechnical, fullFundamental, {
+      cmf20: 99,
+      accumulationStatus: 'AKUMULASI',
+      consecutiveBuyDays: 20,
+      consecutiveSellDays: 0,
+      mfmPositiveRatio20: 1,
+      obvSlope10: 9_000_000,
+      obvAvgVolume10: 1_000_000,
+    });
+    expect(result.detail.flow_tekanan).toBeNull();
+    expect(result.detail.flow_persistensi).toBeNull();
+    expect(result.detail.obv_flow).toBeNull();
     expect(result.flow_score).toBe(0);
   });
 });
