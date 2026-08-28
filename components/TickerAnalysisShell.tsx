@@ -27,6 +27,7 @@ interface TickerAnalysisShellProps {
   title: React.ReactNode;
   subtitle?: React.ReactNode;
   headerExtra?: React.ReactNode;
+  stockNav?: boolean;
   children: React.ReactNode;
 }
 
@@ -40,13 +41,14 @@ export function TickerAnalysisShell({
   title,
   subtitle,
   headerExtra,
+  stockNav = true,
   children,
 }: TickerAnalysisShellProps) {
   return (
     <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col bg-tv-bg">
-      {/* stockNav aktif untuk SELURUH halaman yang memakai shell ini - dcf, moat,
-          earnings, dividend, pattern - karena semuanya memang menganalisis satu emiten. */}
-      <Header currentTicker={ticker} onTickerChange={onTickerChange} moduleTitle={moduleTitle} moduleBank={moduleBank} stockNav />
+      {/* Beberapa halaman punya mode non-ticker; stockNav bisa dimatikan saat input ticker
+          tidak memengaruhi hasil, supaya user tidak membaca output sebagai analisis emiten. */}
+      <Header currentTicker={ticker} onTickerChange={onTickerChange} moduleTitle={moduleTitle} moduleBank={moduleBank} stockNav={stockNav} />
 
       <PageContainer className="min-w-0 space-y-5 p-4 sm:space-y-6 md:p-6 lg:p-7">
         <div>
