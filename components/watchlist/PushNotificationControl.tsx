@@ -12,11 +12,12 @@ type PushConfig = {
 
 type PushState = 'checking' | 'unsupported' | 'unconfigured' | 'disabled' | 'enabled' | 'blocked';
 
-function base64UrlToUint8Array(value: string): Uint8Array {
+function base64UrlToArrayBuffer(value: string): ArrayBuffer {
   const padding = '='.repeat((4 - (value.length % 4)) % 4);
   const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
   const raw = window.atob(base64);
-  return Uint8Array.from(raw, (char) => char.charCodeAt(0));
+  const bytes = Uint8Array.from(raw, (char) => char.charCodeAt(0));
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
 function supportsPush(): boolean {
@@ -86,7 +87,7 @@ export function PushNotificationControl() {
       if (!subscription && autoSubscribe && Notification.permission === 'granted') {
         subscription = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: base64UrlToUint8Array(config.publicKey),
+          applicationServerKey: base64UrlToArrayBuffer(config.publicKey),
         });
       }
 
@@ -146,7 +147,7 @@ export function PushNotificationControl() {
       const existing = await registration.pushManager.getSubscription();
       const subscription = existing ?? await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: base64UrlToUint8Array(config.publicKey),
+        applicationServerKey: base64UrlToArrayBuffer(config.publicKey),
       });
       await persistSubscription(subscription);
       setState('enabled');
