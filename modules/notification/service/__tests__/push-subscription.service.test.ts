@@ -15,26 +15,30 @@ afterEach(() => {
 });
 
 describe('push subscription input', () => {
-  it('accepts a standards-shaped HTTPS subscription', () => {
+  it('accepts a standards-shaped FCM subscription', () => {
     const parsed = parseBrowserPushSubscription({
-      endpoint: 'https://push.example.test/send/device-1',
+      endpoint: 'https://fcm.googleapis.com/fcm/send/device-1',
       keys: {
         p256dh: 'A'.repeat(87),
         auth: 'B'.repeat(22),
       },
     });
 
-    expect(parsed.endpoint).toBe('https://push.example.test/send/device-1');
+    expect(parsed.endpoint).toBe('https://fcm.googleapis.com/fcm/send/device-1');
     expect(parsed.keys.auth).toHaveLength(22);
   });
 
   it('rejects non-HTTPS endpoints', () => {
-    expect(() => parsePushEndpoint({ endpoint: 'http://push.example.test/device' })).toThrow();
+    expect(() => parsePushEndpoint({ endpoint: 'http://fcm.googleapis.com/device' })).toThrow();
+  });
+
+  it('rejects arbitrary HTTPS endpoints to prevent SSRF', () => {
+    expect(() => parsePushEndpoint({ endpoint: 'https://example.test/internal' })).toThrow();
   });
 
   it('rejects malformed browser keys', () => {
     expect(() => parseBrowserPushSubscription({
-      endpoint: 'https://push.example.test/device',
+      endpoint: 'https://updates.push.services.mozilla.com/wpush/v2/device',
       keys: { p256dh: '***', auth: 'bad' },
     })).toThrow();
   });
