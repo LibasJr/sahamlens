@@ -76,7 +76,7 @@ function hkdfExtract(salt: Buffer, inputKeyMaterial: Buffer): Buffer {
 
 function hkdfExpand(pseudoRandomKey: Buffer, info: Buffer, length: number): Buffer {
   const chunks: Buffer[] = [];
-  let previous = Buffer.alloc(0);
+  let previous: Buffer<ArrayBufferLike> = Buffer.alloc(0);
   let counter = 1;
 
   while (Buffer.concat(chunks).length < length) {
