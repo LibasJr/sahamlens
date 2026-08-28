@@ -87,16 +87,31 @@ export async function buildStockScoringContext(args: {
 
   const rsiResult = analyzersResult.find((item: any) => item.label?.includes('RSI')) as any;
   const macdResult = analyzersResult.find((item: any) => item.label?.includes('MACD')) as any;
+  const adxResult = analyzersResult.find((item: any) => item.label?.includes('ADX')) as any;
+  const bollingerResult = analyzersResult.find((item: any) => item.label?.includes('Bollinger')) as any;
+  const stochasticResult = analyzersResult.find((item: any) => item.label?.includes('Stochastic')) as any;
+  const obvResult = analyzersResult.find((item: any) => item.label?.includes('OBV')) as any;
   const rsiVal = typeof rsiResult?.raw?.rsi === 'number' ? rsiResult.raw.rsi : null;
   const macdLineVal = typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : null;
   const macdSigVal = typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null;
   const macdHistVal = typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null;
+  const adxVal = typeof adxResult?.raw?.adx === 'number' ? adxResult.raw.adx : null;
+  const plusDiVal = typeof adxResult?.raw?.plusDi === 'number' ? adxResult.raw.plusDi : null;
+  const minusDiVal = typeof adxResult?.raw?.minusDi === 'number' ? adxResult.raw.minusDi : null;
+  const bollingerPercentB = typeof bollingerResult?.raw?.percentB === 'number' ? bollingerResult.raw.percentB : null;
+  const stochasticK = typeof stochasticResult?.raw?.k === 'number' ? stochasticResult.raw.k : null;
+  const stochasticD = typeof stochasticResult?.raw?.d === 'number' ? stochasticResult.raw.d : null;
+  const obvSlope10 = typeof obvResult?.raw?.slope === 'number' ? obvResult.raw.slope : null;
 
   const rawVolToday = lastBar?.Volume;
   const volToday = !isLiveFormingBar && isFiniteNonNegative(rawVolToday) ? rawVolToday : null;
   const volWindow = analyzerHistory.slice(0, -1).slice(-20);
   const volAvg20v = volWindow.length === 20 && volWindow.every((h) => isFiniteNonNegative(h.Volume))
     ? volWindow.reduce((sum, h) => sum + h.Volume, 0) / 20
+    : null;
+  const obvVolWindow = analyzerHistory.slice(-10);
+  const obvAvgVolume10 = obvVolWindow.length === 10 && obvVolWindow.every((h) => isFiniteNonNegative(h.Volume))
+    ? obvVolWindow.reduce((sum, h) => sum + h.Volume, 0) / 10
     : null;
 
   const cycleSectorProfile = resolveSectorProfile(
@@ -122,6 +137,12 @@ export async function buildStockScoringContext(args: {
     macdHist: macdHistVal,
     macdLine: macdLineVal,
     macdSignal: macdSigVal,
+    adx: adxVal,
+    plusDi: plusDiVal,
+    minusDi: minusDiVal,
+    bollingerPercentB,
+    stochasticK,
+    stochasticD,
     volToday,
     volAvg20: volAvg20v,
     changePct: typeof result.meta?.regularMarketChangePercent === 'number'
@@ -144,12 +165,13 @@ export async function buildStockScoringContext(args: {
     },
   };
   const flowInput = {
-    cmf20: flowMetrics.flowPressure20,
+    officialNetPressure20: flowMetrics.officialNetPressure20,
     accumulationStatus: flowMetrics.accumulationStatus,
     consecutiveBuyDays: flowMetrics.consecutiveBuyDays,
     consecutiveSellDays: flowMetrics.consecutiveSellDays,
-    volRatio: volToday != null && isFinitePositive(volAvg20v) ? volToday / volAvg20v : null,
-    mfmPositiveRatio20: flowMetrics.mfmPositiveRatio20,
+    officialPositiveRatio20: flowMetrics.officialPositiveRatio20,
+    obvSlope10,
+    obvAvgVolume10,
   };
 
   const scoringResult = calculateScore(ticker, technicalInput, fundamentalInput, flowInput);

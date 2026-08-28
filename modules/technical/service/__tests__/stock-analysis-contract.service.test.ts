@@ -20,9 +20,9 @@ function scoring(extra: Partial<ScoringResult> = {}): ScoringResult {
     available_max: { technical: 40, fundamental: 30, flow: 30 },
     kategori: 'BUY',
     detail: {
-      ma_trend: 10, rsi: 5, macd: 5, volume: 5,
+      ma_trend: 10, rsi: 5, macd: 5, adx_trend: 4, bollinger_position: 2, stochastic_momentum: 2, volume: 5,
       valuasi: 5, profitabilitas: 5, kesehatan: 5,
-      flow_tekanan: 5, flow_persistensi: 5,
+      flow_tekanan: 5, flow_persistensi: 5, obv_flow: 1,
     },
     missing: [],
     not_applicable: [],
@@ -105,7 +105,7 @@ describe('stock analysis backend contract', () => {
       lensScoreInputs: {
         technical: { rsi: { value: 55 }, ma20: { value: 8900 } },
         fundamental: { per: { value: 18 }, pbv: { value: null } },
-        flow: { cmf20: { value: 12 } },
+        flow: { officialNetPressure20: { value: 12 } },
       },
     });
 

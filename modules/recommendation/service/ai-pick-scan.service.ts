@@ -1,4 +1,13 @@
-import { fetchYahooHistory, analyzeRsi, analyzeMacd, analyzeVolatility, calculateScore, type FundamentalInput } from '../../technical';
+import {
+  fetchYahooHistory,
+  analyzeRsi,
+  analyzeMacd,
+  analyzeVolatility,
+  analyzeAdx,
+  analyzeBollinger,
+  calculateScore,
+  type FundamentalInput,
+} from '../../technical';
 import { computeDailyNetFlow, computeAccumulationStreak, analyzeAccumulationSignal, analyzeBandarmology } from '../../market';
 import { AI_PICK_UNIVERSE } from '../../market/constants/ai-pick-universe';
 import { readFundamentalSnapshot, type FundamentalSnapshot } from '../../../shared/cache/ai-pick-cache';
@@ -9,6 +18,7 @@ import { logger } from '../../../shared/logger/logger';
 import type { ScoredStock } from './ai-pick.service';
 import { buildLongTradingSetup } from './trading-setup';
 import { buildHybridV2TradingSetup } from './trading-setup-hybrid-v2';
+import { buildTradePlanV1 } from './trade-plan';
 import {
   PRICE_ADJUSTMENT_VERSION,
   RETURN_PRICE_BASIS,
@@ -100,6 +110,8 @@ async function scoreOne(
   // bukan rumus baru dikarang.
   const volatilityResult = analyzeVolatility(history, currentPrice);
   const atr = typeof volatilityResult?.raw?.atr === 'number' ? volatilityResult.raw.atr : null;
+  const adxResult = analyzeAdx(history, currentPrice);
+  const bollingerResult = analyzeBollinger(history, currentPrice);
   const tradeSetup = buildLongTradingSetup(
     history.map((h) => ({ High: h.High, Low: h.Low, Close: h.Close, AdjClose: h.AdjClose })),
     currentPrice,
@@ -143,6 +155,18 @@ async function scoreOne(
   const accumulation = analyzeAccumulationSignal(dailyHistory.slice(-20));
   const accumulationConfirmed = accumulation.status === 'AKUMULASI';
   const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
+  const tradePlan = buildTradePlanV1({
+    history: history.map((h) => ({ High: h.High, Low: h.Low, Close: h.Close, AdjClose: h.AdjClose })),
+    currentPrice,
+    atr,
+    adx: typeof adxResult?.raw?.adx === 'number' ? adxResult.raw.adx : null,
+    plusDi: typeof adxResult?.raw?.plusDi === 'number' ? adxResult.raw.plusDi : null,
+    minusDi: typeof adxResult?.raw?.minusDi === 'number' ? adxResult.raw.minusDi : null,
+    bollingerPercentB: typeof bollingerResult?.raw?.percentB === 'number' ? bollingerResult.raw.percentB : null,
+    volumeRatio: volRatio,
+    officialNetPressure20: null,
+    officialPositiveRatio20: null,
+  });
 
   const scoring = calculateScore(
     ticker.replace('.JK', ''),
@@ -243,6 +267,30 @@ async function scoreOne(
           cl1: tradeSetup.cl1,
           cl2: tradeSetup.cl2,
           rr: tradeSetup.rr,
+        }
+        : null,
+      tradePlan: tradePlan
+        ? {
+          version: tradePlan.version,
+          entryReference: tradePlan.entryReference,
+          entry: tradePlan.entry,
+          stopLoss: tradePlan.stopLoss,
+          cutLoss: tradePlan.cutLoss,
+          takeProfit1: tradePlan.takeProfit1,
+          takeProfit2: tradePlan.takeProfit2,
+          riskReward: tradePlan.riskReward,
+          riskPercent: tradePlan.riskPercent,
+          riskAtr: tradePlan.riskAtr,
+          riskLevel: tradePlan.riskLevel,
+          confidenceScore: tradePlan.confidenceScore,
+          confidenceLevel: tradePlan.confidenceLevel,
+          support: tradePlan.support,
+          nearestSupport: tradePlan.nearestSupport,
+          resistance: tradePlan.resistance,
+          reasons: tradePlan.reasons,
+          missingData: tradePlan.missingData,
+          caveats: tradePlan.caveats,
+          dataPoints: tradePlan.dataPoints,
         }
         : null,
       hybridV2TradeSetup: hybridV2TradeSetup

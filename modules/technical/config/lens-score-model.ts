@@ -11,10 +11,11 @@ export const LENS_SCORE_MODEL_SPEC = {
   id: 'lens-score',
   // Sama persis dengan SCORE_VERSION arsip LensRadar; satu model tidak boleh punya
   // dua nama versi berbeda di API live dan dataset validasi.
-  version: 'lens-score-v1.5.0',
+  version: 'lens-score-v1.6.0',
   status: 'RESEARCH_ONLY' as const,
   returnPriceBasis: 'SPLIT_ADJUSTED',
   tradingPriceBasis: 'RAW',
+  flowSource: 'IDX_OFFICIAL_FOREIGN_FLOW',
   indicatorParameters: {
     rsiPeriod: 14,
     atrPeriod: 14,
@@ -23,6 +24,13 @@ export const LENS_SCORE_MODEL_SPEC = {
     macdFast: 12,
     macdSlow: 26,
     macdSignal: 9,
+    adxPeriod: 14,
+    bollingerPeriod: 20,
+    bollingerStdDev: 2,
+    stochasticPeriod: 14,
+    stochasticSmoothK: 3,
+    stochasticPeriodD: 3,
+    obvSlopeLookback: 10,
     volumeAveragePeriod: 20,
   },
   scoreWeights: LENS_SCORE_WEIGHTS,

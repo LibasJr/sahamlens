@@ -89,6 +89,16 @@ export function buildLensScoreInputProvenance(args: {
     transformation: 'DERIVED',
     note: 'Flow metrics diturunkan deterministik dari price/volume history yang sama dengan pipeline analisis saham.',
   };
+  const idxOfficialFlow: FinancialValueProvenance = {
+    source: 'IDX_OFFICIAL_API',
+    period: args.period,
+    asOf: args.asOf,
+    retrievedAt: args.retrievedAt,
+    confidence: 'unknown',
+    isEstimated: false,
+    transformation: 'DERIVED',
+    note: 'Flow metrics dihitung deterministik dari ForeignBuy/ForeignSell resmi IDX per emiten; bukan CMF proxy dan bukan Broker Summary.',
+  };
 
   for (const [key, value] of Object.entries(args.technical)) {
     const source = key === 'rsi' || key.startsWith('macd') ? analyzer : yahooChart;
@@ -112,7 +122,7 @@ export function buildLensScoreInputProvenance(args: {
   }
 
   for (const [key, value] of Object.entries(args.flow)) {
-    add(flow, key, value, derivedFlow);
+    add(flow, key, value, key.startsWith('official') ? idxOfficialFlow : derivedFlow);
   }
 
   return { technical, fundamental, flow };
