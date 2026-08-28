@@ -2,6 +2,7 @@ import type { HttpResult } from '@/shared/types/http-result.types';
 import { cacheGet, cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC as TTL } from '@/shared/cache/ttl-policy';
 import { apiOk, type ApiResponseMeta } from '@/shared/http/api-response';
+import { logger } from '@/shared/logger/logger';
 import {
   attachStockAnalysisQuota,
   resolveStockAnalysisAccess,
@@ -13,6 +14,7 @@ import {
   resolveStockAnalysisRange,
 } from '@/modules/technical/service/stock-analysis-source.service';
 import { computeStockAnalysisPayload } from '@/modules/technical/service/stock-analysis-compute.service';
+import { validateNoDummyStockPayload } from '@/modules/technical/service/stock-analysis-contract.service';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -27,8 +29,12 @@ function stockResponseMeta(
   return {
     source,
     dataAsOf: typeof legacyMeta.dataTimestamp === 'string' ? legacyMeta.dataTimestamp : undefined,
+    lastUpdated: typeof legacyMeta.lastUpdated === 'string'
+      ? legacyMeta.lastUpdated
+      : typeof legacyMeta.dataTimestamp === 'string' ? legacyMeta.dataTimestamp : undefined,
     calculatedAt: typeof legacyMeta.computedAt === 'string' ? legacyMeta.computedAt : undefined,
     staleness: staleness ?? (typeof legacyMeta.freshness === 'string' ? legacyMeta.freshness.toLowerCase() : undefined),
+    staleReason: typeof legacyMeta.staleReason === 'string' ? legacyMeta.staleReason : null,
     modelVersion: isRecord(legacyMeta.lensScoreModel) && typeof legacyMeta.lensScoreModel.version === 'string'
       ? legacyMeta.lensScoreModel.version
       : undefined,
@@ -79,7 +85,12 @@ export async function handleGetStockAnalysis(
     } catch (error) {
       const stale = await cacheGet<Record<string, unknown>>(staleFallbackKey);
       if (stale) {
-        console.warn(`Yahoo fetch failed, returning stale fallback cache for ${context.ticker}`);
+        logger.warn('Stock source fetch failed; serving stale fallback cache', {
+          module: 'stock-analysis',
+          ticker: context.ticker,
+          range,
+          err: error instanceof Error ? error.message : String(error),
+        });
         const payload = await attachStockAnalysisQuota(buildStaleStockAnalysisPayload(stale), context);
         return {
           status: 200,
@@ -87,7 +98,12 @@ export async function handleGetStockAnalysis(
         };
       }
 
-      console.error('Stock source fetch error:', error);
+      logger.error('Stock source fetch failed without stale fallback', {
+        module: 'stock-analysis',
+        ticker: context.ticker,
+        range,
+        err: error,
+      });
       return { status: 500, body: { error: 'Failed to fetch Yahoo data' } };
     }
 
@@ -99,8 +115,29 @@ export async function handleGetStockAnalysis(
     );
     if (computed.status !== 200) return computed;
     if (!isRecord(computed.body)) {
-      console.error('Stock analysis produced a non-object success payload');
+      logger.error('Stock analysis produced a non-object success payload', {
+        module: 'stock-analysis',
+        ticker: context.ticker,
+        range,
+      });
       return { status: 500, body: { error: 'Internal Server Error' } };
+    }
+
+    const noDummy = validateNoDummyStockPayload(computed.body);
+    if (!noDummy.ok) {
+      logger.error('Stock analysis payload rejected by no-dummy contract', {
+        module: 'stock-analysis',
+        ticker: context.ticker,
+        range,
+        reason: noDummy.reason,
+      });
+      return {
+        status: 503,
+        body: {
+          error: 'Data saham tidak memenuhi kontrak no-dummy',
+          code: noDummy.reason,
+        },
+      };
     }
 
     // Cache only the domain payload. HTTP envelope and user-specific quota are attached
@@ -116,7 +153,7 @@ export async function handleGetStockAnalysis(
       body: withStockEnvelope(payload, stockResponseMeta(payload, 'technical-analysis-live')),
     };
   } catch (error) {
-    console.error('Stock API error:', error);
+    logger.error('Stock API error', { module: 'stock-analysis', err: error });
     return { status: 500, body: { error: 'Internal Server Error' } };
   }
 }

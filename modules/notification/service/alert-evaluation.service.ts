@@ -1,6 +1,8 @@
 import { listPendingAlerts, markTriggered, type Alert, type AlertConditionType } from '@/modules/watchlist';
 import { internalServiceHeaders } from '@/shared/auth/internal-service';
 import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
+import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
+import { logger } from '@/shared/logger/logger';
 
 // BUILD 002 (Refactor Domain) - dipindah dari app/api/alerts/check/route.ts, verbatim.
 // modules/notification bergantung SATU ARAH ke modules/watchlist (baca daftar alert +
@@ -27,16 +29,51 @@ function nested(value: unknown, key: string): UnknownRecord {
   return record(record(value)[key]);
 }
 
-async function fetchJson(url: string): Promise<unknown | null> {
+async function fetchJson(url: string, sourceId: string): Promise<unknown | null> {
+  const startedAt = Date.now();
   try {
     // Header internal (lihat shared/auth/internal-service.ts) - tanpa ini panggilan
     // server-to-server ke /api/stock, /api/breakout-radar, /api/market-pulse selalu
     // 401/402 karena route-route itu di-gate session+Pro yang ditujukan buat request
     // browser user, bukan job evaluasi alert ini.
     const res = await fetch(url, { cache: 'no-store', headers: internalServiceHeaders() });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      await recordDataSourceHealth({
+        sourceId,
+        ok: false,
+        latencyMs: Date.now() - startedAt,
+        detail: { url, status: res.status, surface: 'watchlist-alert' },
+      });
+      logger.warn('Alert data fetch failed', {
+        module: 'watchlist-alert',
+        sourceId,
+        status: res.status,
+      });
+      return null;
+    }
+    await recordDataSourceHealth({
+      sourceId,
+      ok: true,
+      latencyMs: Date.now() - startedAt,
+      detail: { url, surface: 'watchlist-alert' },
+    });
     return await res.json() as unknown;
-  } catch {
+  } catch (error) {
+    await recordDataSourceHealth({
+      sourceId,
+      ok: false,
+      latencyMs: Date.now() - startedAt,
+      detail: {
+        url,
+        surface: 'watchlist-alert',
+        error: error instanceof Error ? error.message : String(error),
+      },
+    });
+    logger.warn('Alert data fetch threw', {
+      module: 'watchlist-alert',
+      sourceId,
+      err: error instanceof Error ? error.message : String(error),
+    });
     return null;
   }
 }
@@ -239,6 +276,12 @@ function breakoutEntries(payload: unknown): Map<string, unknown> {
 export interface AlertCheckResult {
   checked: number;
   triggered: number;
+  dataSources: {
+    stockSymbols: number;
+    stockPayloads: number;
+    breakoutLoaded: boolean;
+    breadthLoaded: boolean;
+  };
   triggeredAlerts: { id: string; message: string }[];
 }
 
@@ -248,7 +291,12 @@ export async function checkAndTriggerAlerts(origin: string): Promise<AlertCheckR
   // tidak alert yang dibuat user tidak pernah ketemu di sini (data disconnected).
   const active = await listPendingAlerts();
   if (!active || active.length === 0) {
-    return { checked: 0, triggered: 0, triggeredAlerts: [] };
+    return {
+      checked: 0,
+      triggered: 0,
+      dataSources: { stockSymbols: 0, stockPayloads: 0, breakoutLoaded: false, breadthLoaded: false },
+      triggeredAlerts: [],
+    };
   }
 
   const stockSymbols = Array.from(new Set(
@@ -258,17 +306,17 @@ export async function checkAndTriggerAlerts(origin: string): Promise<AlertCheckR
   // Paralel, bukan for-await sekuensial (Performance Roadmap Fase 1 poin 4) -
   // sebelumnya total waktu = JUMLAH semua fetch simbol unik, bukan MAKSIMUM
   // salah satu (pola yang sama sudah benar di breakout-radar, disamakan di sini).
-  const stockResults = await Promise.all(stockSymbols.map((symbol) => fetchJson(`${origin}/api/stock/${symbol}`)));
+  const stockResults = await Promise.all(stockSymbols.map((symbol) => fetchJson(`${origin}/api/stock/${symbol}`, 'INTERNAL_STOCK_API')));
   stockSymbols.forEach((symbol, i) => {
     if (stockResults[i] != null) stockBySymbol.set(symbol, stockResults[i]);
   });
 
   const hasBreakoutAlert = active.some((alert) => alert.condition_type === 'BREAKOUT_SCORE_ABOVE');
-  const breakoutData = hasBreakoutAlert ? await fetchJson(`${origin}/api/breakout-radar`) : null;
+  const breakoutData = hasBreakoutAlert ? await fetchJson(`${origin}/api/breakout-radar`, 'INTERNAL_BREAKOUT_RADAR_API') : null;
   const breakoutBySymbol = breakoutEntries(breakoutData);
 
   const hasBreadthAlert = active.some((alert) => alert.condition_type === 'BREADTH_ADVANCING_BELOW');
-  const pulseData = hasBreadthAlert ? await fetchJson(`${origin}/api/market-pulse`) : null;
+  const pulseData = hasBreadthAlert ? await fetchJson(`${origin}/api/market-pulse`, 'INTERNAL_MARKET_PULSE_API') : null;
   const pulse = record(pulseData);
 
   let triggeredCount = 0;
@@ -298,5 +346,22 @@ export async function checkAndTriggerAlerts(origin: string): Promise<AlertCheckR
     }
   }
 
-  return { checked: active.length, triggered: triggeredCount, triggeredAlerts: triggeredAlertsData };
+  const result = {
+    checked: active.length,
+    triggered: triggeredCount,
+    dataSources: {
+      stockSymbols: stockSymbols.length,
+      stockPayloads: stockBySymbol.size,
+      breakoutLoaded: !hasBreakoutAlert || breakoutData != null,
+      breadthLoaded: !hasBreadthAlert || pulseData != null,
+    },
+    triggeredAlerts: triggeredAlertsData,
+  };
+  logger.info('Watchlist alert evaluation completed', {
+    module: 'watchlist-alert',
+    checked: result.checked,
+    triggered: result.triggered,
+    ...result.dataSources,
+  });
+  return result;
 }
