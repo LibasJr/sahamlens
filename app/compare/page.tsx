@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Target, Search, ArrowRightLeft, Lock } from 'lucide-react';
+import { Check, Download, Share2, Target, Search, ArrowRightLeft, Lock } from 'lucide-react';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
@@ -15,6 +15,7 @@ import { ApiErrorHint, Button, Card, PageContainer, Skeleton, EmptyState, Loadin
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import { buildCompareCsv } from '@/shared/format/compare-export';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -23,6 +24,8 @@ const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 // ditampilkan sampai sesi terverifikasi.
 const GUEST_VISIBLE_COMPARE_KEYS = new Set(['score', 'ma', 'per', 'pbv']);
 const SIMPLE_COMPARE_KEYS = new Set(['score', 'ma', 'per', 'pbv']);
+
+type ShareStatus = 'idle' | 'copied' | 'shared' | 'error';
 
 function CompareGuestTeaser({ nextPath, lockedCount }: { nextPath: string; lockedCount: number }) {
   return (
@@ -80,6 +83,7 @@ function CompareContent() {
   const [fetchErrorRequestId, setFetchErrorRequestId] = useState<string | null>(null);
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
   const [compareMode, setCompareMode] = useState<'simple' | 'advanced'>('simple');
+  const [shareStatus, setShareStatus] = useState<ShareStatus>('idle');
   // Effect restore-dari-localStorage (di bawah) dan effect fetch (setelahnya) sama-sama
   // jalan saat mount - fetch pertama berangkat dengan symbol1 default 'BBCA.JK' SEBELUM
   // state ke-update dari localStorage, jadi dua request keluar. Sequence number ini
@@ -87,6 +91,7 @@ function CompareContent() {
   // (BBCA) resolve belakangan karena jitter jaringan.
   const fetchSeqRef = useRef(0);
   const trackedGuestLock = useRef(false);
+  const shareStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!urlSym1) {
@@ -107,6 +112,10 @@ function CompareContent() {
     fetchCompare();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [symbol1, symbol2, initialRequestReady]);
+
+  useEffect(() => () => {
+    if (shareStatusTimerRef.current) clearTimeout(shareStatusTimerRef.current);
+  }, []);
 
   const fetchCompare = async () => {
     const seq = ++fetchSeqRef.current;
@@ -173,26 +182,70 @@ function CompareContent() {
   const visibleRows = lockForGuest ? publicRows : compareMode === 'simple' ? simpleRows : (data?.rows ?? []);
   const compareNextPath = `/compare?symbol1=${encodeURIComponent(symbol1)}&symbol2=${encodeURIComponent(symbol2)}`;
 
-  const copyShareLink = async () => {
-    if (typeof window === 'undefined') return;
+  const showShareStatus = (status: ShareStatus) => {
+    setShareStatus(status);
+    if (shareStatusTimerRef.current) clearTimeout(shareStatusTimerRef.current);
+    shareStatusTimerRef.current = setTimeout(() => setShareStatus('idle'), 2600);
+  };
+
+  const copyWithFallback = (text: string): boolean => {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    const copied = document.execCommand('copy');
+    textarea.remove();
+    return copied;
+  };
+
+  const shareCompare = async () => {
+    if (!data || typeof window === 'undefined') return;
+    const shareUrl = new URL('/compare', window.location.origin);
+    shareUrl.searchParams.set('symbol1', data.data1.symbol);
+    shareUrl.searchParams.set('symbol2', data.data2.symbol);
+    const title = `SahamLens Compare: ${displayTicker(data.data1.symbol)} vs ${displayTicker(data.data2.symbol)}`;
+    const text = `Lihat perbandingan ${displayTicker(data.data1.symbol)} vs ${displayTicker(data.data2.symbol)} di SahamLens.`;
+
     try {
-      await navigator.clipboard.writeText(window.location.href);
-    } catch {}
+      if (typeof navigator.share === 'function') {
+        await navigator.share({ title, text, url: shareUrl.toString() });
+        showShareStatus('shared');
+        return;
+      }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl.toString());
+        showShareStatus('copied');
+        return;
+      }
+      showShareStatus(copyWithFallback(shareUrl.toString()) ? 'copied' : 'error');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      try {
+        showShareStatus(copyWithFallback(shareUrl.toString()) ? 'copied' : 'error');
+      } catch {
+        showShareStatus('error');
+      }
+    }
   };
 
   const downloadSummary = () => {
     if (!data || typeof window === 'undefined') return;
-    const payload = {
-      source: 'sahamlens-active-compare-data',
-      symbols: [data.data1?.symbol, data.data2?.symbol],
+    const csv = buildCompareCsv({
+      symbol1: data.data1.symbol,
+      symbol2: data.data2.symbol,
+      price1: data.data1.price,
+      price2: data.data2.price,
       rows: visibleRows,
       conclusion: data.conclusion ?? null,
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `sahamlens-compare-${displayTicker(data.data1.symbol)}-${displayTicker(data.data2.symbol)}.json`;
+    a.download = `sahamlens-compare-${displayTicker(data.data1.symbol)}-${displayTicker(data.data2.symbol)}.csv`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -313,6 +366,13 @@ function CompareContent() {
                 const win2 = data.rows.filter((r: any) => r.winner === data.data2.symbol).length;
                 const seri = data.rows.length - win1 - win2;
                 const leader = win1 > win2 ? data.data1.symbol : win2 > win1 ? data.data2.symbol : null;
+                const shareLabel = shareStatus === 'copied'
+                  ? 'Link disalin'
+                  : shareStatus === 'shared'
+                    ? 'Dibagikan'
+                    : shareStatus === 'error'
+                      ? 'Share gagal'
+                      : 'Share';
                 return (
                   <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-tv-border bg-tv-bg/60 px-6 py-3.5 text-xs">
                     <div className="flex items-center gap-3">
@@ -351,11 +411,20 @@ function CompareContent() {
                           Advanced
                         </Button>
                       </div>
-                      <Button variant="bare" size="none" type="button" onClick={copyShareLink} className="inline-flex items-center gap-1 rounded-md border border-tv-border px-2.5 py-1 text-[11px] text-tv-muted hover:text-tv-text">
-                        Share
+                      <Button
+                        variant="bare"
+                        size="none"
+                        type="button"
+                        onClick={shareCompare}
+                        aria-live="polite"
+                        className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] transition-colors ${shareStatus === 'error' ? 'border-tv-red/40 text-tv-red' : shareStatus === 'copied' || shareStatus === 'shared' ? 'border-tv-green/40 text-tv-green' : 'border-tv-border text-tv-muted hover:text-tv-text'}`}
+                      >
+                        {shareStatus === 'copied' || shareStatus === 'shared' ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
+                        {shareLabel}
                       </Button>
-                      <Button variant="bare" size="none" type="button" onClick={downloadSummary} className="inline-flex items-center gap-1 rounded-md border border-tv-border px-2.5 py-1 text-[11px] text-tv-muted hover:text-tv-text">
-                        Export
+                      <Button variant="bare" size="none" type="button" onClick={downloadSummary} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-tv-border px-2.5 py-1 text-[11px] text-tv-muted hover:text-tv-text">
+                        <Download className="h-3.5 w-3.5" />
+                        Export CSV
                       </Button>
                     </div>
                   </div>
