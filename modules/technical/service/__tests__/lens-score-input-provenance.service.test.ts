@@ -23,7 +23,7 @@ describe('buildLensScoreInputProvenance', () => {
         },
       },
       flow: {
-        cmf20: 14.2,
+        officialNetPressure20: 14.2,
         accumulationStatus: 'AKUMULASI',
         consecutiveBuyDays: 3,
       },
@@ -57,9 +57,9 @@ describe('buildLensScoreInputProvenance', () => {
     expect(provenance.fundamental['sector.yahooSector'].value).toBe('Financial Services');
     expect(provenance.fundamental['sector.payoutRatio'].value).toBe(0.42);
 
-    expect(provenance.flow.cmf20).toEqual({
+    expect(provenance.flow.officialNetPressure20).toEqual({
       value: 14.2,
-      provenance: expect.objectContaining({ source: 'YAHOO_CHART_DERIVED_FLOW', transformation: 'DERIVED' }),
+      provenance: expect.objectContaining({ source: 'IDX_OFFICIAL_API', transformation: 'DERIVED' }),
     });
     expect(provenance.flow.accumulationStatus.value).toBe('AKUMULASI');
   });

@@ -8,19 +8,20 @@ import {
 } from '@/modules/market';
 
 export interface StockAnalysisFlowMetrics {
-  flowPressure20: number | null;
-  flowPressureToday: number | null;
+  officialNetPressure20: number | null;
+  officialNetPressureToday: number | null;
   officialUsable: boolean;
   accumulationStatus: 'AKUMULASI' | 'DISTRIBUSI' | 'NETRAL' | null;
   consecutiveBuyDays: number;
   consecutiveSellDays: number;
-  mfmPositiveRatio20: number | null;
+  officialPositiveRatio20: number | null;
 }
 
 /**
  * Adds the two flow analyzers to the analyzer collection and returns normalized metrics
- * consumed by the scoring engine. IDX official foreign-flow data wins whenever usable;
- * OHLCV-derived CMF remains a clearly labelled fallback.
+ * consumed by the scoring engine. LensScore v1.6.0 only consumes IDX official
+ * foreign-flow data; OHLCV-derived CMF remains a clearly labelled analyzer fallback for
+ * display, never a score input.
  */
 export function appendStockFlowAnalyzers(
   ticker: string,
@@ -75,8 +76,8 @@ export function appendStockFlowAnalyzers(
   const officialSeries = getRealForeignFlow(ticker, 20);
   const official = officialSeries ? analyzeOfficialForeignFlow(officialSeries.history) : null;
   const officialUsable = official != null && official.netPressure20 != null;
-  const consecutiveBuyDays = officialUsable ? official.consecutiveBuyDays : buyStreak;
-  const consecutiveSellDays = officialUsable ? official.consecutiveSellDays : sellStreak;
+  const consecutiveBuyDays = officialUsable ? official.consecutiveBuyDays : 0;
+  const consecutiveSellDays = officialUsable ? official.consecutiveSellDays : 0;
 
   if (officialUsable) {
     const officialNet5D = official.net5DBillion ?? 0;
@@ -150,12 +151,12 @@ export function appendStockFlowAnalyzers(
   });
 
   return {
-    flowPressure20,
-    flowPressureToday,
+    officialNetPressure20: officialUsable ? official.netPressure20 : null,
+    officialNetPressureToday: officialUsable ? official.netPressureToday : null,
     officialUsable,
-    accumulationStatus: officialUsable ? official.accumulationStatus : accumulation.status,
+    accumulationStatus: officialUsable ? official.accumulationStatus : null,
     consecutiveBuyDays,
     consecutiveSellDays,
-    mfmPositiveRatio20: officialUsable ? official.positiveRatio20 : accumulation.mfmPositiveRatio20,
+    officialPositiveRatio20: officialUsable ? official.positiveRatio20 : null,
   };
 }

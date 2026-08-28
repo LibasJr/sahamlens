@@ -35,14 +35,17 @@ const T = (o: Partial<TechnicalInput> = {}): TechnicalInput => ({
   currentPriceBasis: RETURN_PRICE_BASIS, maPriceBasis: RETURN_PRICE_BASIS,
   ma20: 950, ma50: 900, ma200: 800,
   rsi: 60, macdHist: 5, macdLine: 10, macdSignal: 5,
+  adx: 32, plusDi: 30, minusDi: 12,
+  bollingerPercentB: 0.1,
+  stochasticK: 18, stochasticD: 22,
   volToday: 2_000_000, volAvg20: 1_000_000, changePct: 2.5, ...o,
 });
 const F = (o: Partial<FundamentalInput> = {}): FundamentalInput => ({
   per: 12, pbv: 0.9, roe: 22, der: 0.4, currentRatio: 2.5, revenueGrowth: 20, ...o,
 });
 const FL = (o: Partial<FlowInput> = {}): FlowInput => ({
-  cmf20: 25, accumulationStatus: 'AKUMULASI', consecutiveBuyDays: 5, consecutiveSellDays: 0,
-  volRatio: 2, mfmPositiveRatio20: 0.7, ...o,
+  officialNetPressure20: 25, accumulationStatus: 'AKUMULASI', consecutiveBuyDays: 5, consecutiveSellDays: 0,
+  officialPositiveRatio20: 0.7, obvSlope10: 3_000_000, obvAvgVolume10: 1_000_000, ...o,
 });
 
 const BANK = { yahooSector: 'Financial Services', yahooIndustry: 'Banks - Regional' };
@@ -80,9 +83,15 @@ const GOLDEN_PROFILES: GoldenProfile[] = [
   },
   {
     id: 'P2',
-    technical: T({ ma20: 1050, ma50: 1100, ma200: 1200, rsi: 35, macdHist: -4, changePct: -3.1 }),
+    technical: T({
+      ma20: 1050, ma50: 1100, ma200: 1200, rsi: 35, macdHist: -4, changePct: -3.1,
+      adx: 36, plusDi: 10, minusDi: 34, bollingerPercentB: 1.05, stochasticK: 88, stochasticD: 75,
+    }),
     fundamental: F({ per: 28, pbv: 3.1, roe: 6, der: 2.4, currentRatio: 0.9, revenueGrowth: -8 }),
-    flow: FL({ cmf20: -25, accumulationStatus: 'DISTRIBUSI', consecutiveBuyDays: 0, consecutiveSellDays: 6, mfmPositiveRatio20: 0.25 }),
+    flow: FL({
+      officialNetPressure20: -25, accumulationStatus: 'DISTRIBUSI', consecutiveBuyDays: 0, consecutiveSellDays: 6,
+      officialPositiveRatio20: 0.25, obvSlope10: -3_000_000,
+    }),
     expected: { technical_score: 1, fundamental_score: 0, flow_score: 0, total_score: 1, coverage_pct: 100, kategori: 'SELL' },
   },
   {
@@ -99,8 +108,8 @@ const GOLDEN_PROFILES: GoldenProfile[] = [
     id: 'P5',
     technical: T(),
     fundamental: F({ per: null, pbv: null, roe: null, der: null, currentRatio: null, revenueGrowth: null }),
-    flow: FL({ cmf20: null, accumulationStatus: null, mfmPositiveRatio20: null }),
-    expected: { technical_score: 40, fundamental_score: 0, flow_score: 0, total_score: 100, coverage_pct: 40, kategori: 'DATA TIDAK CUKUP' },
+    flow: FL({ officialNetPressure20: null, accumulationStatus: null, officialPositiveRatio20: null, obvSlope10: null, obvAvgVolume10: null }),
+    expected: { technical_score: 40, fundamental_score: 0, flow_score: 0, total_score: 99, coverage_pct: 40, kategori: 'DATA TIDAK CUKUP' },
   },
   {
     id: 'P6',
@@ -111,8 +120,8 @@ const GOLDEN_PROFILES: GoldenProfile[] = [
     id: 'P7',
     technical: T({ ma20: 1010, ma50: 960, ma200: 900, rsi: 48, macdHist: -1.2, volToday: 1_200_000, changePct: 0.3 }),
     fundamental: F({ per: 18, pbv: 2.2, roe: 12, der: 1.1, currentRatio: 1.6, revenueGrowth: 7 }),
-    flow: FL({ cmf20: 3, accumulationStatus: 'NETRAL', consecutiveBuyDays: 1, consecutiveSellDays: 0, mfmPositiveRatio20: 0.5 }),
-    expected: { technical_score: 16, fundamental_score: 13, flow_score: 13, total_score: 42, coverage_pct: 100, kategori: 'SELL' },
+    flow: FL({ officialNetPressure20: 3, accumulationStatus: 'NETRAL', consecutiveBuyDays: 1, consecutiveSellDays: 0, officialPositiveRatio20: 0.5 }),
+    expected: { technical_score: 21, fundamental_score: 13, flow_score: 14, total_score: 48, coverage_pct: 100, kategori: 'HOLD' },
   },
   {
     id: 'P8',
@@ -127,8 +136,8 @@ describe('LensScore - spesifikasi model beku', () => {
     // Kalau ia berubah sementara `version` tetap, seluruh histori lama diam-diam ditolak
     // partitionByScoreVersion() dan Calibration Lab menampilkan nol sampel tanpa sebab
     // yang terlihat.
-    expect(LENS_SCORE_MODEL_METADATA.version).toBe('lens-score-v1.5.0');
-    expect(LENS_SCORE_MODEL_METADATA.configHash).toBe('fnv1a32-86968e1a');
+    expect(LENS_SCORE_MODEL_METADATA.version).toBe('lens-score-v1.6.0');
+    expect(LENS_SCORE_MODEL_METADATA.configHash).toBe('fnv1a32-2b2f012f');
   });
 
   it('bobot kelompok 40/30/30 dan totalnya 100', () => {
@@ -144,7 +153,10 @@ describe('LensScore - spesifikasi model beku', () => {
   it('parameter indikator tetap sesuai spesifikasi yang dipublikasikan', () => {
     expect(LENS_SCORE_MODEL_SPEC.indicatorParameters).toEqual({
       rsiPeriod: 14, atrPeriod: 14, emaFast: 20, emaSlow: 50,
-      macdFast: 12, macdSlow: 26, macdSignal: 9, volumeAveragePeriod: 20,
+      macdFast: 12, macdSlow: 26, macdSignal: 9,
+      adxPeriod: 14, bollingerPeriod: 20, bollingerStdDev: 2,
+      stochasticPeriod: 14, stochasticSmoothK: 3, stochasticPeriodD: 3,
+      obvSlopeLookback: 10, volumeAveragePeriod: 20,
     });
     expect(LENS_SCORE_MODEL_SPEC.status).toBe('RESEARCH_ONLY');
   });
