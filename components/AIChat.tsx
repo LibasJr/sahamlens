@@ -413,7 +413,10 @@ export default function AIChat() {
   };
 
   return (
-    <div className="fixed bottom-24 right-3 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
+    // MobileNav mengukur tinggi + safe-area aktual ke --lens-mobile-nav-clearance.
+    // Pakai nilai nyata itu agar trigger/panel LensAI tidak mengandalkan bottom hard-coded
+    // yang bisa bertabrakan dengan nav pada WebView atau perangkat dengan inset berbeda.
+    <div className="fixed bottom-[calc(var(--lens-mobile-nav-clearance,5.25rem)+0.75rem)] right-3 z-50 flex flex-col items-end sm:right-6 md:bottom-6">
 
       {/* Chat Window */}
       {/* Lebar dulu w-[400px]/w-[600px] TETAP tanpa breakpoint sama sekali - di layar HP
