@@ -3,6 +3,7 @@
 import React from 'react';
 import { Activity, Bell, BellRing, RefreshCw, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { AnimatedNumber, Button } from '@/components/ui';
+import { PushNotificationControl } from './PushNotificationControl';
 
 interface WatchlistHeaderProps {
   loading: boolean;
@@ -38,16 +39,19 @@ export function WatchlistHeader({
             <p className="text-xs text-white/50">Pantau portofolio dan set notifikasi hp (Push Notification)</p>
           </div>
         </div>
-        <Button
-          variant="bare"
-          size="none"
-          onClick={onRefresh}
-          disabled={loading}
-          className="bg-white/5 border border-white/10 hover:bg-white/10 px-4 py-2 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50 text-xs font-semibold"
-        >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Data
-        </Button>
+        <div className="flex items-start gap-2 flex-wrap justify-end">
+          <PushNotificationControl />
+          <Button
+            variant="bare"
+            size="none"
+            onClick={onRefresh}
+            disabled={loading}
+            className="bg-white/5 border border-white/10 hover:bg-white/10 px-4 py-2 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50 text-xs font-semibold"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh Data
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
