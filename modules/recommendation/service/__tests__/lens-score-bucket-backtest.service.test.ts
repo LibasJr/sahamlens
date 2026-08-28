@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   computeLensScoreBucketBacktest,
   LENS_SCORE_ROUND_TRIP_COST_PCT,
+  runLensScoreBucketBacktest,
   type LensRadarHistoryRow,
 } from '../lens-score-bucket-backtest.service';
 import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
@@ -155,5 +156,98 @@ describe('computeLensScoreBucketBacktest', () => {
     expect(result.provenance.universeVersion).toBeNull();
     expect(result.provenance.universeMixed).toBe(true);
     expect(result.provenance.retrievedAt).toBe('2026-08-27T12:00:00.000Z');
+  });
+});
+
+describe('runLensScoreBucketBacktest', () => {
+  it('membaca snapshot publik dari lens_bucket_stats dengan metodologi entry open H+1', async () => {
+    const queries: string[] = [];
+    const db = {
+      query: async (sql: string) => {
+        queries.push(sql);
+        if (sql.includes('FROM lens_bucket_stats')) {
+          return {
+            rows: [
+              {
+                run_date: '2026-08-20',
+                bucket: '80-100',
+                score_version: SCORE_VERSION,
+                score_config_hash: LENS_SCORE_MODEL_METADATA.configHash,
+                avg_t1: '0.8',
+                avg_t5: '2.5',
+                avg_t20: '5.4',
+                win_rate_t5: '60',
+                win_rate_t20: '65',
+                total_samples: '40',
+                source_rows: '120',
+                unique_tickers: '20',
+                round_trip_cost_pct: '0.5',
+                price_basis: RETURN_PRICE_BASIS,
+                price_data_version: 'adjusted-v1',
+              },
+              {
+                run_date: '2026-08-20',
+                bucket: '60-69',
+                score_version: SCORE_VERSION,
+                score_config_hash: LENS_SCORE_MODEL_METADATA.configHash,
+                avg_t1: '0.1',
+                avg_t5: '0.9',
+                avg_t20: '1.4',
+                win_rate_t5: '51',
+                win_rate_t20: '52',
+                total_samples: '35',
+                source_rows: '120',
+                unique_tickers: '20',
+                round_trip_cost_pct: '0.5',
+                price_basis: RETURN_PRICE_BASIS,
+                price_data_version: 'adjusted-v1',
+              },
+            ],
+          };
+        }
+        return {
+          rows: [{ min_date: '2026-05-01', max_date: '2026-08-20', trading_days: '72' }],
+        };
+      },
+    };
+
+    const result = await runLensScoreBucketBacktest(db as any, { calculatedAt: '2026-08-21T00:00:00.000Z' });
+
+    expect(result.ready).toBe(true);
+    expect(result.entryRule).toMatch(/entry open H\+1/i);
+    expect(result.provenance.source).toBe('lens_bucket_stats');
+    expect(result.provenance.transformation).toMatch(/entry open H\+1/i);
+    expect(result.buckets.find((bucket) => bucket.bucket === '80-100')?.horizons.t20).toEqual({
+      avgReturnPct: 5.4,
+      winRatePct: 65,
+      samples: 40,
+    });
+    expect(result.tTests.t20).toEqual(expect.objectContaining({
+      meanDiffPct: 4,
+      tStatistic: null,
+      bucket80Better: true,
+      samples80: 40,
+      samples60: 35,
+    }));
+    expect(queries).toHaveLength(2);
+    expect(queries.join('\n')).not.toMatch(/ORDER BY ticker ASC, "date" ASC/);
+  });
+
+  it('mengembalikan pending snapshot jika tabel agregat belum ada', async () => {
+    const db = {
+      query: async () => {
+        const error: any = new Error('relation does not exist');
+        error.code = '42P01';
+        throw error;
+      },
+    };
+
+    const result = await runLensScoreBucketBacktest(db as any);
+
+    expect(result.ready).toBe(false);
+    expect(result.entryRule).toMatch(/entry open H\+1/i);
+    expect(result.provenance.source).toBe('lens_bucket_stats');
+    expect(result.buckets.every((bucket) => Object.values(bucket.horizons).every((horizon) => horizon.samples === 0))).toBe(true);
+    expect(result.note).toMatch(/Belum ada snapshot lens_bucket_stats/i);
   });
 });

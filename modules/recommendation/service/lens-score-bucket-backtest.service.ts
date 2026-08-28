@@ -89,7 +89,31 @@ export interface LensScoreBucketBacktestResult {
 }
 
 interface Queryable {
-  query: (sql: string, params?: unknown[]) => Promise<{ rows: LensRadarHistoryRow[] }>;
+  query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
+}
+
+interface LensBucketStatsSnapshotRow {
+  run_date: string | Date;
+  bucket: LensScoreBucketKey;
+  score_version: string | null;
+  score_config_hash: string | null;
+  avg_t1: number | string | null;
+  avg_t5: number | string | null;
+  avg_t20: number | string | null;
+  win_rate_t5: number | string | null;
+  win_rate_t20: number | string | null;
+  total_samples: number | string | null;
+  source_rows: number | string | null;
+  unique_tickers: number | string | null;
+  round_trip_cost_pct: number | string | null;
+  price_basis: PriceBasis | string | null;
+  price_data_version: string | null;
+}
+
+interface LensRadarCoverageRow {
+  min_date: string | Date | null;
+  max_date: string | Date | null;
+  trading_days: number | string | null;
 }
 
 function toDateKey(value: string | Date): string | null {
@@ -105,6 +129,11 @@ function toFiniteNumber(value: number | string | null | undefined): number | nul
   if (value == null || value === '') return null;
   const n = typeof value === 'number' ? value : Number(value);
   return Number.isFinite(n) ? n : null;
+}
+
+function toNonNegativeInteger(value: number | string | null | undefined): number {
+  const n = toFiniteNumber(value);
+  return n == null ? 0 : Math.max(0, Math.trunc(n));
 }
 
 function assignBucket(score: number): LensScoreBucketKey | null {
@@ -215,6 +244,125 @@ function welchTTest(
     samples80: high.length,
     samples60: baseline.length,
     note: 'Welch t-test sederhana; p-value memakai normal approximation dua sisi.',
+  };
+}
+
+function buildSnapshotTTest(
+  high: BucketHorizonStats,
+  baseline: BucketHorizonStats,
+  horizon: LensScoreHorizonKey,
+): TTestResult {
+  const meanDiffPct = high.avgReturnPct != null && baseline.avgReturnPct != null
+    ? round(high.avgReturnPct - baseline.avgReturnPct)
+    : null;
+  return {
+    horizon,
+    comparison: '80-100_vs_60-69',
+    meanDiffPct,
+    tStatistic: null,
+    degreesOfFreedom: null,
+    pValueApprox: null,
+    significantAt5Pct: false,
+    bucket80Better: meanDiffPct == null ? null : meanDiffPct > 0,
+    samples80: high.samples,
+    samples60: baseline.samples,
+    note: 'Snapshot publik memakai agregat lens_bucket_stats; distribusi return mentah tidak disimpan sehingga Welch t-test tidak dihitung ulang di request publik.',
+  };
+}
+
+function buildBucketBacktestFromSnapshot(
+  statsRows: LensBucketStatsSnapshotRow[],
+  coverage: LensRadarCoverageRow | null,
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null; calculatedAt?: string } = {},
+): LensScoreBucketBacktestResult {
+  const requestedScoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
+  const requestedConfigHash = options.scoreConfigHash?.trim() || LENS_SCORE_MODEL_METADATA.configHash;
+  const byBucket = new Map(statsRows.map((row) => [row.bucket, row]));
+  const first = statsRows[0];
+  const minDate = toDateKey(coverage?.min_date ?? '') ?? null;
+  const maxDate = toDateKey(coverage?.max_date ?? first?.run_date ?? '') ?? null;
+  const coverageDays = minDate && maxDate
+    ? Math.round((Date.parse(`${maxDate}T00:00:00Z`) - Date.parse(`${minDate}T00:00:00Z`)) / 86_400_000) + 1
+    : 0;
+  const tradingDays = toNonNegativeInteger(coverage?.trading_days ?? null);
+  const totalRowsRead = statsRows.reduce((sum, row) => sum + toNonNegativeInteger(row.total_samples), 0);
+  const roundTripCostPct = toFiniteNumber(first?.round_trip_cost_pct ?? null) ?? LENS_SCORE_ROUND_TRIP_COST_PCT;
+  const scoreVersion = first?.score_version ?? requestedScoreVersion;
+  const scoreConfigHash = first?.score_config_hash ?? requestedConfigHash;
+
+  const buckets = BUCKET_ORDER.map((bucket): LensScoreBucketStats => {
+    const row = byBucket.get(bucket);
+    const samples = toNonNegativeInteger(row?.total_samples ?? null);
+    return {
+      bucket,
+      horizons: {
+        t1: {
+          avgReturnPct: round(toFiniteNumber(row?.avg_t1 ?? null)),
+          winRatePct: null,
+          samples,
+        },
+        t5: {
+          avgReturnPct: round(toFiniteNumber(row?.avg_t5 ?? null)),
+          winRatePct: round(toFiniteNumber(row?.win_rate_t5 ?? null)),
+          samples,
+        },
+        t20: {
+          avgReturnPct: round(toFiniteNumber(row?.avg_t20 ?? null)),
+          winRatePct: round(toFiniteNumber(row?.win_rate_t20 ?? null)),
+          samples,
+        },
+      },
+    };
+  });
+  const high = buckets.find((bucket) => bucket.bucket === '80-100')!;
+  const baseline = buckets.find((bucket) => bucket.bucket === '60-69')!;
+  const tTests = (Object.keys(HORIZONS) as LensScoreHorizonKey[]).reduce((acc, horizon) => {
+    acc[horizon] = buildSnapshotTTest(high.horizons[horizon], baseline.horizons[horizon], horizon);
+    return acc;
+  }, {} as Record<LensScoreHorizonKey, TTestResult>);
+  const ready = totalRowsRead > 0;
+  const entryRule = `Sinyal close T, entry open H+1 pada ${RETURN_PRICE_BASIS}; snapshot berasal dari lens_bucket_stats hasil cron LensRadar.`;
+
+  return {
+    ready,
+    scoreVersion,
+    requestedScoreVersion,
+    scoreConfigHash,
+    configRejectedRows: 0,
+    rejectedRows: 0,
+    unversionedRows: 0,
+    versionMixed: false,
+    versionRejectedReason: null,
+    minRequiredDays: LENS_SCORE_MIN_HISTORY_DAYS,
+    coverageDays,
+    tradingDays,
+    minDate,
+    maxDate,
+    rowsRead: totalRowsRead,
+    roundTripCostPct,
+    entryRule,
+    buckets,
+    tTests,
+    provenance: {
+      ...researchOutputProvenance({
+        source: 'lens_bucket_stats',
+        period: minDate && maxDate ? `${minDate} sampai ${maxDate}` : 'Belum ada periode valid',
+        dataMode: 'POINT_IN_TIME',
+        asOf: maxDate ?? undefined,
+        retrievedAt: options.calculatedAt ?? new Date().toISOString(),
+        confidence: ready ? 'calculated' : 'unknown',
+        isEstimated: false,
+        modelVersion: scoreVersion,
+        universeVersion: null,
+        dataSnapshotVersion: DATA_SNAPSHOT_VERSION,
+        transformation: `Bucket LensScore; sinyal close T, entry open H+1; return memakai ${RETURN_PRICE_BASIS} setelah biaya round-trip.`,
+        note: 'Endpoint publik membaca snapshot agregat cron agar tidak menghitung ulang jalur legacy close-to-close pada request user.',
+      }),
+      universeMixed: false,
+    },
+    note: ready
+      ? null
+      : `Belum ada snapshot lens_bucket_stats untuk ${requestedScoreVersion}; tabel validasi bucket akan tampil setelah cron menghasilkan sampel valid.`,
   };
 }
 
@@ -354,24 +502,72 @@ export function computeLensScoreBucketBacktest(
 
 export async function runLensScoreBucketBacktest(
   db: Queryable = pool,
-  options: { scoreVersion?: string | null; scoreConfigHash?: string | null } = {}
+  options: { scoreVersion?: string | null; scoreConfigHash?: string | null; calculatedAt?: string } = {}
 ): Promise<LensScoreBucketBacktestResult> {
+  const scoreVersion = options.scoreVersion?.trim() || SCORE_VERSION;
+  const scoreConfigHash = options.scoreConfigHash?.trim() || LENS_SCORE_MODEL_METADATA.configHash;
   try {
-    const { rows } = await db.query(
-      `
-      SELECT "date", ticker, lens_score, close_price, score_version, score_config_hash, universe_version,
-             raw_close_price, adjusted_close_price, price_basis,
-             coverage_pct, eligibility_status, universe_eligible
-      FROM lens_radar_history
-      WHERE lens_score IS NOT NULL
-        AND close_price IS NOT NULL
-      ORDER BY ticker ASC, "date" ASC
-      `
+    const [{ rows: statsRows }, { rows: coverageRows }] = await Promise.all([
+      db.query(
+        `
+        WITH latest AS (
+          SELECT MAX(run_date) AS run_date
+          FROM lens_bucket_stats
+          WHERE score_version = $1
+            AND score_config_hash = $2
+            AND price_basis = $3
+        )
+        SELECT
+          s.run_date,
+          s.bucket,
+          s.score_version,
+          s.score_config_hash,
+          s.avg_t1,
+          s.avg_t5,
+          s.avg_t20,
+          s.win_rate_t5,
+          s.win_rate_t20,
+          s.total_samples,
+          s.source_rows,
+          s.unique_tickers,
+          s.round_trip_cost_pct,
+          s.price_basis,
+          s.price_data_version
+        FROM lens_bucket_stats s
+        JOIN latest l ON s.run_date = l.run_date
+        WHERE s.score_version = $1
+          AND s.score_config_hash = $2
+          AND s.price_basis = $3
+        ORDER BY CASE s.bucket
+          WHEN '80-100' THEN 1
+          WHEN '70-79' THEN 2
+          WHEN '60-69' THEN 3
+          WHEN '<60' THEN 4
+          ELSE 5
+        END
+        `,
+        [scoreVersion, scoreConfigHash, RETURN_PRICE_BASIS],
+      ),
+      db.query(
+        `
+        SELECT MIN("date") AS min_date, MAX("date") AS max_date, COUNT(DISTINCT "date") AS trading_days
+        FROM lens_radar_history
+        WHERE lens_score IS NOT NULL
+          AND close_price IS NOT NULL
+          AND score_version = $1
+          AND score_config_hash = $2
+        `,
+        [scoreVersion, scoreConfigHash],
+      ),
+    ]);
+    return buildBucketBacktestFromSnapshot(
+      statsRows as LensBucketStatsSnapshotRow[],
+      (coverageRows[0] as LensRadarCoverageRow | undefined) ?? null,
+      options,
     );
-    return computeLensScoreBucketBacktest(rows, options);
   } catch (error: any) {
     if (error?.code === '42P01') {
-      return computeLensScoreBucketBacktest([], options);
+      return buildBucketBacktestFromSnapshot([], null, options);
     }
     logger.error('LensScore bucket backtest gagal', { err: error });
     throw error;
