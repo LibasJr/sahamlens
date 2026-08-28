@@ -1,11 +1,15 @@
 import {
   analyzeEma,
+  analyzeAdx,
+  analyzeBollinger,
   analyzeMarketFlow,
   analyzeMacd,
   analyzeMomentum,
+  analyzeObv,
   analyzeRsi,
   analyzeSma,
   analyzeSupport,
+  analyzeStochastic,
   analyzeTrend,
   analyzeVolatility,
   analyzeVolume,
@@ -113,6 +117,10 @@ export async function buildStockIndicatorContext(
     Promise.resolve(dimensioned(analyzeSupport(analyzerHistory, currentPrice), 'STRUCTURE')),
     Promise.resolve(dimensioned(analyzeSma(analyzerHistory, currentPrice), 'TREND')),
     Promise.resolve(dimensioned(analyzeMarketFlow(analyzerHistory, currentPrice), 'FLOW')),
+    Promise.resolve(dimensioned(analyzeAdx(analyzerHistory, currentPrice), 'TREND')),
+    Promise.resolve(dimensioned(analyzeBollinger(analyzerHistory, currentPrice), 'VOLATILITY')),
+    Promise.resolve(dimensioned(analyzeStochastic(analyzerHistory, currentPrice), 'MOMENTUM')),
+    Promise.resolve(dimensioned(analyzeObv(analyzerHistory, currentPrice), 'FLOW')),
   ]);
 
   const flowMetrics = appendStockFlowAnalyzers(ticker, analyzerHistory, analyzersResult);
