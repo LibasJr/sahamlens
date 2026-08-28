@@ -77,7 +77,7 @@ export default function MobileNav() {
 
   return (
     <nav ref={navRef} className="lens-mobile-nav fixed inset-x-3 z-40 font-sans md:hidden" aria-label="Navigasi utama mobile">
-      <div className="grid grid-cols-5 items-stretch rounded-[22px] border border-white/10 bg-[#0A101B]/95 p-1.5 shadow-[0_18px_55px_rgba(0,0,0,0.55)] backdrop-blur-xl">
+      <div className="grid grid-cols-5 items-stretch rounded-[18px] border border-white/[0.08] bg-[#0A101B]/92 p-1 shadow-[0_10px_32px_rgba(0,0,0,0.38)] backdrop-blur-xl">
         {items.map((item) => {
           const active = item.matches.some((match) => {
             if (match === '/') return pathname === '/';
@@ -88,25 +88,26 @@ export default function MobileNav() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 text-xs font-semibold leading-tight transition-colors ${
-                active ? 'bg-tv-blue/15 text-white' : 'text-tv-muted hover:bg-white/5 hover:text-white'
+              aria-current={active ? 'page' : undefined}
+              className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-xs font-semibold leading-tight transition-colors ${
+                active ? 'bg-tv-blue/[0.08] text-white' : 'text-tv-muted hover:bg-white/[0.04] hover:text-white'
               }`}
             >
-              <Icon className={`h-5 w-5 shrink-0 ${active ? 'text-tv-blue' : ''}`} />
+              <Icon className={`h-[19px] w-[19px] shrink-0 ${active ? 'text-tv-blue' : ''}`} />
               {/* truncate + w-full: pagar terakhir. Kalau suatu saat ada label yang lebih
                   panjang dari selnya, ia dipotong di dalam selnya sendiri - tidak meluber
                   menimpa label tetangga seperti sebelumnya. */}
-              <span className="w-full truncate text-center text-[11px]">{item.label}</span>
+              <span className={`w-full truncate text-center text-[11px] ${active ? '' : 'opacity-90'}`}>{item.label}</span>
             </Link>
           );
         })}
         <Button variant="bare" size="none"
           type="button"
           onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-          className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-0.5 text-xs font-semibold leading-tight text-tv-muted transition-colors hover:bg-white/5 hover:text-white"
+          className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-xs font-semibold leading-tight text-tv-muted transition-colors hover:bg-white/[0.04] hover:text-white"
         >
-          <Menu className="h-5 w-5 shrink-0" />
-          <span className="w-full truncate text-center text-[11px]">Menu</span>
+          <Menu className="h-[19px] w-[19px] shrink-0" />
+          <span className="w-full truncate text-center text-[11px] opacity-90">Menu</span>
         </Button>
       </div>
     </nav>
