@@ -28,6 +28,7 @@ interface TickerAnalysisShellProps {
   subtitle?: React.ReactNode;
   headerExtra?: React.ReactNode;
   stockNav?: boolean;
+  tickerSearch?: boolean;
   children: React.ReactNode;
 }
 
@@ -42,13 +43,14 @@ export function TickerAnalysisShell({
   subtitle,
   headerExtra,
   stockNav = true,
+  tickerSearch = true,
   children,
 }: TickerAnalysisShellProps) {
   return (
     <div className="flex min-h-[100dvh] min-w-0 flex-1 flex-col bg-tv-bg">
-      {/* Beberapa halaman punya mode non-ticker; stockNav bisa dimatikan saat input ticker
+      {/* Beberapa halaman punya mode non-ticker; nav dan search bisa dimatikan saat input ticker
           tidak memengaruhi hasil, supaya user tidak membaca output sebagai analisis emiten. */}
-      <Header currentTicker={ticker} onTickerChange={onTickerChange} moduleTitle={moduleTitle} moduleBank={moduleBank} stockNav={stockNav} />
+      <Header currentTicker={ticker} onTickerChange={onTickerChange} moduleTitle={moduleTitle} moduleBank={moduleBank} stockNav={stockNav} tickerSearch={tickerSearch} />
 
       <PageContainer className="min-w-0 space-y-5 p-4 sm:space-y-6 md:p-6 lg:p-7">
         <div>
