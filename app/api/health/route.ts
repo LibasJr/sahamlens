@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
       acc[row.status] += 1;
       return acc;
     }, { HEALTHY: 0, DEGRADED: 0, DOWN: 0, UNKNOWN: 0 } as Record<'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN', number>);
+    const sourceDown = dataSources.filter((row) => row.status === 'DOWN');
+    const sourceWarnings = dataSources.filter((row) => row.status === 'DEGRADED' || row.status === 'UNKNOWN');
     // Redis TERLIHAT lewat body.degraded, dan HANYA dianggap degradasi di produksi -
     // tapi TIDAK LAGI menentukan kode status HTTP. Alasannya bukan performa cache -
     // `cacheGet`/`cacheSet` memang sengaja degrade diam-diam ke cache memori dan itu
@@ -62,7 +64,7 @@ export async function GET(request: NextRequest) {
     // degrade dengan aman.
     const redisDegraded = isProduction() && checks.redis !== 'ok';
     const databaseDown = checks.database !== 'ok';
-    const sourceDegradedCount = sourceSummary.DEGRADED + sourceSummary.DOWN;
+    const sourceDegradedCount = sourceWarnings.length + sourceDown.length;
     const degraded = [
       ...(databaseDown ? ['database'] : []),
       ...(redisDegraded ? [`redis:${checks.redis}`] : []),
@@ -79,8 +81,16 @@ export async function GET(request: NextRequest) {
           deployBlocking: databaseDown,
           dataSourceDegraded: sourceDegradedCount > 0,
           dataSourceDegradedCount: sourceDegradedCount,
+          dataSourceDown: sourceDown.length > 0,
+          dataSourceDownCount: sourceDown.length,
+          dataSourceWarningCount: sourceWarnings.length,
         },
-        sources: { summary: sourceSummary, items: dataSources },
+        sources: {
+          summary: sourceSummary,
+          items: dataSources,
+          down: sourceDown.map((row) => row.sourceId),
+          warnings: sourceWarnings.map((row) => row.sourceId),
+        },
         timestamp: new Date().toISOString(),
       },
     };
