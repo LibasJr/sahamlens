@@ -24,7 +24,16 @@ function configWith(overrides: Record<string, unknown> = {}) {
 
 function run(args: string[], env: Record<string, string> = {}) {
   return spawnSync(process.execPath, ['scripts/weekly-maintenance.mjs', ...args], {
-    cwd: process.cwd(), encoding: 'utf8', env: { ...process.env, CRON_SECRET: '', ...env },
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    // Default test merepresentasikan worktree perawatan biasa walau suite dijalankan dari
+    // /opt/sahamlens/app. Kasus produksi tetap bisa diuji dengan override eksplisit.
+    env: {
+      ...process.env,
+      CRON_SECRET: '',
+      SAHAMLENS_PRODUCTION_CHECKOUT: '/nonexistent/sahamlens-production-checkout',
+      ...env,
+    },
   });
 }
 
