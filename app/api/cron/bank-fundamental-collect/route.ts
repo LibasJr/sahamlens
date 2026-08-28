@@ -23,6 +23,7 @@ interface CollectorResult {
   pagesChecked: number;
   docsDiscovered: number;
   docsParsed: number;
+  sourceErrors: Array<{ ticker: string; error: string }>;
 }
 
 function parseResult(stdout: string): CollectorResult {
@@ -56,7 +57,7 @@ async function handleGET(req: NextRequest) {
   try {
     const result = await withJobRunLog('bank-fundamental-collect', async () => {
       const guarded = await runWithJobConcurrencyGuard('bank-fundamental-collect', runCollector, 25 * 60);
-      return guarded.executed ? guarded.value : ({ status: 'PARTIAL', runId: 'SKIPPED', inserted: 0, existing: 0, accepted: 0, quarantined: 0, pagesChecked: 0, docsDiscovered: 0, docsParsed: 0 } satisfies CollectorResult);
+      return guarded.executed ? guarded.value : ({ status: 'PARTIAL', runId: 'SKIPPED', inserted: 0, existing: 0, accepted: 0, quarantined: 0, pagesChecked: 0, docsDiscovered: 0, docsParsed: 0, sourceErrors: [] } satisfies CollectorResult);
     });
     await recordDataSourceHealth({ sourceId: 'BANK_ISSUER_IR_AUTO_COLLECTOR', ok: true, force: true, detail: { ...result } });
     return NextResponse.json({ success: true, result });
