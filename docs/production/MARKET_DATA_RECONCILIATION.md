@@ -4,16 +4,16 @@ SahamLens membandingkan **harga penutupan pada tanggal perdagangan yang sama** d
 
 ## Sumber
 
-- Primary operational source: Yahoo Chart (`YAHOO_CHART`).
-- Secondary verification source: halaman Stock Summary Bursa Efek Indonesia (`IDX_PUBLIC_STOCK_SUMMARY`), **verification-only**.
+- Primary operational source: halaman Stock Summary Bursa Efek Indonesia (`IDX_PUBLIC_STOCK_SUMMARY`).
+- Secondary verification source: Yahoo Chart (`YAHOO_CHART`), sebagai pembanding harga penutupan pada tanggal perdagangan yang sama.
 
 Secondary public endpoint bukan pengganti kontrak data. Untuk menutup sisi lisensi D-1 secara penuh, gunakan produk EoD IDX / redistributor berlisensi dan pertahankan kontrak interface reconciliation yang sama.
 
 ## Failure policy
 
-- Sumber pembanding gagal: fitur utama tetap berjalan, health menjadi degraded dan tidak ada klaim `verified` baru.
-- Yahoo 403/429/repeated failure: circuit breaker menghentikan repeated outbound calls sementara.
-- Secondary public comparator adalah **verify-only** dan tidak disajikan ulang sebagai fallback harga publik. Jika Yahoo gagal dan tidak ada cache operasional yang sah, endpoint tetap fail-closed (`503`/`N/A`).
+- Salah satu sumber gagal: fitur utama tetap berjalan, health menjadi degraded dan tidak ada klaim `verified` baru untuk run tersebut.
+- Yahoo atau IDX 403/429/repeated failure: circuit breaker menghentikan repeated outbound calls sementara.
+- Reconciliation **tidak** disajikan ulang sebagai fallback harga publik. Jika harga operasional tidak tersedia dari jalur sah yang dipakai endpoint publik, endpoint tetap fail-closed (`503`/`N/A`).
 - Mismatch: tidak ada auto-correction, tidak masuk sebagai bukti akurasi, UI memperingatkan pengguna.
 
 ## Interpretasi coverage
