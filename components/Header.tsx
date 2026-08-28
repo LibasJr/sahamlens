@@ -58,14 +58,13 @@ export default function Header({
         {(tickerSearch || showUsageQuota) && (
           <div className="flex w-full items-center gap-2 md:w-auto">
             {tickerSearch && (
-            <>
-              {/* BUG FIX (2026-08-14, laporan pengguna - dua ikon kaca pembesar tumpang
-                  tindih di HP): CommandPalette sudah merender ikon Search-nya sendiri di
-                  dalam tombol trigger-nya. Overlay ikon absolute + `[&_button]:pl-9` di
-                  sini dulunya menambahkan ikon KEDUA di atasnya - di layar sempit (teks
-                  placeholder disembunyikan, tersisa cuma ikon) kelihatan sebagai dua ikon
-                  search bersisian. */}
               <div className="relative min-w-0 flex-1 md:w-[320px] md:flex-none">
+                {/* BUG FIX (2026-08-14, laporan pengguna - dua ikon kaca pembesar tumpang
+                    tindih di HP): CommandPalette sudah merender ikon Search-nya sendiri di
+                    dalam tombol trigger-nya. Overlay ikon absolute + `[&_button]:pl-9` di
+                    sini dulunya menambahkan ikon KEDUA di atasnya - di layar sempit (teks
+                    placeholder disembunyikan, tersisa cuma ikon) kelihatan sebagai dua ikon
+                    search bersisian. */}
                 <CommandPalette
                   onSelect={(symbol) => {
                     // Penyebut metrik "search-to-analysis". Dicatat di titik PILIH, bukan di
@@ -77,17 +76,16 @@ export default function Header({
                   enableShortcut={false}
                 />
               </div>
-            </>
-          )}
+            )}
 
             {showUsageQuota && (
-            <span className={`hidden whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold sm:inline-flex ${
+              <span className={`hidden whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold sm:inline-flex ${
               analisaRemaining <= 0
                 ? 'border-tv-red/20 bg-tv-red/10 text-tv-red'
                 : 'border-tv-green/15 bg-tv-green/[0.08] text-tv-green'
             }`}>
               {analisaRemaining}/{analisaTotal} analisa
-            </span>
+              </span>
             )}
           </div>
         )}
