@@ -3,7 +3,7 @@ import { guard } from '@/lib/sahamLensGuard';
 guard();
 
 import { runController } from '@/shared/http/next-response.adapter';
-import { checkAndTriggerAlerts } from '@/modules/notification';
+import { checkTriggerAndDispatchAlerts } from '@/modules/notification';
 import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 import { getTrustedAppOrigin } from '@/shared/http/server-origin';
 import { getSession } from '@/modules/user';
@@ -16,18 +16,10 @@ import { logger } from '@/shared/logger/logger';
 // melakukan efek samping (query DB live, tulis triggered=true) tidak boleh statis.
 export const dynamic = 'force-dynamic';
 
-// PERBAIKAN KEAMANAN (2026-08-11). Catatan lama di app/api/cron/watchlist-alert/route.ts
-// membiarkan endpoint ini TANPA autentikasi apa pun karena "tidak tahu apakah ada pemicu
-// eksternal yang bergantung padanya". Pemanggilnya sudah ditelusuri dan cuma SATU, yaitu
-// aplikasi ini sendiri: tombol "cek alert" di app/watchlist/page.tsx (triggerCron), yang
-// hanya bisa dijangkau user yang sudah login. Jadwal periodik resmi jalan lewat jalur
-// QStash terverifikasi (/api/cron/watchlist-alert), bukan lewat sini.
-//
-// Efek endpoint ini GLOBAL: mengevaluasi + men-trigger alert SELURUH user, memanggil API
-// harga pihak ketiga, dan menulis triggered=true di DB. Tanpa gerbang, siapa pun tanpa
-// akun bisa memaksa evaluasi penuh berulang-ulang (boros kuota provider, dan alert user
-// lain ikut "terpakai" lebih awal dari yang dijadwalkan). Sekarang wajib sesi login;
-// rate-limit per-IP tetap dipertahankan sebagai lapisan kedua.
+// Endpoint manual tetap global karena evaluator historisnya lintas user. Alert user
+// lain yang ikut terpicu tetap dikirim lewat Web Push. Push untuk user yang sedang
+// menekan tombol dilewati supaya tidak duplikat dengan Notification foreground lama
+// di halaman watchlist.
 const RATE_LIMIT_CONFIG = { windowMs: 60_000, maxPerWindow: 2, blockMs: 5 * 60_000 };
 
 function getClientIp(req: Request): string {
@@ -37,7 +29,8 @@ function getClientIp(req: Request): string {
 export async function GET(req: Request) {
   return runController(async () => {
     try {
-      if (!(await getSession())) {
+      const session = await getSession();
+      if (!session) {
         return { status: 401, body: { error: 'Belum login' } };
       }
 
@@ -51,7 +44,9 @@ export async function GET(req: Request) {
         };
       }
 
-      const result = await checkAndTriggerAlerts(getTrustedAppOrigin());
+      const result = await checkTriggerAndDispatchAlerts(getTrustedAppOrigin(), {
+        skipPushUserId: session.id,
+      });
       return { status: 200, body: result };
     } catch (err) {
       logger.error('Manual alert check failed', { module: 'watchlist-alert', err });
