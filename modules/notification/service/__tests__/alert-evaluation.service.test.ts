@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Alert } from '@/modules/watchlist';
+import type { Alert, AlertConditionType } from '@/modules/watchlist';
 import { formatMessage, isTriggered } from '../alert-evaluation.service';
 
 const alert: Alert = {
@@ -11,6 +11,10 @@ const alert: Alert = {
   triggered: false,
   created_at: '2026-08-27T00:00:00.000Z',
 };
+
+function alertOf(condition_type: AlertConditionType, condition_value: number | null = null): Alert {
+  return { ...alert, condition_type, condition_value };
+}
 
 function stock(decision?: unknown, consensus = 'STRONG BUY') {
   return { decision, consensusData: { kategori: consensus } };
@@ -42,28 +46,60 @@ describe('CONSENSUS_STRONG_BUY alert respects actionable decision', () => {
 
 describe('alert evaluation treats API payloads as untrusted', () => {
   it('PRICE_ABOVE fail-closed ketika target null', () => {
-    const priceAlert: Alert = { ...alert, condition_type: 'PRICE_ABOVE', condition_value: null };
-    expect(isTriggered(priceAlert, { stock: { price: 5000 } })).toBe(false);
+    expect(isTriggered(alertOf('PRICE_ABOVE'), { stock: { price: 5000 } })).toBe(false);
   });
 
   it('mengabaikan harga dan RSI bertipe string dari payload eksternal', () => {
-    const priceAlert: Alert = { ...alert, condition_type: 'PRICE_BELOW', condition_value: 6000 };
-    expect(isTriggered(priceAlert, { stock: { price: '5000' } })).toBe(false);
+    expect(isTriggered(alertOf('PRICE_BELOW', 6000), { stock: { price: '5000' } })).toBe(false);
 
-    const rsiAlert: Alert = { ...alert, condition_type: 'RSI_OVERSOLD', condition_value: null };
-    expect(isTriggered(rsiAlert, {
+    expect(isTriggered(alertOf('RSI_OVERSOLD'), {
       stock: { analyzers: [{ label: 'RSI', raw: { rsi: '12' }, value: null }] },
     })).toBe(false);
   });
 
   it('BREAKOUT dan breadth hanya menerima angka finite', () => {
-    const breakoutAlert: Alert = { ...alert, condition_type: 'BREAKOUT_SCORE_ABOVE', condition_value: 6 };
-    expect(isTriggered(breakoutAlert, { breakoutEntry: { score: '8' } })).toBe(false);
-    expect(isTriggered(breakoutAlert, { breakoutEntry: { score: 7 } })).toBe(true);
+    expect(isTriggered(alertOf('BREAKOUT_SCORE_ABOVE', 6), { breakoutEntry: { score: '8' } })).toBe(false);
+    expect(isTriggered(alertOf('BREAKOUT_SCORE_ABOVE', 6), { breakoutEntry: { score: 7 } })).toBe(true);
 
-    const breadthAlert: Alert = { ...alert, condition_type: 'BREADTH_ADVANCING_BELOW', condition_value: 100 };
-    expect(isTriggered(breadthAlert, { breadth: { advancing: Number.NaN } })).toBe(false);
-    expect(isTriggered(breadthAlert, { breadth: { advancing: 80 } })).toBe(true);
+    expect(isTriggered(alertOf('BREADTH_ADVANCING_BELOW', 100), { breadth: { advancing: Number.NaN } })).toBe(false);
+    expect(isTriggered(alertOf('BREADTH_ADVANCING_BELOW', 100), { breadth: { advancing: 80 } })).toBe(true);
+  });
+});
+
+describe('LensScore alert fail-closed tanpa data dummy', () => {
+  it('tidak memicu alert skor ketika LensScore tidak tersedia', () => {
+    expect(isTriggered(
+      alertOf('LENS_SCORE_ABOVE', 70),
+      { stock: { trust: { score_confidence_pct: 80 } } },
+    )).toBe(false);
+  });
+
+  it('tidak memicu alert skor ketika target kosong', () => {
+    expect(isTriggered(
+      alertOf('LENS_SCORE_ABOVE'),
+      { stock: { scoring: { total_score: 88 } } },
+    )).toBe(false);
+  });
+
+  it('memicu alert skor hanya dari nilai LensScore yang tersedia', () => {
+    expect(isTriggered(
+      alertOf('LENS_SCORE_ABOVE', 75),
+      { stock: { scoring: { total_score: 81 } } },
+    )).toBe(true);
+  });
+
+  it('tidak memicu alert confidence ketika confidence tidak tersedia', () => {
+    expect(isTriggered(
+      alertOf('LENS_CONFIDENCE_BELOW', 50),
+      { stock: { scoring: { total_score: 81 } } },
+    )).toBe(false);
+  });
+
+  it('memicu alert confidence hanya dari confidence asli di payload trust', () => {
+    expect(isTriggered(
+      alertOf('LENS_CONFIDENCE_BELOW', 60),
+      { stock: { trust: { score_confidence_pct: 45 } } },
+    )).toBe(true);
   });
 });
 
