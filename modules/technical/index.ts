@@ -4,11 +4,9 @@
 // SENGAJA tetap di sini meski menyentuh data fundamental, karena konsumennya selalu bersamaan
 // dengan analyzer teknikal di app/api/stock/[ticker], bukan dipisah ke modules/fundamental).
 //
-// 5 analyzer di bawah (Stochastic/Bollinger/ADX/OBV/Williams %R, 2026-08-22) BELUM diikutkan
-// ke LensScore/consensus/backtest filter/recommendation dimensions - itu keputusan
-// metodologi terpisah (menaikkan SCORE_VERSION, mendefinisikan bobot baru) yang sengaja
-// tidak dibuat sepihak di sini. Fungsinya sudah lengkap & teruji (golden test terhadap
-// implementasi independen), tinggal dipakai kalau/ketika keputusan itu dibuat.
+// Analyzer Stochastic/Bollinger/ADX/OBV/Williams %R tersedia sebagai fungsi kanonis.
+// LensScore v1.6.0 memakai ADX, Bollinger, Stochastic, dan OBV dengan bobot kecil;
+// Williams %R tetap indikator chart/analyzer, belum masuk skor produksi.
 export { calculateRsi } from './service/rsi';
 export { calculateWilderAtr, wilderAtrAt, ATR_PERIOD, type TrueRangeBar } from './service/atr';
 export { calculateStochastic, STOCHASTIC_PERIOD, STOCHASTIC_SMOOTH_K, STOCHASTIC_PERIOD_D, type StochasticBar, type StochasticResult } from './service/stochastic';

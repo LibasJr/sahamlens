@@ -462,6 +462,16 @@ function corporateActionStatusFor(index, normalizedBars, deps) {
   return detection.suspected ? 'SUSPECTED_CORPORATE_ACTION' : 'NONE';
 }
 
+function officialForeignFlowAsOf(ticker, dateKey, deps) {
+  if (!deps.getRealForeignFlow || !deps.analyzeOfficialForeignFlow) return null;
+  const series = deps.getRealForeignFlow(ticker, 260);
+  if (!series) return null;
+  const history = series.history.filter((point) => point.date <= dateKey).slice(-20);
+  if (history.length === 0) return null;
+  const analysis = deps.analyzeOfficialForeignFlow(history);
+  return analysis.netPressure20 == null ? null : analysis;
+}
+
 export function buildHistoricalLensRows(input) {
   const {
     ticker,
@@ -536,6 +546,7 @@ export function buildHistoricalLensRows(input) {
     const accumulation = deps.analyzeAccumulationSignal(dailyHistory.slice(-20));
     const bandarmology = deps.analyzeBandarmology(dailyHistory.slice(-20));
     const fundamental = fundamentalAsOf(fundamentals, bar.date);
+    const officialFlow = officialForeignFlowAsOf(ticker, bar.date, deps);
 
     // VERDICT PEMBANDING (2026-08-12). Dihitung dari `historyToDate` yang SAMA dengan
     // yang memberi makan calculateScore - jadi point-in-time, tanpa bar sesudah tanggal
@@ -557,6 +568,14 @@ export function buildHistoricalLensRows(input) {
 
     const rsiResult = deps.analyzeRsi(historyToDate, rawClose);
     const macdResult = deps.analyzeMacd(historyToDate, rawClose);
+    const adxResult = deps.analyzeAdx(historyToDate, rawClose);
+    const bollingerResult = deps.analyzeBollinger(historyToDate, currentAdjustedPrice ?? rawClose);
+    const stochasticResult = deps.analyzeStochastic(historyToDate, rawClose);
+    const obvResult = deps.analyzeObv(historyToDate, currentAdjustedPrice ?? rawClose);
+    const obvVolWindow = historyToDate.slice(-10);
+    const obvAvgVolume10 = obvVolWindow.length === 10 && obvVolWindow.every((row) => Number.isFinite(row.Volume) && row.Volume >= 0)
+      ? obvVolWindow.reduce((sum, row) => sum + row.Volume, 0) / 10
+      : null;
     const score = deps.calculateScore(
       ticker.replace('.JK', ''),
       {
@@ -574,6 +593,12 @@ export function buildHistoricalLensRows(input) {
         macdHist: typeof macdResult?.raw?.macdHist === 'number' ? macdResult.raw.macdHist : null,
         macdLine: typeof macdResult?.raw?.macdLine === 'number' ? macdResult.raw.macdLine : null,
         macdSignal: typeof macdResult?.raw?.macdSignal === 'number' ? macdResult.raw.macdSignal : null,
+        adx: typeof adxResult?.raw?.adx === 'number' ? adxResult.raw.adx : null,
+        plusDi: typeof adxResult?.raw?.plusDi === 'number' ? adxResult.raw.plusDi : null,
+        minusDi: typeof adxResult?.raw?.minusDi === 'number' ? adxResult.raw.minusDi : null,
+        bollingerPercentB: typeof bollingerResult?.raw?.percentB === 'number' ? bollingerResult.raw.percentB : null,
+        stochasticK: typeof stochasticResult?.raw?.k === 'number' ? stochasticResult.raw.k : null,
+        stochasticD: typeof stochasticResult?.raw?.d === 'number' ? stochasticResult.raw.d : null,
         volToday: volumeToday,
         volAvg20,
         changePct,
@@ -588,12 +613,13 @@ export function buildHistoricalLensRows(input) {
         sector: sectorContextAsOf(fundamental),
       },
       {
-        cmf20: bandarmology.cmf20,
-        accumulationStatus: accumulation.status,
-        consecutiveBuyDays: buyStreak,
-        consecutiveSellDays: sellStreak,
-        volRatio: volAvg20 && volAvg20 > 0 && volumeToday != null ? volumeToday / volAvg20 : null,
-        mfmPositiveRatio20: accumulation.mfmPositiveRatio20,
+        officialNetPressure20: officialFlow?.netPressure20 ?? null,
+        accumulationStatus: officialFlow?.accumulationStatus ?? null,
+        consecutiveBuyDays: officialFlow?.consecutiveBuyDays ?? 0,
+        consecutiveSellDays: officialFlow?.consecutiveSellDays ?? 0,
+        officialPositiveRatio20: officialFlow?.positiveRatio20 ?? null,
+        obvSlope10: typeof obvResult?.raw?.slope === 'number' ? obvResult.raw.slope : null,
+        obvAvgVolume10,
       }
     );
 
@@ -696,12 +722,18 @@ async function loadProductionDeps() {
     calculateScore,
     analyzeRsi,
     analyzeMacd,
+    analyzeAdx,
+    analyzeBollinger,
+    analyzeStochastic,
+    analyzeObv,
   } = require('../modules/technical/index.ts');
   const {
     computeDailyNetFlow,
     computeAccumulationStreak,
     analyzeAccumulationSignal,
     analyzeBandarmology,
+    getRealForeignFlow,
+    analyzeOfficialForeignFlow,
   } = require('../modules/market/index.ts');
   // Verdict pembanding - fungsi murni atas OHLCV, dipakai kartu "Konsensus AI" di UI.
   const { computeMiniCouncil } = require('../lib/miniCouncil.ts');
@@ -739,10 +771,16 @@ async function loadProductionDeps() {
     calculateScore,
     analyzeRsi,
     analyzeMacd,
+    analyzeAdx,
+    analyzeBollinger,
+    analyzeStochastic,
+    analyzeObv,
     computeDailyNetFlow,
     computeAccumulationStreak,
     analyzeAccumulationSignal,
     analyzeBandarmology,
+    getRealForeignFlow,
+    analyzeOfficialForeignFlow,
     computeMiniCouncil,
     SCORE_VERSION,
     LENS_SCORE_MODEL_HASH,

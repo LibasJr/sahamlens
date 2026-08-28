@@ -44,6 +44,7 @@
 
 import { MIN_COVERAGE_PCT, type ScoringKategori } from '../../technical/service/scoring.service';
 import type { EligibilityStatus } from '../../eligibility/types/eligibility.types';
+import type { TradePlanV1 } from './trade-plan';
 
 /** Ambang kategori BUY di getKategori() (modules/technical/service/scoring.service.ts).
  * Dipakai ulang, bukan angka baru: daftar "hari ini beli apa" tidak boleh memuat saham
@@ -127,6 +128,9 @@ export type ScoredStock = {
     cl2: number;
     rr: number;
   } | null;
+  /** TradePlan v1.0: TP/CL dengan entry reference, confidence, risk level, alasan,
+   * data hilang, dan caveat. Field lama `tradeSetup` tetap dipertahankan untuk UI lama. */
+  tradePlan?: Omit<TradePlanV1, 'legacySetup'> | null;
   /** Kandidat mesin V2 untuk shadow backtest; tidak dipakai sebagai advisory/UI. */
   hybridV2TradeSetup?: {
     tp1: number; tp2: number; cl1: number; cl2: number; rr: number;
@@ -173,6 +177,7 @@ export type AiPickItem = {
   cl1: number | null;
   cl2: number | null;
   rr: number | null;
+  tradePlan: Omit<TradePlanV1, 'legacySetup'> | null;
   brokerCode?: string | null;
   brokerNetValue?: number | null;
   brokerTradeDate?: string | null;
@@ -272,6 +277,7 @@ export function rankAiPicks(
       cl1: s.tradeSetup?.cl1 ?? null,
       cl2: s.tradeSetup?.cl2 ?? null,
       rr: s.tradeSetup?.rr ?? null,
+      tradePlan: s.tradePlan ?? null,
     };
   });
 

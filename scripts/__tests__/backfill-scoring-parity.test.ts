@@ -6,7 +6,7 @@ import {
   computeAccumulationStreak,
   computeDailyNetFlow,
 } from '@/modules/market';
-import { analyzeMacd, analyzeRsi } from '@/modules/technical';
+import { analyzeAdx, analyzeBollinger, analyzeMacd, analyzeObv, analyzeRsi, analyzeStochastic } from '@/modules/technical';
 import { evaluateMinimalEligibility } from '@/modules/eligibility';
 import { evaluatePointInTimeUniverse } from '@/modules/backtest/service/point-in-time-universe';
 import { computeMiniCouncil } from '@/lib/miniCouncil';
@@ -73,6 +73,10 @@ const deps = {
   evaluatePointInTimeUniverse,
   analyzeRsi,
   analyzeMacd,
+  analyzeAdx,
+  analyzeBollinger,
+  analyzeStochastic,
+  analyzeObv,
   computeDailyNetFlow,
   computeAccumulationStreak,
   analyzeAccumulationSignal,
