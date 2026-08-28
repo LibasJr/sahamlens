@@ -48,6 +48,7 @@ export async function checkPublicComputeBudget(headers: Headers, scope: string) 
     `public-compute:${scope}:${ip}`,
     Date.now(),
     publicComputeRateLimitConfig(),
+    { degradedPolicy: process.env.NODE_ENV === 'production' ? 'deny' : 'memory' },
   );
   return observeRateLimitDegradation(result);
 }

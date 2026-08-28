@@ -68,12 +68,14 @@ export async function GET(request: Request) {
     );
     if (!budget.allowed) {
       return {
-        status: 429,
+        status: budget.unavailable ? 503 : 429,
         headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined,
         cookiesToSet,
         body: {
-          error: 'Screener terlalu sering diminta dalam waktu singkat. Coba lagi sebentar.',
-          code: 'COMPUTE_BUDGET_EXCEEDED',
+          error: budget.unavailable
+            ? 'Pembatas penggunaan sementara tidak tersedia. Coba lagi nanti.'
+            : 'Screener terlalu sering diminta dalam waktu singkat. Coba lagi sebentar.',
+          code: budget.unavailable ? 'RATE_LIMIT_UNAVAILABLE' : 'COMPUTE_BUDGET_EXCEEDED',
         },
       };
     }

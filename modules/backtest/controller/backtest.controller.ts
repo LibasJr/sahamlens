@@ -30,8 +30,11 @@ export async function handleRunBacktest(request: Request): Promise<HttpResult> {
     const budget = await consumeComputeBudget(actor, cachedBacktest ? 2 : 10, 'authenticated');
     if (!budget.allowed) {
       return {
-        status: 429,
-        body: { error: 'Terlalu banyak komputasi berat dalam waktu singkat. Coba lagi sebentar.', code: 'COMPUTE_BUDGET_EXCEEDED' },
+        status: budget.unavailable ? 503 : 429,
+        body: {
+          error: budget.unavailable ? 'Pembatas penggunaan sementara tidak tersedia. Coba lagi nanti.' : 'Terlalu banyak komputasi berat dalam waktu singkat. Coba lagi sebentar.',
+          code: budget.unavailable ? 'RATE_LIMIT_UNAVAILABLE' : 'COMPUTE_BUDGET_EXCEEDED',
+        },
         headers: budget.retryAfterSec ? { 'Retry-After': String(budget.retryAfterSec) } : undefined,
       };
     }
