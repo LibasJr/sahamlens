@@ -36,6 +36,36 @@ function base64UrlDecode(value: string): Buffer {
   return Buffer.from(value, 'base64url');
 }
 
+function bufferToArrayBuffer(value: Buffer): ArrayBuffer {
+  return value.buffer.slice(value.byteOffset, value.byteOffset + value.byteLength) as ArrayBuffer;
+}
+
+function hasHostSuffix(hostname: string, suffix: string): boolean {
+  return hostname === suffix || hostname.endsWith(`.${suffix}`);
+}
+
+/**
+ * Browser push endpoints are bearer-like capabilities that the server POSTs to.
+ * Restrict them to known Web Push providers so an authenticated user cannot turn
+ * the delivery worker into a generic HTTPS/SSRF primitive.
+ */
+export function isAllowedWebPushEndpoint(endpoint: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== 'https:' || url.username || url.password) return false;
+
+  const hostname = url.hostname.toLowerCase();
+  return hostname === 'fcm.googleapis.com'
+    || hostname === 'android.googleapis.com'
+    || hasHostSuffix(hostname, 'push.services.mozilla.com')
+    || hasHostSuffix(hostname, 'push.apple.com')
+    || hasHostSuffix(hostname, 'notify.windows.com');
+}
+
 function hmacSha256(key: Buffer, data: Buffer): Buffer {
   return createHmac('sha256', key).update(data).digest();
 }
@@ -181,9 +211,9 @@ export async function sendWebPush(
 ): Promise<WebPushSendResult> {
   const config = readVapidConfig();
   if (!config) return { ok: false, status: 0, responseText: 'Web Push belum dikonfigurasi' };
-
-  const endpoint = new URL(target.endpoint);
-  if (endpoint.protocol !== 'https:') throw new Error('Web Push endpoint wajib HTTPS');
+  if (!isAllowedWebPushEndpoint(target.endpoint)) {
+    throw new Error('Web Push endpoint provider tidak dikenali');
+  }
 
   const jwt = createVapidJwt(target.endpoint, config);
   const encryptedBody = encryptPayload(Buffer.from(payload, 'utf8'), target);
@@ -196,7 +226,7 @@ export async function sendWebPush(
       TTL: '300',
       Urgency: 'high',
     },
-    body: encryptedBody,
+    body: bufferToArrayBuffer(encryptedBody),
     cache: 'no-store',
   });
 
