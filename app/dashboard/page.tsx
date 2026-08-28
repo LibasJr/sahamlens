@@ -128,7 +128,7 @@ function DashboardContent() {
         isAdmin={isAdminUser}
       />
 
-      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+      <PageContainer className="space-y-5 p-3.5 md:space-y-6 md:p-6 lg:p-7">
         <MenuUsageGuide
           menuKey="dashboard"
           whatItAnswers="Apa gambaran teknikal satu saham secara menyeluruh?"
@@ -138,13 +138,13 @@ function DashboardContent() {
             "Turun ke bukti teknikal untuk melihat dasar tiap kesimpulan.",
           ]}
         />
-        {/* Status Badge */}
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-2 text-xs font-sans">
-          <div className="flex items-center gap-2 rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2 text-tv-muted">
-            <span className={`w-2 h-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`}></span>
+        {/* Status sesi dibuat flat supaya tidak menjadi kartu sebelum kartu emiten. */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-y border-white/[0.06] py-2 text-xs font-sans">
+          <div className="flex items-center gap-2 text-tv-muted">
+            <span className={`h-2 w-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`}></span>
             {marketClosed ? 'Market Closed' : 'Market Open'}
           </div>
-          <div className="rounded-xl border border-white/[0.06] bg-black/10 px-3 py-2 text-tv-muted">
+          <div className="text-tv-muted">
             {marketClosed ? 'No polling' : 'Refresh otomatis 1m'}
           </div>
           <Button
@@ -152,10 +152,10 @@ function DashboardContent() {
             size="none"
             onClick={handleRefresh}
             disabled={loading}
-            className="flex items-center gap-2 rounded-xl border border-white/[0.07] bg-white/[0.035] px-3 py-2 font-semibold text-white transition-colors hover:bg-white/[0.07] disabled:opacity-50"
+            className="ml-auto flex min-h-9 items-center gap-2 rounded-lg px-2.5 py-1.5 font-semibold text-tv-muted transition-colors hover:bg-white/[0.04] hover:text-white disabled:opacity-50"
           >
-            <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-            Refresh Data
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
           </Button>
         </div>
 
