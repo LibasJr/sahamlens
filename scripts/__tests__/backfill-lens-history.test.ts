@@ -6,6 +6,10 @@ import {
   SCORE_VERSION,
   SIGNAL_VERSION,
 } from '@/modules/lens-radar/constants/model-version';
+// Diimpor nyata, bukan string literal: kalau konstanta ini dihapus lagi (seperti di
+// 470d2ed6), import ini gagal di typecheck/test - bukan diam-diam jadi `undefined` saat
+// resolveBackfillUniverse() dipanggil lewat require() dinamis di skrip .mjs.
+import { POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 
 let script: any;
 
@@ -130,5 +134,27 @@ describe('backfill-lens-history script', () => {
       tickers: ['CITY.JK', 'DEPO.JK'],
       universeVersion: 'idx-liquid-v2-200',
     });
+  });
+
+  // Regresi 470d2ed6 (17 Agustus): konstanta ini sempat dihapus dari
+  // ai-pick-universe.ts sebagai "dead code" tanpa memeriksa pemanggilnya di sini.
+  // require() dinamis di loadProductionDeps() tidak error saat nama itu hilang - ia
+  // cuma menghasilkan `undefined`, yang lolos ke kolom NOT NULL `universe_version` dan
+  // baru terlihat saat run NYATA (dry-run tidak pernah menyentuh database).
+  it('resolveBackfillUniverse memakai POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION untuk daftar ticker eksplisit maupun mode default', () => {
+    const deps = {
+      BACKTEST_UNIVERSE: ['BBCA.JK'],
+      AI_PICK_UNIVERSE_ADDITIONS: [],
+      ACTIVE_LIQUID_UNIVERSE_VERSION: 'idx-liquid-v2-200',
+      LEGACY_VALIDATED_UNIVERSE_VERSION: 'idx-liquid-v1-109',
+      POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION,
+    };
+
+    const explicitTickers = script.parseArgs(['--tickers=BBCA.JK,TLKM.JK'], new Date('2026-08-06T00:00:00Z'));
+    expect(script.resolveBackfillUniverse(explicitTickers, deps)).toEqual({
+      tickers: ['BBCA.JK', 'TLKM.JK'],
+      universeVersion: POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION,
+    });
+    expect(POINT_IN_TIME_VALIDATION_UNIVERSE_VERSION).toBeTruthy();
   });
 });
