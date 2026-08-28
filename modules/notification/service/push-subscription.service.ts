@@ -3,7 +3,7 @@ import {
   disablePushSubscription,
   upsertPushSubscription,
 } from '../repository/push-subscription.repository';
-import { getWebPushPublicConfig } from './web-push.service';
+import { getWebPushPublicConfig, isAllowedWebPushEndpoint } from './web-push.service';
 
 export interface BrowserPushSubscriptionInput {
   endpoint: string;
@@ -23,13 +23,9 @@ function validateEndpoint(endpoint: unknown): string {
   if (typeof endpoint !== 'string' || endpoint.length < 10 || endpoint.length > 2_048) {
     throw new ValidationError('Push endpoint tidak valid');
   }
-  let parsed: URL;
-  try {
-    parsed = new URL(endpoint);
-  } catch {
-    throw new ValidationError('Push endpoint tidak valid');
+  if (!isAllowedWebPushEndpoint(endpoint)) {
+    throw new ValidationError('Push endpoint provider tidak dikenali');
   }
-  if (parsed.protocol !== 'https:') throw new ValidationError('Push endpoint wajib HTTPS');
   return endpoint;
 }
 
