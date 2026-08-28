@@ -288,7 +288,7 @@ export default function ResearchIdeasPage() {
               </span>
             </div>
             <p className="text-xs text-tv-muted font-sans">
-              Memindai {LIQUID_STOCKS.length} saham aktif dari data pasar; sinyal belum merupakan arahan transaksi BUY/SELL.
+              Memindai {LIQUID_STOCKS.length} saham aktif dari data pasar; sinyal adalah bahan riset, bukan arahan beli/jual.
             </p>
           </div>
         </div>

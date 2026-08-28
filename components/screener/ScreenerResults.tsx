@@ -6,6 +6,12 @@ import { Award, ArrowUpDown, Lock } from 'lucide-react';
 import { ApiErrorHint, Button, Card, EmptyState, LoadingFact, Skeleton, TickerAvatar } from '@/components/ui';
 import { fmtMiliar, fmtTriliun } from '@/shared/format/fundamental-format';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
+import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
+import {
+  describeUserEligibilityFallback,
+  describeUserRecommendationStatus,
+  describeUserSignalLabel,
+} from '@/shared/presentation/user-status-labels';
 import { parseFormattedNumber, SORTABLE_COLUMNS, type ColumnKey, type ScreenerApiResponse } from './screener-model';
 import type { ScreenerStock } from '@/modules/market/service/screener.service';
 
@@ -236,7 +242,7 @@ export default function ScreenerResults({
                     ? 'bg-tv-red/20 text-tv-red border border-tv-red/50'
                     : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/40'
                 }`}>
-                  REKOMENDASI: {item.decision.action}
+                  REKOMENDASI: {getKategoriPresentationLabel(item.decision.action)}
                 </span>
               ) : item.signal ? (
                 <div className="flex flex-col items-start gap-1">
@@ -247,14 +253,10 @@ export default function ScreenerResults({
                         ? 'bg-tv-red/10 text-tv-red border border-tv-red/30'
                         : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/30'
                   }`}>
-                    {item.signal === 'DATA TIDAK CUKUP' ? 'STATUS MODEL: DATA TIDAK CUKUP' : `SINYAL MODEL: ${item.signal}`}
+                    {describeUserSignalLabel(item.signal)}
                   </span>
                   <span className="lens-chip font-semibold uppercase tracking-wide text-tv-yellow">
-                    {item.decision?.reasonCodes?.includes('MODEL_UNVALIDATED')
-                      ? 'Model belum tervalidasi'
-                      : item.eligibility_status && item.eligibility_status !== 'ELIGIBLE'
-                        ? 'Tidak layak direkomendasikan'
-                        : 'Rekomendasi tidak tersedia'}
+                    {describeUserRecommendationStatus(item.decision?.reasonCodes, item.eligibility_status)}
                   </span>
                 </div>
               ) : (
@@ -266,9 +268,7 @@ export default function ScreenerResults({
                       : 'Histori harga kurang dari 200 hari bursa, jadi gerbang kelayakan belum bisa dievaluasi'
                   }
                 >
-                  {item.eligibility_status && item.eligibility_status !== 'ELIGIBLE'
-                    ? 'Tidak lolos gerbang'
-                    : 'Histori kurang'}
+                  {describeUserEligibilityFallback(item.eligibility_status)}
                 </span>
               )}
             </td>
@@ -459,18 +459,18 @@ export default function ScreenerResults({
                   item.decision.action.includes('BUY') ? 'bg-tv-green/20 text-tv-green border border-tv-green/50'
                     : item.decision.action === 'SELL' ? 'bg-tv-red/20 text-tv-red border border-tv-red/50'
                     : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/40'
-                }`}>REKOMENDASI: {item.decision.action}</span>
+                }`}>REKOMENDASI: {getKategoriPresentationLabel(item.decision.action)}</span>
               ) : item.signal ? (
                 <span className={`px-2 py-0.5 rounded lens-chip font-bold ${
                   item.signal.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/30'
                     : item.signal === 'SELL' ? 'bg-tv-red/10 text-tv-red border border-tv-red/30'
                     : 'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/30'
                 }`} title={item.decision?.explanation || undefined}>
-                  {item.signal === 'DATA TIDAK CUKUP' ? 'STATUS MODEL: DATA TIDAK CUKUP' : `SINYAL MODEL: ${item.signal}`} · {item.decision?.reasonCodes?.includes('MODEL_UNVALIDATED') ? 'BELUM VALID' : 'NON-ACTIONABLE'}
+                  {describeUserSignalLabel(item.signal)} · {describeUserRecommendationStatus(item.decision?.reasonCodes, item.eligibility_status)}
                 </span>
               ) : (
                 <span className="px-2 py-0.5 rounded lens-chip bg-tv-hover text-tv-muted">
-                  {item.eligibility_status && item.eligibility_status !== 'ELIGIBLE' ? 'Tidak lolos gerbang' : 'Histori kurang'}
+                  {describeUserEligibilityFallback(item.eligibility_status)}
                 </span>
               )}
               <span className={`px-2 py-0.5 rounded lens-chip font-bold ${

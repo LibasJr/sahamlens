@@ -10,6 +10,6 @@ describe('/recommendations user-facing terminology', () => {
   it('tidak menyebut output sebagai rekomendasi transaksi di copy pengguna', () => {
     expect(page).not.toMatch(/rekomendasi (saham|terbaik|lainnya|BUY|SELL|beli|jual)/i);
     expect(page).toContain('ide riset');
-    expect(page).toContain('belum merupakan arahan transaksi BUY/SELL');
+    expect(page).toContain('bukan arahan beli/jual');
   });
 });

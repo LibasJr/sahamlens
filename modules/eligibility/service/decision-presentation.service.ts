@@ -1,6 +1,7 @@
 import type { ScoringKategori } from '../../technical/service/scoring.service';
 import type { AdvisoryDecision } from './advisory.service';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
+import { describeUserRecommendationStatus, describeUserSignalLabel } from '@/shared/presentation/user-status-labels';
 
 export type DecisionPresentationKind =
   | 'ACTIONABLE'
@@ -76,11 +77,7 @@ export function getDecisionPresentation(
   decision: AdvisoryDecision | null | undefined,
 ): DecisionPresentation {
   const modelSignal = kategori ?? null;
-  const modelSignalLabel = modelSignal === 'DATA TIDAK CUKUP'
-    ? 'STATUS MODEL: DATA TIDAK CUKUP'
-    : modelSignal
-      ? `SINYAL MODEL: ${getKategoriPresentationLabel(modelSignal)}`
-      : null;
+  const modelSignalLabel = modelSignal ? describeUserSignalLabel(modelSignal) : null;
 
   if (decision?.advisory === true && decision.action) {
     return {
@@ -98,9 +95,9 @@ export function getDecisionPresentation(
     return {
       kind: 'MODEL_UNVALIDATED',
       modelSignal,
-      modelSignalLabel: hasActionableModelSignal(modelSignal) ? `SINYAL MODEL: ${getKategoriPresentationLabel(modelSignal)}` : modelSignalLabel,
+      modelSignalLabel: hasActionableModelSignal(modelSignal) ? describeUserSignalLabel(modelSignal) : modelSignalLabel,
       recommendationLabel: null,
-      statusLabel: 'MODEL BELUM TERVALIDASI',
+      statusLabel: describeUserRecommendationStatus(decision.reasonCodes, decision.eligibilityStatus),
       actionable: false,
       explanation: decision.explanation,
     };
@@ -112,7 +109,7 @@ export function getDecisionPresentation(
       modelSignal,
       modelSignalLabel,
       recommendationLabel: null,
-      statusLabel: 'TIDAK LAYAK DIREKOMENDASIKAN',
+      statusLabel: describeUserRecommendationStatus(decision.reasonCodes, decision.eligibilityStatus),
       actionable: false,
       explanation: decision.explanation,
     };
@@ -126,7 +123,7 @@ export function getDecisionPresentation(
     modelSignal,
     modelSignalLabel,
     recommendationLabel: null,
-    statusLabel: 'REKOMENDASI TIDAK TERSEDIA',
+    statusLabel: describeUserRecommendationStatus(decision?.reasonCodes, decision?.eligibilityStatus),
     actionable: false,
     explanation: decision?.explanation ?? null,
   };
