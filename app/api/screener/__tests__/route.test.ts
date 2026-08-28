@@ -24,6 +24,13 @@ vi.mock('@/shared/auth/anonymous-trial', () => ({
   })),
   buildAnonymousTrialCookie: vi.fn(async () => ({ name: 'anon_trial', value: 'token', options: { path: '/' } })),
 }));
+vi.mock('@/modules/validation', () => ({
+  getLensScoreValidationStatus: vi.fn(() => ({
+    validated: false,
+    reasonCode: 'MODEL_UNVALIDATED',
+    message: 'LensScore belum tervalidasi.',
+  })),
+}));
 
 import { GET } from '../route';
 import { rankScreener } from '@/modules/market/service/screener.service';
@@ -106,10 +113,17 @@ describe('GET /api/screener', () => {
     expect(json.data.profile).toBe('Moderat');
     expect(json.data.analysis).toEqual(json.analysis);
     expect(json.data.availableSectors).toEqual(json.availableSectors);
+    expect(json.data.modelValidation).toEqual(json.modelValidation);
+    expect(json.modelValidation).toEqual({
+      validated: false,
+      reasonCode: 'MODEL_UNVALIDATED',
+      message: 'LensScore belum tervalidasi.',
+    });
     expect(json.meta).toEqual(expect.objectContaining({
       requestId: expect.any(String),
       source: 'screener-universe-cache',
       staleness: 'cached',
+      modelVersion: 'MODEL_UNVALIDATED',
     }));
     expect(res.headers.get('X-Request-Id')).toBe(json.meta.requestId);
     // Backward compatibility: client lama masih dapat membaca field top-level yang sama.
