@@ -403,7 +403,7 @@ async function persistRun({runId:id,accepted,quarantine,summary,tickers,confirm}
     }
     for(const r of quarantine){await db.query(`INSERT INTO bank_metric_collection_candidates(run_id,ticker,period_end,observed_date,metric_key,value,unit,basis,confidence,extraction_method,status,reason,source_title,source_url,source_tier,raw_excerpt)
       VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'QUARANTINED',$11,$12,$13,'ISSUER_IR',$14)`,[id,r.ticker,r.periodEnd,TODAY,r.metricKey,r.value,r.unit,r.basis,r.confidence,r.extractionMethod,r.reason,r.sourceTitle,r.sourceUrl,r.rawExcerpt]);}
-    const status=quarantine.length?'PARTIAL':'SUCCESS';
+    const status=quarantine.length || (summary.sourceErrors?.length ?? 0) ? 'PARTIAL':'SUCCESS';
     await db.query(`UPDATE bank_metric_collection_runs SET status=$2,evidence_inserted=$3,evidence_existing=$4,quarantined=$5,finished_at=now(),detail=$6::jsonb WHERE run_id=$1`,[id,status,inserted,existing,quarantine.length,JSON.stringify({...summary,accepted:accepted.length})]);
     await db.query('COMMIT'); return {inserted,existing,status};
   }catch(e){await db.query('ROLLBACK').catch(()=>{});throw e;}finally{await db.end().catch(()=>{});}
@@ -411,28 +411,34 @@ async function persistRun({runId:id,accepted,quarantine,summary,tickers,confirm}
 
 async function main(){
   const args=parseArgs(process.argv.slice(2)); const cfg=JSON.parse(await fs.readFile(CONFIG_PATH,'utf8')); const all=Object.keys(cfg.banks); const tickers=args.tickers?.length?args.tickers:all; for(const t of tickers)if(!cfg.banks[t])throw new Error(`Ticker belum punya official-source registry: ${t}`);
-  const year=args.year??new Date().getUTCFullYear(); const maxDocs=args.maxDocs??Number(cfg.policy?.defaultMaxDocumentsPerTicker??12); const tmpDir=await fs.mkdtemp(path.join(os.tmpdir(),'sahamlens-bank-auto-')); const allCandidates=[]; let pagesChecked=0,docsDiscovered=0,docsParsed=0;
+  const year=args.year??new Date().getUTCFullYear(); const maxDocs=args.maxDocs??Number(cfg.policy?.defaultMaxDocumentsPerTicker??12); const tmpDir=await fs.mkdtemp(path.join(os.tmpdir(),'sahamlens-bank-auto-')); const allCandidates=[]; const sourceErrors=[]; let pagesChecked=0,docsDiscovered=0,docsParsed=0;
   console.log('Bank Fundamental Official-Source Auto Collector'); console.log(`Mode      : ${args.confirm?'CONFIRM':'DRY RUN'}`); console.log(`Ticker    : ${tickers.join(', ')}`); console.log(`Year      : ${year}`); console.log('Policy    : OFFICIAL DOMAIN ONLY / DATA_ONLY / ambiguous => quarantine');
   try{
     for(const ticker of tickers){
       const bank=cfg.banks[ticker]; console.log(`\n=== ${ticker} ===`);
-      const discovered=await discoverForBank(ticker,bank,{year,maxDocs}); pagesChecked+=discovered.pagesChecked; docsDiscovered+=discovered.docs.length;
-      console.log(`source pages checked: ${discovered.pagesChecked}; documents selected: ${discovered.docs.length}`);
-      if(args.list){for(const d of discovered.docs)console.log(`  ${d.kind.padEnd(4)} score=${String(d.score).padStart(2)} ${d.title} :: ${d.url}`);continue;}
-      let idx=0;
-      for(const doc of discovered.docs){idx++; try{
-        let text,finalUrl=doc.url;
-        if(doc.kind==='HTML'){text=htmlToText(doc.html);}
-        else {const f=await fetchWithRetry(doc.url,{asBuffer:true}); finalUrl=f.finalUrl; if(!hostAllowed(finalUrl,bank.domains))throw new Error(`redirect keluar domain resmi: ${finalUrl}`); text=await pdfToText(f.body,tmpDir,`${ticker.replace('.JK','')}-${idx}`);}
-        docsParsed++; const periodEnd=resolvePeriod(doc.title,text,doc.kind); const cands=extractMetricCandidates(text,{ticker,sourceTitle:doc.title||finalUrl,sourceUrl:finalUrl,periodEnd,defaultBasis:inferDocumentBasis(text)}); allCandidates.push(...cands);
-        console.log(`  parsed ${doc.title.slice(0,70)} -> period=${periodEnd??'UNRESOLVED'} candidates=${cands.length}`);
-      }catch(e){console.warn(`  WARN skip ${doc.title}: ${e instanceof Error?e.message:String(e)}`);}
+      try {
+        const discovered=await discoverForBank(ticker,bank,{year,maxDocs}); pagesChecked+=discovered.pagesChecked; docsDiscovered+=discovered.docs.length;
+        console.log(`source pages checked: ${discovered.pagesChecked}; documents selected: ${discovered.docs.length}`);
+        if(args.list){for(const d of discovered.docs)console.log(`  ${d.kind.padEnd(4)} score=${String(d.score).padStart(2)} ${d.title} :: ${d.url}`);continue;}
+        let idx=0;
+        for(const doc of discovered.docs){idx++; try{
+          let text,finalUrl=doc.url;
+          if(doc.kind==='HTML'){text=htmlToText(doc.html);}
+          else {const f=await fetchWithRetry(doc.url,{asBuffer:true}); finalUrl=f.finalUrl; if(!hostAllowed(finalUrl,bank.domains))throw new Error(`redirect keluar domain resmi: ${finalUrl}`); text=await pdfToText(f.body,tmpDir,`${ticker.replace('.JK','')}-${idx}`);}
+          docsParsed++; const periodEnd=resolvePeriod(doc.title,text,doc.kind); const cands=extractMetricCandidates(text,{ticker,sourceTitle:doc.title||finalUrl,sourceUrl:finalUrl,periodEnd,defaultBasis:inferDocumentBasis(text)}); allCandidates.push(...cands);
+          console.log(`  parsed ${doc.title.slice(0,70)} -> period=${periodEnd??'UNRESOLVED'} candidates=${cands.length}`);
+        }catch(e){console.warn(`  WARN skip ${doc.title}: ${e instanceof Error?e.message:String(e)}`);}
+        }
+      } catch (e) {
+        const error=e instanceof Error?e.message:String(e);
+        sourceErrors.push({ticker,error});
+        console.warn(`  SOURCE ERROR ${ticker}: ${error}`);
       }
     }
     if(args.list){console.log('\nLIST ONLY - tidak ada parse/DB write.');return;}
     const {accepted,quarantine}=reconcileCandidates(allCandidates);
-    const summary={pagesChecked,docsDiscovered,docsParsed};
-    console.log('\n=== QUALITY SUMMARY ==='); console.log(`Docs discovered : ${docsDiscovered}`); console.log(`Docs parsed     : ${docsParsed}`); console.log(`Accepted        : ${accepted.length}`); console.log(`Quarantined     : ${quarantine.length}`);
+    const summary={pagesChecked,docsDiscovered,docsParsed,sourceErrors};
+    console.log('\n=== QUALITY SUMMARY ==='); console.log(`Docs discovered : ${docsDiscovered}`); console.log(`Docs parsed     : ${docsParsed}`); console.log(`Accepted        : ${accepted.length}`); console.log(`Quarantined     : ${quarantine.length}`); console.log(`Source errors   : ${sourceErrors.length}`);
     for(const r of accepted) console.log(`  ACCEPT ${r.ticker} ${r.periodEnd} ${r.metricKey}=${r.value}% basis=${r.basis} conf=${r.confidence} source=${r.sourceTitle}`);
     for(const r of quarantine.slice(0,20)) console.log(`  HOLD   ${r.ticker} ${r.periodEnd??'NO_PERIOD'} ${r.metricKey} reason=${r.reason}`);
     if(!args.confirm){console.log('\nDRY RUN - database tidak ditulis. Tambahkan --confirm hanya setelah quality summary masuk akal.'); const marker={status:'DRY_RUN',accepted:accepted.length,quarantined:quarantine.length,...summary}; console.log(`SAHAMLENS_BANK_COLLECT_RESULT=${JSON.stringify(marker)}`);return;}
