@@ -24,6 +24,7 @@ import { cookies } from 'next/headers';
 import { getAnalyzerDirectionLabel, getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
 import { susunTemuanDimensi, type TemuanDimensi } from '@/shared/presentation/stock-brief';
 import { describeFreshness } from '@/shared/presentation/freshness-labels';
+import { describeUserAdvisoryStatus, describeUserConfidenceLabel, describeUserResearchLabel } from '@/shared/presentation/user-status-labels';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import type {
   StockAnalysisResponse,
@@ -317,6 +318,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     ? data.trust.score_confidence
     : (typeof data.scoring?.explainability?.confidence_level === 'string' ? data.scoring.explainability.confidence_level : null);
   const advisoryEnabled = data.trust?.advisory_enabled === true || data.decision?.advisory === true;
+  const advisoryStatus = describeUserAdvisoryStatus(advisoryEnabled);
 
   /** Skor kelompok dinormalkan ke 0-100 memakai bobot yang BENAR-BENAR punya data.
    *
@@ -433,12 +435,12 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               <div className="mt-2 flex flex-wrap gap-2">
                 {researchLabel && (
                   <span className="lens-meta rounded border border-tv-border px-2 py-1 font-semibold text-tv-text">
-                    {researchLabel.replaceAll('_', ' ')}
+                    {describeUserResearchLabel(researchLabel)}
                   </span>
                 )}
                 {scoreConfidence && (
                   <span className="lens-meta rounded border border-tv-border px-2 py-1 font-semibold text-tv-muted">
-                    Confidence {scoreConfidence}
+                    {describeUserConfidenceLabel(scoreConfidence)}
                   </span>
                 )}
               </div>
@@ -530,11 +532,9 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               title: kesegaran.detail,
             },
             {
-              label: advisoryEnabled ? 'Advisory aktif' : 'Sinyal informasional',
+              label: advisoryStatus.label,
               tone: 'neutral',
-              title: advisoryEnabled
-                ? 'Model dan eligibility mengizinkan rekomendasi actionable.'
-                : 'Sinyal model tetap ditampilkan untuk riset, tetapi belum menjadi rekomendasi transaksi.',
+              title: advisoryStatus.title,
             },
           ]}
         />

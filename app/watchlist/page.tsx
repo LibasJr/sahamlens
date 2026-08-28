@@ -14,6 +14,7 @@ import { ApiErrorHint, Card, Input, Select, Button, Badge, EmptyState, PageConta
 import { getDecisionPresentation } from '@/modules/eligibility';
 import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
 import { describeFreshness } from '@/shared/presentation/freshness-labels';
+import { describeUserConfidenceLabel, describeUserResearchLabel } from '@/shared/presentation/user-status-labels';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { WatchlistHeader } from '@/components/watchlist/WatchlistHeader';
 import { JourneyBeacon } from '@/components/analytics/JourneyBeacon';
@@ -40,7 +41,7 @@ const ALERT_OPTIONS = [
   { value: 'PRICE_BELOW', label: 'Harga Turun Di Bawah', needsValue: true, placeholder: 'Target harga' },
   { value: 'PRICE_ABOVE', label: 'Harga Naik Di Atas', needsValue: true, placeholder: 'Target harga' },
   { value: 'LENS_SCORE_ABOVE', label: 'LensScore Minimal', needsValue: true, placeholder: 'Target skor 0-100' },
-  { value: 'LENS_CONFIDENCE_BELOW', label: 'Confidence Turun Di Bawah', needsValue: true, placeholder: 'Target confidence %' },
+  { value: 'LENS_CONFIDENCE_BELOW', label: 'Keyakinan Skor Turun Di Bawah', needsValue: true, placeholder: 'Target keyakinan %' },
   { value: 'BREAKOUT_SCORE_ABOVE', label: 'LensRadar Score Minimal', needsValue: true, placeholder: 'Target score radar' },
   { value: 'BREADTH_ADVANCING_BELOW', label: 'Market Breadth Melemah', needsValue: true, placeholder: 'Jumlah saham naik maksimal' },
   { value: 'CONSENSUS_STRONG_BUY', label: 'Konsensus Sangat Positif', needsValue: false, placeholder: '' },
@@ -57,7 +58,7 @@ function alertConditionText(alert: AlertItem) {
     case 'PRICE_BELOW': return `Harga < ${value}`;
     case 'PRICE_ABOVE': return `Harga > ${value}`;
     case 'LENS_SCORE_ABOVE': return `LensScore >= ${value}`;
-    case 'LENS_CONFIDENCE_BELOW': return `Confidence < ${value}%`;
+    case 'LENS_CONFIDENCE_BELOW': return `Keyakinan skor < ${value}%`;
     case 'BREAKOUT_SCORE_ABOVE': return `LensRadar score >= ${value}`;
     case 'BREADTH_ADVANCING_BELOW': return `Market breadth naik < ${value}`;
     case 'CONSENSUS_STRONG_BUY': return 'Konsensus Sangat Positif';
@@ -447,8 +448,8 @@ export default function WatchlistPage() {
                   : scorePresentation?.actionable && data?.decision?.action
                     ? getKategoriPresentationLabel(data.decision.action)
                     : scorePresentation?.modelSignal
-                      ? getKategoriPresentationLabel(scorePresentation.modelSignal)
-                      : 'sinyal N/A';
+                      ? scorePresentation.modelSignalLabel
+                      : 'Sinyal belum tersedia';
                 const explainability = data?.scoring?.explainability;
                 const researchLabel = data?.trust?.research_label ?? explainability?.research_label;
                 const confidenceLevel = data?.trust?.score_confidence ?? explainability?.confidence_level;
@@ -492,12 +493,12 @@ export default function WatchlistPage() {
                         <div className="mt-1 flex flex-wrap items-center gap-1.5">
                           {researchLabel && (
                             <span className="lens-chip rounded border border-tv-blue/40 bg-tv-blue/10 px-1.5 py-0.5 font-semibold text-tv-blue">
-                              {researchLabel}
+                              {describeUserResearchLabel(researchLabel)}
                             </span>
                           )}
                           {confidenceLevel && (
                             <span className="lens-chip rounded border border-tv-border bg-tv-card px-1.5 py-0.5 text-tv-muted">
-                              Confidence {confidenceLevel}{typeof confidenceScore === 'number' ? ` ${confidenceScore}%` : ''}
+                              {describeUserConfidenceLabel(confidenceLevel)}{typeof confidenceScore === 'number' ? ` ${confidenceScore}%` : ''}
                             </span>
                           )}
                           {riskFlags.length > 0 && (
