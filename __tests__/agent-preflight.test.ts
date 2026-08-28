@@ -23,8 +23,14 @@ function run(env: Record<string, string> = {}) {
     cwd: ROOT,
     encoding: 'utf8',
     // Jaringan dimatikan di semua test: preflight yang butuh gh untuk lulus akan merah di
-    // runner yang tidak login, dan itu memerahkan setiap PR.
-    env: { ...process.env, SAHAMLENS_PREFLIGHT_SKIP_CI: '1', ...env },
+    // runner yang tidak login, dan itu memerahkan setiap PR. Checkout produksi juga
+    // diisolasi: test ini harus deterministik walau suite dijalankan dari /opt/sahamlens/app.
+    env: {
+      ...process.env,
+      SAHAMLENS_PRODUCTION_CHECKOUT: '/nonexistent/sahamlens-production-checkout',
+      SAHAMLENS_PREFLIGHT_SKIP_CI: '1',
+      ...env,
+    },
   });
   return { code: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
