@@ -412,10 +412,13 @@ function DashboardContent() {
                   const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
                   const support = analyzers.find((a) => a.label?.includes('Support'))?.raw?.support;
                   const resistance = analyzers.find((a) => a.label?.includes('Resistance'))?.raw?.resistance;
-                  const stopLossPrice = data?.tradeSetup?.stop ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
-                  const takeProfit1Price = data?.tradeSetup?.tp1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
-                  const takeProfit2Price = data?.tradeSetup?.tp2 ?? null;
-                  const entryPrice = data?.tradeSetup?.entry ?? currentPrice;
+                  // TradePlan v1.0 (formula terbaru) diutamakan; tradeSetup lama cuma
+                  // fallback untuk entri cache lama yang belum punya field ini (TTL 3
+                  // hari) - lihat catatan di ai-pick.service.ts.
+                  const stopLossPrice = data?.tradePlan?.stopLoss ?? data?.tradeSetup?.stop ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
+                  const takeProfit1Price = data?.tradePlan?.takeProfit1 ?? data?.tradeSetup?.tp1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
+                  const takeProfit2Price = data?.tradePlan?.takeProfit2 ?? data?.tradeSetup?.tp2 ?? null;
+                  const entryPrice = data?.tradePlan?.entry ?? data?.tradeSetup?.entry ?? currentPrice;
                   if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
                     return (
                       <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="50" className="border-tv-border px-4 py-3 text-xs text-tv-muted">
@@ -451,10 +454,12 @@ function DashboardContent() {
                 const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
                 const support = analyzers.find((a) => a.label?.includes('Support'))?.raw?.support;
                 const resistance = analyzers.find((a) => a.label?.includes('Resistance'))?.raw?.resistance;
-                const stopLossPrice = data?.tradeSetup?.stop ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
-                const takeProfit1Price = data?.tradeSetup?.tp1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
-                const takeProfit2Price = data?.tradeSetup?.tp2 ?? null;
-                const entryPrice = data?.tradeSetup?.entry ?? currentPrice;
+                // TradePlan v1.0 (formula terbaru) diutamakan; tradeSetup lama cuma
+                // fallback untuk entri cache lama yang belum punya field ini.
+                const stopLossPrice = data?.tradePlan?.stopLoss ?? data?.tradeSetup?.stop ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
+                const takeProfit1Price = data?.tradePlan?.takeProfit1 ?? data?.tradeSetup?.tp1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
+                const takeProfit2Price = data?.tradePlan?.takeProfit2 ?? data?.tradeSetup?.tp2 ?? null;
+                const entryPrice = data?.tradePlan?.entry ?? data?.tradeSetup?.entry ?? currentPrice;
                 if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
                   return (
                     <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="50" className="border-tv-border px-4 py-3 text-xs text-tv-muted">

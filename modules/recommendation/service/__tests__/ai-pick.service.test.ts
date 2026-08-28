@@ -206,6 +206,34 @@ describe('rankAiPicks', () => {
     expect(result[0].rr).toBe(2);
   });
 
+  it('TP/CL diambil dari TradePlan v1.0 (formula terbaru) kalau tersedia, bukan tradeSetup lama', () => {
+    const scored = [stock('AAAA.JK', 80, {
+      price: 1000,
+      atr: 50,
+      // tradeSetup lama sengaja beda nilainya dari tradePlan supaya test ini
+      // benar-benar membuktikan precedence, bukan kebetulan sama.
+      tradeSetup: { tp1: 1100, tp2: 1150, cl1: 950, cl2: 900, rr: 2 },
+      tradePlan: {
+        version: 'TRADE_PLAN_V1_0', entryReference: 'OPEN_H_PLUS_1',
+        entry: 1005, stopLoss: 960, cutLoss: 970, takeProfit1: 1120, takeProfit2: 1180,
+        riskReward: 2.2, riskPercent: 3.5, riskAtr: 0.9, riskLevel: 'MEDIUM',
+        confidenceScore: 70, confidenceLevel: 'MEDIUM',
+        support: null, nearestSupport: null, resistance: null,
+        reasons: [], missingData: [], caveats: [], dataPoints: [],
+      },
+    })];
+
+    const result = rankAiPicks(scored, noSignals, []);
+
+    expect(result[0].tp1).toBe(1120);
+    expect(result[0].tp2).toBe(1180);
+    expect(result[0].cl1).toBe(970);
+    expect(result[0].rr).toBe(2.2);
+    // cl2/emergencyRiskLevel tidak ada padanannya di TradePlan v1.0 (sudah
+    // @deprecated di trading-setup.ts) - tetap dari tradeSetup lama.
+    expect(result[0].cl2).toBe(900);
+  });
+
   it('TP/CL null kalau belum ada setup RR memadai meskipun ATR tersedia', () => {
     const scored = [stock('AAAA.JK', 80, { atr: 50, tradeSetup: null })];
 
