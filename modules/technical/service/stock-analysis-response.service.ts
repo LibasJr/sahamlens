@@ -1,5 +1,7 @@
 import { calculateWilderAtr } from '@/modules/technical/service/atr';
+import { analyzeAdx, analyzeBollinger } from '@/modules/technical';
 import { buildLongTradingSetup } from '@/modules/recommendation/service/trading-setup';
+import { buildTradePlanV1 } from '@/modules/recommendation/service/trade-plan';
 import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
 import { getLatestMarketIntegrity } from '@/modules/market-data-integrity/repository/market-data-reconciliation.repository';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
@@ -130,6 +132,30 @@ export async function buildStockAnalysisResponse(args: {
     close: h.Close,
   })));
   const tradeSetup = buildLongTradingSetup(setupHistory, currentPrice, atrVal);
+  // TradePlan v1.0 (formula terbaru, entry Open H+1 + confidence/risk-level/disclosure
+  // data hilang) - membungkus buildLongTradingSetup yang sama di atas, jadi tp1/tp2/CL
+  // tidak berubah, cuma dibungkus dengan konteks kualitas yang lebih lengkap.
+  //
+  // volumeRatio/officialNetPressure20/officialPositiveRatio20 SENGAJA null di layer
+  // ini: belum ada jalur yang mengalirkan flowMetrics/volAvg20 dari
+  // stock-analysis-scoring.service.ts ke sini. Bukan bug - TradePlan v1.0 memang
+  // dirancang menandai data yang tidak tersedia lewat missingData[]/confidenceScore
+  // yang lebih rendah, bukan mengarang angka pengganti. Kalau nanti ada yang
+  // mengalirkannya, cukup isi tiga field ini - tidak perlu ubah apa pun di trade-plan.ts.
+  const adxResult = analyzeAdx(analyzerHistory, currentPrice);
+  const bollingerResult = analyzeBollinger(analyzerHistory, currentPrice);
+  const tradePlan = buildTradePlanV1({
+    history: setupHistory,
+    currentPrice,
+    atr: atrVal,
+    adx: typeof adxResult?.raw?.adx === 'number' ? adxResult.raw.adx : null,
+    plusDi: typeof adxResult?.raw?.plusDi === 'number' ? adxResult.raw.plusDi : null,
+    minusDi: typeof adxResult?.raw?.minusDi === 'number' ? adxResult.raw.minusDi : null,
+    bollingerPercentB: typeof bollingerResult?.raw?.percentB === 'number' ? bollingerResult.raw.percentB : null,
+    volumeRatio: null,
+    officialNetPressure20: null,
+    officialPositiveRatio20: null,
+  });
 
   const { previousClose } = resolvePreviousClose({
     timestamps,
@@ -145,6 +171,7 @@ export async function buildStockAnalysisResponse(args: {
     ticker,
     price: currentPrice,
     tradeSetup,
+    tradePlan,
     market_cap: fundamentals.marketCap,
     priceMeta: {
       raw: currentPrice,

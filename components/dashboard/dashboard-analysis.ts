@@ -33,6 +33,7 @@ export type DashboardIndexPayload = {
   scoring: null;
   decision: null;
   tradeSetup: null;
+  tradePlan: null;
   consensus: null;
   eligibility: null;
   _meta: DashboardFreshnessMeta;
@@ -83,6 +84,7 @@ export function buildIndexPayload(symbol: string, candles: DashboardCandle[]): D
     scoring: null,
     decision: null,
     tradeSetup: null,
+    tradePlan: null,
     consensus: null,
     eligibility: null,
     _meta: {
