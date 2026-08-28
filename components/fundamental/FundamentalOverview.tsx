@@ -57,7 +57,7 @@ function FundamentalMetric({
   provenance?: ProvenancedFinancialValue<number | string | null>;
 }) {
   return (
-    <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-bg p-3 flex flex-col justify-between">
+    <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-bg p-2.5 sm:p-3 flex flex-col justify-between">
       <span className="lens-meta uppercase text-tv-muted">{label}</span>
       <span className={`font-number text-lg font-bold ${tone}`}>{value}</span>
       <ResearchProvenanceDetails
@@ -89,15 +89,15 @@ export default function FundamentalOverview({
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-3 text-xs">
-        <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`} />
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-y border-tv-border/70 py-2 text-xs">
+        <div className="flex items-center gap-2 text-tv-muted">
+          <span className={`h-2 w-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`} />
           {marketClosed ? 'Bursa sedang tutup' : 'Bursa sedang buka'}
         </div>
-        <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
+        <div className="text-tv-muted">
           Sumber harga: {data?._meta?.provider || 'Yahoo Finance'} • sesi {formatTime(marketSnapshotAt)}
         </div>
-        <div className="bg-tv-card border border-tv-border px-3 py-1.5 rounded-full text-tv-muted">
+        <div className="text-tv-muted">
           Data sesi: {formatTime(lastUpdate)} • {marketClosed ? 'menunggu sesi berikutnya' : 'cek ulang tiap 1 menit'}
         </div>
         <Button
@@ -106,10 +106,10 @@ export default function FundamentalOverview({
           type="button"
           onClick={onRefresh}
           disabled={loading}
-          className="bg-tv-hover border border-tv-borderLight hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-white flex items-center gap-2 transition-colors disabled:opacity-50"
+          className="ml-auto flex min-h-9 items-center gap-2 rounded-lg px-2.5 py-1.5 font-semibold text-tv-muted transition-colors hover:bg-white/[0.04] hover:text-tv-text disabled:opacity-50"
         >
-          <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-          Refresh Data
+          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
         </Button>
         <ExportImageButton
           targetRef={exportRef}
@@ -135,7 +135,7 @@ export default function FundamentalOverview({
         </div>
       )}
 
-      <Card padding="none" radius="xl" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4 sm:p-5 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+      <Card padding="none" radius="xl" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4 sm:p-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between md:gap-5">
         <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
           <div>
@@ -268,13 +268,13 @@ export default function FundamentalOverview({
         );
       })()}
 
-      <div className="flex flex-col gap-6">
-        <Card padding="none" radius="xl" elevation="sm" overflow="visible" highlight={false} className="w-full border-tv-border p-5">
-          <h3 className="text-xl font-extrabold text-white font-heading mb-4 border-b border-tv-border pb-3 flex items-center gap-2">
+      <div className="flex flex-col gap-5 sm:gap-6">
+        <Card padding="none" radius="xl" elevation="sm" overflow="visible" highlight={false} className="w-full border-tv-border p-4 sm:p-5">
+          <h3 className="mb-3 flex items-center gap-2 border-b border-tv-border pb-2.5 font-heading text-lg font-extrabold text-white sm:mb-4 sm:pb-3 sm:text-xl">
             <Layers className="w-5 h-5 text-tv-accent" />
             Profil Perusahaan & Data Fundamental
           </h3>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
             <div className="lg:col-span-1 space-y-4">
               <div>
                 <div className="text-xs text-tv-muted uppercase tracking-wide mb-1">Sektor & Industri</div>
@@ -299,7 +299,7 @@ export default function FundamentalOverview({
               )}
             </div>
 
-            <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
               <FundamentalMetric label="Market Cap" value={fmtTriliun(data?.fundamentals?.marketCap)} provenance={data?.provenance?.fundamentals?.marketCap} />
               <FundamentalMetric label="P/E Ratio (TTM)" value={fmtKali(data?.fundamentals?.trailingPE)} provenance={data?.provenance?.fundamentals?.trailingPE} />
               <FundamentalMetric label="Price to Book (PBV)" value={fmtKali(data?.fundamentals?.priceToBook)} provenance={data?.provenance?.fundamentals?.priceToBook} />
