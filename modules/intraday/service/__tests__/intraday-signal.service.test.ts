@@ -68,6 +68,12 @@ describe('komponen skor', () => {
     const components = computeIntradayComponents(bars)!;
     expect(components.raw.momentum).toBe(0);
     expect(components.raw.vwapDeviation).toBe(0);
+    // Tidak ada close yang naik/turun dari close sebelumnya: OBV nol persis.
+    expect(components.raw.obvAccumulation).toBe(0);
+    expect(components.scored.obvAccumulation).toBe(50);
+    // stdev jendela Bollinger nol (harga datar): %B tidak terdefinisi, dijawab 0,5.
+    expect(components.raw.bollingerPctB).toBe(0.5);
+    expect(components.scored.bollingerPctB).toBe(50);
     // High == low sepanjang sesi: posisi rentang tidak terdefinisi, dijawab 0,5 bukan NaN.
     expect(components.scored.rangePosition).toBe(50);
     expect(components.scored.momentum).toBe(50);
@@ -102,6 +108,79 @@ describe('komponen skor', () => {
     ];
     const components = computeIntradayComponents(bars)!;
     expect(components.sessionVwap).toBeGreaterThan(199);
+  });
+});
+
+describe('obvAccumulation (v0.2.0)', () => {
+  it('dihitung tepat dari OBV standar dinormalisasi terhadap volume sesi', () => {
+    // close: 100,101,100,99,100,102 - volume rata 1000/bar supaya bisa dihitung manual.
+    // +1000 (naik) -1000 (turun) -1000 (turun) +1000 (naik) +1000 (naik) = 1000
+    // total volume 6 bar x 1000 = 6000 -> 1000/6000 = 0,16666...
+    const closes = [100, 101, 100, 99, 100, 102];
+    const bars = closes.map((price, i) => makeBar(9 * 60 + i * 5, price, { volume: 1000 }));
+    const components = computeIntradayComponents(bars)!;
+    expect(components.raw.obvAccumulation).toBeCloseTo(1000 / 6000, 6);
+    expect(components.scored.obvAccumulation).toBeGreaterThan(50);
+  });
+
+  it('close turun terus-menerus menghasilkan OBV negatif', () => {
+    const closes = [105, 104, 103, 102, 101, 100];
+    const bars = closes.map((price, i) => makeBar(9 * 60 + i * 5, price, { volume: 1000 }));
+    const components = computeIntradayComponents(bars)!;
+    expect(components.raw.obvAccumulation).toBeLessThan(0);
+    expect(components.scored.obvAccumulation).toBeLessThan(50);
+  });
+
+  it('unchanged close TIDAK berkontribusi (beda sengaja dari trendPersistence)', () => {
+    // Semua close sama kecuali bar terakhir naik sedikit - satu-satunya kontribusi
+    // OBV adalah dari transisi terakhir itu, meski trendPersistence menghitung
+    // "datar" sebagai setengah.
+    const bars = [
+      ...Array.from({ length: 5 }, (_, i) => makeBar(9 * 60 + i * 5, 100, { volume: 1000 })),
+      makeBar(9 * 60 + 25, 101, { volume: 500 }),
+    ];
+    const components = computeIntradayComponents(bars)!;
+    const totalVolume = 5 * 1000 + 500;
+    expect(components.raw.obvAccumulation).toBeCloseTo(500 / totalVolume, 6);
+  });
+});
+
+describe('bollingerPctB (v0.2.0)', () => {
+  it('harga di atas rata-rata bergerak jendela menghasilkan %B di atas 0,5', () => {
+    const rising = Array.from({ length: 12 }, (_, i) => makeBar(9 * 60 + i * 5, 100 + i));
+    const components = computeIntradayComponents(rising)!;
+    expect(components.raw.bollingerPctB).toBeGreaterThan(0.5);
+    expect(components.scored.bollingerPctB).toBeGreaterThan(50);
+  });
+
+  it('harga di bawah rata-rata bergerak jendela menghasilkan %B di bawah 0,5', () => {
+    const falling = Array.from({ length: 12 }, (_, i) => makeBar(9 * 60 + i * 5, 112 - i));
+    const components = computeIntradayComponents(falling)!;
+    expect(components.raw.bollingerPctB).toBeLessThan(0.5);
+    expect(components.scored.bollingerPctB).toBeLessThan(50);
+  });
+
+  it('lonjakan tajam menembus pita diklem ke 0/100 di sisi skor, bukan NaN atau nilai di luar domain', () => {
+    // 11 bar datar lalu satu bar melompat jauh - stdev jendela kecil, lompatan besar
+    // mendorong %B mentah jauh di atas 1.
+    const bars = [
+      ...Array.from({ length: 11 }, (_, i) => makeBar(9 * 60 + i * 5, 100, { volume: 1000 })),
+      makeBar(9 * 60 + 55, 130, { volume: 1000 }),
+    ];
+    const components = computeIntradayComponents(bars)!;
+    expect(components.raw.bollingerPctB).toBeGreaterThan(1);
+    expect(components.scored.bollingerPctB).toBe(100);
+  });
+
+  it('hanya memakai bollingerWindowBars bar terakhir, bukan seluruh sesi', () => {
+    // 20 bar datar di harga 100, lalu 12 bar naik - window 12 bar cuma melihat
+    // bagian yang naik, jadi hasilnya harus identik dengan menghitung langsung dari
+    // 12 bar itu saja.
+    const flat = Array.from({ length: 20 }, (_, i) => makeBar(9 * 60 + i * 5, 100));
+    const rising = Array.from({ length: 12 }, (_, i) => makeBar(9 * 60 + (20 + i) * 5, 100 + i));
+    const full = computeIntradayComponents([...flat, ...rising])!;
+    const windowOnly = computeIntradayComponents(rising)!;
+    expect(full.raw.bollingerPctB).toBeCloseTo(windowOnly.raw.bollingerPctB, 6);
   });
 });
 
@@ -391,8 +470,8 @@ describe('penandaan kelayakan transaksi', () => {
 describe('pemetaan komponen configurable', () => {
   it('rentang lebih sempit membuat momentum yang sama mencapai ujung skala', () => {
     const rising = Array.from({ length: 12 }, (_, i) => makeBar(9 * 60 + i * 5, 100 + i * 0.1));
-    const wide = computeIntradayComponents(rising, { momentumAbs: 0.05, vwapDeviationAbs: 0.01, volumeSurgeCenter: 0.72, volumeSurgeSpan: 3.5 })!;
-    const narrow = computeIntradayComponents(rising, { momentumAbs: 0.001, vwapDeviationAbs: 0.01, volumeSurgeCenter: 0.72, volumeSurgeSpan: 3.5 })!;
+    const wide = computeIntradayComponents(rising, { momentumAbs: 0.05, vwapDeviationAbs: 0.01, volumeSurgeCenter: 0.72, volumeSurgeSpan: 3.5, obvAccumulationAbs: 0.46, bollingerWindowBars: 12, bollingerK: 2 })!;
+    const narrow = computeIntradayComponents(rising, { momentumAbs: 0.001, vwapDeviationAbs: 0.01, volumeSurgeCenter: 0.72, volumeSurgeSpan: 3.5, obvAccumulationAbs: 0.46, bollingerWindowBars: 12, bollingerK: 2 })!;
     expect(narrow.scored.momentum).toBe(100);
     expect(wide.scored.momentum).toBeLessThan(100);
     // Nilai MENTAH-nya identik - yang berubah hanya pemetaannya, bukan datanya.

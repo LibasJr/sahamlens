@@ -10,6 +10,8 @@ function equalWeights(): IntradayWeights {
     volumeSurge: weight,
     rangePosition: weight,
     trendPersistence: weight,
+    obvAccumulation: weight,
+    bollingerPctB: weight,
   };
 }
 
