@@ -36,6 +36,8 @@ export default function Header({
   stockNav = false,
   tickerSearch = true,
 }: HeaderProps) {
+  const showUsageQuota = !isAdmin && typeof analisaRemaining === 'number' && Number.isFinite(analisaRemaining);
+
   return (
     <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 backdrop-blur-xl">
       <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
@@ -53,8 +55,9 @@ export default function Header({
           <h1 className="truncate text-lg font-bold tracking-tight text-white md:text-xl">{moduleTitle}</h1>
         </div>
 
-        <div className="flex w-full items-center gap-2 md:w-auto">
-          {tickerSearch && (
+        {(tickerSearch || showUsageQuota) && (
+          <div className="flex w-full items-center gap-2 md:w-auto">
+            {tickerSearch && (
             <>
               {/* BUG FIX (2026-08-14, laporan pengguna - dua ikon kaca pembesar tumpang
                   tindih di HP): CommandPalette sudah merender ikon Search-nya sendiri di
@@ -77,7 +80,7 @@ export default function Header({
             </>
           )}
 
-          {!isAdmin && typeof analisaRemaining === 'number' && Number.isFinite(analisaRemaining) && (
+            {showUsageQuota && (
             <span className={`hidden whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold sm:inline-flex ${
               analisaRemaining <= 0
                 ? 'border-tv-red/20 bg-tv-red/10 text-tv-red'
@@ -85,8 +88,9 @@ export default function Header({
             }`}>
               {analisaRemaining}/{analisaTotal} analisa
             </span>
-          )}
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Baris kedua, bukan disisipkan ke baris judul: di layar sempit baris judul sudah
