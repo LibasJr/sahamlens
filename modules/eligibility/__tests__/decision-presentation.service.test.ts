@@ -22,16 +22,16 @@ describe('getDecisionPresentation', () => {
 
     expect(p.kind).toBe('MODEL_UNVALIDATED');
     expect(p.modelSignal).toBe('BUY');
-    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SINYAL POSITIF');
+    expect(p.modelSignalLabel).toBe('Sinyal riset: SINYAL POSITIF');
     expect(p.modelSignalLabel).not.toContain('BUY');
-    expect(p.statusLabel).toBe('MODEL BELUM TERVALIDASI');
+    expect(p.statusLabel).toBe('Masih tahap uji');
     expect(p.recommendationLabel).toBeNull();
     expect(p.actionable).toBe(false);
   });
 
   it('SELL + ELIGIBLE + MODEL_UNVALIDATED tetap informational', () => {
     const p = getDecisionPresentation('SELL', decision({ reasonCodes: ['MODEL_UNVALIDATED'] }));
-    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SINYAL NEGATIF');
+    expect(p.modelSignalLabel).toBe('Sinyal riset: SINYAL NEGATIF');
     expect(p.actionable).toBe(false);
   });
 
@@ -43,8 +43,8 @@ describe('getDecisionPresentation', () => {
     }));
 
     expect(p.kind).toBe('INELIGIBLE');
-    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SINYAL POSITIF');
-    expect(p.statusLabel).toBe('TIDAK LAYAK DIREKOMENDASIKAN');
+    expect(p.modelSignalLabel).toBe('Sinyal riset: SINYAL POSITIF');
+    expect(p.statusLabel).toBe('Belum layak direkomendasikan');
     expect(p.explanation).toContain(status);
     expect(p.actionable).toBe(false);
   });
@@ -55,7 +55,7 @@ describe('getDecisionPresentation', () => {
       explanation: 'Coverage rendah.',
     }));
     expect(p.modelSignal).toBe('DATA TIDAK CUKUP');
-    expect(p.modelSignalLabel).toBe('STATUS MODEL: DATA TIDAK CUKUP');
+    expect(p.modelSignalLabel).toBe('Data belum cukup');
     expect(p.recommendationLabel).toBeNull();
     expect(p.actionable).toBe(false);
   });
@@ -70,8 +70,8 @@ describe('getDecisionPresentation', () => {
 
   it('payload legacy tanpa decision tetap fail-closed', () => {
     const p = getDecisionPresentation('BUY', undefined);
-    expect(p.modelSignalLabel).toBe('SINYAL MODEL: SINYAL POSITIF');
-    expect(p.statusLabel).toBe('REKOMENDASI TIDAK TERSEDIA');
+    expect(p.modelSignalLabel).toBe('Sinyal riset: SINYAL POSITIF');
+    expect(p.statusLabel).toBe('Rekomendasi belum tersedia');
     expect(p.actionable).toBe(false);
   });
 });
