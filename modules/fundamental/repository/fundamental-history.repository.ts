@@ -258,7 +258,14 @@ export async function auditFundamentalHistoryCounts(): Promise<{
 /**
  * Fundamental yang DIKETAHUI pada `requestedDate` - fondasi backtest bebas look-ahead.
  *
- * Mengembalikan snapshot dengan `observed_date` TERBESAR yang masih `<= requestedDate`.
+ * Mengembalikan snapshot PIT v2 (punya `period_end`) terbaru yang masih `<= requestedDate`.
+ * Baris legacy tanpa `period_end` hanya fallback bila belum ada snapshot berperiode.
+ *
+ * Kenapa bukan sekadar observed_date terbaru: sebelum PIT v2, ada snapshot/template lama
+ * yang tidak membawa akhir periode laporan. Jika baris seperti itu bertanggal sedikit
+ * lebih baru, ia bisa menutup laporan resmi XBRL yang periode laporannya jelas. Untuk
+ * backtest, memilih baris tanpa periode ketika baris berperiode sudah tersedia membuat
+ * sumber waktunya kabur.
  * Snapshot bertanggal setelah `requestedDate` TIDAK PERNAH dikembalikan, walaupun ia
  * satu-satunya baris yang ada untuk ticker itu - dalam kasus itu jawabannya `null`
  * ("belum ada yang kita ketahui pada tanggal itu"), bukan baris terdekat.
@@ -274,7 +281,7 @@ export async function asOf(
     `SELECT ${AS_OF_COLUMNS}
        FROM fundamental_history
       WHERE ticker = $1 AND observed_date <= $2::date
-      ORDER BY observed_date DESC
+      ORDER BY (period_end IS NOT NULL) DESC, observed_date DESC
       LIMIT 1`,
     [ticker, requestedDate]
   );
