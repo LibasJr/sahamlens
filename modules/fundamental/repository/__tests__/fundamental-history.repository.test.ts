@@ -64,7 +64,11 @@ const { fakePool, queries, state } = vi.hoisted(() => {
         const [ticker, requestedDate] = values as [string, string];
         const hasil = table
           .filter((r) => r.ticker === ticker && String(r.observed_date) <= requestedDate)
-          .sort((a, b) => String(b.observed_date).localeCompare(String(a.observed_date)))
+          .sort((a, b) => {
+            const periodRank = Number(b.period_end != null) - Number(a.period_end != null);
+            if (periodRank !== 0) return periodRank;
+            return String(b.observed_date).localeCompare(String(a.observed_date));
+          })
           .slice(0, 1);
         return { rows: hasil, rowCount: hasil.length };
       }
@@ -227,12 +231,38 @@ describe('asOf - bebas look-ahead bias (TEST 8)', () => {
     await asOf('BBCA.JK', '2026-08-04');
     const q = queries.find((x) => x.text.includes('FROM fundamental_history') && x.text.includes('LIMIT 1'))!;
     expect(normalize(q.text)).toContain('WHERE ticker = $1 AND observed_date <= $2::date');
-    expect(normalize(q.text)).toContain('ORDER BY observed_date DESC');
+    expect(normalize(q.text)).toContain('ORDER BY (period_end IS NOT NULL) DESC, observed_date DESC');
     expect(q.values).toEqual(['BBCA.JK', '2026-08-04']);
   });
 
   it('requestedDate tidak valid ditolak, bukan diam-diam jadi hari ini', async () => {
     await expect(asOf('BBCA.JK', 'kemarin')).rejects.toThrow(/YYYY-MM-DD/);
+  });
+
+  it('snapshot berperiode mengalahkan baris legacy tanpa period_end yang lebih baru', async () => {
+    state.table = [];
+    await archiveFundamentalSnapshot([
+      {
+        ticker: 'BBCA.JK',
+        observedDate: '2026-01-27',
+        periodEnd: '2025-12-31',
+        ...KOSONG,
+        roe: 20.44,
+      },
+      {
+        ticker: 'BBCA.JK',
+        observedDate: '2026-01-31',
+        periodEnd: null,
+        ...KOSONG,
+        roe: 18.5,
+      },
+    ]);
+
+    const row = await asOf('BBCA.JK', '2026-02-01');
+
+    expect(row?.observedDate).toBe('2026-01-27');
+    expect(row?.periodEnd).toBe('2025-12-31');
+    expect(row?.roe).toBe(20.44);
   });
 });
 
