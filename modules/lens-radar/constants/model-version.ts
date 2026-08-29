@@ -42,6 +42,13 @@
 // catatan di walk-forward-validation.service.ts.
 import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 
+// KENAIKAN VERSI 2026-08-29 (lens-score-v1.6.1).
+//
+// Nilai skor tidak berubah. Kenaikan ini mengoreksi metadata price-basis di
+// LENS_SCORE_MODEL_SPEC agar sama dengan konstanta produksi:
+// RETURN_PRICE_BASIS = TOTAL_RETURN_ADJUSTED dan
+// TRADING_PRICE_BASIS = SPLIT_ADJUSTED. Config hash ikut berubah supaya arsip baru
+// tidak mengaku dihitung dengan spesifikasi basis harga lama.
 export const SCORE_VERSION = LENS_SCORE_MODEL_METADATA.version;
 export const VALUATION_VERSION = 'valuation-v1.3.0';
 export const SIGNAL_VERSION = 'lens-radar-signal-v1.3.0';

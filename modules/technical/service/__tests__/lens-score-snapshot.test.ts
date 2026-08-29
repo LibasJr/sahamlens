@@ -5,7 +5,7 @@ import { calculateScore, MIN_COVERAGE_PCT, type TechnicalInput, type Fundamental
 import { SCORING_KATEGORI_THRESHOLDS } from '../decision-thresholds';
 import { LENS_SCORE_MODEL_METADATA, LENS_SCORE_MODEL_SPEC } from '../../config/lens-score-model';
 import { LENS_SCORE_WEIGHTS, LENS_SCORE_TOTAL_WEIGHT } from '@/shared/constants/lens-score-weights';
-import { RETURN_PRICE_BASIS } from '@/shared/market/price-basis';
+import { RETURN_PRICE_BASIS, TRADING_PRICE_BASIS } from '@/shared/market/price-basis';
 
 /**
  * SNAPSHOT LENSSCORE - mengunci ANGKA, bukan hubungan antar angka.
@@ -136,8 +136,8 @@ describe('LensScore - spesifikasi model beku', () => {
     // Kalau ia berubah sementara `version` tetap, seluruh histori lama diam-diam ditolak
     // partitionByScoreVersion() dan Calibration Lab menampilkan nol sampel tanpa sebab
     // yang terlihat.
-    expect(LENS_SCORE_MODEL_METADATA.version).toBe('lens-score-v1.6.0');
-    expect(LENS_SCORE_MODEL_METADATA.configHash).toBe('fnv1a32-2b2f012f');
+    expect(LENS_SCORE_MODEL_METADATA.version).toBe('lens-score-v1.6.1');
+    expect(LENS_SCORE_MODEL_METADATA.configHash).toBe('fnv1a32-679c0ab6');
   });
 
   it('bobot kelompok 40/30/30 dan totalnya 100', () => {
@@ -242,6 +242,18 @@ describe('LENS_SCORE_FORMULA.md tetap sinkron dengan kode', () => {
   it('versi model dan config hash yang ditulis dokumen sama dengan yang dipakai kode', () => {
     expect(doc).toContain(LENS_SCORE_MODEL_METADATA.version);
     expect(doc).toContain(LENS_SCORE_MODEL_METADATA.configHash);
+  });
+
+  it('basis harga di dokumen sama dengan konstanta produksi', () => {
+    expect(doc).toContain(`| Basis harga untuk imbal hasil | \`${RETURN_PRICE_BASIS}\` |`);
+    expect(doc).toContain(`| Basis harga untuk level trading | \`${TRADING_PRICE_BASIS}\` |`);
+    expect(LENS_SCORE_MODEL_SPEC.returnPriceBasis).toBe(RETURN_PRICE_BASIS);
+    expect(LENS_SCORE_MODEL_SPEC.tradingPriceBasis).toBe(TRADING_PRICE_BASIS);
+  });
+
+  it('dokumen mendefinisikan denominator net foreign pressure IDX', () => {
+    expect(doc).toContain('Σ(ForeignBuy - ForeignSell) / Σ(ForeignBuy + ForeignSell) × 100');
+    expect(doc).toContain('Penyebutnya adalah total turnover asing 20 hari');
   });
 
   it('bobot kelompok yang ditulis dokumen sama dengan LENS_SCORE_WEIGHTS', () => {
