@@ -1,7 +1,7 @@
 // LensIntraday - identitas model RISET yang SENGAJA TERPISAH dari LensScore T+20.
 //
 // Tidak ada satu pun konstanta di file ini yang dibaca oleh scoring produksi
-// (modules/lens-radar/constants/model-version.ts, SCORE_VERSION lens-score-v1.6.0,
+// (modules/lens-radar/constants/model-version.ts, SCORE_VERSION lens-score-v1.6.1,
 // bobot Teknikal 40 / Fundamental 30 / Flow 30). Bobot di bawah adalah bobot
 // LensIntraday sendiri, atas komponen yang sama sekali berbeda (mikrostruktur
 // intraday), dan mengubahnya TIDAK mengubah apa pun di produksi.
