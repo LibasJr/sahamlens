@@ -1,3 +1,4 @@
+import { getTickerName } from '@/lib/trendingTickers';
 import { fetchCurrentFundamentalSource } from '@/modules/fundamental/service/current-fundamental-source.service';
 import { normalizeChatText } from './chat-normalize';
 
@@ -24,19 +25,30 @@ function displayTicker(rawTicker: string): string {
   return rawTicker.trim().toUpperCase().replace(/\.JK$/i, '');
 }
 
+function masterTickerName(ticker: string): string | null {
+  const resolved = getTickerName(`${ticker}.JK`);
+  const normalized = resolved.replace(/\.JK$/i, '').trim();
+  return normalized && normalized.toUpperCase() !== ticker ? resolved : null;
+}
+
 async function issuerProfileBlock(rawTicker: string): Promise<string> {
   const ticker = displayTicker(rawTicker);
+  const masterName = masterTickerName(ticker);
+
   try {
     const data = await fetchCurrentFundamentalSource(rawTicker, { timeoutMs: 8000 });
     if (!data) {
       return [
         `### ${ticker} — PROFIL EMITEN`,
-        '- Profil emiten: tidak tersedia dari backend saat ini.',
-        '- FAIL-CLOSED: jangan menebak nama perusahaan, bidang usaha, produk, grup usaha, atau pengendali dari ingatan model.',
+        `- Kode saham IDX: ${ticker}`,
+        `- Nama perusahaan (master ticker SahamLens): ${cleanText(masterName, 300)}`,
+        '- Profil bisnis provider: tidak tersedia dari backend saat ini.',
+        '- FAIL-CLOSED: nama dari master ticker boleh disebut, tetapi jangan menebak sektor, bidang usaha, produk, grup usaha, pengendali, atau sumber pendapatan dari ingatan model.',
       ].join('\n');
     }
 
-    const name = data.price?.longName || data.price?.shortName || null;
+    const providerName = data.price?.longName || data.price?.shortName || null;
+    const name = providerName || masterName;
     const shortName = data.price?.shortName || null;
     const sector = data.assetProfile?.sector || null;
     const industry = data.assetProfile?.industry || null;
@@ -46,21 +58,24 @@ async function issuerProfileBlock(rawTicker: string): Promise<string> {
     return [
       `### ${ticker} — PROFIL EMITEN`,
       `- Kode saham IDX: ${ticker}`,
-      `- Nama resmi perusahaan: ${cleanText(name, 300)}`,
-      `- Nama singkat: ${cleanText(shortName, 300)}`,
+      `- Nama perusahaan: ${cleanText(name, 300)}`,
+      `- Nama master ticker SahamLens: ${cleanText(masterName, 300)}`,
+      `- Nama singkat provider: ${cleanText(shortName, 300)}`,
       `- Sektor: ${cleanText(sector, 300)}`,
       `- Industri: ${cleanText(industry, 300)}`,
       `- Ringkasan kegiatan usaha (sumber publik): ${cleanText(businessSummary)}`,
       `- Website perusahaan: ${cleanText(website, 500)}`,
-      '- Sumber profil: Yahoo Finance quoteSummary (PUBLIC_THIRD_PARTY), divalidasi oleh adapter SahamLens.',
-      '- ATURAN: boleh merangkum profil di atas dengan bahasa Indonesia yang sederhana. Jangan menambah produk, pemilik/pengendali, anak usaha, pangsa pasar, atau sumber pendapatan yang tidak disebut di data.',
+      '- Sumber identitas: master ticker SahamLens + Yahoo Finance quoteSummary (PUBLIC_THIRD_PARTY), dengan field provider divalidasi adapter SahamLens.',
+      '- ATURAN: rangkum profil di atas dengan bahasa Indonesia sederhana. Boleh menjelaskan produk/segmen HANYA jika tercantum di ringkasan kegiatan usaha. Jangan menambah pemilik/pengendali, anak usaha, pangsa pasar, merek, atau sumber pendapatan yang tidak ada di data.',
     ].join('\n');
   } catch (error) {
     console.warn('[LensAI:issuer-profile] profil gagal dibaca', ticker, error instanceof Error ? error.message : String(error));
     return [
       `### ${ticker} — PROFIL EMITEN`,
-      '- Profil emiten: gagal dibaca dari backend saat ini.',
-      '- FAIL-CLOSED: jangan menebak nama perusahaan, bidang usaha, produk, grup usaha, atau pengendali dari ingatan model.',
+      `- Kode saham IDX: ${ticker}`,
+      `- Nama perusahaan (master ticker SahamLens): ${cleanText(masterName, 300)}`,
+      '- Profil bisnis provider: gagal dibaca dari backend saat ini.',
+      '- FAIL-CLOSED: nama dari master ticker boleh disebut, tetapi jangan menebak sektor, bidang usaha, produk, grup usaha, pengendali, atau sumber pendapatan dari ingatan model.',
     ].join('\n');
   }
 }
