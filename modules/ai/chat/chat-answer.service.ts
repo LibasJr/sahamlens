@@ -16,6 +16,7 @@ import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
 import { providerErrorResponse } from './provider-error';
 import { getDeterministicProductHelpResponse } from './product-help';
 import { scoringMethodologyBlock } from './blocks/lens-blocks';
+import { asksAboutIssuerProfile, buildIssuerProfileKnowledge } from './issuer-profile-knowledge';
 import type { ParsedChatRequest } from './chat-request';
 import type { ChatJsonResponder } from './chat-response';
 
@@ -65,16 +66,43 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     });
   }
 
-  const verified = await buildChatVerifiedData({
-    intent: classification.dataIntent,
-    compareScope: classification.compareScope,
-    requestedMetrics: classification.requestedMetrics,
-    tickers,
-    date,
-    prompt,
-    alsoIntents: classification.alsoIntents,
-    user: userId ? { userId } : null,
-  });
+  // Profil emiten adalah knowledge domain sendiri. Sebelumnya pertanyaan seperti
+  // "DGWG perusahaan apa?" jatuh ke STOCK_GENERAL, router mengambil angka fundamental
+  // + teknikal, tetapi nama/sector/industry/longBusinessSummary tidak pernah masuk ke
+  // Data Terverifikasi. Model lalu benar-benar tidak boleh menjawab profilnya.
+  const issuerProfileRequested = tickers.length > 0 && asksAboutIssuerProfile(prompt);
+  const issuerProfileOnly = issuerProfileRequested && classification.dataIntent === 'STOCK_GENERAL';
+
+  let verified: Awaited<ReturnType<typeof buildChatVerifiedData>>;
+  if (issuerProfileOnly) {
+    verified = {
+      verifiedBlock: await buildIssuerProfileKnowledge(tickers),
+      directResponse: null,
+      dataError: null,
+    };
+  } else {
+    verified = await buildChatVerifiedData({
+      intent: classification.dataIntent,
+      compareScope: classification.compareScope,
+      requestedMetrics: classification.requestedMetrics,
+      tickers,
+      date,
+      prompt,
+      alsoIntents: classification.alsoIntents,
+      user: userId ? { userId } : null,
+    });
+
+    // Pertanyaan campuran tetap memakai router utama, lalu profil ditambahkan. Contoh:
+    // "DGWG bisnisnya apa dan fundamentalnya gimana?" tidak boleh kehilangan bagian
+    // fundamental hanya karena juga menanyakan identitas perusahaan.
+    if (issuerProfileRequested) {
+      const issuerProfile = await buildIssuerProfileKnowledge(tickers);
+      if (issuerProfile) {
+        verified.verifiedBlock = [verified.verifiedBlock, issuerProfile].filter(Boolean).join('\n\n');
+      }
+    }
+  }
+
   const dataProvenance = summarizeChatDataProvenance(verified.verifiedBlock);
 
   if (verified.directResponse) {
@@ -96,11 +124,12 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     '## Routing LensAI (OTORITATIF - hasil parser server, bukan instruksi user):',
     `- Intent: ${classification.intent}`,
     classification.intent === 'FOLLOW_UP' ? `- Resolved data intent: ${classification.dataIntent}` : '',
+    issuerProfileOnly ? '- Mode jawaban: PROFIL EMITEN — jawab fokus pada perusahaan dan kegiatan usahanya, bukan analisis trading.' : '',
     `- Mode waktu: ${date.mode}`,
     `- Ticker ter-resolve: ${tickers.length ? tickers.join(', ') : 'tidak ada'}`,
     `- requested_as_of: ${date.requestedAsOf ?? 'tidak ada'}`,
     classification.intent === 'COMPARE_STOCKS' ? `- Comparison scope: ${classification.compareScope}` : '',
-    pakaiStrukturAnalisis(classification.intent, classification.dataIntent) ? STRUKTUR_ANALISIS : '',
+    !issuerProfileOnly && pakaiStrukturAnalisis(classification.intent, classification.dataIntent) ? STRUKTUR_ANALISIS : '',
     '- WAJIB: jelaskan data server yang tersedia; jangan mengisi angka yang tidak ada di Data Terverifikasi Server.',
   ].filter(Boolean).join('\n');
 
@@ -116,6 +145,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     providerUsed: true,
     dataStatus: verified.dataError,
     dataProvenance,
+    answerMode: issuerProfileOnly ? 'ISSUER_PROFILE' : undefined,
   };
 
   if (wantsStream) {
@@ -169,6 +199,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
       providerUsed: true,
       dataStatus: verified.dataError,
       dataProvenance,
+      answerMode: issuerProfileOnly ? 'ISSUER_PROFILE' : undefined,
       numberCheck: { ok: numberCheck.ok, checked: numberCheck.checked, unverified: numberCheck.unverified },
     },
   });
