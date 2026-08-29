@@ -8,7 +8,11 @@ vi.mock('@/modules/fundamental/service/current-fundamental-source.service', () =
   fetchCurrentFundamentalSource: fetchCurrentFundamentalSourceMock,
 }));
 
-import { asksAboutIssuerProfile, buildIssuerProfileKnowledge } from '../issuer-profile-knowledge';
+import {
+  asksAboutIssuerProfile,
+  buildIssuerProfileKnowledge,
+  isIssuerProfileOnlyQuestion,
+} from '../issuer-profile-knowledge';
 
 beforeEach(() => {
   fetchCurrentFundamentalSourceMock.mockReset();
@@ -33,6 +37,33 @@ describe('asksAboutIssuerProfile', () => {
     'nilai wajar DGWG',
   ])('tidak menyerobot intent analisis biasa: %s', (prompt) => {
     expect(asksAboutIssuerProfile(prompt)).toBe(false);
+  });
+});
+
+describe('isIssuerProfileOnlyQuestion', () => {
+  it.each([
+    'ANTM jual apa?',
+    'bisnisnya DGWG apa saja?',
+    'DGWG bergerak di bidang apa?',
+    'produk ICBP apa?',
+  ])('menganggap pertanyaan profil murni sebagai profile-only: %s', (prompt) => {
+    expect(isIssuerProfileOnlyQuestion(prompt)).toBe(true);
+  });
+
+  it.each([
+    'ANTM jual apa dan layak dibeli?',
+    'DGWG bisnisnya apa dan fundamentalnya gimana?',
+    'BRPT lini bisnisnya apa dan RSI berapa?',
+    'ANTM produk utamanya apa dan target harga berapa?',
+  ])('mempertahankan routing analisis untuk pertanyaan campuran: %s', (prompt) => {
+    expect(isIssuerProfileOnlyQuestion(prompt)).toBe(false);
+  });
+
+  it.each([
+    'ANTM sebaiknya jual sekarang?',
+    'RSI DGWG berapa?',
+  ])('tidak mengubah pertanyaan non-profil menjadi profile-only: %s', (prompt) => {
+    expect(isIssuerProfileOnlyQuestion(prompt)).toBe(false);
   });
 });
 
