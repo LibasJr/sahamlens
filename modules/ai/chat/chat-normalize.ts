@@ -21,6 +21,19 @@ export function stripTerminalPunctuation(input: string): string {
   return input.replace(/[!?.,;:]+$/g, '').trim();
 }
 
+export function sanitizeChatAnswerText(input: string): string {
+  let output = input
+    .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
+    .replace(/<think\b[^>]*>[\s\S]*$/gi, '')
+    .replace(/<\/?think\b[^>]*>/gi, '')
+    .replace(/^\s+/, '')
+    .replace(/\n{3,}/g, '\n\n');
+  if (/<think\b|<\/think>/i.test(output)) {
+    output = output.replace(/<\/?think\b[^>]*>/gi, '');
+  }
+  return output;
+}
+
 export function getDeterministicSmallTalkResponse(normalizedInput: string): string | null {
   const value = stripTerminalPunctuation(normalizedInput);
 

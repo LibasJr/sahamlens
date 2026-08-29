@@ -4,6 +4,7 @@ import { applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/an
 import { createStreamGate } from './stream-gate';
 import { verifyAnswerNumbers, verifyStructuredEvidence, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
+import { sanitizeChatAnswerText } from './chat-normalize';
 import type { ChatIntent } from './chat-intent';
 
 /**
@@ -58,13 +59,22 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
       try {
         const gate = createStreamGate(args.sources);
         let shown = '';
+        let rawStreamAnswer = '';
+        let cleanStreamAnswer = '';
 
         const result = await generateAIStream({
           system: args.system,
           prompt: args.prompt,
           timeoutMs: STREAM_TIMEOUT_MS,
           onDelta: (chunk) => {
-            const gated = gate.push(chunk);
+            rawStreamAnswer += chunk;
+            const nextClean = sanitizeChatAnswerText(rawStreamAnswer);
+            const releaseCandidate = nextClean.startsWith(cleanStreamAnswer)
+              ? nextClean.slice(cleanStreamAnswer.length)
+              : nextClean;
+            cleanStreamAnswer = nextClean;
+            if (!releaseCandidate) return;
+            const gated = gate.push(releaseCandidate);
             if (gated.release) {
               shown += gated.release;
               send({ t: 'delta', v: gated.release });
@@ -92,7 +102,7 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
         // Verifikasi ulang atas jawaban UTUH. Gerbang memeriksa per satuan; pemeriksaan
         // penutup ini menangkap angka yang baru bermasalah ketika dibaca sebagai satu
         // kesatuan, dan menjadi satu-satunya sumber untuk `routing.numberCheck`.
-        let answer = result.text;
+        let answer = sanitizeChatAnswerText(result.text);
         let numberCheck = verifyAnswerNumbers(answer, args.sources);
         let evidenceCheck = verifyStructuredEvidence(answer, args.sources);
 
@@ -116,10 +126,11 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
           });
 
           if (retry.text) {
-            const retryNumberCheck = verifyAnswerNumbers(retry.text, args.sources);
-            const retryEvidenceCheck = verifyStructuredEvidence(retry.text, args.sources);
+            const retryText = sanitizeChatAnswerText(retry.text);
+            const retryNumberCheck = verifyAnswerNumbers(retryText, args.sources);
+            const retryEvidenceCheck = verifyStructuredEvidence(retryText, args.sources);
             if (retryNumberCheck.unverified.length + retryEvidenceCheck.issues.length < numberCheck.unverified.length + evidenceCheck.issues.length) {
-              answer = retry.text;
+              answer = retryText;
               numberCheck = retryNumberCheck;
               evidenceCheck = retryEvidenceCheck;
             }

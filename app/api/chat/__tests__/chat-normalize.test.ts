@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getDeterministicSmallTalkResponse, normalizeChatText } from '../chat-normalize';
+import { getDeterministicSmallTalkResponse, normalizeChatText, sanitizeChatAnswerText } from '../chat-normalize';
 
 describe('LensAI safe normalization', () => {
   it.each([
@@ -23,5 +23,16 @@ describe('LensAI safe normalization', () => {
 
   it('sapaan yang sekaligus bertanya saham tidak masuk deterministic greeting', () => {
     expect(getDeterministicSmallTalkResponse(normalizeChatText('haloo ADRO bagus gak?'))).toBeNull();
+  });
+
+  it('menghapus blok reasoning <think> dari jawaban provider', () => {
+    expect(sanitizeChatAnswerText('<think>cek data dulu</think>Nilai wajar DGWG adalah Rp 448,83.'))
+      .toBe('Nilai wajar DGWG adalah Rp 448,83.');
+  });
+
+  it('menghapus tag think kosong atau parsial yang bocor saat streaming', () => {
+    expect(sanitizeChatAnswerText('<think></think>Jawaban siap')).toBe('Jawaban siap');
+    expect(sanitizeChatAnswerText('</think>Jawaban siap')).toBe('Jawaban siap');
+    expect(sanitizeChatAnswerText('Jawaban awal\n<think>reasoning belum selesai')).toBe('Jawaban awal\n');
   });
 });

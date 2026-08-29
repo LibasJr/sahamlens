@@ -26,6 +26,7 @@ import { getTickerName } from '@/lib/trendingTickers';
 import { apiRequest } from '@/shared/http/api-client';
 import { ApiErrorHint } from '@/components/ui/ApiErrorHint';
 import { trackJourneyEvent } from '@/shared/analytics/product-journey';
+import { sanitizeChatAnswerText } from '@/modules/ai/chat/chat-normalize';
 
 type ChatDataProvenance = {
   sourceLabel: string;
@@ -149,17 +150,18 @@ export default function AIChat() {
     let assistantMessageId: string | null = null;
 
     const paint = (text: string) => {
+      const sanitizedText = sanitizeChatAnswerText(text);
       setMessages(prev => {
         const next = [...prev];
         if (started && assistantMessageId) {
           const index = next.findIndex((message) => message.id === assistantMessageId);
           if (index >= 0) {
-            next[index] = { ...next[index], content: text };
+            next[index] = { ...next[index], content: sanitizedText };
             return next;
           }
         }
         assistantMessageId = makeMessageId();
-        return [...next, { id: assistantMessageId, role: 'assistant', content: text }];
+        return [...next, { id: assistantMessageId, role: 'assistant', content: sanitizedText }];
       });
       started = true;
     };
@@ -372,12 +374,12 @@ export default function AIChat() {
         if (data?.detailCode === 'NO_PROVIDER_CONFIGURED' || data?.detailCode === 'PROVIDER_AUTH_ERROR') {
           setPenyediaSiap(false);
         }
-        setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: safeMessage, supportRequestId }]);
+        setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: sanitizeChatAnswerText(safeMessage), supportRequestId }]);
         return;
       }
 
       setPenyediaSiap(true);
-      setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: data.content, routing: data.routing }]);
+      setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: sanitizeChatAnswerText(data.content), routing: data.routing }]);
     } catch (e) {
       setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.' }]);
     } finally {
