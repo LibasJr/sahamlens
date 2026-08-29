@@ -1,4 +1,5 @@
 const WIB_TIME_ZONE = 'Asia/Jakarta';
+const ISO_TIMESTAMP_PATTERN = /\b\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})\b/g;
 
 /**
  * Format timestamp untuk teks yang DILIHAT pengguna Indonesia.
@@ -28,6 +29,14 @@ export function formatWibDateTime(value: string | number | Date | null | undefin
   if (!byType.day || !byType.month || !byType.year || !byType.hour || !byType.minute) return null;
 
   return `${byType.day} ${byType.month} ${byType.year}, ${byType.hour}:${byType.minute} WIB`;
+}
+
+/**
+ * Mengubah ISO timestamp yang tertanam di blok teks user-facing, tanpa menyentuh tanggal
+ * polos seperti `2026-08-28` (tanggal perdagangan/as-of tetap punya arti sendiri).
+ */
+export function formatIsoTimestampsToWib(input: string): string {
+  return input.replace(ISO_TIMESTAMP_PATTERN, (raw) => formatWibDateTime(raw) ?? raw);
 }
 
 export { WIB_TIME_ZONE };
