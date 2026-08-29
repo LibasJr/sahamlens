@@ -2,7 +2,7 @@ import type { HttpResult } from '@/shared/types/http-result.types';
 import type { AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { generateAIResult } from '@/lib/aiProviders';
 import { resolveConversationTickers } from './extract-ticker';
-import { normalizeChatText, getDeterministicSmallTalkResponse } from './chat-normalize';
+import { normalizeChatText, getDeterministicSmallTalkResponse, sanitizeChatAnswerText } from './chat-normalize';
 import { resolveChatDate } from './chat-date';
 import { classifyChatIntent } from './chat-intent';
 import { buildChatVerifiedData, summarizeChatDataProvenance } from './chat-data-router';
@@ -134,7 +134,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     }, { status: failure.status });
   }
 
-  let answer = aiResult.text;
+  let answer = sanitizeChatAnswerText(aiResult.text);
   let numberCheck = verifyAnswerNumbers(answer, verificationSources);
   if (!numberCheck.ok) {
     console.warn('[LensAI:verify] angka tidak tertelusur', { intent: classification.intent, unverified: numberCheck.unverified });
@@ -146,9 +146,10 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
       timeoutMs: 10000,
     });
     if (retry.text) {
-      const retryCheck = verifyAnswerNumbers(retry.text, verificationSources);
+      const retryText = sanitizeChatAnswerText(retry.text);
+      const retryCheck = verifyAnswerNumbers(retryText, verificationSources);
       if (retryCheck.unverified.length < numberCheck.unverified.length) {
-        answer = retry.text;
+        answer = retryText;
         numberCheck = retryCheck;
       }
     }
