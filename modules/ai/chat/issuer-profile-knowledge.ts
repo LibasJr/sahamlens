@@ -21,7 +21,7 @@ const ISSUER_PROFILE_WITH_INTERLEAVED_TICKER = /\b(?:bisnis(?:nya)?|usaha(?:nya)
 // "ANTM jual apa?" berarti menanyakan produk yang dijual perusahaan, bukan rekomendasi
 // SELL. Bentuk trading harus membawa konteks eksplisit seperti "jual sekarang",
 // "layak dibeli", RSI, fundamental, target harga, dan sebagainya.
-const ISSUER_PROFILE_ANALYSIS_QUERY = /\b(?:fundamental|teknikal|analisis|valuasi|nilai\s+wajar|prospek|risiko|rsi|macd|support|resistance|target(?:\s+harga)?|entry|take\s*profit|stop\s*loss|cut\s*loss|p\/?e|per|pbv|roe|der|dividen|lens\s*score|lensscore|rekomendasi|layak\s+(?:dibeli|dijual)|sebaiknya\s+(?:beli|jual)|mending\s+(?:beli|jual)|(?:beli|jual)\s+(?:sekarang|kapan|di\s+harga))\b/;
+const ISSUER_PROFILE_ANALYSIS_QUERY = /\b(?:fundamental(?:nya)?|teknikal|analisis|valuasi|nilai\s+wajar|prospek|risiko|rsi|macd|support|resistance|target(?:\s+harga)?|entry|take\s*profit|stop\s*loss|cut\s*loss|p\/?e|per|pbv|roe|der|dividen|lens\s*score|lensscore|rekomendasi|layak\s+(?:dibeli|dijual)|sebaiknya\s+(?:beli|jual)|mending\s+(?:beli|jual)|(?:beli|jual)\s+(?:sekarang|kapan|di\s+harga))\b/;
 
 export function asksAboutIssuerProfile(prompt: string): boolean {
   const normalized = normalizeChatText(prompt);
