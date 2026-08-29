@@ -68,7 +68,7 @@ export default async function AdminOwnershipFlowPage() {
         Kembali ke Admin
       </Link>
 
-      <h1 className="font-heading text-2xl font-bold text-tv-text">Ownership Flow &mdash; Status Ingestion</h1>
+      <h1 className="font-heading text-2xl font-bold text-tv-text">Arus Kepemilikan &mdash; Status Data</h1>
       <p className="mt-1 text-sm text-tv-muted">
         Komposisi kepemilikan lokal/asing dari sumber kustodian resmi. Modul terpisah dari Broker Summary.
       </p>

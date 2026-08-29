@@ -14,17 +14,17 @@ const classify = (prompt: string) => classifyChatIntent({
 
 describe('LensAI product help - fitur baru SahamLens', () => {
   const productQuestions = [
-    'Intraday Validation Lab itu apa?',
-    'cara pakai TP/CL Validation Lab gimana?',
-    'LensRadar Calibration Lab fungsinya apa?',
-    'Fundamental Backfill cara pakainya bagaimana?',
-    'Financial Integrity & Adoption Gate itu buat apa?',
-    'Macro PIT & Valuation Inputs itu apa?',
-    'Bank Fundamentals Evidence cara kerjanya gimana?',
-    'Ownership Flow Validation Lab itu apa?',
+    'Uji Intraday itu apa?',
+    'cara pakai Uji Target & Cut Loss gimana?',
+    'Uji Akurasi LensRadar fungsinya apa?',
+    'Impor Histori Fundamental cara pakainya bagaimana?',
+    'Pemeriksaan Data Keuangan itu buat apa?',
+    'Bukti Data Makro itu apa?',
+    'Bukti Fundamental Bank cara kerjanya gimana?',
+    'Uji Arus Kepemilikan itu apa?',
     'Broker Summary fungsinya apa?',
     'Kesehatan Operasional menu apa?',
-    'Feedback LensAI gunanya apa?',
+    'Masukan LensAI gunanya apa?',
   ];
 
   it.each(productQuestions)('merutekan product-help: %s', (prompt) => {
@@ -32,15 +32,15 @@ describe('LensAI product help - fitur baru SahamLens', () => {
   });
 
   it('membedakan fokus Intraday dari calibration T+20', () => {
-    const block = getFocusedMenuKnowledge('cara pakai Intraday Validation Lab?');
-    expect(block).toContain('Intraday Validation Lab');
+    const block = getFocusedMenuKnowledge('cara pakai Uji Intraday?');
+    expect(block).toContain('Uji Intraday');
     expect(block).toContain('15/30/60 menit');
     expect(block).toContain('terpisah dari T+20');
   });
 
   it('membedakan Ownership Flow dari broker transaction', () => {
-    const block = getFocusedMenuKnowledge('Ownership Flow itu apa?');
-    expect(block).toContain('Ownership Flow');
+    const block = getFocusedMenuKnowledge('Arus Kepemilikan itu apa?');
+    expect(block).toContain('Arus Kepemilikan');
     expect(block).toContain('Bukan broker flow');
     expect(block).toContain('tidak ikut LensScore');
   });
@@ -72,9 +72,9 @@ describe('LensAI product help - fitur baru SahamLens', () => {
     expect(answer).toContain('Batasan');
   });
 
-  it('tidak mencampur TP/CL Validation Lab dengan LensTechnical', () => {
-    const answer = getDeterministicProductHelpResponse('cara pakai TP/CL Validation Lab?');
-    expect(answer).toContain('TP/CL Validation Lab');
+  it('tidak mencampur Uji Target & Cut Loss dengan LensTechnical', () => {
+    const answer = getDeterministicProductHelpResponse('cara pakai Uji Target & Cut Loss?');
+    expect(answer).toContain('Uji Target & Cut Loss');
     expect(answer).toContain('expectancy');
     expect(answer).not.toContain('LensTechnical');
   });

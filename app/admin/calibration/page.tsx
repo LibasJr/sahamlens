@@ -27,11 +27,11 @@ export default async function AdminCalibrationPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
               <h1 className="font-heading text-2xl sm:text-3xl font-bold text-tv-text">
-                LensRadar Calibration Lab
+                Uji Akurasi LensRadar
               </h1>
               <p className="text-sm text-tv-muted mt-2 max-w-3xl">
-                Validasi apakah skor tinggi benar-benar memberi edge T+20, lalu simulasi dampak
-                perubahan ambang rekomendasi terhadap win rate dan jumlah sinyal. Semua angka berasal
+                Validasi apakah skor tinggi benar-benar lebih baik di T+20, lalu simulasi dampak
+                perubahan ambang pantauan terhadap win rate dan jumlah sinyal. Semua angka berasal
                 dari histori real `lens_radar_history` dan hasil cron `lens_bucket_stats`.
               </p>
             </div>
