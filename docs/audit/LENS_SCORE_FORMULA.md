@@ -384,7 +384,7 @@ menampilkan kelengkapan datanya.
 
 1. **Belum tervalidasi out-of-sample.** Status model `RESEARCH_ONLY`. Angka backtest dan
    p-value bersifat indikatif dan tidak boleh dibaca sebagai bukti keunggulan.
-2. **Arus dana memakai IDX official foreign flow**, bukan Broker Summary dan bukan CMF proxy (§2.3).
+2. **Arus dana memakai IDX official foreign flow**, bukan Broker Summary dan bukan CMF proxy (§2.3). Bias interpretasi pada emiten kecil/tipis ditangani di layer presentasi melalui flag `Foreign-flow active`, `Domestic-driven`, atau `Foreign-flow sparse`; flag ini tidak mengubah bobot LensScore.
 3. **Bobot 40/30/30 belum dioptimasi out-of-sample.** Ia keputusan desain, bukan hasil
    pencarian. `lens-score-optimizer.service.ts` mengusulkan alternatif, tapi usulannya
    belum pernah dipromosikan jadi bobot produksi.
