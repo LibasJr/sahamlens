@@ -1,6 +1,7 @@
 import type { HttpResult } from '@/shared/types/http-result.types';
 import type { AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { generateAIResult } from '@/lib/aiProviders';
+import { formatWibDateTime } from '@/shared/time/format-wib';
 import { resolveConversationTickers } from './extract-ticker';
 import { normalizeChatText, getDeterministicSmallTalkResponse, sanitizeChatAnswerText } from './chat-normalize';
 import { resolveChatDate } from './chat-date';
@@ -103,7 +104,17 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     }
   }
 
-  const dataProvenance = summarizeChatDataProvenance(verified.verifiedBlock);
+  // Timestamp internal tetap ISO/UTC untuk konsistensi backend. Hanya metadata yang
+  // dikirim ke UI yang diformat ke WIB agar pengguna tidak melihat raw `...Z`.
+  const rawDataProvenance = summarizeChatDataProvenance(verified.verifiedBlock);
+  const dataProvenance = rawDataProvenance
+    ? {
+        ...rawDataProvenance,
+        timestamp: rawDataProvenance.timestamp
+          ? (formatWibDateTime(rawDataProvenance.timestamp) ?? rawDataProvenance.timestamp)
+          : null,
+      }
+    : null;
 
   if (verified.directResponse) {
     return json({
