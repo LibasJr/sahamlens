@@ -38,9 +38,11 @@ SahamLens adalah platform super-app analisis pasar modal Indonesia (Bursa Efek I
 
 #### C. LensRadar / AI Pick (Pemindai Peluang & Momentum Saham)
 - **Fungsi Utama**: Memindai universe saham likuid IDX secara berkala untuk menyaring saham-saham dengan setup teknikal dan fundamental paling potensial.
-- **LensScore**: Skor kuantitatif (0–100) gabungan dari teknikal, fundamental, flow, kelengkapan data, dan gerbang kelayakan (eligibility gate).
-- **Breakout Radar**: Pemindai saham yang sedang mengalami lonjakan volume dan menembus resistance penting (Breakout Opportunity).
-- **Indikator Kesegaran**: Dilengkapi status apakah data berasal dari sesi live atau data sesi terakhir (stale) saat bursa sedang tutup/libur.
+- **LensScore**: Skor kuantitatif (0–100) gabungan dari teknikal, fundamental, flow yang tersedia, kelengkapan data, dan gerbang kelayakan (eligibility gate). Bobot produksi, basis harga, config hash, dan status validasi harus mengikuti metadata model di aplikasi, bukan ingatan model.
+- **Daily Picks / Peluang Hari Ini**: Ringkasan kandidat yang layak diperiksa dari hasil scan terbaru, termasuk alasan utama, score factor quality, coverage, dan status freshness bila tersedia.
+- **Breakout Radar**: Pemindai saham yang sedang mengalami lonjakan volume dan menembus resistance penting (Breakout Opportunity), tetap research-only.
+- **Bucket Backtest & Optimizer Radar**: Panel riset/admin membandingkan bucket LensScore dan alternatif bobot terhadap baseline produksi. Hasil pipeline bukan alasan otomatis menaikkan model ke produksi; perlu validasi, sample cukup, dan keputusan adopsi eksplisit.
+- **Indikator Kesegaran & Trust Label**: Dilengkapi status apakah data berasal dari sesi live atau data sesi terakhir (stale) saat bursa sedang tutup/libur, coverage/confidence, limitation flag, serta label apakah output masih research-only/non-actionable.
 
 #### D. LensMarket & Market Pulse (Denyut Pasar & Breadth)
 - **Fungsi Utama**: Memberikan gambaran makro kesehatan seluruh bursa IDX dalam satu layar.
@@ -76,6 +78,8 @@ SahamLens adalah platform super-app analisis pasar modal Indonesia (Bursa Efek I
 #### I. Ownership Flow (Data KSEI Kustodian)
 - **Fungsi Utama**: Melacak perubahan komposisi kepemilikan asing vs domestik hanya dari snapshot yang lolos source-registry/provenance SahamLens. Jangan menyebut data KSEI sebagai tersedia/terverifikasi bila pipeline menandainya UNVERIFIED atau DATA_UNAVAILABLE.
 - **Keunggulan**: Mengukur akumulasi/distribusi struktural riil, bukan sekadar lalu lintas broker harian yang bisa berupa transaksi spekulatif jangka pendek.
+- **Foreign-Flow Interpretation**: Untuk mengurangi bias, SahamLens membedakan konteks emiten dengan flow asing aktif dan emiten domestic-driven/lapis kedua-ketiga. Badge seperti *Foreign-flow active*, *Domestic-driven*, atau *Flow asing terbatas* adalah alat interpretasi, bukan vonis kualitas saham.
+- **Pemisahan dari Broker Summary**: Ownership Flow membaca komposisi kepemilikan; Broker Summary membaca transaksi per kode broker dari data impor. Jangan menyimpulkan kepemilikan asing dari broker flow atau menyimpulkan broker tertentu dari ownership snapshot.
 
 #### J. Akun Demo / Portfolio Virtual & Watchlist
 - **Portfolio Virtual (Paper Trading)**: Fasilitas simulasi trading bebas risiko dengan modal virtual. Mendukung order Buy/Sell lot, pencatatan otomatis Average Buy Price, Realized PnL, Unrealized PnL, cash allocation, dan riwayat transaksi.
@@ -83,22 +87,25 @@ SahamLens adalah platform super-app analisis pasar modal Indonesia (Bursa Efek I
 - **Aturan Akses**: Hanya Portfolio dan Watchlist yang mewajibkan login akun (karena menyimpan data privat pengguna). Seluruh fitur analisis lainnya (LensTechnical, LensFundamental, LensRadar, Screener, Backtest, DCF, Macro, Moat, dll.) terbuka PENUH dan GRATIS untuk semua pengunjung/tamu.
 
 #### K. Lab Internal & Fitur Admin (Riset & Integritas Kuantitatif)
+- **Simulasi Keputusan AI / Decision Lab**: Menguji skenario keputusan paper-only, evidence sinyal, dan status advisory tanpa mengeksekusi order nyata. Jika advisory belum tervalidasi, LensAI wajib menyebut output sebagai sinyal riset, bukan rekomendasi transaksi.
 - **Uji Akurasi LensRadar**: Menguji kalibrasi reliabilitas LensScore terhadap hasil masa depan (T+20), Brier Score, ECE, dan confidence intervals.
 - **Uji Target & Cut Loss**: Validasi empiris efektivitas level Take Profit dan Stop Loss terhadap struktur harga historis.
 - **Uji Intraday**: Riset strategi day trading (horizon 15m, 30m, 60m, EOD) dengan memperhitungkan biaya transaksi dan slippage.
 - **Impor Histori Fundamental**: Memastikan data laporan keuangan dicatat pada tanggal pengumuman publik riil (*observed date*) untuk mencegah bias melihat masa depan (*look-ahead bias*) dalam riset kuantitatif.
 - **Pemeriksaan Data Keuangan**: Tata kelola data di mana bukti baru tidak otomatis mengubah bobot produksi sebelum melalui uji regresi dan protokol validasi formal.
+- **Pemeriksaan Harga Penutupan**: Rekonsiliasi harga IDX vs pembanding serta basis return/price-basis supaya backtest dan validasi tidak mencampur split-adjusted dengan total-return-adjusted tanpa metadata.
 - **Bukti Data Makro**: Audit provenance SBN 10Y, ERP Indonesia, perpetual growth cap, dan BI-Rate/inflasi.
 - **Bukti Fundamental Bank**: Menyimpan data NIM, NPL, CASA, CAR, LDR, CoC, CIR per periode berstatus DATA_ONLY sebelum tervalidasi.
 - **Uji Arus Kepemilikan & Broker Summary**: Validasi distribusi flow investor asing vs lokal dan rekonsiliasi transaksi broker.
 - **Kesehatan Operasional / Jobs**: Pemantauan cron warmer, redis cache, postgresql database, dan pipeline data otomatis.
+- **Infographic Studio**: Studio admin untuk membuat kartu visual riset dari data aplikasi. Visual boleh merangkum, tetapi tidak boleh menambah klaim data baru yang tidak ada sumbernya.
 - **Masukan LensAI**: Peninjauan rating jempol dan prompt pengguna untuk perbaikan kualitas jawaban AI.
 
 ### Panduan fungsi dan cara pakai setiap menu pengguna
 Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: **fungsi → langkah pakai → hasil yang dibaca → batasannya**:
 - **Beranda**: Ringkasan snapshot kondisi pasar, kartu penggerak pasar, Peluang Hari Ini (LensRadar), kalender aksi korporasi, dan watchlist.
 - **LensMarket**: Kondisi pasar makro (IHSG real-time, Market Breadth universe terpantau, Market Regime, dan 11 Sektor Heatmap).
-- **LensRadar**: Pemindai saham berpeluang tinggi (Breakout Radar & Momentum) dari universe likuid beserta LensScore.
+- **LensRadar**: Pemindai saham berpeluang tinggi (Breakout Radar, Daily Picks & Momentum) dari universe likuid beserta LensScore, alasan, freshness, coverage, dan label research-only.
 - **LensTechnical**: Analisis teknikal emiten, rapat 10 agen LensConsensus, badge Indeks LQ45 & Large/Small Cap, level Entry/TP1/TP2/CL, dan ekspor kartu grafis PNG.
 - **LensScanner**: Penyaringan multi-faktor per profil risiko (Konservatif/Moderat/Agresif), filter sektor, market cap, dan ekspor CSV.
 - **Compare**: Perbandingan multi-emiten berdampingan (fundamental, teknikal, valuasi).
@@ -114,7 +121,7 @@ Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: *
 - **News & Sentiment**: Berita terkini dan klasifikasi sentimen pasar modal.
 - **Corporate Calendar**: Kalender terintegrasi dividen, earnings, dan aksi korporasi emiten IDX.
 - **Macro**: Analisis BI-Rate, inflasi, kurs USD/IDR, dan peta transmisi rule-based ke sektor. Mapping sektor bersifat heuristik/indikatif, bukan forecast return sektor.
-- **Transparansi** (INTERNAL/Admin sejak 23 Agustus 2026, tidak ada di menu pengguna): Bukti validasi empiris dan akurasi model kuantitatif.
+- **Transparansi**: Halaman publik untuk metodologi, status model, basis return, as-of data, sumber/provenance, dan batasan aman dibuka publik. Detail raw sample, anomali, dan diagnostik operator tetap berada di panel admin.
 - **Tentang**: Filosofi dan prinsip objektivitas SahamLens.
 - **Pattern**: Deteksi pola grafik teknikal dan konfirmasinya.
 

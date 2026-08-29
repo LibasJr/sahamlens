@@ -25,6 +25,11 @@ describe('LensAI product help - fitur baru SahamLens', () => {
     'Broker Summary fungsinya apa?',
     'Kesehatan Operasional menu apa?',
     'Masukan LensAI gunanya apa?',
+    'Daily Picks itu apa?',
+    'Transparansi model itu buat apa?',
+    'Decision Lab cara pakainya bagaimana?',
+    'Infographic Studio gunanya apa?',
+    'Coverage dan provenance maksudnya apa di SahamLens?',
   ];
 
   it.each(productQuestions)('merutekan product-help: %s', (prompt) => {
@@ -49,6 +54,27 @@ describe('LensAI product help - fitur baru SahamLens', () => {
     const block = getFocusedMenuKnowledge('fungsi Broker Summary apa?');
     expect(block).toContain('Broker Summary');
     expect(block).toContain('belum memengaruhi LensScore');
+  });
+
+  it('menjelaskan transparansi publik tanpa mengarahkannya ke panel internal saja', () => {
+    const answer = getDeterministicProductHelpResponse('Transparansi model itu buat apa?');
+    expect(answer).toContain('Transparansi');
+    expect(answer).toContain('aman dibuka publik');
+    expect(answer).toContain('detail raw sample tetap ada di admin');
+  });
+
+  it('menjelaskan Daily Picks sebagai bagian dari LensRadar yang research-only', () => {
+    const answer = getDeterministicProductHelpResponse('Daily Picks itu apa?');
+    expect(answer).toContain('LensRadar');
+    expect(answer).toContain('peluang harian');
+    expect(answer).toContain('research-only');
+  });
+
+  it('menjelaskan Decision Lab sebagai paper-only dan bukan order nyata', () => {
+    const answer = getDeterministicProductHelpResponse('Decision Lab cara pakainya bagaimana?');
+    expect(answer).toContain('Simulasi Keputusan AI');
+    expect(answer).toContain('paper-only');
+    expect(answer).toContain('tidak mengeksekusi order nyata');
   });
 
   it.each([

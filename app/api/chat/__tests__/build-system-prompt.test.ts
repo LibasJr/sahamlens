@@ -51,11 +51,30 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('Corporate Calendar');
   });
 
+  it('memuat knowledge fitur baru tanpa overclaim breadth sebagai indeks resmi', () => {
+    const prompt = buildSystemPrompt('', false);
+    expect(prompt).toContain('Daily Picks');
+    expect(prompt).toContain('Explainability & Provenance');
+    expect(prompt).toContain('coverage');
+    expect(prompt).toContain('Market Breadth universe terpantau SahamLens');
+    expect(prompt).toContain('bukan indeks resmi Kompas100/IDX80');
+    expect(prompt).not.toContain('setara Kompas 100 & IDX80');
+  });
+
   it('memaksa gaya jawaban langsung, substantif, dan tidak bertele-tele', () => {
     const prompt = buildSystemPrompt('', false);
     expect(prompt).toContain('Mulai dengan jawaban inti dalam 1-2 kalimat');
     expect(prompt).toContain('Jangan mengulang data yang sama');
     expect(prompt).toContain('maksimal 3 bullet');
+  });
+
+  it('memaksa jawaban grounded pada konteks SahamLens dan mudah dipahami', () => {
+    const prompt = buildSystemPrompt('', false);
+    expect(prompt).toContain('Jawaban HARUS tetap di dalam konteks SahamLens');
+    expect(prompt).toContain('DILARANG menambah fakta emiten, angka, status fitur');
+    expect(prompt).toContain('Kalau konteks tidak memuat jawabannya, katakan belum tersedia');
+    expect(prompt).toContain('Buat cara jawab user-friendly');
+    expect(prompt).toContain('istilah teknis langsung diberi arti praktis');
   });
 
   it('memaksa LensAI memakai pola trust untuk skor, backtest, dan data yang belum tersedia', () => {
