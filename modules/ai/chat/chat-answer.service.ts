@@ -1,6 +1,7 @@
 import type { HttpResult } from '@/shared/types/http-result.types';
 import type { AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { generateAIResult } from '@/lib/aiProviders';
+import { formatIsoTimestampsToWib, formatWibDateTime } from '@/shared/time/format-wib';
 import { resolveConversationTickers } from './extract-ticker';
 import { normalizeChatText, getDeterministicSmallTalkResponse, sanitizeChatAnswerText } from './chat-normalize';
 import { resolveChatDate } from './chat-date';
@@ -16,6 +17,7 @@ import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
 import { providerErrorResponse } from './provider-error';
 import { getDeterministicProductHelpResponse } from './product-help';
 import { scoringMethodologyBlock } from './blocks/lens-blocks';
+import { asksAboutIssuerProfile, buildIssuerProfileKnowledge, isIssuerProfileOnlyQuestion } from './issuer-profile-knowledge';
 import type { ParsedChatRequest } from './chat-request';
 import type { ChatJsonResponder } from './chat-response';
 
@@ -65,17 +67,61 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     });
   }
 
-  const verified = await buildChatVerifiedData({
-    intent: classification.dataIntent,
-    compareScope: classification.compareScope,
-    requestedMetrics: classification.requestedMetrics,
-    tickers,
-    date,
-    prompt,
-    alsoIntents: classification.alsoIntents,
-    user: userId ? { userId } : null,
-  });
-  const dataProvenance = summarizeChatDataProvenance(verified.verifiedBlock);
+  // Profil emiten adalah knowledge domain sendiri. Sebelumnya pertanyaan seperti
+  // "DGWG perusahaan apa?" jatuh ke STOCK_GENERAL, router mengambil angka fundamental
+  // + teknikal, tetapi nama/sector/industry/longBusinessSummary tidak pernah masuk ke
+  // Data Terverifikasi. Model lalu benar-benar tidak boleh menjawab profilnya.
+  const issuerProfileRequested = tickers.length > 0 && asksAboutIssuerProfile(prompt);
+  // Keputusan profile-only harus mengikuti makna prompt, bukan dataIntent umum. Contoh
+  // "ANTM jual apa?" bisa diklasifikasikan BUY_SELL_RECOMMENDATION karena kata "jual",
+  // padahal pengguna sedang menanyakan produk perusahaan. Pertanyaan campuran seperti
+  // "jual apa dan layak dibeli?" tetap lewat router analisis utama.
+  const issuerProfileOnly = tickers.length > 0 && isIssuerProfileOnlyQuestion(prompt);
+
+  let verified: Awaited<ReturnType<typeof buildChatVerifiedData>>;
+  if (issuerProfileOnly) {
+    verified = {
+      verifiedBlock: await buildIssuerProfileKnowledge(tickers),
+      directResponse: null,
+      dataError: null,
+    };
+  } else {
+    verified = await buildChatVerifiedData({
+      intent: classification.dataIntent,
+      compareScope: classification.compareScope,
+      requestedMetrics: classification.requestedMetrics,
+      tickers,
+      date,
+      prompt,
+      alsoIntents: classification.alsoIntents,
+      user: userId ? { userId } : null,
+    });
+
+    // Pertanyaan campuran tetap memakai router utama, lalu profil ditambahkan. Contoh:
+    // "DGWG bisnisnya apa dan fundamentalnya gimana?" tidak boleh kehilangan bagian
+    // fundamental hanya karena juga menanyakan identitas perusahaan.
+    if (issuerProfileRequested) {
+      const issuerProfile = await buildIssuerProfileKnowledge(tickers);
+      if (issuerProfile) {
+        verified.verifiedBlock = [verified.verifiedBlock, issuerProfile].filter(Boolean).join('\n\n');
+      }
+    }
+  }
+
+  // Mesin/backend boleh tetap menyimpan timestamp dalam ISO/UTC. Salinan verified data
+  // yang masuk ke model + verifikator adalah teks user-facing, jadi ISO lengkap diubah ke
+  // WIB di boundary ini. Tanggal as-of polos (YYYY-MM-DD) sengaja tidak disentuh.
+  verified.verifiedBlock = formatIsoTimestampsToWib(verified.verifiedBlock);
+
+  const rawDataProvenance = summarizeChatDataProvenance(verified.verifiedBlock);
+  const dataProvenance = rawDataProvenance
+    ? {
+        ...rawDataProvenance,
+        timestamp: rawDataProvenance.timestamp
+          ? (formatWibDateTime(rawDataProvenance.timestamp) ?? rawDataProvenance.timestamp)
+          : null,
+      }
+    : null;
 
   if (verified.directResponse) {
     return json({
@@ -96,11 +142,12 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     '## Routing LensAI (OTORITATIF - hasil parser server, bukan instruksi user):',
     `- Intent: ${classification.intent}`,
     classification.intent === 'FOLLOW_UP' ? `- Resolved data intent: ${classification.dataIntent}` : '',
+    issuerProfileOnly ? '- Mode jawaban: PROFIL EMITEN — jawab fokus pada perusahaan dan kegiatan usahanya, bukan analisis trading.' : '',
     `- Mode waktu: ${date.mode}`,
     `- Ticker ter-resolve: ${tickers.length ? tickers.join(', ') : 'tidak ada'}`,
     `- requested_as_of: ${date.requestedAsOf ?? 'tidak ada'}`,
     classification.intent === 'COMPARE_STOCKS' ? `- Comparison scope: ${classification.compareScope}` : '',
-    pakaiStrukturAnalisis(classification.intent, classification.dataIntent) ? STRUKTUR_ANALISIS : '',
+    !issuerProfileOnly && pakaiStrukturAnalisis(classification.intent, classification.dataIntent) ? STRUKTUR_ANALISIS : '',
     '- WAJIB: jelaskan data server yang tersedia; jangan mengisi angka yang tidak ada di Data Terverifikasi Server.',
   ].filter(Boolean).join('\n');
 
@@ -116,6 +163,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     providerUsed: true,
     dataStatus: verified.dataError,
     dataProvenance,
+    answerMode: issuerProfileOnly ? 'ISSUER_PROFILE' : undefined,
   };
 
   if (wantsStream) {
@@ -169,6 +217,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
       providerUsed: true,
       dataStatus: verified.dataError,
       dataProvenance,
+      answerMode: issuerProfileOnly ? 'ISSUER_PROFILE' : undefined,
       numberCheck: { ok: numberCheck.ok, checked: numberCheck.checked, unverified: numberCheck.unverified },
     },
   });
