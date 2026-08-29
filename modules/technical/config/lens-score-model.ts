@@ -1,4 +1,5 @@
 import { LENS_SCORE_WEIGHTS } from '@/shared/constants/lens-score-weights';
+import { RETURN_PRICE_BASIS, TRADING_PRICE_BASIS } from '@/shared/market/price-basis';
 import { CONSENSUS_DIMENSION_WEIGHTS } from '../service/consensus.service';
 import { CONSENSUS_VOTE_THRESHOLDS, SCORING_KATEGORI_THRESHOLDS } from '../service/decision-thresholds';
 
@@ -11,10 +12,10 @@ export const LENS_SCORE_MODEL_SPEC = {
   id: 'lens-score',
   // Sama persis dengan SCORE_VERSION arsip LensRadar; satu model tidak boleh punya
   // dua nama versi berbeda di API live dan dataset validasi.
-  version: 'lens-score-v1.6.0',
+  version: 'lens-score-v1.6.1',
   status: 'RESEARCH_ONLY' as const,
-  returnPriceBasis: 'SPLIT_ADJUSTED',
-  tradingPriceBasis: 'RAW',
+  returnPriceBasis: RETURN_PRICE_BASIS,
+  tradingPriceBasis: TRADING_PRICE_BASIS,
   flowSource: 'IDX_OFFICIAL_FOREIGN_FLOW',
   indicatorParameters: {
     rsiPeriod: 14,

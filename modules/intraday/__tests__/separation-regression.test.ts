@@ -40,7 +40,7 @@ describe('bobot produksi tidak berubah', () => {
 
 describe('versi & konstanta LensScore T+20 tidak berubah', () => {
   it('versi model produksi tetap', () => {
-    expect(SCORE_VERSION).toBe('lens-score-v1.6.0');
+    expect(SCORE_VERSION).toBe('lens-score-v1.6.1');
     expect(VALUATION_VERSION).toBe('valuation-v1.3.0');
     expect(SIGNAL_VERSION).toBe('lens-radar-signal-v1.3.0');
     expect(DATA_SNAPSHOT_VERSION).toBe('lens-radar-history-v1.3.0');

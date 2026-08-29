@@ -3,8 +3,8 @@
 | | |
 |---|---|
 | Model | `lens-score` |
-| Versi | `lens-score-v1.6.0` |
-| Config hash | `fnv1a32-2b2f012f` |
+| Versi | `lens-score-v1.6.1` |
+| Config hash | `fnv1a32-679c0ab6` |
 | Status | **RESEARCH_ONLY** — bukan nasihat investasi, belum tervalidasi out-of-sample |
 | Sumber kebenaran | `modules/technical/service/scoring.service.ts` |
 | Dijaga oleh | `modules/technical/service/__tests__/lens-score-snapshot.test.ts` |
@@ -60,9 +60,9 @@ kurang dari 200 bar; rata-rata seadanya yang dilabeli MA200 tidak diterima.
 | Sideways / tidak ada tren jelas | 3 |
 | `P < MA20 < MA50 < MA200` (downtrend penuh) | 0 |
 
-Harga dan MA **wajib satu basis harga** (keduanya raw, atau keduanya adjusted). Kalau
-basisnya tidak diketahui atau bersilangan, komponen ini fail-closed menjadi tidak
-tersedia — bukan dinilai nol.
+Harga dan MA **wajib satu basis harga**. Jalur scoring produksi memakai
+`TOTAL_RETURN_ADJUSTED` untuk harga dan MA. Kalau basisnya tidak diketahui atau
+bersilangan, komponen ini fail-closed menjadi tidak tersedia — bukan dinilai nol.
 
 **RSI(14) — maks 8.** Ditafsirkan menurut rezim tren, bukan pita tetap. RSI > 78 selalu 0
 di rezim mana pun.
@@ -201,7 +201,7 @@ dan perbedaannya penting: lihat §3.
 
 ### 2.3 Arus Dana Asing IDX (30)
 
-Sumber flow LensScore v1.6.0 adalah **IDX official foreign flow per emiten** dari
+Sumber flow LensScore v1.6.1 adalah **IDX official foreign flow per emiten** dari
 `IDX_OFFICIAL_API`: ForeignBuy dan ForeignSell yang dicatat Bursa. CMF/Yahoo-derived flow
 tidak lagi dipakai sebagai input skor. Kalau artefak IDX belum tersedia atau tidak valid,
 kelompok flow menjadi `DATA TIDAK TERSEDIA` dan coverage turun.
@@ -209,6 +209,17 @@ kelompok flow menjadi `DATA TIDAK TERSEDIA` dan coverage turun.
 Broker Summary tidak dipakai di LensScore ini.
 
 **Besaran tekanan net asing IDX 20D — maks 20.**
+
+Definisi penyebut produksi:
+
+```
+net_foreign_pressure_20d =
+  Σ(ForeignBuy - ForeignSell) / Σ(ForeignBuy + ForeignSell) × 100
+```
+
+Penyebutnya adalah total turnover asing 20 hari, bukan volume pasar, value transaksi,
+atau market cap. Tekanan hari terakhir memakai penyebut yang sama untuk satu hari:
+`(ForeignBuy - ForeignSell) / (ForeignBuy + ForeignSell) × 100`.
 
 | Net foreign pressure 20D | Poin |
 |---|---|
@@ -326,8 +337,56 @@ menyembunyikan perbedaan nyata di balik angka yang kelihatan konsisten.
 | OBV slope | 10 hari |
 | Sumber flow skor | `IDX_OFFICIAL_FOREIGN_FLOW` |
 | Rata-rata volume | 20 hari |
-| Basis harga untuk imbal hasil | `SPLIT_ADJUSTED` |
-| Basis harga untuk level trading | `RAW` |
+| Basis harga untuk imbal hasil | `TOTAL_RETURN_ADJUSTED` |
+| Basis harga untuk level trading | `SPLIT_ADJUSTED` |
+
+---
+
+## 5A. Appendix valuasi dan sektor
+
+Bagian ini hanya membuka parameter yang sudah dipakai kode; tidak mengubah skor.
+
+**`scoreMultipleRatio(wajar / aktual)` — 0 sampai 5**
+
+| Rasio wajar / aktual | Poin | Label |
+|---|---:|---|
+| ≥ 1,30 | 5 | Diskon besar |
+| 1,05–1,30 | 4 | Di bawah wajar |
+| 0,90–1,05 | 3 | Wajar |
+| 0,70–0,90 | 2 | Di atas wajar |
+| 0,50–0,70 | 1 | Premium |
+| < 0,50 | 0 | Premium besar |
+
+**Asumsi makro valuasi**
+
+| Parameter | Nilai | Catatan |
+|---|---:|---|
+| Risk-free proxy / SBN 10Y | 6,7% | Asumsi statis, terakhir ditinjau manusia `2026-08-03` |
+| Equity risk premium Indonesia | 5,2% | Asumsi statis |
+| Batas pertumbuhan perpetuitas | 5,0% | Mencegah penyebut `r - g` terlalu kecil |
+| Beta emiten | clamp 0,4–2,0 | Jika beta emiten tidak tersedia, pakai beta acuan sektor |
+
+Sumber kode: `modules/fundamental/service/fair-multiples.service.ts`.
+
+**Pita DER per sektor**
+
+| Sektor | Konservatif | Sehat | Agak tinggi | Beta acuan |
+|---|---:|---:|---:|---:|
+| Keuangan & Perbankan | N/A | N/A | N/A | 1,1 |
+| Energi | 0,5x | 1,0x | 2,0x | 1,2 |
+| Barang Baku | 0,5x | 1,2x | 2,2x | 1,2 |
+| Konsumen Primer | 0,4x | 0,9x | 1,8x | 0,8 |
+| Konsumen Sekunder | 0,5x | 1,1x | 2,0x | 1,0 |
+| Kesehatan | 0,4x | 0,9x | 1,8x | 0,8 |
+| Teknologi | 0,4x | 1,0x | 2,0x | 1,3 |
+| Infrastruktur & Utilitas | 0,8x | 1,8x | 3,0x | 0,9 |
+| Properti & Real Estat | 0,8x | 1,8x | 3,0x | 1,2 |
+| Perindustrian | 0,6x | 1,3x | 2,2x | 1,0 |
+| Transportasi & Logistik | 0,7x | 1,5x | 2,5x | 1,1 |
+| Tidak Terklasifikasi | 0,5x | 1,2x | 2,2x | 1,0 |
+
+Untuk lembaga keuangan, DER dan Current Ratio `NOT_APPLICABLE`, bukan N/A dan bukan 0.
+Pita sektor adalah hipotesis terarah yang belum divalidasi terhadap forward return.
 
 ---
 
