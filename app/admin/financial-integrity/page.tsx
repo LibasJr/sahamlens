@@ -35,8 +35,8 @@ export default async function FinancialIntegrityAdminPage() {
         <div className="mb-7 flex items-start gap-3">
           <div className="rounded-xl bg-tv-purple/10 p-2.5 text-tv-purple"><BarChart3 className="h-6 w-6" /></div>
           <div>
-            <h1 className="font-heading text-2xl font-bold sm:text-3xl">Financial Integrity & Adoption Gate</h1>
-            <p className="mt-1 max-w-4xl text-sm text-tv-muted">Menguji dampak candidate macro inputs dan kematangan bank-specific evidence tanpa mengubah LensScore atau parameter valuation production secara otomatis.</p>
+            <h1 className="font-heading text-2xl font-bold sm:text-3xl">Pemeriksaan Data Keuangan</h1>
+            <p className="mt-1 max-w-4xl text-sm text-tv-muted">Cek dampak data makro dan bukti bank sebelum boleh dipakai model produksi. Tidak mengubah LensScore atau parameter valuasi otomatis.</p>
           </div>
         </div>
 

@@ -33,10 +33,10 @@ export default async function AdminIntradayValidationPage() {
             Internal Intraday Research
           </p>
           <h1 className="font-heading text-2xl sm:text-3xl font-bold text-tv-text">
-            Intraday Validation Lab
+            Uji Intraday
           </h1>
           <p className="text-sm text-tv-muted mt-2 max-w-3xl">
-            Laboratorium riset model <strong className="text-tv-text">LensIntraday</strong>: posisi dibuka dan
+            Uji riset model <strong className="text-tv-text">LensIntraday</strong>: posisi dibuka dan
             ditutup pada hari bursa yang sama. Modul ini TERPISAH dari validasi LensScore T+20 (Calibration
             Lab, Robust Validation, TP/CL Lab) - tidak ada angka T+20 yang dipakai sebagai bukti di sini,
             dan tidak ada bobot/ambang produksi yang bisa berubah dari halaman ini.

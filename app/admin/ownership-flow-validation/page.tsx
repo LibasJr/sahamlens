@@ -18,8 +18,8 @@ export default async function OwnershipFlowValidationPage() {
   return (
     <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6">
       <Link href="/admin" className="mb-4 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text"><ArrowLeft className="h-4 w-4"/>Kembali ke Admin</Link>
-      <h1 className="font-heading text-2xl font-bold text-tv-text">Ownership Flow Validation Lab</h1>
-      <p className="mt-1 text-sm text-tv-muted">Audit distribusi perubahan kepemilikan KSEI. Research-only; tidak mengubah LensScore atau label production.</p>
+      <h1 className="font-heading text-2xl font-bold text-tv-text">Uji Arus Kepemilikan</h1>
+      <p className="mt-1 text-sm text-tv-muted">Cek perubahan kepemilikan KSEI. Hasilnya riset; tidak mengubah LensScore atau label produksi.</p>
 
       <section className={`mt-5 rounded-xl border p-4 ${pitBlocked ? 'border-tv-yellow/25 bg-tv-yellow/[0.04]' : 'border-tv-green/25 bg-tv-green/[0.04]'}`}>
         <div className="flex gap-3"><ShieldAlert className="mt-0.5 h-5 w-5 text-tv-yellow"/><div>

@@ -90,7 +90,7 @@ export default async function ForeignFlowCoveragePage() {
       </Link>
 
       <div>
-        <h1 className="font-heading text-3xl font-bold">Cakupan Arus Asing BEI</h1>
+        <h1 className="font-heading text-3xl font-bold">Cakupan Dana Asing BEI</h1>
         <p className="mt-2 max-w-3xl text-sm text-tv-muted">
           Emiten mana yang sudah punya angka Net Foreign Buy/Sell resmi dari Bursa, dan sejak kapan.
           Artefaknya ditulis <code className="rounded bg-tv-hover px-1">scripts/sync-idx-foreign-flow.py</code> ke{' '}
