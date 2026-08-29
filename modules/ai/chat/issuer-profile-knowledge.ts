@@ -16,9 +16,28 @@ const ISSUER_PROFILE_QUERY = /\b(?:perusahaan(?:nya)?\s+apa|perusahaan\s+apa\s+i
 // boleh fokus pada bentuk bahasa tanpa mencoba memvalidasi simbol saham sendiri.
 const ISSUER_PROFILE_WITH_INTERLEAVED_TICKER = /\b(?:bisnis(?:nya)?|usaha(?:nya)?|produk(?:nya)?|layanan(?:nya)?)\s+[a-z0-9.]{2,10}\s+(?:apa(?:\s+saja)?|gimana|bagaimana)\b/;
 
+// Marker ini hanya dipakai untuk membedakan pertanyaan profil murni dari pertanyaan
+// campuran. Kata "jual" SENDIRI sengaja tidak dianggap marker trading karena frasa
+// "ANTM jual apa?" berarti menanyakan produk yang dijual perusahaan, bukan rekomendasi
+// SELL. Bentuk trading harus membawa konteks eksplisit seperti "jual sekarang",
+// "layak dibeli", RSI, fundamental, target harga, dan sebagainya.
+const ISSUER_PROFILE_ANALYSIS_QUERY = /\b(?:fundamental|teknikal|analisis|valuasi|nilai\s+wajar|prospek|risiko|rsi|macd|support|resistance|target(?:\s+harga)?|entry|take\s*profit|stop\s*loss|cut\s*loss|p\/?e|per|pbv|roe|der|dividen|lens\s*score|lensscore|rekomendasi|layak\s+(?:dibeli|dijual)|sebaiknya\s+(?:beli|jual)|mending\s+(?:beli|jual)|(?:beli|jual)\s+(?:sekarang|kapan|di\s+harga))\b/;
+
 export function asksAboutIssuerProfile(prompt: string): boolean {
   const normalized = normalizeChatText(prompt);
   return ISSUER_PROFILE_QUERY.test(normalized) || ISSUER_PROFILE_WITH_INTERLEAVED_TICKER.test(normalized);
+}
+
+/**
+ * Menentukan apakah pertanyaan bisa dijawab hanya dari profil emiten.
+ * Keputusan ini berbasis semantik prompt, bukan label classifier umum, karena classifier
+ * trading secara wajar membaca kata "jual" sebagai SELL sementara "ANTM jual apa?"
+ * adalah pertanyaan produk perusahaan.
+ */
+export function isIssuerProfileOnlyQuestion(prompt: string): boolean {
+  const normalized = normalizeChatText(prompt);
+  if (!asksAboutIssuerProfile(normalized)) return false;
+  return !ISSUER_PROFILE_ANALYSIS_QUERY.test(normalized);
 }
 
 function cleanText(value: unknown, maxLength = 2500): string {
