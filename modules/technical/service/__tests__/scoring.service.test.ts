@@ -204,6 +204,8 @@ describe('P1-8 - volume tinggi tidak lagi diberi poin penuh tanpa arah harga', (
     const anjlok = calculateScore('X', { ...fullTechnical, volToday: 3_000_000, changePct: -12 }, fullFundamental, fullFlow);
     expect(naik.detail.volume).toBe(8);
     expect(anjlok.detail.volume).toBe(0);
+    expect(anjlok.risk).toContain('Technical breakdown');
+    expect(anjlok.explainability.risk_flags.join(' ')).toContain('technical breakdown');
   });
 
   it('arah harga tidak diketahui -> volume tinggi diberi nilai tengah, bukan penuh', () => {

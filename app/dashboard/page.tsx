@@ -77,6 +77,14 @@ function DashboardContent() {
   const simpleDecisionLabel = decisionPresentation
     ? getSimpleDecisionLabel(decisionPresentation)
     : null;
+  const coveragePct = typeof data?.scoring?.coverage_pct === 'number'
+    ? Math.round(data.scoring.coverage_pct)
+    : null;
+  const scoreQualityPct = (score: unknown, availableMax: unknown): number | null => {
+    if (typeof score !== 'number' || !Number.isFinite(score)) return null;
+    if (typeof availableMax !== 'number' || !Number.isFinite(availableMax) || availableMax <= 0) return null;
+    return Math.max(0, Math.min(100, Math.round((score / availableMax) * 100)));
+  };
 
   const backtestAccuracy = React.useMemo(() => computeBacktestAccuracy(data), [data]);
   const getAccuracyPct = (label: string): string | null => {
@@ -234,12 +242,28 @@ function DashboardContent() {
                 }`}>
                   <AnimatedNumber value={data.scoring.total_score} />
                 </div>
+                {coveragePct != null && (
+                  <div className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                    coveragePct >= 90
+                      ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
+                      : coveragePct >= 55
+                        ? 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow'
+                        : 'border-tv-red/30 bg-tv-red/10 text-tv-red'
+                  }`}>
+                    Coverage {coveragePct}%
+                  </div>
+                )}
                 {/* Di kartu detail ini cukup tampilkan angka LensScore. Arah keputusan
                     BUY/SELL/HOLD/WATCH sengaja tidak diulang di bawah agar tidak
                     bentrok dengan Ringkasan SahamLens/Konsensus AI di atas. */}
                 {!decisionPresentation?.actionable && decisionPresentation?.explanation && (
                   <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[240px]">
                     LensScore {data.scoring.total_score}/100 adalah skor informasi. Belum otomatis menjadi rekomendasi transaksi. {decisionPresentation.explanation}
+                  </p>
+                )}
+                {coveragePct != null && coveragePct < 100 && (
+                  <p className="max-w-[240px] text-center text-[11px] leading-snug text-tv-muted">
+                    Skor dibaca bersama kelengkapan data. Coverage rendah berarti sebagian pertanyaan model belum terjawab.
                   </p>
                 )}
               </div>
@@ -302,19 +326,19 @@ function DashboardContent() {
                     prestasi yang sama. */}
                 {(() => {
                   const parts = [
-                    { name: 'Technical', pct: data.scoring.technical_score / 40 },
-                    { name: 'Fundamental', pct: data.scoring.fundamental_score / 30 },
-                    { name: 'Money Flow', pct: data.scoring.flow_score / 30 },
-                  ].filter((p) => Number.isFinite(p.pct));
+                    { name: 'Technical', pct: scoreQualityPct(data.scoring.technical_score, data.scoring.available_max?.technical) },
+                    { name: 'Fundamental', pct: scoreQualityPct(data.scoring.fundamental_score, data.scoring.available_max?.fundamental) },
+                    { name: 'Money Flow', pct: scoreQualityPct(data.scoring.flow_score, data.scoring.available_max?.flow) },
+                  ].filter((p): p is { name: string; pct: number } => p.pct != null);
                   if (parts.length < 3) return null;
                   const sorted = [...parts].sort((a, b) => b.pct - a.pct);
                   const best = sorted[0];
                   const worst = sorted[sorted.length - 1];
                   return (
                     <p className="mt-3 pt-3 border-t border-tv-border text-[11px] leading-relaxed text-tv-muted">
-                      Skor ini paling ditopang <span className="text-tv-text font-medium">{best.name}</span> ({Math.round(best.pct * 100)}% dari pagunya)
-                      dan paling ditahan <span className="text-tv-text font-medium">{worst.name}</span> ({Math.round(worst.pct * 100)}%).
-                      {worst.pct < 0.4 && ` Perbaikan terbesar untuk saham ini akan datang dari sisi ${worst.name.toLowerCase()}.`}
+                      Skor ini paling ditopang <span className="text-tv-text font-medium">{best.name}</span> ({best.pct}% dari data yang tersedia)
+                      dan paling ditahan <span className="text-tv-text font-medium">{worst.name}</span> ({worst.pct}%).
+                      {worst.pct < 40 && ` Perbaikan terbesar untuk saham ini akan datang dari sisi ${worst.name.toLowerCase()}.`}
                     </p>
                   );
                 })()}

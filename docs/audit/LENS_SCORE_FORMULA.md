@@ -389,6 +389,9 @@ menampilkan kelengkapan datanya.
    pencarian. `lens-score-optimizer.service.ts` mengusulkan alternatif, tapi usulannya
    belum pernah dipromosikan jadi bobot produksi.
 4. **Fundamental mengikuti kalender pelaporan**, jadi ia selalu tertinggal dari harga.
+   LensScore tidak menebak laporan yang belum rilis, tetapi menandai risiko
+   `technical breakdown` saat harga turun ekstrem dengan volume besar agar pembaca tidak
+   mengabaikan sinyal pasar yang mungkin lebih cepat dari laporan resmi.
 5. **Sumber Yahoo Finance dapat me-restate histori** setelah corporate action, sehingga
    indikator historis bisa sedikit berbeda dari yang benar-benar terlihat pada tanggal itu.
 6. **Skor bukan rekomendasi.** Ia meringkas kondisi terukur pada satu tanggal, bukan
