@@ -28,9 +28,10 @@ interface ImportResult {
   meta?: { requestId?: string };
 }
 
-const SAMPLE = `Kode,observed_date,period_end,PER,PBV,ROE,DER,current_ratio,revenue_growth,source
-BBCA,2024-10-31,2024-09-30,22.1,4.3,18.5,0.2,1.4,8.0,IDX
-BBRI,2024-10-30,2024-09-30,12.4,2.1,15.2,5.8,,6.5,IDX`;
+const CSV_PLACEHOLDER = [
+  'Kode,observed_date,period_end,PER,PBV,ROE,DER,current_ratio,revenue_growth,source',
+  'Tempel CSV resmi di sini. Jangan isi angka contoh, dummy, sintetis, atau estimasi tanpa sumber.',
+].join('\n');
 
 function SummaryCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -147,7 +148,7 @@ export default function FundamentalBackfillClient() {
                 setCsvText(event.target.value);
                 resetVerification();
               }}
-              placeholder={SAMPLE}
+              placeholder={CSV_PLACEHOLDER}
               className="h-72 w-full rounded-lg border border-tv-border bg-tv-bg p-3 font-mono text-xs text-tv-text outline-none focus:border-tv-accent"
             />
             <div className="text-xs text-tv-muted">
@@ -189,7 +190,7 @@ export default function FundamentalBackfillClient() {
                 onChange={(event) => { setSkipEmptyRows(event.target.checked); resetVerification(); }}
                 className="mt-1"
               />
-              <span>Lewati baris placeholder kosong</span>
+              <span>Lewati baris kosong</span>
             </label>
 
             <Button variant="bare" size="none"
@@ -314,4 +315,3 @@ export default function FundamentalBackfillClient() {
     </div>
   );
 }
-
