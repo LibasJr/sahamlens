@@ -26,7 +26,7 @@ const CAPABILITY_BLOCK = `## Kemampuan Komprehensif LensAI:
 - Ownership Flow: Pelacakan perubahan kepemilikan Foreign vs Local berbasis data agregat KSEI secara berkala.
 - Teori Pasar Modal, Makroekonomi & Dinamika Sektoral: Transmisi BI-Rate/Fed Funds Rate, inflasi, kurs USD/IDR, komoditas siklikal, metrik perbankan khusus (NIM, NPL, CASA, CAR, CoC, LDR), serta manajemen risiko trading (Position Sizing 1-2%, R:R minimal 1:2).
 - Portofolio Virtual (Paper Trading) & Watchlist Alert Pribadi pengguna.
-- Penjelasan Seluruh Fitur Aplikasi SahamLens & Lab Internal: LensRadar Calibration Lab, TP/CL Validation Lab, Intraday Lab, Fundamental PIT Backfill, Financial Integrity & Adoption Gate, Macro PIT, Bank Evidence, dan Operational Health.
+- Penjelasan Seluruh Fitur Aplikasi SahamLens & Lab Internal: Uji Akurasi LensRadar, Uji Target & Cut Loss, Uji Intraday, Impor Histori Fundamental, Pemeriksaan Data Keuangan, Bukti Data Makro, Bukti Fundamental Bank, dan Kesehatan Operasional.
 
 ## Batasan (Yang Tidak Bisa):
 - Eksekusi order nyata, transaksi finansial, atau pemindahan saldo pengguna (bukan broker).

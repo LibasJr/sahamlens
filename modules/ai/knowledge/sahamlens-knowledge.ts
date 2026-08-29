@@ -83,16 +83,16 @@ SahamLens adalah platform super-app analisis pasar modal Indonesia (Bursa Efek I
 - **Aturan Akses**: Hanya Portfolio dan Watchlist yang mewajibkan login akun (karena menyimpan data privat pengguna). Seluruh fitur analisis lainnya (LensTechnical, LensFundamental, LensRadar, Screener, Backtest, DCF, Macro, Moat, dll.) terbuka PENUH dan GRATIS untuk semua pengunjung/tamu.
 
 #### K. Lab Internal & Fitur Admin (Riset & Integritas Kuantitatif)
-- **LensRadar Calibration Lab**: Menguji kalibrasi reliabilitas LensScore terhadap outcome masa depan (T+20), Brier Score, ECE, dan confidence intervals.
-- **TP/CL Validation Lab**: Validasi empiris efektivitas level Take Profit dan Stop Loss terhadap struktur harga historis.
-- **Intraday Validation Lab**: Riset strategi day trading (horizon 15m, 30m, 60m, EOD) dengan memperhitungkan biaya transaksi dan slippage.
-- **Fundamental Point-in-Time (PIT) Backfill & Coverage**: Memastikan data laporan keuangan dicatat pada tanggal pengumuman publik riil (*observed date*) untuk mencegah bias melihat masa depan (*look-ahead bias*) dalam riset kuantitatif.
-- **Financial Integrity & Adoption Gate**: Tata kelola data di mana bukti baru tidak otomatis mengubah bobot produksi sebelum melalui uji regresi dan protokol validasi formal.
-- **Macro PIT & Valuation Inputs**: Audit provenance SBN 10Y, ERP Indonesia, perpetual growth cap, dan BI-Rate/inflasi.
-- **Bank Fundamentals Evidence**: Menyimpan data NIM, NPL, CASA, CAR, LDR, CoC, CIR per periode berstatus DATA_ONLY sebelum tervalidasi.
-- **Ownership Flow Validation Lab & Broker Summary**: Validasi distribusi flow investor asing vs lokal dan rekonsiliasi transaksi broker.
+- **Uji Akurasi LensRadar**: Menguji kalibrasi reliabilitas LensScore terhadap hasil masa depan (T+20), Brier Score, ECE, dan confidence intervals.
+- **Uji Target & Cut Loss**: Validasi empiris efektivitas level Take Profit dan Stop Loss terhadap struktur harga historis.
+- **Uji Intraday**: Riset strategi day trading (horizon 15m, 30m, 60m, EOD) dengan memperhitungkan biaya transaksi dan slippage.
+- **Impor Histori Fundamental**: Memastikan data laporan keuangan dicatat pada tanggal pengumuman publik riil (*observed date*) untuk mencegah bias melihat masa depan (*look-ahead bias*) dalam riset kuantitatif.
+- **Pemeriksaan Data Keuangan**: Tata kelola data di mana bukti baru tidak otomatis mengubah bobot produksi sebelum melalui uji regresi dan protokol validasi formal.
+- **Bukti Data Makro**: Audit provenance SBN 10Y, ERP Indonesia, perpetual growth cap, dan BI-Rate/inflasi.
+- **Bukti Fundamental Bank**: Menyimpan data NIM, NPL, CASA, CAR, LDR, CoC, CIR per periode berstatus DATA_ONLY sebelum tervalidasi.
+- **Uji Arus Kepemilikan & Broker Summary**: Validasi distribusi flow investor asing vs lokal dan rekonsiliasi transaksi broker.
 - **Kesehatan Operasional / Jobs**: Pemantauan cron warmer, redis cache, postgresql database, dan pipeline data otomatis.
-- **Feedback LensAI**: Peninjauan rating jempol dan prompt pengguna untuk continual improvement kualitas jawaban AI.
+- **Masukan LensAI**: Peninjauan rating jempol dan prompt pengguna untuk perbaikan kualitas jawaban AI.
 
 ### Panduan fungsi dan cara pakai setiap menu pengguna
 Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: **fungsi → langkah pakai → hasil yang dibaca → batasannya**:

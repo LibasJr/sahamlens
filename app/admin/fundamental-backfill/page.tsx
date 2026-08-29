@@ -21,10 +21,10 @@ export default async function AdminFundamentalBackfillPage() {
           Kembali ke Admin
         </Link>
         <div className="mb-8">
-          <h1 className="font-heading text-2xl font-bold text-tv-text sm:text-3xl">Fundamental Backfill</h1>
+          <h1 className="font-heading text-2xl font-bold text-tv-text sm:text-3xl">Impor Histori Fundamental</h1>
           <p className="mt-2 max-w-3xl text-sm text-tv-muted">
-            Import snapshot fundamental point-in-time ke fundamental_history tanpa terminal.
-            Gunakan Dry Run dulu, lalu Insert jika hasilnya benar.
+            Import snapshot fundamental sesuai tanggal publikasi ke fundamental_history tanpa terminal.
+            Gunakan cek awal dulu, lalu simpan jika hasilnya benar.
           </p>
         </div>
         <FundamentalBackfillClient />

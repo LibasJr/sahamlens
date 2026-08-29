@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Lock, PlayCircle, RefreshCw, RotateCcw, Shield, Target } from 'lucide-react';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 
@@ -185,20 +185,23 @@ export default function TpclValidationClient() {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [historyRange, setHistoryRange] = useState<TpclHistoryRange>('5y');
 
-  async function load(range: TpclHistoryRange = '5y') {
+  const load = useCallback(async (range: TpclHistoryRange = '5y') => {
     setLoading(true); setError(null);
     try {
       const json = await apiRequest<any>(`/api/admin/tpcl-validation?range=${encodeURIComponent(range)}`, { cache: 'no-store' });
       setData(json);
       if (json?.historyRange) setHistoryRange(json.historyRange as TpclHistoryRange);
     } catch (e: any) {
-      setError(apiErrorMessage(e, 'Gagal memuat TP/CL Validation Lab', true));
+      setError(apiErrorMessage(e, 'Gagal memuat Uji Target & Cut Loss', true));
       setData(null);
     } finally {
       setLoading(false);
     }
-  }
-  useEffect(() => { void load('5y'); }, []);
+  }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load('5y'); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   async function runAction(action: ResearchAction) {
     setBusy(action);
@@ -224,7 +227,7 @@ export default function TpclValidationClient() {
           if (run.status === 'FAILED') throw new Error(run.errorMessage || 'Research run TP/CL gagal');
         }
       } else {
-        setActionMessage(json?.reason || 'Cache hasil TP/CL Validation Lab dihapus.');
+        setActionMessage(json?.reason || 'Cache hasil Uji Target & Cut Loss dihapus.');
       }
     } catch (e: unknown) {
       setActionMessage(e instanceof Error ? e.message : 'Aksi TP/CL gagal');
@@ -239,7 +242,7 @@ export default function TpclValidationClient() {
 
   if (loading) return (
     <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-6 text-sm text-tv-muted">
-      Memuat TP/CL Validation Lab... cache kosong pertama kali dapat membutuhkan waktu karena OHLC dihitung ulang.
+      Memuat Uji Target & Cut Loss... cache kosong pertama kali dapat membutuhkan waktu karena OHLC dihitung ulang.
     </Card>
   );
   if (error || !data) return (
@@ -337,7 +340,7 @@ export default function TpclValidationClient() {
             <p className="mt-3 rounded-md border border-tv-border bg-tv-bg p-2.5 text-xs text-tv-text">{actionMessage}</p>
           ) : null}
           <p className="mt-3 text-[11px] text-tv-muted">
-            TP/CL berbeda dari Intraday Validation Lab: candle riset tidak disimpan sebagai dataset terpisah. Range 1/3/5/10 tahun menentukan
+            TP/CL berbeda dari Uji Intraday: candle riset tidak disimpan sebagai dataset terpisah. Range 1/3/5/10 tahun menentukan
             jendela observasi sinyal dan cache hasil. Backend boleh mengambil OHLC warm-up tambahan untuk ATR/structure; default tetap 5 tahun. Freeze OOS tidak dapat diubah dari browser.
           </p>
         </div>

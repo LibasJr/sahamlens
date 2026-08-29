@@ -64,8 +64,8 @@ export default async function MacroAssumptionsAdminPage() {
         <div className="mb-7 flex items-start gap-3">
           <div className="rounded-xl bg-tv-blue/10 p-2.5 text-tv-blue"><Waves className="h-6 w-6" /></div>
           <div>
-            <h1 className="font-heading text-2xl font-bold sm:text-3xl">Macro PIT & Valuation Inputs</h1>
-            <p className="mt-1 max-w-3xl text-sm text-tv-muted">Audit provenance risk-free, ERP, policy rate, dan inflation target. Evidence di halaman ini tidak otomatis mengubah model production.</p>
+            <h1 className="font-heading text-2xl font-bold sm:text-3xl">Bukti Data Makro</h1>
+            <p className="mt-1 max-w-3xl text-sm text-tv-muted">Cek sumber SBN 10Y, ERP, BI-Rate, target inflasi, dan tanggal data. Bukti di halaman ini tidak otomatis mengubah model produksi.</p>
           </div>
         </div>
 

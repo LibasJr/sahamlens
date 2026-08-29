@@ -370,7 +370,7 @@ export default function InfographicStudioClient() {
         <div className="mb-6">
           <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-2.5">
             <Sparkles className={`w-7 h-7 ${active3DTheme.accentText}`} />
-            Infographic Studio 360° (Sector-Adaptive 3D)
+            Pembuat Infografis 360° (Tema Sektor 3D)
           </h1>
           <p className="mt-1 text-sm text-tv-muted max-w-3xl">
             Generator Infografis Finansial 3D dengan <b>Pewarnaan &amp; Pencahayaan Otomatis Sesuai Sektor Emiten</b> (Perbankan: Biru Safir, Tambang/Energi: Emas Solar, Teknologi: Violet Cyber, FMCG: Mawar Sampanye, dsb).
