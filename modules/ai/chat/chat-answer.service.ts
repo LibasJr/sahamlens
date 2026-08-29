@@ -17,7 +17,7 @@ import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
 import { providerErrorResponse } from './provider-error';
 import { getDeterministicProductHelpResponse } from './product-help';
 import { scoringMethodologyBlock } from './blocks/lens-blocks';
-import { asksAboutIssuerProfile, buildIssuerProfileKnowledge } from './issuer-profile-knowledge';
+import { asksAboutIssuerProfile, buildIssuerProfileKnowledge, isIssuerProfileOnlyQuestion } from './issuer-profile-knowledge';
 import type { ParsedChatRequest } from './chat-request';
 import type { ChatJsonResponder } from './chat-response';
 
@@ -72,7 +72,11 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   // + teknikal, tetapi nama/sector/industry/longBusinessSummary tidak pernah masuk ke
   // Data Terverifikasi. Model lalu benar-benar tidak boleh menjawab profilnya.
   const issuerProfileRequested = tickers.length > 0 && asksAboutIssuerProfile(prompt);
-  const issuerProfileOnly = issuerProfileRequested && classification.dataIntent === 'STOCK_GENERAL';
+  // Keputusan profile-only harus mengikuti makna prompt, bukan dataIntent umum. Contoh
+  // "ANTM jual apa?" bisa diklasifikasikan BUY_SELL_RECOMMENDATION karena kata "jual",
+  // padahal pengguna sedang menanyakan produk perusahaan. Pertanyaan campuran seperti
+  // "jual apa dan layak dibeli?" tetap lewat router analisis utama.
+  const issuerProfileOnly = tickers.length > 0 && isIssuerProfileOnlyQuestion(prompt);
 
   let verified: Awaited<ReturnType<typeof buildChatVerifiedData>>;
   if (issuerProfileOnly) {
