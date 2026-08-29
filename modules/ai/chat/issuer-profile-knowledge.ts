@@ -9,8 +9,16 @@ import { normalizeChatText } from './chat-normalize';
  */
 const ISSUER_PROFILE_QUERY = /\b(?:perusahaan(?:nya)?\s+apa|perusahaan\s+apa\s+itu|emiten(?:nya)?\s+apa|profil\s+(?:perusahaan|emiten)|nama\s+(?:resmi\s+)?perusahaan|bergerak\s+di\s+bidang|bidang\s+usaha|kegiatan\s+usaha|bisnis(?:nya)?\s+(?:apa|apa\s+saja|gimana|bagaimana)|usaha(?:nya)?\s+(?:apa|apa\s+saja)|jual(?:an)?\s+apa|produk(?:nya)?\s+(?:apa|apa\s+saja)|layanan(?:nya)?\s+(?:apa|apa\s+saja)|sumber\s+pendapatan(?:nya)?|dapat\s+uang\s+dari\s+mana|dapet\s+uang\s+dari\s+mana|revenue\s+stream|segmen\s+(?:bisnis|usaha)|lini\s+bisnis|anak\s+usaha|grup\s+usaha|group\s+usaha|induk\s+usaha|pengendali(?:nya)?|merek(?:nya)?|brand(?:nya)?)\b/;
 
+// Pengguna sering menyisipkan ticker di tengah frasa, misalnya
+// "bisnisnya DGWG apa saja?" atau "produk ICBP apa?". Matcher utama di atas
+// menangani frasa berurutan; matcher ini menangani satu token ticker di antaranya.
+// Routing akhir tetap mensyaratkan ticker yang benar-benar ter-resolve, jadi regex ini
+// boleh fokus pada bentuk bahasa tanpa mencoba memvalidasi simbol saham sendiri.
+const ISSUER_PROFILE_WITH_INTERLEAVED_TICKER = /\b(?:bisnis(?:nya)?|usaha(?:nya)?|produk(?:nya)?|layanan(?:nya)?)\s+[a-z0-9.]{2,10}\s+(?:apa(?:\s+saja)?|gimana|bagaimana)\b/;
+
 export function asksAboutIssuerProfile(prompt: string): boolean {
-  return ISSUER_PROFILE_QUERY.test(normalizeChatText(prompt));
+  const normalized = normalizeChatText(prompt);
+  return ISSUER_PROFILE_QUERY.test(normalized) || ISSUER_PROFILE_WITH_INTERLEAVED_TICKER.test(normalized);
 }
 
 function cleanText(value: unknown, maxLength = 2500): string {
