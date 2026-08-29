@@ -13,27 +13,32 @@ type Factor = {
   label: string;
   score: number;
   max: number;
+  availableMax: number | null;
 };
 
 function factorRead(factor: Factor): { title: string; detail: string; tone: 'positive' | 'negative' | 'neutral' } {
-  const ratio = factor.max > 0 ? factor.score / factor.max : 0;
+  const denominator = factor.availableMax != null && factor.availableMax > 0 ? factor.availableMax : factor.max;
+  const ratio = denominator > 0 ? factor.score / denominator : 0;
+  const suffix = factor.availableMax != null && factor.availableMax > 0 && factor.availableMax < factor.max
+    ? ' dari data tersedia'
+    : '';
   if (ratio >= 0.72) {
     return {
       title: `${factor.label} relatif kuat`,
-      detail: `${factor.score}/${factor.max} — menjadi salah satu penopang utama LensScore saat ini.`,
+      detail: `${factor.score}/${Math.round(denominator)}${suffix} — menjadi salah satu penopang utama LensScore saat ini.`,
       tone: 'positive',
     };
   }
   if (ratio <= 0.45) {
     return {
       title: `${factor.label} perlu diperhatikan`,
-      detail: `${factor.score}/${factor.max} — kontribusinya masih lebih lemah dibanding komponen lain.`,
+      detail: `${factor.score}/${Math.round(denominator)}${suffix} — kontribusinya masih lebih lemah dibanding komponen lain.`,
       tone: 'negative',
     };
   }
   return {
     title: `${factor.label} masih campuran`,
-    detail: `${factor.score}/${factor.max} — belum cukup dominan untuk menjadi penggerak utama skor.`,
+    detail: `${factor.score}/${Math.round(denominator)}${suffix} — belum cukup dominan untuk menjadi penggerak utama skor.`,
     tone: 'neutral',
   };
 }
@@ -48,21 +53,22 @@ export function DashboardInsightSummary({ data, dataFreshness, decisionPresentat
   if (!data?.scoring) return null;
 
   const factors: Factor[] = [
-    { key: 'technical', label: 'Technical', score: Number(data.scoring.technical_score) || 0, max: 40 },
-    { key: 'fundamental', label: 'Fundamental', score: Number(data.scoring.fundamental_score) || 0, max: 30 },
-    { key: 'flow', label: 'Money flow', score: Number(data.scoring.flow_score) || 0, max: 30 },
+    { key: 'technical', label: 'Technical', score: Number(data.scoring.technical_score) || 0, max: 40, availableMax: typeof data.scoring.available_max?.technical === 'number' ? data.scoring.available_max.technical : null },
+    { key: 'fundamental', label: 'Fundamental', score: Number(data.scoring.fundamental_score) || 0, max: 30, availableMax: typeof data.scoring.available_max?.fundamental === 'number' ? data.scoring.available_max.fundamental : null },
+    { key: 'flow', label: 'Money flow', score: Number(data.scoring.flow_score) || 0, max: 30, availableMax: typeof data.scoring.available_max?.flow === 'number' ? data.scoring.available_max.flow : null },
   ];
 
   const reads = factors.map(factorRead);
   const totalScore = Number(data.scoring.total_score) || 0;
+  const coveragePct = typeof data.scoring.coverage_pct === 'number' ? Math.round(data.scoring.coverage_pct) : null;
   const modelValidated = data?.modelValidation?.validated === true || data?.advisoryEnabled === true;
   const lead = decisionPresentation?.actionable
-    ? `LensScore ${totalScore}/100 memiliki status keputusan yang actionable. Tetap periksa bukti per faktor dan batas risiko sebelum bertindak.`
+    ? `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} memiliki status keputusan yang actionable. Tetap periksa bukti per faktor dan batas risiko sebelum bertindak.`
     : totalScore >= 70
-      ? `LensScore ${totalScore}/100 terlihat kuat secara informasi, tetapi belum otomatis menjadi rekomendasi transaksi. Eligibility dan risiko tetap menentukan apakah sinyal dapat ditindaklanjuti.`
+      ? `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} terlihat kuat secara informasi, tetapi belum otomatis menjadi rekomendasi transaksi. Eligibility dan risiko tetap menentukan apakah sinyal dapat ditindaklanjuti.`
       : totalScore >= 55
-        ? `LensScore ${totalScore}/100 menunjukkan setup yang masih selektif. Kekuatan antar faktor belum sepenuhnya selaras.`
-        : `LensScore ${totalScore}/100 menunjukkan lebih banyak faktor yang belum mendukung. Prioritaskan alasan kelemahan sebelum melihat potensi upside.`;
+        ? `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} menunjukkan setup yang masih selektif. Kekuatan antar faktor belum sepenuhnya selaras.`
+        : `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} menunjukkan lebih banyak faktor yang belum mendukung. Prioritaskan alasan kelemahan sebelum melihat potensi upside.`;
 
   return (
     <section aria-labelledby="why-it-matters" className="border-y border-tv-border/70 py-4 sm:py-5">

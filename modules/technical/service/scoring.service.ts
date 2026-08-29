@@ -968,6 +968,19 @@ function buildRiskFlags(args: {
   if (args.coveragePct < MIN_COVERAGE_PCT) flags.push(`coverage di bawah ${MIN_COVERAGE_PCT}%`);
   else if (args.coveragePct < 90) flags.push(`coverage belum penuh (${args.coveragePct}%)`);
   if (args.technical.rsi != null && args.technical.rsi > 78) flags.push(`RSI overbought ${args.technical.rsi.toFixed(1)}`);
+  if (
+    args.technical.changePct != null &&
+    Number.isFinite(args.technical.changePct) &&
+    args.technical.changePct <= -5 &&
+    args.technical.volToday != null &&
+    Number.isFinite(args.technical.volToday) &&
+    args.technical.volAvg20 != null &&
+    Number.isFinite(args.technical.volAvg20) &&
+    args.technical.volAvg20 > 0 &&
+    args.technical.volToday / args.technical.volAvg20 >= 2
+  ) {
+    flags.push(`technical breakdown: harga turun ${args.technical.changePct.toFixed(1)}% dengan volume ${(args.technical.volToday / args.technical.volAvg20).toFixed(1)}x rata-rata`);
+  }
   for (const c of args.components) {
     if (c.caveat) flags.push(c.caveat);
   }
@@ -1042,6 +1055,19 @@ export function calculateScore(
   }
   if (technical.rsi != null && technical.rsi > 78) {
     risk += ` | OVERBOUGHT RSI ${technical.rsi.toFixed(1)}`;
+  }
+  if (
+    technical.changePct != null &&
+    Number.isFinite(technical.changePct) &&
+    technical.changePct <= -5 &&
+    technical.volToday != null &&
+    Number.isFinite(technical.volToday) &&
+    technical.volAvg20 != null &&
+    Number.isFinite(technical.volAvg20) &&
+    technical.volAvg20 > 0 &&
+    technical.volToday / technical.volAvg20 >= 2
+  ) {
+    risk += `${risk ? ' | ' : ''}Technical breakdown: harga turun ${technical.changePct.toFixed(1)}% dengan volume ${(technical.volToday / technical.volAvg20).toFixed(1)}x rata-rata`;
   }
   // Peringatan metodologis dari komponen mana pun WAJIB ikut terbawa - kalau tidak,
   // syarat yang membatasi kesimpulan tidak pernah sampai ke pembacanya.
