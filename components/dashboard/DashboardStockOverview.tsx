@@ -7,6 +7,7 @@ import { PriceRangeSlider } from '@/components/ui/PriceRangeSlider';
 import DecisionScoreCard from '@/components/analysis/DecisionScoreCard';
 import { AnimatedNumber, Badge, Card, EmptyState, Skeleton, TickerAvatar } from '@/components/ui';
 import { classifyCapTier, CURRENT_LARGE_LIQUID_MIN_ADV20_IDR, CURRENT_LARGE_LIQUID_MIN_MARKET_CAP_IDR } from '@/lib/utils/cap-tier';
+import { getFlowSourceFromAnalyzers, getForeignFlowInterpretation } from '@/lib/utils/foreign-flow-interpretation';
 import { isBlueChipConstituent, LQ45_BADGE_TITLE } from '@/lib/utils/blue-chip-index';
 import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
@@ -89,6 +90,11 @@ export function DashboardStockOverview(props: {
         {(() => {
           const isLq45 = isBlueChipConstituent(ticker);
           const tier = classifyCapTier(data?.market_cap, data?.eligibility?.details?.adv20Idr);
+          const flowInterpretation = getForeignFlowInterpretation({
+            capTier: tier,
+            isLq45,
+            source: getFlowSourceFromAnalyzers(data?.analyzers),
+          });
           // Papan dari `listing_board` IDX (all.csv) lewat /api/stock, bukan dari
           // daftar ticker ketikan tangan (temuan C-01). `null` = papan tidak
           // diketahui -> lencana tidak dirender sama sekali.
@@ -122,7 +128,18 @@ export function DashboardStockOverview(props: {
                     {tier === 'LARGE_LIQUID_CURRENT' ? 'Large & Liquid · saat ini' : 'Small / Thin · saat ini'}
                   </Badge>
                 )}
+                <Badge
+                  variant={flowInterpretation.badgeVariant}
+                  title={flowInterpretation.detail}
+                >
+                  {flowInterpretation.shortLabel}
+                </Badge>
               </div>
+              {flowInterpretation.kind !== 'FOREIGN_FLOW_ACTIVE' && (
+                <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-tv-muted">
+                  {flowInterpretation.detail}
+                </p>
+              )}
               {boardInfo?.isFca && (
                 <div className="mt-2.5 flex items-start gap-2.5 rounded-xl border border-tv-gold/30 bg-tv-gold/10 p-2.5 text-xs text-tv-gold">
                   <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />

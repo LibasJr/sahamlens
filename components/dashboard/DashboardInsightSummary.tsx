@@ -1,6 +1,9 @@
 'use client';
 
 import { ArrowDownRight, ArrowRight, ArrowUpRight, CircleAlert, ShieldCheck } from 'lucide-react';
+import { classifyCapTier } from '@/lib/utils/cap-tier';
+import { isBlueChipConstituent } from '@/lib/utils/blue-chip-index';
+import { getFlowSourceFromAnalyzers, getForeignFlowInterpretation } from '@/lib/utils/foreign-flow-interpretation';
 
 interface DashboardInsightSummaryProps {
   data: any;
@@ -61,6 +64,11 @@ export function DashboardInsightSummary({ data, dataFreshness, decisionPresentat
   const reads = factors.map(factorRead);
   const totalScore = Number(data.scoring.total_score) || 0;
   const coveragePct = typeof data.scoring.coverage_pct === 'number' ? Math.round(data.scoring.coverage_pct) : null;
+  const flowInterpretation = getForeignFlowInterpretation({
+    capTier: classifyCapTier(data?.market_cap, data?.eligibility?.details?.adv20Idr),
+    isLq45: isBlueChipConstituent(data?.ticker ?? data?.stock?.symbol ?? ''),
+    source: getFlowSourceFromAnalyzers(data?.analyzers),
+  });
   const modelValidated = data?.modelValidation?.validated === true || data?.advisoryEnabled === true;
   const lead = decisionPresentation?.actionable
     ? `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} memiliki status keputusan yang actionable. Tetap periksa bukti per faktor dan batas risiko sebelum bertindak.`
@@ -77,6 +85,11 @@ export function DashboardInsightSummary({ data, dataFreshness, decisionPresentat
           <div className="lens-meta mb-1 font-bold uppercase tracking-[0.16em] text-tv-muted">Ringkasan keputusan</div>
           <h2 id="why-it-matters" className="font-heading text-lg font-bold text-tv-text sm:text-xl">Yang penting dari saham ini</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-tv-muted">{lead}</p>
+          {flowInterpretation.kind !== 'FOREIGN_FLOW_ACTIVE' && (
+            <p className="mt-1.5 text-xs leading-relaxed text-tv-muted">
+              <span className="font-semibold text-tv-text">{flowInterpretation.label}:</span> {flowInterpretation.detail}
+            </p>
+          )}
         </div>
         <div className={`inline-flex items-center gap-1.5 text-xs font-semibold ${modelValidated ? 'text-tv-green' : 'text-tv-muted'}`}>
           {modelValidated ? <ShieldCheck className="h-4 w-4" aria-hidden="true" /> : <CircleAlert className="h-4 w-4" aria-hidden="true" />}
