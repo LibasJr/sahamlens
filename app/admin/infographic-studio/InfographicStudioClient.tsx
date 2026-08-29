@@ -2,7 +2,7 @@
 
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ArrowLeft, Search, Download, Sparkles, PieChart, ShieldCheck,
@@ -48,10 +48,10 @@ export default function InfographicStudioClient() {
   const searchContainerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
 
-  const showToast = (message: string, variant: ToastVariant = 'info') => {
+  const showToast = useCallback((message: string, variant: ToastVariant = 'info') => {
     setToastMessage(message);
     setToastVariant(variant);
-  };
+  }, []);
 
   // Autocomplete Suggestions Filter
   const filteredTickers = React.useMemo(() => {
@@ -82,7 +82,7 @@ export default function InfographicStudioClient() {
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, []);
 
-  const fetchStockData = async (symbol: string) => {
+  const fetchStockData = useCallback(async (symbol: string) => {
     const rawUpper = symbol.trim().toUpperCase();
     const isIhsg = rawUpper === 'IHSG' || rawUpper === '^JKSE' || rawUpper === 'JKSE' || rawUpper.includes('JKSE');
     const cleanSym = isIhsg ? 'IHSG' : rawUpper.replace('.JK', '');
@@ -227,8 +227,8 @@ export default function InfographicStudioClient() {
           },
           fundamentals: fundRes?.fundamentals || {},
           profile: fundRes?.profile || {
-            sector: stockRes?.scoring?.sector?.yahooSector || 'Financial',
-            industry: stockRes?.scoring?.sector?.yahooIndustry || 'Banking',
+            sector: stockRes?.scoring?.sector?.yahooSector ?? null,
+            industry: stockRes?.scoring?.sector?.yahooIndustry ?? null,
             description: fundRes?.profile?.description || '',
             website: '',
           },
@@ -262,11 +262,11 @@ export default function InfographicStudioClient() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showToast]);
 
   useEffect(() => {
-    fetchStockData('BBCA');
-  }, []);
+    void fetchStockData('BBCA');
+  }, [fetchStockData]);
 
   // Compute Active 3D Theme (Auto sector-based vs manual override)
   const active3DTheme: Card3DTheme = React.useMemo(() => {
