@@ -67,11 +67,11 @@ export default async function AdminTransparencyPage() {
             Internal Model Transparency
           </p>
           <h1 className="lens-page-title">
-            Transparansi Validasi LensRadar
+            Bukti Validasi LensRadar
           </h1>
           <p className="text-sm text-tv-muted mt-2 max-w-3xl">
-            Performa historis LensScore secara point-in-time: apakah bucket skor tinggi
-            benar-benar punya edge setelah biaya. Halaman internal - angkanya tidak
+            Performa historis LensScore secara point-in-time: apakah kelompok skor tinggi
+            benar-benar punya keunggulan setelah biaya. Halaman internal - angkanya tidak
             dipublikasikan ke pengguna.
           </p>
         </div>

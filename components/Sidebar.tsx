@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card';
 import Image from 'next/image';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Activity,
@@ -191,16 +191,16 @@ const ADMIN_NAV_GROUP: NavGroup = {
   items: [
     { id: 'admin', name: 'Admin Panel', subtitle: 'User & subscription', path: '/admin', icon: ShieldAlert },
     { id: 'admin-jobs', name: 'Cron & Update Mingguan', subtitle: 'Jadwal, hasil audit & kesehatan job', path: '/admin/jobs', icon: Activity },
-    { id: 'admin-decision-lab', name: 'Decision Lab', subtitle: 'Batch AI hybrid analyst & evidence per sinyal', path: '/admin/decision-lab', icon: Brain },
-    { id: 'admin-calibration', name: 'Kalibrasi LensRadar', subtitle: 'T-test, threshold & weight', path: '/admin/calibration', icon: BookOpenCheck },
-    { id: 'admin-transparency', name: 'Transparansi LensRadar', subtitle: 'Bukti forward per bucket & rekonsiliasi harga', path: '/admin/transparency', icon: ShieldCheck },
-    { id: 'admin-fundamental-backfill', name: 'Fundamental Backfill', subtitle: 'Upload PIT fundamental', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
-    { id: 'admin-financial-integrity', name: 'Financial Integrity', subtitle: 'Adoption gate & maturity', path: '/admin/financial-integrity', icon: ShieldCheck },
-    { id: 'admin-market-data-integrity', name: 'Market Data Integrity', subtitle: 'Rekonsiliasi harga lintas sumber', path: '/admin/data-integrity', icon: ShieldCheck },
-    { id: 'admin-macro-pit', name: 'Macro PIT', subtitle: 'Risk-free, ERP & provenance', path: '/admin/macro-assumptions', icon: Waves },
-    { id: 'admin-bank-fundamentals', name: 'Bank Fundamentals', subtitle: 'NIM, NPL, CASA, CAR & provenance', path: '/admin/bank-fundamentals', icon: Building2 },
-    { id: 'admin-ownership-flow', name: 'Ownership Flow', subtitle: 'Status ingestion kepemilikan', path: '/admin/ownership-flow', icon: Users },
-    { id: 'admin-lensai-feedback', name: 'Feedback LensAI', subtitle: 'Audit jawaban pengguna', path: '/admin/lensai-feedback', icon: MessageSquare },
+    { id: 'admin-decision-lab', name: 'Simulasi Keputusan AI', subtitle: 'Paper order & bukti sinyal', path: '/admin/decision-lab', icon: Brain },
+    { id: 'admin-calibration', name: 'Uji Akurasi LensRadar', subtitle: 'Skor, T+20 & OOS', path: '/admin/calibration', icon: BookOpenCheck },
+    { id: 'admin-transparency', name: 'Bukti Validasi LensRadar', subtitle: 'Kelompok skor & cek harga', path: '/admin/transparency', icon: ShieldCheck },
+    { id: 'admin-fundamental-backfill', name: 'Impor Histori Fundamental', subtitle: 'Upload CSV resmi', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },
+    { id: 'admin-financial-integrity', name: 'Pemeriksaan Data Keuangan', subtitle: 'Gerbang adopsi data', path: '/admin/financial-integrity', icon: ShieldCheck },
+    { id: 'admin-market-data-integrity', name: 'Pemeriksaan Harga Penutupan', subtitle: 'Cek IDX vs pembanding', path: '/admin/data-integrity', icon: ShieldCheck },
+    { id: 'admin-macro-pit', name: 'Bukti Data Makro', subtitle: 'SBN, ERP, BI-Rate', path: '/admin/macro-assumptions', icon: Waves },
+    { id: 'admin-bank-fundamentals', name: 'Bukti Fundamental Bank', subtitle: 'NIM, NPL, CASA, CAR', path: '/admin/bank-fundamentals', icon: Building2 },
+    { id: 'admin-ownership-flow', name: 'Arus Kepemilikan', subtitle: 'Status data kepemilikan', path: '/admin/ownership-flow', icon: Users },
+    { id: 'admin-lensai-feedback', name: 'Masukan LensAI', subtitle: 'Audit jawaban pengguna', path: '/admin/lensai-feedback', icon: MessageSquare },
   ],
 };
 
@@ -232,6 +232,7 @@ export function isPathActive(pathname: string, item: NavItem) {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { loading: authLoading, user, resolved: authResolved, effectiveRole } = useAuthUser();
@@ -266,8 +267,11 @@ export default function Sidebar() {
   }, []);
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
-    if (stored === 'true') setIsCollapsed(true);
+    const timer = window.setTimeout(() => {
+      const stored = window.localStorage.getItem(COLLAPSE_STORAGE_KEY);
+      if (stored === 'true') setIsCollapsed(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -310,7 +314,10 @@ export default function Sidebar() {
     // Buka otomatis HANYA kalau pengguna belum pernah menyentuh grup ini. Versi lama
     // membuka paksa setiap kali pathname berubah, jadi grup yang baru saja ditutup
     // menganga lagi begitu pengguna pindah halaman di dalamnya - tombolnya terasa rusak.
-    setExpandedGroups((current) => (activeGroup.id in current ? current : { ...current, [activeGroup.id]: true }));
+    const timer = window.setTimeout(() => {
+      setExpandedGroups((current) => (activeGroup.id in current ? current : { ...current, [activeGroup.id]: true }));
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [pathname, visibleGroups]);
 
   const toggleGroup = useCallback((groupId: string) => {
@@ -368,7 +375,7 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     await apiRequest('/api/auth/logout', { method: 'POST' });
-    window.location.href = '/login';
+    router.push('/login');
   };
 
   return (

@@ -32,7 +32,7 @@ export default async function LensAiFeedbackAdminPage() {
         <div className="mb-7 flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-tv-accent">LensAI Quality</p>
-            <h1 className="mt-2 font-heading text-2xl font-bold sm:text-3xl">Feedback LensAI</h1>
+            <h1 className="mt-2 font-heading text-2xl font-bold sm:text-3xl">Masukan LensAI</h1>
             <p className="mt-2 max-w-3xl text-sm text-tv-muted">
               Tinjau jawaban yang pengguna tandai membantu atau tidak tepat. Gunakan pertanyaan dan intent-nya untuk menentukan knowledge, routing, atau test regresi berikutnya.
             </p>

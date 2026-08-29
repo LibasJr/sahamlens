@@ -17,9 +17,9 @@ export default async function DecisionLabPage() {
         <Link href="/admin" className="mb-4 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text">
           <ArrowLeft className="h-4 w-4" /> Kembali ke Admin
         </Link>
-        <h1 className="font-heading text-2xl font-bold sm:text-3xl">AI Decision Lab</h1>
+        <h1 className="font-heading text-2xl font-bold sm:text-3xl">Simulasi Keputusan AI</h1>
         <p className="mt-2 max-w-4xl text-sm text-tv-muted">
-          Shadow decision dan paper execution berbasis snapshot SahamLens yang benar-benar tersedia. Data kurang atau kedaluwarsa menghasilkan NO_SIGNAL; live broker tetap terkunci.
+          Simulasi keputusan dan paper execution berbasis snapshot SahamLens yang benar-benar tersedia. Data kurang atau kedaluwarsa menghasilkan NO_SIGNAL; live broker tetap terkunci.
         </p>
         <DecisionLabClient initialDashboard={initialDashboard} />
       </div>

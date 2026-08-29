@@ -15,7 +15,7 @@ export function AdminBuyCandidateDetailPanel({ signal }: { signal: PersistedDeci
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border pb-3">
         <div className="flex items-center gap-2">
           <Sparkles className="h-4 w-4 text-tv-gold" />
-          <h2 className="font-heading text-sm font-bold text-tv-text">Decision Lab Candidate (Khusus Admin)</h2>
+          <h2 className="font-heading text-sm font-bold text-tv-text">Kandidat Simulasi Keputusan AI (Khusus Admin)</h2>
           <span className="rounded bg-tv-gold/20 px-2 py-0.5 text-[10px] font-bold uppercase text-tv-gold border border-tv-gold/30">
             ADMIN ONLY
           </span>

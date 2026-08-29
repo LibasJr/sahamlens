@@ -49,7 +49,7 @@ export default function IntradayValidationClient() {
     return (
       <div className="flex items-center gap-2 text-sm text-tv-muted py-16">
         <Loader2 className="h-4 w-4 animate-spin" />
-        Memuat Intraday Validation Lab...
+        Memuat Uji Intraday...
       </div>
     );
   }

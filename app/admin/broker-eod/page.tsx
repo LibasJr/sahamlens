@@ -46,10 +46,10 @@ export default async function BrokerEodPage({ searchParams }: BrokerEodPageProps
           Kembali ke Admin
         </Link>
         <div className="mb-8">
-          <h1 className="font-heading text-2xl font-bold text-tv-text sm:text-3xl">Broker EOD BEI</h1>
+          <h1 className="font-heading text-2xl font-bold text-tv-text sm:text-3xl">Ringkasan Broker BEI</h1>
           <p className="mt-2 max-w-3xl text-sm text-tv-muted">
-            Ringkasan harian seluruh Anggota Bursa dari API resmi BEI: nilai transaksi, volume, dan frekuensi per kode
-            broker. Data diambil oleh{' '}
+            Ringkasan harian seluruh Anggota Bursa dari BEI: nilai transaksi, volume, dan frekuensi per broker.
+            Data diambil oleh{' '}
             <code className="rounded bg-tv-card px-1.5 py-0.5">scripts/sync-idx-broker-summary.py</code> lalu diimpor
             oleh <code className="rounded bg-tv-card px-1.5 py-0.5">scripts/import-broker-market-daily.mjs</code>.
           </p>
