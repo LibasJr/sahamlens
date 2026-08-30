@@ -1,17 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-vi.mock('../../../../modules/user', () => ({
+vi.mock('@/modules/user', () => ({
   getSession: vi.fn(),
   hasOpenOrProAccess: vi.fn(),
 }));
-vi.mock('../../../../modules/backtest', () => ({
+vi.mock('@/modules/backtest', () => ({
   readBacktestCache: vi.fn(),
   precomputeBacktestData: vi.fn(),
   writeBacktestCache: vi.fn(),
   simulateBacktest: vi.fn(),
-  // Stub, bukan implementasi asli: test di file ini menegaskan bentuk response lama
-  // (return/trades/dst), bukan angka signifikansi statistik itu sendiri - itu sudah
-  // ditest terpisah di modules/backtest/service/__tests__/backtest-significance.service.test.ts.
   calculateBacktestSignificance: vi.fn(() => ({
     method: 'stub', totalTrades: 0, weekBlocks: 0, meanPnlPct: null,
     bootstrap: { iterations: 0, ci95Low: null, ci95High: null, status: 'INSUFFICIENT_DATA' },
@@ -19,7 +16,7 @@ vi.mock('../../../../modules/backtest', () => ({
     note: 'stub',
   })),
 }));
-vi.mock('../../../../shared/auth/anonymous-trial', () => ({
+vi.mock('@/shared/auth/anonymous-trial', () => ({
   readOrIssueAnonymousTrial: vi.fn(),
   buildAnonymousTrialCookie: vi.fn(async (trial: any) => trial?.isNew ? ({
     name: 'sl_anon_trial',
@@ -27,11 +24,15 @@ vi.mock('../../../../shared/auth/anonymous-trial', () => ({
     options: { httpOnly: true, sameSite: 'lax', path: '/' },
   }) : null),
 }));
+vi.mock('@/shared/middleware/compute-budget', () => ({
+  computeActorFromRequest: vi.fn(),
+  consumeComputeBudget: vi.fn(() => Promise.resolve({ allowed: true, unavailable: false })),
+}));
 
 import { POST } from '../route';
-import { getSession, hasOpenOrProAccess } from '../../../../modules/user';
-import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest } from '../../../../modules/backtest';
-import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie } from '../../../../shared/auth/anonymous-trial';
+import { getSession, hasOpenOrProAccess } from '@/modules/user';
+import { readBacktestCache, precomputeBacktestData, writeBacktestCache, simulateBacktest } from '@/modules/backtest';
+import { readOrIssueAnonymousTrial, buildAnonymousTrialCookie } from '@/shared/auth/anonymous-trial';
 
 function makeRequest(body: unknown): Request {
   return new Request('http://localhost/api/backtest', {
@@ -145,11 +146,6 @@ describe('POST /api/backtest', () => {
   });
 });
 
-// KEPUTUSAN PRODUK 2026-08-13: tamu (tanpa akun) dapat akses PENUH tanpa batas waktu -
-// trial 7 hari anonim TIDAK LAGI menggerbang fitur ini. Kelompok tes ini dulu bernama
-// "trial anonim" dan menguji 401 saat trial kadaluarsa; sekarang menguji bahwa tamu
-// SELALU lolos, dan bahwa cookie trial tetap diterbitkan (dipakai identitas kuota chat
-// guest & telemetri) walau tidak lagi dipakai untuk keputusan akses.
 describe('POST /api/backtest (akses tamu)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
