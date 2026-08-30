@@ -1,0 +1,1231 @@
+2026-08-26 17:51:21.852 INFO    sahamlens-id_9279 - strix.core.runner: Starting Strix scan sahamlens-id_9279 (image=ghcr.io/usestrix/strix-sandbox:1.3.0, max_turns=150, interactive=False, run_dir=/opt/sahamlens/app/strix_runs/sahamlens-id_9279)
+2026-08-26 17:51:21.852 INFO    sahamlens-id_9279 - strix.core.runner: LLM model resolved: openai/cx/gpt-5.5
+2026-08-26 17:51:21.852 INFO    sahamlens-id_9279 - strix.core.runner: Bringing up sandbox session for scan sahamlens-id_9279
+2026-08-26 17:51:21.852 DEBUG   sahamlens-id_9279 - strix.runtime.backends: Selected sandbox backend: docker
+2026-08-26 17:51:21.852 INFO    sahamlens-id_9279 - strix.runtime.session_manager: Creating sandbox session for scan sahamlens-id_9279 (backend=docker, image=ghcr.io/usestrix/strix-sandbox:1.3.0)
+2026-08-26 17:51:21.991 DEBUG   sahamlens-id_9279 - strix.runtime.docker_client: Creating sandbox container: image=ghcr.io/usestrix/strix-sandbox:1.3.0 caps=['NET_ADMIN', 'NET_RAW'] exposed_ports=[48080]
+2026-08-26 17:51:22.054 INFO    sahamlens-id_9279 - strix.runtime.docker_client: Sandbox container created: id=d6f6b291aaca image=ghcr.io/usestrix/strix-sandbox:1.3.0
+2026-08-26 17:51:22.430 DEBUG   sahamlens-id_9279 - strix.runtime.session_manager: Caido host endpoint resolved: http://127.0.0.1:32769
+2026-08-26 17:51:22.430 INFO    sahamlens-id_9279 - strix.runtime.caido_bootstrap: Bootstrapping Caido client (host=http://127.0.0.1:32769, container=http://127.0.0.1:48080)
+2026-08-26 17:51:22.694 INFO    sahamlens-id_9279 - strix.runtime.caido_bootstrap: Caido project selected: 7a2128ef-d558-4ea0-b6fc-472f8b0a7287
+2026-08-26 17:51:22.694 INFO    sahamlens-id_9279 - strix.runtime.session_manager: Sandbox session for scan sahamlens-id_9279 ready and cached
+2026-08-26 17:51:22.694 INFO    sahamlens-id_9279 - strix.core.runner: Sandbox ready for scan sahamlens-id_9279
+2026-08-26 17:51:22.696 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: scan_modes/standard -> standard
+2026-08-26 17:51:22.698 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: tooling/agent_browser -> agent_browser
+2026-08-26 17:51:22.699 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: tooling/python -> python
+2026-08-26 17:51:22.702 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: coordination/root_agent -> root_agent
+2026-08-26 17:51:22.703 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: coordination/source_aware_whitebox -> source_aware_whitebox
+2026-08-26 17:51:22.705 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: custom/source_aware_sast -> source_aware_sast
+2026-08-26 17:51:22.706 DEBUG   sahamlens-id_9279 - strix.skills: load_skills: 6 skill(s) resolved
+2026-08-26 17:51:22.731 DEBUG   sahamlens-id_9279 - strix.agents.prompt: render_system_prompt: scan_mode=standard root=True whitebox=True skills=6 prompt_len=82400
+2026-08-26 17:51:22.732 INFO    sahamlens-id_9279 - strix.agents.factory: Built root agent 'Root Agent' (skills=0, tools=30, scan_mode=standard, whitebox=True)
+2026-08-26 17:51:22.732 INFO    sahamlens-id_9279 - strix.core.agents: agent.register 3a76721d (Root Agent) parent=-
+2026-08-26 17:51:22.745 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 17:51:22.746 DEBUG   sahamlens-id_9279 - openai.agents: Setting current trace: no-op
+2026-08-26 17:51:22.746 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:22.750 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:22.751 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 17:51:22.751 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:22.752 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:51:22.752 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:22.754 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:51:23.729 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:51:23.770 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:51:23.774 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:51:23.776 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:51:23.777 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:51:24.523 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:51:24.718 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:51:24.723 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:51:24.732 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:51:24.911 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:51:24.930 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:51:25.618 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:51:33.459 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:51:33.460 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:51:33.460 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:51:33.460 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:51:33.461 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:33.461 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool think
+2026-08-26 17:51:33.461 DEBUG   sahamlens-id_9279 - openai.agents: Tool think completed.
+2026-08-26 17:51:33.461 DEBUG   sahamlens-id_9279 - openai.agents: Turn 1 complete, next_step type=NextStepRunAgain
+2026-08-26 17:51:33.467 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 2, current_agent=Root Agent
+2026-08-26 17:51:33.467 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:33.469 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:51:33.469 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:33.470 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:51:38.668 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:51:38.669 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:51:38.669 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:51:38.670 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:38.670 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_todo
+2026-08-26 17:51:38.671 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_todo completed.
+2026-08-26 17:51:38.671 DEBUG   sahamlens-id_9279 - openai.agents: Turn 2 complete, next_step type=NextStepRunAgain
+2026-08-26 17:51:38.679 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 3, current_agent=Root Agent
+2026-08-26 17:51:38.680 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:38.680 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:51:38.681 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:38.684 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:51:44.529 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:51:44.529 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:51:44.530 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:44.530 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_note
+2026-08-26 17:51:44.531 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_note completed.
+2026-08-26 17:51:44.531 DEBUG   sahamlens-id_9279 - openai.agents: Turn 3 complete, next_step type=NextStepRunAgain
+2026-08-26 17:51:44.538 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 4, current_agent=Root Agent
+2026-08-26 17:51:44.538 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:44.539 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:51:44.539 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:44.540 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:51:46.978 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:51:46.979 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:51:46.979 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:51:46.980 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:46.980 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool view_agent_graph
+2026-08-26 17:51:46.980 DEBUG   sahamlens-id_9279 - openai.agents: Tool view_agent_graph completed.
+2026-08-26 17:51:46.981 DEBUG   sahamlens-id_9279 - openai.agents: Turn 4 complete, next_step type=NextStepRunAgain
+2026-08-26 17:51:46.988 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 5, current_agent=Root Agent
+2026-08-26 17:51:46.988 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:46.989 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:51:46.989 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:51:46.990 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:00.001 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:00.001 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:00.002 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:00.002 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:00.002 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:00.002 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.002 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.002 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.003 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_agent
+2026-08-26 17:52:00.005 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: source_aware_sast -> source_aware_sast
+2026-08-26 17:52:00.008 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: dependency_cve_scanning -> dependency_cve_scanning
+2026-08-26 17:52:00.009 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: scan_modes/standard -> standard
+2026-08-26 17:52:00.010 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: tooling/agent_browser -> agent_browser
+2026-08-26 17:52:00.015 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: tooling/python -> python
+2026-08-26 17:52:00.015 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: coordination/source_aware_whitebox -> source_aware_whitebox
+2026-08-26 17:52:00.017 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: custom/source_aware_sast -> source_aware_sast
+2026-08-26 17:52:00.018 DEBUG   sahamlens-id_9279 - strix.skills: load_skills: 6 skill(s) resolved
+2026-08-26 17:52:00.030 DEBUG   sahamlens-id_9279 - strix.agents.prompt: render_system_prompt: scan_mode=standard root=False whitebox=True skills=6 prompt_len=91054
+2026-08-26 17:52:00.030 INFO    sahamlens-id_9279 - strix.agents.factory: Built child agent 'Source Architecture Mapper' (skills=2, tools=30, scan_mode=standard, whitebox=True)
+2026-08-26 17:52:00.031 INFO    sahamlens-id_9279 - strix.core.agents: agent.register 2d0f42d9 (Source Architecture Mapper) parent=3a76721d
+2026-08-26 17:52:00.032 INFO    sahamlens-id_9279 - strix.tools.agents_graph.tools: create_agent: spawned 2d0f42d9 (Source Architecture Mapper) parent=3a76721d skills=2 task_len=742
+2026-08-26 17:52:00.032 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_agent completed.
+2026-08-26 17:52:00.032 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_agent
+2026-08-26 17:52:00.034 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: asset_discovery -> asset_discovery
+2026-08-26 17:52:00.037 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: httpx -> httpx
+2026-08-26 17:52:00.039 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: katana -> katana
+2026-08-26 17:52:00.042 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: agent_browser -> agent_browser
+2026-08-26 17:52:00.044 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: information_disclosure -> information_disclosure
+2026-08-26 17:52:00.045 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: scan_modes/standard -> standard
+2026-08-26 17:52:00.048 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: tooling/agent_browser -> agent_browser
+2026-08-26 17:52:00.050 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: tooling/python -> python
+2026-08-26 17:52:00.051 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: coordination/source_aware_whitebox -> source_aware_whitebox
+2026-08-26 17:52:00.053 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: custom/source_aware_sast -> source_aware_sast
+2026-08-26 17:52:00.055 DEBUG   sahamlens-id_9279 - strix.skills: load_skills: 9 skill(s) resolved
+2026-08-26 17:52:00.067 DEBUG   sahamlens-id_9279 - strix.agents.prompt: render_system_prompt: scan_mode=standard root=False whitebox=True skills=9 prompt_len=106265
+2026-08-26 17:52:00.067 INFO    sahamlens-id_9279 - strix.agents.factory: Built child agent 'Low-Risk Web Recon Mapper' (skills=5, tools=30, scan_mode=standard, whitebox=True)
+2026-08-26 17:52:00.067 INFO    sahamlens-id_9279 - strix.core.agents: agent.register a1fba2a1 (Low-Risk Web Recon Mapper) parent=3a76721d
+2026-08-26 17:52:00.068 INFO    sahamlens-id_9279 - strix.tools.agents_graph.tools: create_agent: spawned a1fba2a1 (Low-Risk Web Recon Mapper) parent=3a76721d skills=5 task_len=743
+2026-08-26 17:52:00.068 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_agent completed.
+2026-08-26 17:52:00.068 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_agent
+2026-08-26 17:52:00.073 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: information_disclosure -> information_disclosure
+2026-08-26 17:52:00.075 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: header_injection -> header_injection
+2026-08-26 17:52:00.078 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: open_redirect -> open_redirect
+2026-08-26 17:52:00.080 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: scan_modes/standard -> standard
+2026-08-26 17:52:00.081 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: tooling/agent_browser -> agent_browser
+2026-08-26 17:52:00.084 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: tooling/python -> python
+2026-08-26 17:52:00.086 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: coordination/source_aware_whitebox -> source_aware_whitebox
+2026-08-26 17:52:00.089 DEBUG   sahamlens-id_9279 - strix.skills: Loaded skill: custom/source_aware_sast -> source_aware_sast
+2026-08-26 17:52:00.091 DEBUG   sahamlens-id_9279 - strix.skills: load_skills: 8 skill(s) resolved
+2026-08-26 17:52:00.103 DEBUG   sahamlens-id_9279 - strix.agents.prompt: render_system_prompt: scan_mode=standard root=False whitebox=True skills=8 prompt_len=108885
+2026-08-26 17:52:00.103 INFO    sahamlens-id_9279 - strix.agents.factory: Built child agent 'Production Config Reviewer' (skills=3, tools=30, scan_mode=standard, whitebox=True)
+2026-08-26 17:52:00.103 INFO    sahamlens-id_9279 - strix.core.agents: agent.register 8e542e4c (Production Config Reviewer) parent=3a76721d
+2026-08-26 17:52:00.104 INFO    sahamlens-id_9279 - strix.tools.agents_graph.tools: create_agent: spawned 8e542e4c (Production Config Reviewer) parent=3a76721d skills=3 task_len=612
+2026-08-26 17:52:00.104 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_agent completed.
+2026-08-26 17:52:00.105 DEBUG   sahamlens-id_9279 - openai.agents: Turn 5 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:00.114 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 6, current_agent=Root Agent
+2026-08-26 17:52:00.114 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.115 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:00.115 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.117 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:00.141 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.143 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.145 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.161 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.161 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 1, current_agent=Source Architecture Mapper
+2026-08-26 17:52:00.161 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.162 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.162 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 1, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:52:00.162 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.162 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.162 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 1, current_agent=Production Config Reviewer
+2026-08-26 17:52:00.162 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.164 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:00.164 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.166 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:00.172 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:00.173 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.174 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:00.181 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:00.181 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:00.182 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:01.260 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.319 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.324 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.350 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.372 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.406 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.425 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.437 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.453 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.454 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.470 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.510 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.532 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.535 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.546 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.548 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.549 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.553 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.556 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.557 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.559 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.567 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.569 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:01.575 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:02.002 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:02.109 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:02.125 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:02.394 DEBUG   - - strix.telemetry.posthog: posthog event sent: skill_loaded
+2026-08-26 17:52:02.398 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:02.509 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:03.085 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:03.086 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:03.086 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:03.087 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:03.087 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool update_todo
+2026-08-26 17:52:03.088 DEBUG   sahamlens-id_9279 - openai.agents: Tool update_todo completed.
+2026-08-26 17:52:03.088 DEBUG   sahamlens-id_9279 - openai.agents: Turn 6 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:03.095 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 7, current_agent=Root Agent
+2026-08-26 17:52:03.095 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:03.096 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:03.097 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:03.098 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:04.277 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.298 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.322 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.404 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.452 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.463 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.475 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.481 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.494 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.506 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.536 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.548 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.551 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.552 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.555 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.556 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.585 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.588 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.871 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:04.946 DEBUG   - - strix.telemetry.scarf: scarf event sent: skill_loaded
+2026-08-26 17:52:06.325 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:06.325 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:06.326 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:06.327 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:06.327 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool wait_for_agents
+2026-08-26 17:52:06.327 INFO    sahamlens-id_9279 - strix.core.agents: agent.status 3a76721d=waiting
+2026-08-26 17:52:08.279 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:08.280 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:08.280 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:52:08.281 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:08.281 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:08.281 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool think
+2026-08-26 17:52:08.281 DEBUG   sahamlens-id_9279 - openai.agents: Tool think completed.
+2026-08-26 17:52:08.282 DEBUG   sahamlens-id_9279 - openai.agents: Turn 1 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:08.289 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 2, current_agent=Source Architecture Mapper
+2026-08-26 17:52:08.289 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:08.290 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:08.290 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:08.292 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:10.688 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:10.688 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:10.689 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:52:10.689 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:10.689 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:10.689 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool think
+2026-08-26 17:52:10.689 DEBUG   sahamlens-id_9279 - openai.agents: Tool think completed.
+2026-08-26 17:52:10.690 DEBUG   sahamlens-id_9279 - openai.agents: Turn 1 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:10.697 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 2, current_agent=Production Config Reviewer
+2026-08-26 17:52:10.697 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:10.697 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:10.698 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:10.699 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:13.698 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:13.698 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:13.699 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:52:13.699 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:13.699 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:13.699 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool think
+2026-08-26 17:52:13.699 DEBUG   sahamlens-id_9279 - openai.agents: Tool think completed.
+2026-08-26 17:52:13.700 DEBUG   sahamlens-id_9279 - openai.agents: Turn 1 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:13.706 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 2, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:52:13.706 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:13.707 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:13.707 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:13.709 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:15.788 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:15.789 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:15.789 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:52:15.789 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:15.790 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:15.790 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:15.790 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:16.164 DEBUG   sahamlens-id_9279 - openai.agents: Turn 2 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:16.173 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 3, current_agent=Source Architecture Mapper
+2026-08-26 17:52:16.173 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:16.174 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:16.175 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:16.177 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:17.576 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:17.577 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:17.578 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:52:17.578 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:17.578 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:17.578 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:17.578 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:18.043 DEBUG   sahamlens-id_9279 - openai.agents: Turn 2 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:18.051 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 3, current_agent=Production Config Reviewer
+2026-08-26 17:52:18.051 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:18.051 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:18.052 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:18.054 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:19.587 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:19.588 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:19.588 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:52:19.588 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:19.588 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:19.589 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:19.589 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:20.596 DEBUG   sahamlens-id_9279 - openai.agents: Turn 2 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:20.604 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 3, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:52:20.604 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:20.605 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:20.606 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:20.608 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:25.213 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:25.214 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:25.214 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:52:25.214 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:52:25.214 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:25.215 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:25.216 DEBUG   sahamlens-id_9279 - openai.agents: Turn 3 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:25.222 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 4, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:52:25.222 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:25.223 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:25.224 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:25.225 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:32.800 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:32.801 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:32.802 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:52:32.802 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:52:32.802 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:32.802 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:32.802 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:32.803 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:32.803 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:32.803 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:33.391 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:33.392 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:33.392 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:52:33.392 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:52:33.392 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:33.393 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:34.400 DEBUG   sahamlens-id_9279 - openai.agents: Turn 3 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:34.408 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 4, current_agent=Source Architecture Mapper
+2026-08-26 17:52:34.408 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:34.409 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:34.409 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:34.410 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:35.707 DEBUG   sahamlens-id_9279 - openai.agents: Turn 3 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:35.718 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 4, current_agent=Production Config Reviewer
+2026-08-26 17:52:35.718 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:35.719 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:35.719 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:35.721 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:46.054 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:46.056 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:46.056 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:52:46.056 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:46.056 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:46.056 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:46.057 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:46.057 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:46.057 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:46.284 DEBUG   sahamlens-id_9279 - openai.agents: Turn 4 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:46.298 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 5, current_agent=Source Architecture Mapper
+2026-08-26 17:52:46.298 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:46.299 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:46.300 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:46.302 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:52:47.382 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:52:47.383 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:52:47.384 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:52:47.384 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:52:47.384 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:47.384 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:47.384 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:47.384 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:52:47.385 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:47.385 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:47.385 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:47.385 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:47.386 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool scope_rules
+2026-08-26 17:52:47.396 DEBUG   sahamlens-id_9279 - openai.agents: Tool scope_rules completed.
+2026-08-26 17:52:48.035 DEBUG   sahamlens-id_9279 - openai.agents: Turn 4 complete, next_step type=NextStepRunAgain
+2026-08-26 17:52:48.052 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 5, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:52:48.052 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:48.054 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:52:48.054 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:52:48.056 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:00.685 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:00.686 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:00.686 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:53:00.686 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:00.686 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:00.687 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:00.813 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:00.814 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:00.814 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:53:00.814 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:00.814 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:00.814 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:00.814 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:00.816 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:00.816 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:00.817 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:00.859 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:00.861 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:00.862 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:00.862 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:00.862 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:00.862 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:00.863 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:00.863 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:00.863 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:01.881 DEBUG   sahamlens-id_9279 - openai.agents: Turn 5 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:01.894 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 6, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:53:01.894 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:01.895 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:01.895 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:01.898 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:01.921 DEBUG   sahamlens-id_9279 - openai.agents: Turn 5 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:01.946 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 6, current_agent=Source Architecture Mapper
+2026-08-26 17:53:01.947 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:01.947 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:01.948 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:01.949 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:06.605 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:06.607 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:06.608 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:06.608 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:06.608 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:06.608 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:06.609 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:06.609 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:06.609 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:07.755 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:07.757 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:07.758 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:53:07.758 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:07.758 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:07.759 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:10.693 DEBUG   sahamlens-id_9279 - openai.agents: Turn 4 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:10.705 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 5, current_agent=Production Config Reviewer
+2026-08-26 17:53:10.705 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:10.706 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:10.707 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:10.709 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:11.611 DEBUG   sahamlens-id_9279 - openai.agents: Turn 6 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:11.633 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 7, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:53:11.633 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:11.635 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:11.635 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:11.637 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:12.760 DEBUG   sahamlens-id_9279 - openai.agents: Turn 6 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:12.778 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 7, current_agent=Source Architecture Mapper
+2026-08-26 17:53:12.778 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:12.780 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:12.780 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:12.783 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:14.429 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:14.430 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:14.431 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:14.431 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:14.431 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:14.509 DEBUG   sahamlens-id_9279 - openai.agents: Turn 5 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:14.531 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 6, current_agent=Production Config Reviewer
+2026-08-26 17:53:14.532 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:14.535 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:14.535 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:14.540 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:16.544 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:16.546 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:16.547 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:53:16.547 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:16.547 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:16.547 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:17.958 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:17.960 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:17.961 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:17.962 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:21.551 DEBUG   sahamlens-id_9279 - openai.agents: Turn 7 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:21.560 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 8, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:53:21.560 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:21.562 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:21.562 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:21.565 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:22.964 DEBUG   sahamlens-id_9279 - openai.agents: Turn 7 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:22.976 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 8, current_agent=Source Architecture Mapper
+2026-08-26 17:53:22.977 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:22.978 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:22.979 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:22.983 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:35.173 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:35.175 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:35.175 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:53:35.175 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:35.175 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:35.177 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:38.843 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:38.844 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:38.845 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:38.845 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:38.845 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:39.001 DEBUG   sahamlens-id_9279 - openai.agents: Turn 6 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:39.016 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 7, current_agent=Production Config Reviewer
+2026-08-26 17:53:39.016 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:39.017 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:39.017 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:39.019 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:39.146 DEBUG   sahamlens-id_9279 - openai.agents: Turn 8 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:39.170 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 9, current_agent=Source Architecture Mapper
+2026-08-26 17:53:39.170 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:39.171 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:39.171 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:39.173 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:43.208 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:43.209 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:43.210 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:53:43.210 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:43.210 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:43.210 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:43.210 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:43.211 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:43.211 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:43.211 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:44.227 DEBUG   sahamlens-id_9279 - openai.agents: Turn 8 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:44.245 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 9, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:53:44.246 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:44.247 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:44.248 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:44.250 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:45.478 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:45.483 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:45.484 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:53:45.484 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:45.484 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:45.485 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:50.487 DEBUG   sahamlens-id_9279 - openai.agents: Turn 9 complete, next_step type=NextStepRunAgain
+2026-08-26 17:53:50.499 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 10, current_agent=Source Architecture Mapper
+2026-08-26 17:53:50.500 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:50.501 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:53:50.502 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:53:50.504 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:53:59.041 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:53:59.043 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:53:59.044 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:53:59.044 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:53:59.044 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:53:59.045 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:00.999 DEBUG   sahamlens-id_9279 - openai.agents: Turn 7 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:01.024 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 8, current_agent=Production Config Reviewer
+2026-08-26 17:54:01.024 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:01.026 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:01.026 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:01.030 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:04.028 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:04.029 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:04.030 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:04.030 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:04.030 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:04.030 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:04.030 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:04.031 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:04.031 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:04.873 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:04.875 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:04.875 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:54:04.875 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:04.875 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:04.875 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:04.875 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:04.876 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:04.876 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:04.876 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:05.089 DEBUG   sahamlens-id_9279 - openai.agents: Turn 10 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:05.108 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 11, current_agent=Source Architecture Mapper
+2026-08-26 17:54:05.109 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:05.110 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:05.110 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:05.112 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:17.611 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:17.613 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:17.614 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:54:17.614 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:17.614 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:17.614 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:17.614 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:17.615 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:18.517 DEBUG   sahamlens-id_9279 - openai.agents: Turn 8 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:18.531 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 9, current_agent=Production Config Reviewer
+2026-08-26 17:54:18.531 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:18.533 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:18.533 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:18.538 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:19.486 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:19.487 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:19.488 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:54:19.488 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:19.488 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:19.488 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:19.788 DEBUG   sahamlens-id_9279 - openai.agents: Turn 11 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:19.803 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 12, current_agent=Source Architecture Mapper
+2026-08-26 17:54:19.803 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:19.805 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:19.806 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:19.810 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:20.511 DEBUG   sahamlens-id_9279 - openai.agents: Turn 9 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:20.534 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 10, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:54:20.534 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:20.539 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:20.539 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:20.542 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:26.019 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:26.020 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:26.021 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:54:26.021 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:26.021 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:26.022 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:31.023 DEBUG   sahamlens-id_9279 - openai.agents: Turn 12 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:31.052 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 13, current_agent=Source Architecture Mapper
+2026-08-26 17:54:31.052 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:31.055 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:31.055 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:31.058 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:37.322 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:37.324 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:37.325 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:54:37.325 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:37.325 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:37.325 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:37.325 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:37.326 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:37.326 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:37.326 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:37.616 DEBUG   sahamlens-id_9279 - openai.agents: Turn 10 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:37.629 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 11, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:54:37.629 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:37.631 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:37.631 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:37.634 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:43.456 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:43.458 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:43.459 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:54:43.459 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:43.459 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:43.460 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:43.704 DEBUG   sahamlens-id_9279 - openai.agents: Turn 13 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:43.725 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 14, current_agent=Source Architecture Mapper
+2026-08-26 17:54:43.725 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:43.727 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:43.729 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:43.733 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:48.296 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:48.299 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:48.299 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:54:48.300 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:48.300 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:48.304 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:51.602 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:54:51.605 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:54:51.605 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:54:51.605 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:54:51.606 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:54:51.606 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:51.607 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_note
+2026-08-26 17:54:51.608 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_note completed.
+2026-08-26 17:54:51.608 DEBUG   sahamlens-id_9279 - openai.agents: Turn 9 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:51.628 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 10, current_agent=Production Config Reviewer
+2026-08-26 17:54:51.628 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:51.630 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:51.633 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:51.636 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:54:53.306 DEBUG   sahamlens-id_9279 - openai.agents: Turn 14 complete, next_step type=NextStepRunAgain
+2026-08-26 17:54:53.321 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 15, current_agent=Source Architecture Mapper
+2026-08-26 17:54:53.321 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:53.323 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:54:53.323 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:54:53.326 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:01.948 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:01.950 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:01.952 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:01.952 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:01.952 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:01.953 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:01.954 DEBUG   sahamlens-id_9279 - openai.agents: Turn 15 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:01.977 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 16, current_agent=Source Architecture Mapper
+2026-08-26 17:55:01.977 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:01.979 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:01.979 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:01.983 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:05.267 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:05.273 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:05.273 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:05.274 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:05.275 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool agent_finish
+2026-08-26 17:55:05.276 INFO    sahamlens-id_9279 - strix.core.agents: agent.status 8e542e4c=completed
+2026-08-26 17:55:05.277 INFO    sahamlens-id_9279 - strix.tools.agents_graph.tools: agent_finish: 8e542e4c success=True findings=8 parent_notified=True
+2026-08-26 17:55:05.277 DEBUG   sahamlens-id_9279 - openai.agents: Tool agent_finish completed.
+2026-08-26 17:55:05.277 DEBUG   sahamlens-id_9279 - openai.agents: Turn 10 complete, next_step type=NextStepFinalOutput
+2026-08-26 17:55:05.297 DEBUG   sahamlens-id_9279 - openai.agents: Tool wait_for_agents completed.
+2026-08-26 17:55:05.298 DEBUG   sahamlens-id_9279 - openai.agents: Turn 7 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:05.339 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 8, current_agent=Root Agent
+2026-08-26 17:55:05.339 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:05.340 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:05.341 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:05.347 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:05.481 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:05.484 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:05.485 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:05.485 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:05.487 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:05.487 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:05.487 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:05.487 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:05.487 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:05.487 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:05.488 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool list_requests
+2026-08-26 17:55:05.549 DEBUG   sahamlens-id_9279 - openai.agents: Tool list_requests completed.
+2026-08-26 17:55:06.504 DEBUG   sahamlens-id_9279 - openai.agents: Turn 11 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:06.522 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 12, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:55:06.523 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:06.526 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:06.527 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:06.530 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:10.754 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:10.756 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:10.757 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:10.757 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:10.757 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:10.758 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:10.952 DEBUG   sahamlens-id_9279 - openai.agents: Turn 16 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:10.980 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 17, current_agent=Source Architecture Mapper
+2026-08-26 17:55:10.980 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:10.984 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:10.984 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:10.987 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:13.249 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:13.252 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:13.252 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:13.252 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:13.252 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:13.252 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:13.256 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:13.256 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:13.256 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:13.257 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool get_note
+2026-08-26 17:55:13.257 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool view_agent_graph
+2026-08-26 17:55:13.258 DEBUG   sahamlens-id_9279 - openai.agents: Tool view_agent_graph completed.
+2026-08-26 17:55:13.258 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool list_reports
+2026-08-26 17:55:13.259 DEBUG   sahamlens-id_9279 - openai.agents: Tool get_note completed.
+2026-08-26 17:55:13.260 DEBUG   sahamlens-id_9279 - openai.agents: Tool list_reports completed.
+2026-08-26 17:55:13.261 DEBUG   sahamlens-id_9279 - openai.agents: Turn 8 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:13.286 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 9, current_agent=Root Agent
+2026-08-26 17:55:13.286 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:13.288 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:13.288 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:13.291 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:16.409 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:16.411 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:16.412 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:16.412 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:16.413 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:16.413 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:16.413 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:16.414 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:16.414 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:16.414 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:20.238 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:20.240 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:20.241 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:20.241 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:20.241 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:20.242 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:20.242 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_note
+2026-08-26 17:55:20.243 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_note completed.
+2026-08-26 17:55:20.244 DEBUG   sahamlens-id_9279 - openai.agents: Turn 9 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:20.258 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 10, current_agent=Root Agent
+2026-08-26 17:55:20.258 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:20.260 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:20.263 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:20.266 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:23.085 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:23.087 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:23.088 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:23.089 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:23.090 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool wait_for_agents
+2026-08-26 17:55:23.090 INFO    sahamlens-id_9279 - strix.core.agents: agent.status 3a76721d=waiting
+2026-08-26 17:55:25.873 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:25.876 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:25.877 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:25.877 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:25.877 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:25.878 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:26.883 DEBUG   sahamlens-id_9279 - openai.agents: Turn 17 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:26.892 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 18, current_agent=Source Architecture Mapper
+2026-08-26 17:55:26.892 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:26.894 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:26.894 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:26.897 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:32.463 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:32.465 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:32.466 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:32.466 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:32.466 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:32.467 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:36.561 DEBUG   sahamlens-id_9279 - openai.agents: Turn 12 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:36.568 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 13, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:55:36.568 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:36.570 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:36.570 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:36.572 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:37.468 DEBUG   sahamlens-id_9279 - openai.agents: Turn 18 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:37.477 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 19, current_agent=Source Architecture Mapper
+2026-08-26 17:55:37.477 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:37.478 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:37.479 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:37.482 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:48.718 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:48.720 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:48.720 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:48.720 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:48.721 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:48.948 DEBUG   sahamlens-id_9279 - openai.agents: Turn 19 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:48.956 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 20, current_agent=Source Architecture Mapper
+2026-08-26 17:55:48.956 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:48.958 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:48.958 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:48.961 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:55:57.521 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:57.523 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:57.524 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:57.524 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:57.524 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:57.525 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:57.798 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:55:57.800 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:55:57.801 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:55:57.801 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:55:57.801 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:57.801 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:55:57.801 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:57.802 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:57.802 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool list_requests
+2026-08-26 17:55:57.817 DEBUG   sahamlens-id_9279 - openai.agents: Tool list_requests completed.
+2026-08-26 17:55:57.961 DEBUG   sahamlens-id_9279 - openai.agents: Turn 13 complete, next_step type=NextStepRunAgain
+2026-08-26 17:55:57.970 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 14, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:55:57.970 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:57.972 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:55:57.973 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:55:57.976 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:02.526 DEBUG   sahamlens-id_9279 - openai.agents: Turn 20 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:02.533 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 21, current_agent=Source Architecture Mapper
+2026-08-26 17:56:02.533 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:02.535 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:02.535 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:02.537 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:05.970 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:05.972 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:05.972 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:56:05.972 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:05.973 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:10.974 DEBUG   sahamlens-id_9279 - openai.agents: Turn 21 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:10.981 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 22, current_agent=Source Architecture Mapper
+2026-08-26 17:56:10.981 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:10.983 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:10.983 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:10.985 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:14.785 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:14.787 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:14.787 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:56:14.787 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:14.788 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:14.847 DEBUG   sahamlens-id_9279 - openai.agents: Turn 22 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:14.854 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 23, current_agent=Source Architecture Mapper
+2026-08-26 17:56:14.854 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:14.856 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:14.856 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:14.858 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:19.353 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:19.354 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:19.355 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:56:19.355 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:19.356 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:19.356 DEBUG   sahamlens-id_9279 - openai.agents: Turn 23 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:19.363 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 24, current_agent=Source Architecture Mapper
+2026-08-26 17:56:19.363 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:19.365 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:19.365 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:19.367 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:25.464 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:25.466 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:25.467 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:56:25.467 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:56:25.467 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:25.468 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:25.468 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_note
+2026-08-26 17:56:25.469 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_note completed.
+2026-08-26 17:56:25.470 DEBUG   sahamlens-id_9279 - openai.agents: Turn 14 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:25.478 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 15, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:56:25.478 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:25.480 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:25.480 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:25.482 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:30.296 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:30.298 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:30.300 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:56:30.300 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:30.301 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:30.623 DEBUG   sahamlens-id_9279 - openai.agents: Turn 24 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:30.629 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 25, current_agent=Source Architecture Mapper
+2026-08-26 17:56:30.629 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:30.631 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:30.631 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:30.633 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:46.911 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:46.913 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:46.914 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:46.915 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:46.915 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_note
+2026-08-26 17:56:46.916 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_note completed.
+2026-08-26 17:56:46.917 DEBUG   sahamlens-id_9279 - openai.agents: Turn 15 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:46.924 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 16, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:56:46.924 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:46.926 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:46.926 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:46.929 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:48.276 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:48.277 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:48.278 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:56:48.278 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:56:48.278 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:48.278 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:48.437 DEBUG   sahamlens-id_9279 - openai.agents: Turn 25 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:48.445 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 26, current_agent=Source Architecture Mapper
+2026-08-26 17:56:48.445 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:48.446 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:48.447 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:48.449 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:58.242 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:58.245 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:58.245 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:58.247 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:58.247 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_note
+2026-08-26 17:56:58.248 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_note completed.
+2026-08-26 17:56:58.249 DEBUG   sahamlens-id_9279 - openai.agents: Turn 16 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:58.257 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 17, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:56:58.257 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:58.259 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:58.260 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:58.262 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:56:59.278 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:56:59.280 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:56:59.281 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:56:59.281 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:56:59.281 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:56:59.282 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:59.474 DEBUG   sahamlens-id_9279 - openai.agents: Turn 26 complete, next_step type=NextStepRunAgain
+2026-08-26 17:56:59.481 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 27, current_agent=Source Architecture Mapper
+2026-08-26 17:56:59.481 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:59.482 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:56:59.483 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:56:59.484 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:57:03.079 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:03.081 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:03.082 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:57:03.082 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:03.083 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:03.219 DEBUG   sahamlens-id_9279 - openai.agents: Turn 17 complete, next_step type=NextStepRunAgain
+2026-08-26 17:57:03.229 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 18, current_agent=Low-Risk Web Recon Mapper
+2026-08-26 17:57:03.229 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:03.231 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:57:03.231 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:03.234 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:57:15.176 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:15.179 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:15.179 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:15.180 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:15.180 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool agent_finish
+2026-08-26 17:57:15.181 INFO    sahamlens-id_9279 - strix.core.agents: agent.status a1fba2a1=completed
+2026-08-26 17:57:15.182 INFO    sahamlens-id_9279 - strix.tools.agents_graph.tools: agent_finish: a1fba2a1 success=True findings=5 parent_notified=True
+2026-08-26 17:57:15.182 DEBUG   sahamlens-id_9279 - openai.agents: Tool agent_finish completed.
+2026-08-26 17:57:15.183 DEBUG   sahamlens-id_9279 - openai.agents: Turn 18 complete, next_step type=NextStepFinalOutput
+2026-08-26 17:57:15.189 DEBUG   sahamlens-id_9279 - openai.agents: Tool wait_for_agents completed.
+2026-08-26 17:57:15.189 DEBUG   sahamlens-id_9279 - openai.agents: Turn 10 complete, next_step type=NextStepRunAgain
+2026-08-26 17:57:15.199 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 11, current_agent=Root Agent
+2026-08-26 17:57:15.199 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:15.200 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:57:15.201 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:15.202 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:57:23.605 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:23.606 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:23.607 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:57:23.607 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:57:23.607 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:23.608 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:24.251 DEBUG   sahamlens-id_9279 - openai.agents: Turn 27 complete, next_step type=NextStepRunAgain
+2026-08-26 17:57:24.258 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 28, current_agent=Source Architecture Mapper
+2026-08-26 17:57:24.258 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:24.259 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:57:24.259 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:24.261 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:57:34.748 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:34.750 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:34.751 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:57:34.751 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:57:34.751 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:34.752 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:34.943 DEBUG   sahamlens-id_9279 - openai.agents: Turn 28 complete, next_step type=NextStepRunAgain
+2026-08-26 17:57:34.950 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 29, current_agent=Source Architecture Mapper
+2026-08-26 17:57:34.950 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:34.952 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:57:34.952 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:34.954 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:57:35.265 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:35.267 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:35.268 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:57:35.268 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:35.268 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:35.268 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:35.268 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:35.268 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:35.268 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:35.268 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:35.269 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:35.269 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:35.269 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:35.269 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool get_note
+2026-08-26 17:57:35.269 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool get_note
+2026-08-26 17:57:35.269 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool get_note
+2026-08-26 17:57:35.270 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool view_agent_graph
+2026-08-26 17:57:35.270 DEBUG   sahamlens-id_9279 - openai.agents: Tool view_agent_graph completed.
+2026-08-26 17:57:35.270 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool list_reports
+2026-08-26 17:57:35.271 DEBUG   sahamlens-id_9279 - openai.agents: Tool get_note completed.
+2026-08-26 17:57:35.271 DEBUG   sahamlens-id_9279 - openai.agents: Tool get_note completed.
+2026-08-26 17:57:35.271 DEBUG   sahamlens-id_9279 - openai.agents: Tool get_note completed.
+2026-08-26 17:57:35.271 DEBUG   sahamlens-id_9279 - openai.agents: Tool list_reports completed.
+2026-08-26 17:57:35.271 DEBUG   sahamlens-id_9279 - openai.agents: Turn 11 complete, next_step type=NextStepRunAgain
+2026-08-26 17:57:35.280 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 12, current_agent=Root Agent
+2026-08-26 17:57:35.280 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:35.281 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:57:35.282 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:35.283 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:57:43.600 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:43.602 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:43.603 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:57:43.603 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:43.603 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:43.603 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool send_message_to_agent
+2026-08-26 17:57:43.604 DEBUG   sahamlens-id_9279 - openai.agents: Tool send_message_to_agent completed.
+2026-08-26 17:57:43.605 DEBUG   sahamlens-id_9279 - openai.agents: Turn 12 complete, next_step type=NextStepRunAgain
+2026-08-26 17:57:43.613 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 13, current_agent=Root Agent
+2026-08-26 17:57:43.613 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:43.614 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:57:43.615 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:43.617 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:57:48.316 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:48.318 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:48.318 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:57:48.318 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:48.319 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:48.320 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool wait_for_agents
+2026-08-26 17:57:48.320 INFO    sahamlens-id_9279 - strix.core.agents: agent.status 3a76721d=waiting
+2026-08-26 17:57:49.911 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:49.913 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:49.914 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:57:49.914 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:57:49.914 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:49.914 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:49.915 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:49.915 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:50.050 DEBUG   sahamlens-id_9279 - openai.agents: Turn 29 complete, next_step type=NextStepRunAgain
+2026-08-26 17:57:50.057 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 30, current_agent=Source Architecture Mapper
+2026-08-26 17:57:50.057 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:50.059 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:57:50.059 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:50.062 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:57:58.738 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:57:58.741 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:57:58.742 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:57:58.742 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:57:58.743 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:58.743 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool think
+2026-08-26 17:57:58.743 DEBUG   sahamlens-id_9279 - openai.agents: Tool think completed.
+2026-08-26 17:57:58.744 DEBUG   sahamlens-id_9279 - openai.agents: Turn 30 complete, next_step type=NextStepRunAgain
+2026-08-26 17:57:58.751 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 31, current_agent=Source Architecture Mapper
+2026-08-26 17:57:58.751 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:58.753 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:57:58.754 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:57:58.756 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:58:37.245 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:58:37.247 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:58:37.248 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:58:37.248 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:58:37.249 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:58:37.249 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool create_note
+2026-08-26 17:58:37.251 DEBUG   sahamlens-id_9279 - openai.agents: Tool create_note completed.
+2026-08-26 17:58:37.251 DEBUG   sahamlens-id_9279 - openai.agents: Turn 31 complete, next_step type=NextStepRunAgain
+2026-08-26 17:58:37.259 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 32, current_agent=Source Architecture Mapper
+2026-08-26 17:58:37.260 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:58:37.261 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:58:37.261 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:58:37.263 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:58:53.208 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:58:53.211 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:58:53.212 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 17:58:53.212 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:58:53.212 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:58:53.213 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool agent_finish
+2026-08-26 17:58:53.213 INFO    sahamlens-id_9279 - strix.core.agents: agent.status 2d0f42d9=completed
+2026-08-26 17:58:53.214 INFO    sahamlens-id_9279 - strix.tools.agents_graph.tools: agent_finish: 2d0f42d9 success=True findings=5 parent_notified=True
+2026-08-26 17:58:53.214 DEBUG   sahamlens-id_9279 - openai.agents: Tool agent_finish completed.
+2026-08-26 17:58:53.215 DEBUG   sahamlens-id_9279 - openai.agents: Turn 32 complete, next_step type=NextStepFinalOutput
+2026-08-26 17:58:53.221 DEBUG   sahamlens-id_9279 - openai.agents: Tool wait_for_agents completed.
+2026-08-26 17:58:53.222 DEBUG   sahamlens-id_9279 - openai.agents: Turn 13 complete, next_step type=NextStepRunAgain
+2026-08-26 17:58:53.231 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 14, current_agent=Root Agent
+2026-08-26 17:58:53.232 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:58:53.233 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:58:53.233 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:58:53.235 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:59:03.817 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:59:03.820 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:59:03.820 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:59:03.821 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:59:03.821 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:59:03.821 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:59:03.821 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:03.821 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:03.822 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:03.822 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool view_agent_graph
+2026-08-26 17:59:03.822 DEBUG   sahamlens-id_9279 - openai.agents: Tool view_agent_graph completed.
+2026-08-26 17:59:03.822 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool list_reports
+2026-08-26 17:59:03.822 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool get_note
+2026-08-26 17:59:03.823 DEBUG   sahamlens-id_9279 - openai.agents: Tool list_reports completed.
+2026-08-26 17:59:03.823 DEBUG   sahamlens-id_9279 - openai.agents: Tool get_note completed.
+2026-08-26 17:59:03.824 DEBUG   sahamlens-id_9279 - openai.agents: Turn 14 complete, next_step type=NextStepRunAgain
+2026-08-26 17:59:03.832 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 15, current_agent=Root Agent
+2026-08-26 17:59:03.832 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:03.833 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:59:03.834 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:03.836 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:59:12.228 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:59:12.231 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:59:12.231 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:59:12.231 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:59:12.232 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:12.232 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool view_agent_graph
+2026-08-26 17:59:12.232 DEBUG   sahamlens-id_9279 - openai.agents: Tool view_agent_graph completed.
+2026-08-26 17:59:12.233 DEBUG   sahamlens-id_9279 - openai.agents: Turn 15 complete, next_step type=NextStepRunAgain
+2026-08-26 17:59:12.240 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 16, current_agent=Root Agent
+2026-08-26 17:59:12.240 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:12.242 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:59:12.242 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:12.244 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:59:22.639 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:59:22.641 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:59:22.642 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:59:22.642 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:59:22.642 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:22.643 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool update_todo
+2026-08-26 17:59:22.643 DEBUG   sahamlens-id_9279 - openai.agents: Tool update_todo completed.
+2026-08-26 17:59:22.644 DEBUG   sahamlens-id_9279 - openai.agents: Turn 16 complete, next_step type=NextStepRunAgain
+2026-08-26 17:59:22.651 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 17, current_agent=Root Agent
+2026-08-26 17:59:22.651 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:22.653 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:59:22.653 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:22.655 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:59:34.255 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:59:34.258 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:59:34.259 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:59:34.259 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:59:34.259 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:34.260 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool view_agent_graph
+2026-08-26 17:59:34.260 DEBUG   sahamlens-id_9279 - openai.agents: Tool view_agent_graph completed.
+2026-08-26 17:59:34.260 DEBUG   sahamlens-id_9279 - openai.agents: Turn 17 complete, next_step type=NextStepRunAgain
+2026-08-26 17:59:34.267 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 18, current_agent=Root Agent
+2026-08-26 17:59:34.268 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:34.269 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:59:34.269 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:34.272 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 17:59:43.372 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 17:59:43.375 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 17:59:43.376 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 17:59:43.376 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 17:59:43.376 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:43.377 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool think
+2026-08-26 17:59:43.377 DEBUG   sahamlens-id_9279 - openai.agents: Tool think completed.
+2026-08-26 17:59:43.377 DEBUG   sahamlens-id_9279 - openai.agents: Turn 18 complete, next_step type=NextStepRunAgain
+2026-08-26 17:59:43.384 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 19, current_agent=Root Agent
+2026-08-26 17:59:43.385 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:43.386 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 17:59:43.386 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 17:59:43.388 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 18:00:00.353 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 18:00:00.353 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=message class=ResponseOutputMessage
+2026-08-26 18:00:00.353 DEBUG   sahamlens-id_9279 - openai.agents: Turn 19 complete, next_step type=NextStepFinalOutput
+2026-08-26 18:00:00.358 DEBUG   sahamlens-id_9279 - openai.agents: Resetting current trace
+2026-08-26 18:00:00.359 WARNING sahamlens-id_9279 - strix.core.execution: agent 3a76721d ended a turn without a lifecycle tool call (interactive=False); forcing tool continuation (1/150): [Error] This content was flagged for possible cybersecurity risk. If this seems wrong, try rephrasing your request. To get authorized for security work, join the Trusted Access for Cyber program: https://chatgpt.com/cyber
+2026-08-26 18:00:00.365 DEBUG   sahamlens-id_9279 - strix.llm.context_budget: No LiteLLM model info for 'openai/cx/gpt-5.5'; using configured fallbacks
+2026-08-26 18:00:00.392 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating trace
+2026-08-26 18:00:00.393 DEBUG   sahamlens-id_9279 - openai.agents: Setting current trace: no-op
+2026-08-26 18:00:00.393 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 18:00:00.399 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 18:00:00.399 DEBUG   sahamlens-id_9279 - openai.agents: Starting turn 1, current_agent=Root Agent
+2026-08-26 18:00:00.399 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 18:00:00.401 DEBUG   sahamlens-id_9279 - openai.agents: No conversation_id available for request
+2026-08-26 18:00:00.401 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 18:00:00.403 DEBUG   sahamlens-id_9279 - openai.agents: Calling LLM
+2026-08-26 18:00:43.369 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 18:00:43.372 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 18:00:43.372 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=reasoning class=ResponseReasoningItem
+2026-08-26 18:00:43.372 DEBUG   sahamlens-id_9279 - openai.agents: Processing output item type=function_call class=ResponseFunctionToolCall
+2026-08-26 18:00:43.373 DEBUG   sahamlens-id_9279 - openai.agents: Tracing is disabled. Not creating span
+2026-08-26 18:00:43.373 DEBUG   sahamlens-id_9279 - openai.agents: Invoking tool finish_scan
+2026-08-26 18:00:43.373 INFO    sahamlens-id_9279 - strix.report.state: Updated scan final fields
+2026-08-26 18:00:43.375 INFO    sahamlens-id_9279 - strix.report.writer: Saved final penetration test report to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/penetration_test_report.md
+2026-08-26 18:00:43.376 INFO    sahamlens-id_9279 - strix.report.sarif: Wrote SARIF 2.1.0 report: /opt/sahamlens/app/strix_runs/sahamlens-id_9279/findings.sarif (0 results)
+2026-08-26 18:00:43.377 INFO    sahamlens-id_9279 - strix.report.state: Essential scan data saved to: /opt/sahamlens/app/strix_runs/sahamlens-id_9279
+2026-08-26 18:00:44.323 DEBUG   sahamlens-id_9279 - strix.telemetry.posthog: posthog event sent: scan_ended
+2026-08-26 18:00:45.056 DEBUG   sahamlens-id_9279 - strix.telemetry.scarf: scarf event sent: scan_ended
+2026-08-26 18:00:45.056 INFO    sahamlens-id_9279 - strix.tools.finish.tool: finish_scan: completed scan with 0 vulnerability report(s)
+2026-08-26 18:00:45.056 INFO    sahamlens-id_9279 - strix.core.agents: agent.status 3a76721d=completed
+2026-08-26 18:00:45.057 DEBUG   sahamlens-id_9279 - openai.agents: Tool finish_scan completed.
+2026-08-26 18:00:45.058 DEBUG   sahamlens-id_9279 - openai.agents: Turn 1 complete, next_step type=NextStepFinalOutput
+2026-08-26 18:00:45.064 DEBUG   sahamlens-id_9279 - openai.agents: Resetting current trace
+2026-08-26 18:00:45.066 INFO    sahamlens-id_9279 - strix.core.runner: Tearing down sandbox session for scan sahamlens-id_9279
+2026-08-26 18:00:45.735 INFO    sahamlens-id_9279 - strix.runtime.session_manager: Cleaned up sandbox session for scan sahamlens-id_9279
+2026-08-26 18:00:45.736 INFO    sahamlens-id_9279 - strix.core.runner: Strix scan sahamlens-id_9279 done

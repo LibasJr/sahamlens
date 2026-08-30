@@ -72,8 +72,8 @@ export async function generateMetadata({
   }
 
   const displayName = emiten.name === code ? code : emiten.name;
-  const title = `Analisis Saham ${code} - Teknikal, Chart & LensScore | SahamLens`;
-  const description = `Analisis teknikal saham ${code}${displayName !== code ? ` (${displayName})` : ''}: chart interaktif, indikator, LensScore, momentum, flow, dan konteks risiko berbasis data SahamLens.`;
+  const title = `Analisis Saham ${code} - Teknikal, Chart & Skor total | SahamLens`;
+  const description = `Analisis teknikal saham ${code}${displayName !== code ? ` (${displayName})` : ''}: chart interaktif, indikator, skor total, momentum, arus dana, dan konteks risiko berbasis data SahamLens.`;
   const canonical = `${SITE_URL}/technical/${code}`;
 
   return {
@@ -337,7 +337,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
     return Math.round((skorKelompok / bobotTersedia) * 100);
   };
 
-  // Tiga kelompok, bukan empat. LensScore memang terdiri dari Technical / Fundamental /
+  // Tiga kelompok, bukan empat. Skor total memang terdiri dari Technical / Fundamental /
   // Flow; "Valuation" adalah SUB-faktor di dalam Fundamental (scoring.detail.valuasi),
   // bukan kelompok sejajar. Menampilkannya berdampingan seolah setara akan menyatakan
   // pembobotan yang tidak dipakai model mana pun. Valuasi punya halamannya sendiri
@@ -377,16 +377,16 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
   return (
     <div className="space-y-6">
       {/* KESIMPULAN -> ALASAN -> BUKTI (PRD §16-17).
-          Harga, LensScore, dan rincian kelompoknya SEMUANYA berasal dari payload
+          Harga, skor total, dan rincian kelompoknya SEMUANYA berasal dari payload
           /api/stock yang sudah diambil di atas - blok ini tidak menambah satu request pun. */}
       <section aria-labelledby="technical-brief-title" className="border-y border-tv-border/70 py-5">
         <div className="lens-eyebrow mb-1.5 text-tv-muted">Ringkasan sebelum indikator</div>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="max-w-3xl">
-            <h2 id="technical-brief-title" className="font-heading text-xl font-bold text-tv-text">Yang penting dari {symbol.replace('.JK', '')}</h2>
+            <h2 id="technical-brief-title" className="font-heading text-xl font-bold text-tv-text">Ringkasan cepat {symbol.replace('.JK', '')}</h2>
             <p className="mt-1.5 text-sm leading-relaxed text-tv-muted">{primaryRead}</p>
           </div>
-          <div className="lens-meta font-semibold text-tv-green">Rule-based · dapat diaudit</div>
+          <div className="rounded-full border border-tv-green/30 bg-tv-green/10 px-3 py-1 text-xs font-semibold text-tv-green">Skor & alasan bisa diaudit</div>
         </div>
 
         {/* Harga & skor berdampingan: dua angka yang paling dicari, sebelum apa pun. */}
@@ -407,11 +407,11 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             )}
           </div>
           <div>
-            <div className="lens-meta font-semibold text-tv-muted">LensScore</div>
+            <div className="lens-meta font-semibold text-tv-muted">Skor total</div>
             <div className="lens-metric-lg mt-1 text-tv-text">
               {skor ?? 'N/A'}{skor != null && <span className="lens-meta font-medium text-tv-muted"> / 100</span>}
             </div>
-            {/* GEMBOK TAMU (2026-08-23). Angka LensScore sengaja TETAP terbuka; yang
+            {/* GEMBOK TAMU (2026-08-23). Angka skor total sengaja TETAP terbuka; yang
                 dikunci justru tafsirnya. Angka tanpa arti jauh lebih memancing daripada
                 halaman kosong - pengunjung melihat 78/100 tapi tidak tahu itu BUY atau
                 HOLD, dan itulah alasan mendaftar. Halaman ini juga tetap punya isi nyata
@@ -446,7 +446,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
               </div>
             )}
             <ResearchProvenanceDetails
-              label="Audit sumber & input LensScore"
+              label="Audit sumber & input skor total"
               entries={lensScoreInputEntries}
               model={{
                 version: data._meta?.lensScoreModel?.version,
@@ -458,7 +458,7 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
           </div>
         </div>
 
-        {/* Rincian kelompok LensScore. Penyebutnya `available_max`, BUKAN bobot yang
+        {/* Rincian kelompok skor total. Penyebutnya `available_max`, BUKAN bobot yang
             dideklarasikan - lihat temuan H-03 di scoring.service.ts: membagi dengan
             40/30/30 saat coverage < 100% meremehkan kelompok yang datanya justru lengkap.
             Kelompok tanpa data sama sekali ditulis N/A, bukan 0. */}
@@ -755,11 +755,11 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           menuKey="technical"
           whatItAnswers="Apa kata data teknikal, fundamental, dan aliran dana tentang saham ini?"
           steps={[
-            'Lihat LensScore di atas - satu angka 0-100 yang meringkas ketiga dimensi itu.',
+            'Lihat skor total di atas - satu angka 0-100 yang meringkas ketiga dimensi itu.',
             'Turun ke Temuan untuk tahu ALASAN di balik angkanya, bukan cuma hasilnya.',
             'Buka Konsensus Teknikal untuk memeriksa tiap indikator satu per satu.',
           ]}
-          freeAccess="angka LensScore, satu temuan utama, dan tiga indikator dasar (EMA, RSI, MA Trend)"
+          freeAccess="angka skor total, satu temuan utama, dan tiga indikator dasar (EMA, RSI, MA Trend)"
           afterSignup="kesimpulan BUY/HOLD/SELL, seluruh temuan beserta buktinya, semua indikator, dan ekspor hasil analisis"
           loginNext={`/technical/${code}`}
         />

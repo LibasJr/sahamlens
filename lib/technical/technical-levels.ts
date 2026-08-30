@@ -359,7 +359,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
       id: 'BULLISH_ENGULFING',
       name: 'Bullish Engulfing',
       sentiment: 'BULLISH',
-      description: 'Candle hijau membungkus candle merah sebelumnya; secara rule-based menunjukkan pergeseran tekanan ke sisi beli dan tetap memerlukan konfirmasi konteks tren/volume.',
+      description: 'Candle hijau membungkus candle merah sebelumnya; menurut pembacaan aturan ini tekanan mulai bergeser ke sisi beli dan tetap perlu konfirmasi tren/volume.',
       reliability: 'HIGH',
       volumeConfirmed: isHighVolume,
     });
@@ -371,7 +371,7 @@ export function detectCandlestickPatterns(candles: OHLCVCandle[]): CandlestickPa
       id: 'BEARISH_ENGULFING',
       name: 'Bearish Engulfing',
       sentiment: 'BEARISH',
-      description: 'Candle merah membungkus candle hijau sebelumnya; secara rule-based menunjukkan pergeseran tekanan ke sisi jual dan tetap memerlukan konfirmasi konteks tren/volume.',
+      description: 'Candle merah membungkus candle hijau sebelumnya; menurut pembacaan aturan ini tekanan mulai bergeser ke sisi jual dan tetap perlu konfirmasi tren/volume.',
       reliability: 'HIGH',
       volumeConfirmed: isHighVolume,
     });

@@ -192,6 +192,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin', name: 'Admin Panel', subtitle: 'User & subscription', path: '/admin', icon: ShieldAlert },
     { id: 'admin-jobs', name: 'Cron & Update Mingguan', subtitle: 'Jadwal, hasil audit & kesehatan job', path: '/admin/jobs', icon: Activity },
     { id: 'admin-decision-lab', name: 'Simulasi Keputusan AI', subtitle: 'Paper order & bukti sinyal', path: '/admin/decision-lab', icon: Brain },
+    { id: 'admin-decision-lab-role-stack', name: 'Stack Role Decision Lab', subtitle: 'Lead, Analyst, Reviewer, Ops', path: '/docs/admin/decision-lab-role-stack', icon: Users },
     { id: 'admin-calibration', name: 'Uji Akurasi LensRadar', subtitle: 'Skor, T+20 & OOS', path: '/admin/calibration', icon: BookOpenCheck },
     { id: 'admin-transparency', name: 'Bukti Validasi LensRadar', subtitle: 'Kelompok skor & cek harga', path: '/admin/transparency', icon: ShieldCheck },
     { id: 'admin-fundamental-backfill', name: 'Impor Histori Fundamental', subtitle: 'Upload CSV resmi', path: '/admin/fundamental-backfill', icon: FileSpreadsheet },

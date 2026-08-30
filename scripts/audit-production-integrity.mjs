@@ -33,7 +33,7 @@ if(process.env.DATABASE_URL){
   const own=await c.query(`SELECT COUNT(DISTINCT observed_date)::int snapshots,MAX(observed_date)::text latest,COUNT(*)::int rows FROM ownership_flow_history WHERE source='KSEI_HOLDING_COMPOSITION'`).catch(()=>({rows:[{}]}));
   const o=own.rows[0]??{}; Number(o.snapshots??0)>=2?ok(`Ownership Flow ${o.snapshots} snapshot; latest ${o.latest}`):warn('Ownership Flow belum punya >=2 snapshot KSEI untuk delta');
   const quarantine=await c.query(`SELECT COUNT(*)::int rows,COUNT(DISTINCT observed_date)::int snapshots FROM ownership_flow_quarantine WHERE source='KSEI_HOLDING_COMPOSITION'`).catch(()=>({rows:[{rows:0,snapshots:0}]}));
-  const q=quarantine.rows[0]??{}; Number(q.rows??0)>0?warn(`Ownership Flow quarantine ${q.rows} row pada ${q.snapshots} snapshot; ini terisolasi dan tidak ikut delta`):ok('Ownership Flow quarantine kosong');
+  const q=quarantine.rows[0]??{}; Number(q.rows??0)>0?warn(`Ownership Flow quarantine ${q.rows} row pada ${q.snapshots} snapshot; ini expected (isolasi desain) dan tidak ikut delta`):ok('Ownership Flow quarantine kosong');
   const macro=await c.query(`SELECT input_key,value_pct::float8 AS value_pct,market_date::text,observed_date::text,usable_from_date::text,evidence_type,source_tier,source_name FROM macro_input_evidence ORDER BY usable_from_date DESC,id DESC`).catch(()=>({rows:[]}));
   const macroByKey=new Map(macro.rows.map(r=>[String(r.input_key),r]));
   const requiredMacro=['RISK_FREE_RATE_PCT','EQUITY_RISK_PREMIUM_PCT','MAX_PERPETUAL_GROWTH_PCT'];

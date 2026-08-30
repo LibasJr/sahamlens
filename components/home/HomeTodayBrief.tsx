@@ -187,8 +187,8 @@ export default function HomeTodayBrief(props: HomeTodayBriefProps) {
                 value: regime ? regime.label : null,
                 detail: regime
                   ? (regime.confidence != null
-                      ? `${isEn ? 'Confidence' : 'Keyakinan'} ${Math.round(regime.confidence)}%`
-                      : (isEn ? 'Rule-based read' : 'Pembacaan rule-based'))
+                      ? `${isEn ? 'Keyakinan' : 'Keyakinan'} ${Math.round(regime.confidence)}%`
+                      : (isEn ? 'Pembacaan aturan' : 'Pembacaan aturan'))
                   : undefined,
                 emptyHint: marketPulseLoginRequired
                   ? (isEn ? 'Sign in' : 'Login')

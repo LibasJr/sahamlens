@@ -1,0 +1,5 @@
+Contact: mailto:security@sahamlens.id
+Preferred-Languages: id, en
+Canonical: https://sahamlens.id/.well-known/security.txt
+Expires: 2027-08-27T00:00:00+07:00
+Policy: https://sahamlens.id/security

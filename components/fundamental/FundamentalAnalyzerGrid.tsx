@@ -109,7 +109,7 @@ export default function FundamentalAnalyzerGrid({
         )}
         {viewMode === 'compact' && filteredAnalyzers.length > displayedAnalyzers.length && (
           <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-tv-blue/25 bg-tv-blue/10 px-3 py-2 text-[11px] text-tv-muted">
-            <span>Mode Ringkas menampilkan wakil valuasi, profitabilitas, dan pertumbuhan/margin — bukan hanya tiga confidence tertinggi.</span>
+            <span>Mode Ringkas menampilkan wakil inti: valuasi, profitabilitas, dan pertumbuhan/margin. Mode Lengkap membuka semua analyzer.</span>
             <Button variant="bare" size="none" type="button" onClick={onShowAll} className="shrink-0 font-semibold text-tv-blue">Lihat semua</Button>
           </div>
         )}

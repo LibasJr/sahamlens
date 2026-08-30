@@ -17,6 +17,8 @@ const securityHeaders = [
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
   allowedDevOrigins: ['127.0.0.1'],
   // Tandai dependency Node-only berat sebagai eksternal, bukan di-bundle ulang ke
   // setiap function - mengurangi ukuran & waktu init cold start (Performance Roadmap

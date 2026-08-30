@@ -3,9 +3,30 @@
 import { useState } from 'react';
 import { AlertTriangle, CheckCircle2, Loader2, Play, RefreshCw, XCircle } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
+import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import type { DecisionAgentDashboard, PaperOrder, PersistedDecisionSignal } from '@/modules/decision-agent';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
 import { mapEvidenceLabels } from '@/shared/presentation/hybrid-evidence-labels';
+
+const PAPER_READINESS_LABEL: Record<string, string> = {
+  PAPER_READY: 'Siap paper',
+  RESEARCH_ONLY: 'Untuk riset saja',
+};
+
+const LIVE_READINESS_LABEL: Record<string, string> = {
+  BLOCKED_MODEL_UNVALIDATED: 'Terkunci: model belum tervalidasi',
+  BLOCKED_STALE_DATA: 'Terkunci: data terlalu lama',
+  BLOCKED_DATA_QUALITY: 'Terkunci: kualitas data kurang',
+  BLOCKED_BROKER_NOT_CONFIGURED: 'Terkunci: broker belum terkonfigurasi',
+};
+
+function describePaperReadiness(value: string): string {
+  return PAPER_READINESS_LABEL[value] ?? value;
+}
+
+function describeLiveReadiness(value: string): string {
+  return LIVE_READINESS_LABEL[value] ?? value;
+}
 
 type ActionBody =
   | { action: 'scan' }
@@ -21,7 +42,8 @@ type ActionBody =
   | { action: 'propose-paper-order'; signalId: string; thesis?: {
       thesis: string; invalidationCriteria: string[]; catalyst: string | null; reviewAt: string;
     } }
-  | { action: 'execute-paper-order' | 'reject-paper-order' | 'execute-live-order'; orderId: string };
+  | { action: 'execute-paper-order' | 'reject-paper-order' | 'execute-live-order'; orderId: string }
+  | { action: 'get-ticker-review'; ticker: string };
 
 function formatNumber(value: number | null, digits = 0): string {
   if (value == null || !Number.isFinite(value)) return '—';
@@ -33,30 +55,32 @@ function formatTime(value: string | null | undefined): string {
   return new Date(value).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }) + ' WIB';
 }
 
-function SignalRow({ signal, busy, onPrepare }: { signal: PersistedDecisionSignal; busy: boolean; onPrepare: (signal: PersistedDecisionSignal) => void }) {
+function SignalRow({ signal, busy, onPrepare, viewMode }: { signal: PersistedDecisionSignal; busy: boolean; onPrepare: (signal: PersistedDecisionSignal) => void; viewMode: 'ringkas' | 'detail' }) {
   const hybridEvidence = signal.hybridReview ? mapEvidenceLabels(signal, signal.hybridReview.evidenceRefs) : [];
   return (
     <tr className="border-t border-tv-border align-top">
       <td className="px-3 py-3 font-bold">{signal.ticker}</td>
       <td className="px-3 py-3"><span className="rounded bg-tv-bg px-2 py-1 text-xs font-bold">{signal.action}</span></td>
       <td className="px-3 py-3 font-number">{formatNumber(signal.price)}</td>
-      <td className="px-3 py-3 font-number">{formatNumber(signal.lensScore, 1)} / {formatNumber(signal.coveragePct, 1)}%</td>
+      <td className="px-3 py-3 font-number">Skor {formatNumber(signal.lensScore, 1)} · coverage {formatNumber(signal.coveragePct, 1)}%</td>
       <td className="px-3 py-3 text-xs">
-        {signal.riskSetup ? <>stop {formatNumber(signal.riskSetup.stop)} · target {formatNumber(signal.riskSetup.target1)} · RR {formatNumber(signal.riskSetup.riskReward, 2)}</> : '—'}
+        {signal.riskSetup ? <>stop {formatNumber(signal.riskSetup.stop)} · target {formatNumber(signal.riskSetup.target1)} · RR {formatNumber(signal.riskSetup.riskReward, 2)}</> : 'Belum ada setup risiko'}
       </td>
       <td className="max-w-sm px-3 py-3 text-xs text-tv-muted">
-        <div>{signal.news.basis !== 'UNAVAILABLE' ? `${signal.news.basis}: +${signal.news.positive} / netral ${signal.news.neutral} / -${signal.news.negative}` : 'Berita tidak tersedia'}</div>
-        <div className="mt-1">Sektor {signal.sector ?? '—'} · ADV20 {signal.avgValue20d == null ? '—' : `Rp ${formatNumber(signal.avgValue20d)}`}</div>
-        {signal.news.matchedArticles?.slice(0, 2).map((article) => (
-          <a key={`${article.url}:${article.title}`} className="mt-1 block text-tv-blue hover:underline" href={article.url} target="_blank" rel="noreferrer">
-            {article.source} · {article.eventType} · {article.basis}
-          </a>
-        ))}
-        <div className="mt-1">{[...signal.supportingReasons, ...signal.opposingReasons, ...signal.invalidationReasons].join(' · ') || 'Tidak ada alasan tambahan.'}</div>
+        <div>{[...signal.supportingReasons, ...signal.opposingReasons, ...signal.invalidationReasons].slice(0, 3).join(' · ') || 'Tidak ada alasan tambahan.'}</div>
+        {viewMode === 'detail' && <>
+          <div className="mt-1">{signal.news.basis !== 'UNAVAILABLE' ? `${signal.news.basis}: positif ${signal.news.positive} · netral ${signal.news.neutral} · negatif ${signal.news.negative}` : 'Berita tidak tersedia'}</div>
+          <div className="mt-1">Sektor: {signal.sector ?? '—'} · ADV20: {signal.avgValue20d == null ? '—' : `Rp ${formatNumber(signal.avgValue20d)}`}</div>
+          {signal.news.matchedArticles?.slice(0, 2).map((article) => (
+            <a key={`${article.url}:${article.title}`} className="mt-1 block text-tv-blue hover:underline" href={article.url} target="_blank" rel="noreferrer">
+              {article.source} · {article.eventType} · {article.basis}
+            </a>
+          ))}
+        </>}
       </td>
       <td className="max-w-xs px-3 py-3 text-xs">
         <div className="font-bold">{signal.hybridStatus}</div>
-        {signal.hybridReview ? <>
+        {viewMode === 'detail' && signal.hybridReview ? <>
           <div className="mt-1 text-tv-muted">{signal.hybridReview.model} · confidence {signal.hybridReview.confidence}</div>
           {signal.hybridReview.concerns.length > 0 && <div className="mt-1 text-tv-muted">Concern: {signal.hybridReview.concerns.join(', ')}</div>}
           {hybridEvidence.length > 0 && <div className="mt-2 rounded border border-tv-border bg-tv-bg/60 p-2">
@@ -70,12 +94,12 @@ function SignalRow({ signal, busy, onPrepare }: { signal: PersistedDecisionSigna
             </ul>
             {hybridEvidence.length > 6 && <div className="mt-1 text-tv-muted">+{hybridEvidence.length - 6} evidence lain</div>}
           </div>}
-        </> : <div className="mt-1 text-tv-muted">Belum ada second opinion terstruktur.</div>}
+        </> : (viewMode === 'detail' && <div className="mt-1 text-tv-muted">Belum ada second opinion terstruktur.</div>)}
       </td>
       <td className="px-3 py-3">
         {signal.paperReadiness === 'PAPER_READY' && (signal.action === 'BUY_CANDIDATE' || signal.action === 'EXIT_REVIEW') ? (
           <Button size="sm" disabled={busy} onClick={() => onPrepare(signal)}>{signal.action === 'BUY_CANDIDATE' ? 'Siapkan tesis & paper' : 'Usulkan exit paper'}</Button>
-        ) : <span className="text-xs text-tv-muted">{signal.paperReadiness}</span>}
+        ) : <span className="text-xs text-tv-muted">{describePaperReadiness(signal.paperReadiness)}</span>}
       </td>
     </tr>
   );
@@ -114,12 +138,15 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
     maxDrawdownPct: '', buyFeePct: '', sellFeePct: '', slippageBps: '',
   });
   const [selectedSignal, setSelectedSignal] = useState<PersistedDecisionSignal | null>(null);
+  const [tickerQuery, setTickerQuery] = useState('');
+  const [tickerReview, setTickerReview] = useState<PersistedDecisionSignal | null>(null);
   const [thesis, setThesis] = useState('');
   const [invalidation, setInvalidation] = useState('');
   const [catalyst, setCatalyst] = useState('');
   const [reviewAt, setReviewAt] = useState('');
   const [idxSourceUrl, setIdxSourceUrl] = useState('');
   const [idxSourceAsOf, setIdxSourceAsOf] = useState('');
+  const [viewMode, setViewMode] = useState<'ringkas' | 'detail'>('ringkas');
 
   async function importFile(file: File | undefined, kind: 'IDX_IC' | 'STOCKBIT') {
     if (!file) return;
@@ -151,6 +178,26 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
       setDashboard(data.dashboard); setNotice(success); return true;
     } catch (cause) { setError(apiErrorMessage(cause, 'Aksi gagal', true)); return false; }
     finally { setBusy(false); }
+  }
+
+  async function reviewTicker() {
+    const ticker = tickerQuery.trim().toUpperCase();
+    if (!ticker) {
+      setError('Isi ticker dulu, mis. BBCA atau TLKM.');
+      return;
+    }
+    setBusy(true); setError(null); setNotice(null);
+    try {
+      const data = await apiRequest<{ result: PersistedDecisionSignal | null }>('/api/admin/decision-lab', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'get-ticker-review', ticker }),
+      });
+      setTickerReview(data.result);
+      setNotice(data.result ? `Review ${ticker} dimuat.` : `Belum ada review untuk ${ticker}.`);
+    } catch (cause) {
+      setError(apiErrorMessage(cause, 'Gagal memuat review ticker', true));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function configure() {
@@ -192,6 +239,16 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
   return <div className="mt-6 space-y-6">
     <div className="rounded-xl border border-tv-yellow/40 bg-tv-yellow/10 p-4 text-sm">
       <div className="flex gap-2"><AlertTriangle className="h-5 w-5 shrink-0 text-tv-yellow" /><div><b>Mode internal, bukan rekomendasi publik.</b> Fill paper memakai quote pasar aktual yang tersedia dengan slippage, tick size, dan fee sesuai kebijakan pengguna; ini tetap bukan fill bursa nyata. Eksekusi broker nyata sengaja terkunci sampai model tervalidasi dan adapter broker diaudit.</div></div>
+      <div className="mt-3 flex flex-wrap gap-2 text-xs font-semibold">
+        <span className="rounded-full border border-tv-border bg-tv-bg/70 px-2 py-1">Skor total v1.6.1</span>
+        <span className="rounded-full border border-tv-border bg-tv-bg/70 px-2 py-1">Default: gpt-5.4</span>
+        <span className="rounded-full border border-tv-border bg-tv-bg/70 px-2 py-1">Fallback: gpt-5.5</span>
+        <span className="rounded-full border border-tv-border bg-tv-bg/70 px-2 py-1">Data real only</span>
+      </div>
+      <div className="mt-3 flex items-center gap-2">
+        <button type="button" className={`rounded-full px-3 py-1 text-xs font-semibold ${viewMode === 'ringkas' ? 'bg-tv-blue text-white' : 'bg-tv-bg/70 text-tv-muted'}`} onClick={() => setViewMode('ringkas')}>Ringkas</button>
+        <button type="button" className={`rounded-full px-3 py-1 text-xs font-semibold ${viewMode === 'detail' ? 'bg-tv-blue text-white' : 'bg-tv-bg/70 text-tv-muted'}`} onClick={() => setViewMode('detail')}>Detail</button>
+      </div>
     </div>
     {error && <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
     {notice && <div className="rounded-lg border border-green-500/40 bg-green-500/10 p-3 text-sm text-green-300">{notice}</div>}
@@ -256,10 +313,55 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
 
     <Card as="section" className="p-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div><h2 className="font-heading text-lg font-bold">Snapshot keputusan aktual</h2><p className="text-xs text-tv-muted">As of {formatTime(dashboard.latestRun?.dataAsOf)} · model validated: {dashboard.latestRun?.modelValidated ? 'YA' : 'BELUM'} · hybrid: {dashboard.latestRun?.hybrid.status ?? '—'} {dashboard.latestRun?.hybrid.model ? `(${dashboard.latestRun.hybrid.model})` : ''}</p></div>
+        <div>
+          <h2 className="font-heading text-lg font-bold">Review 1 emiten</h2>
+          <p className="mt-1 text-xs text-tv-muted">Masukkan ticker untuk melihat review keputusan AI terbaru dari admin, tanpa pindah ke halaman teknikal.</p>
+        </div>
+        <div className="flex gap-2">
+          <SymbolAutocomplete
+            aria-label="Ticker review"
+            containerClassName="relative min-w-[240px] flex-1"
+            className="w-full rounded border border-tv-border bg-tv-bg px-3 py-2 text-sm uppercase"
+            placeholder="BB"
+            value={tickerQuery}
+            onChange={setTickerQuery}
+            onSelect={(symbol) => setTickerQuery(symbol.replace('.JK', ''))}
+            maxSuggestions={8}
+          />
+          <Button disabled={busy} onClick={() => void reviewTicker()}>Lihat review</Button>
+        </div>
+      </div>
+      <div className="mt-4 rounded-xl border border-tv-border bg-tv-bg/60 p-4 text-sm">
+        {tickerReview ? (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="text-lg font-bold">{tickerReview.ticker}</div>
+              <span className="rounded-full border border-tv-border bg-tv-card px-2 py-1 text-xs font-semibold">{tickerReview.hybridStatus}</span>
+            </div>
+            <div className="mt-2 grid gap-2 md:grid-cols-3">
+              <div>Action<br/><b>{tickerReview.action}</b></div>
+              <div>Skor total<br/><b className="font-number">{formatNumber(tickerReview.lensScore, 1)} / 100</b></div>
+              <div>Coverage<br/><b className="font-number">{formatNumber(tickerReview.coveragePct, 1)}%</b></div>
+              <div>Harga<br/><b className="font-number">Rp {formatNumber(tickerReview.price)}</b></div>
+              <div>Paper readiness<br/><b>{describePaperReadiness(tickerReview.paperReadiness)}</b></div>
+              <div>Live readiness<br/><b>{describeLiveReadiness(tickerReview.liveReadiness)}</b></div>
+            </div>
+            <div className="mt-3 text-xs text-tv-muted">{tickerReview.supportingReasons.join(' · ') || 'Tidak ada alasan pendukung.'}</div>
+            <div className="mt-2 text-xs text-tv-muted">{tickerReview.opposingReasons.join(' · ') || 'Tidak ada alasan penolak.'}</div>
+            <div className="mt-2 text-xs text-tv-muted">{tickerReview.hybridReview ? `Hybrid ${tickerReview.hybridReview.verdict} · confidence ${tickerReview.hybridReview.confidence} · model ${tickerReview.hybridReview.model}` : 'Belum ada second opinion terstruktur.'}</div>
+          </>
+        ) : (
+          <p className="text-sm text-tv-muted">Cari ticker untuk memunculkan review keputusan AI terbaru di sini.</p>
+        )}
+      </div>
+    </Card>
+
+    <Card as="section" className="p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div><h2 className="font-heading text-lg font-bold">Snapshot keputusan aktual</h2><p className="text-xs text-tv-muted">As of {formatTime(dashboard.latestRun?.dataAsOf)} · model validated: {dashboard.latestRun?.modelValidated ? 'YA' : 'BELUM'} · review: {dashboard.latestRun?.hybrid.status ?? '—'} {dashboard.latestRun?.hybrid.model ? `(${dashboard.latestRun.hybrid.model})` : ''}</p></div>
         <div className="flex gap-2"><Button variant="secondary" disabled={busy} onClick={() => void load()}><RefreshCw className="h-4 w-4" /> Muat ulang</Button><Button disabled={busy} onClick={() => void act({ action: 'scan' }, 'Scan aktual tersimpan.')}>{busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />} Jalankan scan</Button></div>
       </div>
-      <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="text-xs text-tv-muted"><tr><th className="px-3 py-2">Ticker</th><th className="px-3 py-2">Aksi rule</th><th className="px-3 py-2">Harga</th><th className="px-3 py-2">Score / Coverage</th><th className="px-3 py-2">Risiko aktual</th><th className="px-3 py-2">Evidence aktual</th><th className="px-3 py-2">Hybrid analyst</th><th className="px-3 py-2">Paper</th></tr></thead><tbody>{dashboard.signals.map((signal) => <SignalRow key={signal.id} signal={signal} busy={busy} onPrepare={prepareSignal} />)}</tbody></table></div>
+      <div className="mt-4 overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="text-xs text-tv-muted"><tr><th className="px-3 py-2">Ticker</th><th className="px-3 py-2">Aksi rule</th><th className="px-3 py-2">Harga</th><th className="px-3 py-2">Score / Coverage</th><th className="px-3 py-2">Risiko aktual</th><th className="px-3 py-2">Evidence aktual</th><th className="px-3 py-2">Hybrid analyst</th><th className="px-3 py-2">Paper</th></tr></thead><tbody>{dashboard.signals.map((signal) => <SignalRow key={signal.id} signal={signal} busy={busy} onPrepare={prepareSignal} viewMode={viewMode} />)}</tbody></table></div>
       {!busy && dashboard.signals.length === 0 && <p className="py-6 text-center text-sm text-tv-muted">Belum ada run tersimpan.</p>}
     </Card>
 

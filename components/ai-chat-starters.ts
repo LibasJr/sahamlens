@@ -36,7 +36,7 @@ export interface ChatStarter {
 export function tickerStarters(symbol: string): ChatStarter[] {
   return [
     { label: `Fundamental ${symbol}?`, prompt: `${symbol} fundamentalnya gimana?` },
-    { label: 'Valuasinya mahal?', prompt: `Valuasi ${symbol} mahal atau murah sekarang?` },
+    { label: 'Harganya mahal?', prompt: `Valuasi ${symbol} mahal atau murah sekarang?` },
     { label: 'Apa risikonya?', prompt: `Apa risiko ${symbol} sekarang?` },
     { label: 'Diakumulasi bandar?', prompt: `${symbol} lagi diakumulasi atau didistribusi?` },
   ];
@@ -47,7 +47,7 @@ export const MARKET_STARTERS: ChatStarter[] = [
   { label: 'Kondisi pasar hari ini', prompt: 'IHSG hari ini gimana, sektor apa yang lagi kuat?' },
   { label: 'Skor tertinggi hari ini', prompt: 'Saham apa yang skornya tertinggi hari ini?' },
   { label: 'Top gainer & loser', prompt: 'Top gainer hari ini apa aja?' },
-  { label: 'Cara skor ditentukan', prompt: 'Cara nentuin LensScore gimana?' },
+  { label: 'Cara skor dihitung', prompt: 'Cara nentuin LensScore gimana?' },
 ];
 
 /**

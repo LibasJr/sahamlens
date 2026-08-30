@@ -118,7 +118,7 @@ export function StockSignalRunningText({ items, advisoryEnabled }: { items: Stoc
                   {item.changePct == null ? 'N/A' : `${item.changePct >= 0 ? '+' : ''}${item.changePct.toFixed(2)}%`}
                 </span>
               </div>
-              <div className="mt-1 truncate text-[11px] font-medium text-tv-muted">{item.signals?.[0] || `LensScore ${Math.round(item.finalScore)}/100`}</div>
+              <div className="mt-1 truncate text-[11px] font-medium text-tv-muted">{item.signals?.[0] || `Skor total ${Math.round(item.finalScore)}/100`}</div>
               {item.tp1 != null && item.cl1 != null ? (
                 <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 font-number text-[11px] font-bold leading-tight">
                   <span className="text-tv-green">TP1 {item.tp1.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
