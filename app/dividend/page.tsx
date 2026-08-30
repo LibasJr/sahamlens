@@ -11,6 +11,7 @@ import { Button as PrimitiveButton } from '@/components/ui/Button';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import type { CompoundingYear, DividendPlanApiResponse, DividendStock } from '@/modules/fundamental/contracts';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
 type DividendMode = 'universe' | 'ticker';
 
@@ -25,6 +26,7 @@ export default function DividendPage() {
   const [data, setData] = useState<DividendPlanApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const isTickerMode = mode === 'ticker';
 
   // Mode Universe memakai rata-rata universe saham dividen; mode Ticker memakai yield
@@ -123,6 +125,7 @@ export default function DividendPage() {
               Ticker
             </PrimitiveButton>
           </div>
+          <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="mb-2 min-w-[220px]" />
           <MenuUsageGuide
             menuKey="dividend"
             whatItAnswers={isTickerMode ? 'Berapa arus kas dividen dari ticker yang dipilih?' : 'Berapa arus kas dividen dari portofolio berbasis universe?'}
@@ -219,7 +222,7 @@ export default function DividendPage() {
         </div>
       )}
 
-      {quant && (
+      {viewMode === 'full' && quant && (
         <div className="mb-6 rounded-lg border border-tv-blue/20 bg-tv-blue/[0.04] px-3.5 py-3 text-[11px] leading-relaxed text-tv-muted">
           <span className="font-semibold text-tv-text">Metodologi:</span>{' '}
           {isTickerResponse ? 'yield memakai ticker yang dipilih di header. Safety 1-10 tetap skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.' : 'rata-rata yield adalah equal-weight snapshot dari universe yang berhasil dibaca provider, bukan yield portofolio aktual. Safety 1-10 adalah skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.'}
@@ -227,7 +230,7 @@ export default function DividendPage() {
       )}
 
       {/* Dividend Stocks Table & Compounding Schedule */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`${viewMode === 'full' ? '' : 'hidden'} grid grid-cols-1 lg:grid-cols-2 gap-6`}>
         <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-5 space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-tv-border pb-3">
             <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
