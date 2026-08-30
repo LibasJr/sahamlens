@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import { percentageWidthClass } from '@/shared/presentation/percentage-width';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
 export default function MarketPulse() {
   const [data, setData] = useState<any>(null);
@@ -46,6 +47,7 @@ export default function MarketPulse() {
   const [loadError, setLoadError] = useState(false);
   const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const fetchAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -203,6 +205,7 @@ export default function MarketPulse() {
       </header>
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} />
         <MenuUsageGuide
           menuKey="market-pulse"
           whatItAnswers="Pasar hari ini sedang condong ke mana, dan sektor apa yang memimpin?"
@@ -378,7 +381,7 @@ export default function MarketPulse() {
             butuh setengah lebar. Tetap bertumpuk di bawah lg supaya terbaca di HP
             (aplikasi dibuka lewat WebView). items-stretch bawaan grid membuat kedua
             kartu setinggi yang tertinggi, jadi tidak ada ruang kosong menganggur. */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {viewMode === 'full' && <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* === SECTION 2: SECTOR HEATMAP === */}
         <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-5 flex flex-col">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3 mb-4">
@@ -519,7 +522,7 @@ export default function MarketPulse() {
             </div>
           )}
         </Card>
-        </div>
+        </div>}
       </PageContainer>
       <PaywallModal
         open={showPaywall}
