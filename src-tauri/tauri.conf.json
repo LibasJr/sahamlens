@@ -10,9 +10,7 @@
   "app": {
     "windows": [
       {
-        "title": "SahamLens — Analisis Saham Indonesia",
-        "visible": true,
-        "focus": true,
+        "title": "SahamLens",
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
@@ -22,7 +20,9 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "freezePrototype": true,
+      "dangerousDisableAssetCspModification": false
     }
   },
   "bundle": {
