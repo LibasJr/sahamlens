@@ -168,7 +168,7 @@ Balas HANYA dalam format JSON array, urut sesuai nomor, tanpa teks lain:
   }
 }
 
-export async function getMarketNews(): Promise<{
+export async function getMarketNews(options?: { skipAi?: boolean }): Promise<{
   items: NewsItem[];
   sentimentSource: 'council-ai' | 'keyword-fallback';
   intelligenceSource: 'council-ai' | 'rule-fallback';
@@ -219,7 +219,7 @@ export async function getMarketNews(): Promise<{
     summary: item.summary,
     basis: item.summary ? 'RSS_SUMMARY' as const : 'HEADLINE_ONLY' as const,
   }));
-  const aiClassifications = await classifyStructuredWithCouncilAI(evidence);
+  const aiClassifications = options?.skipAi ? null : await classifyStructuredWithCouncilAI(evidence);
   const sentimentSource: 'council-ai' | 'keyword-fallback' = aiClassifications ? 'council-ai' : 'keyword-fallback';
   const intelligenceSource: 'council-ai' | 'rule-fallback' = aiClassifications ? 'council-ai' : 'rule-fallback';
 
