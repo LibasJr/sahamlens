@@ -28,7 +28,8 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // alert LensScore/confidence, mode Ringkas/Advanced, Share, dan export JSON dari data
 // aktif. Sebelum menaikkan, compare sudah dipangkas dari framer-motion, icon tambahan,
 // formatter freshness, dan feedback state supaya pertumbuhan hanya membayar fitur.
-const TOTAL_BUDGET_KB = 6_020;
+// Dinaikkan 6.020 -> 6.040 KB pada 2026-08-30 untuk kontrol Ringkas/Detail Decision Lab.
+const TOTAL_BUDGET_KB = 6_040;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
