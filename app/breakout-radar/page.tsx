@@ -24,6 +24,7 @@ import {
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import { percentageWidthClass } from '@/shared/presentation/percentage-width';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
 // Halaman ini dulu punya 8 tab (Breakout, Rekomendasi, Menarik, Undervalue, Berisiko,
 // Golden Cross, Dead Cross, Akumulasi Asing). Audit 2026-08-03 menemukan tab-tab itu
@@ -54,6 +55,7 @@ export default function AiPickPage() {
   // Padahal pemindaiannya tidak pernah sampai. Dua keadaan itu wajib dibedakan.
   const [loadError, setLoadError] = useState(false);
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
   const handleRadarSort = (key: RadarColumnKey) => {
     if (radarSortKey === key) {
@@ -181,6 +183,7 @@ export default function AiPickPage() {
         {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental - sebelumnya
             1200px membuat sisi kiri-kanan penuh ruang kosong menganggur di layar lebar. */}
         <PageContainer className="p-4 md:p-6 lg:p-7">
+        <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="mb-5" />
         <MenuUsageGuide
           menuKey="breakout-radar"
           whatItAnswers="Saham mana yang baru saja menembus level pentingnya hari ini?"
@@ -282,7 +285,7 @@ export default function AiPickPage() {
                     gulir horizontal pada tampilan data utama. Di bawah md dipakai daftar
                     kartu dengan data yang sama persis. */}
                 <div className="lens-table-sticky-col lens-table-sticky-col-2 hidden md:block overflow-x-auto">
-                  <table className="w-full text-left border-collapse">
+                  <table className={`w-full text-left border-collapse ${viewMode === 'compact' ? '[&_th:nth-child(6)]:hidden [&_td:nth-child(6)]:hidden [&_th:nth-child(7)]:hidden [&_td:nth-child(7)]:hidden [&_th:nth-child(8)]:hidden [&_td:nth-child(8)]:hidden [&_th:nth-child(9)]:hidden [&_td:nth-child(9)]:hidden' : ''}`}>
                     <thead>
                       <tr className="border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">
                         <th className="w-12 py-3 px-4">#</th>
