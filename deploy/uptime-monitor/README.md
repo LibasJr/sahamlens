@@ -47,6 +47,18 @@ journalctl -u sahamlens-uptime-monitor -n 50 --no-pager
 Untuk kirim ke Slack/Discord/webhook lain, isi `SAHAMLENS_ALERT_WEBHOOK` di
 `/opt/sahamlens/app/.env.production` (payload `{"text": "..."}`).
 
+Webhook sengaja tidak dikirim pada kegagalan pertama. Default-nya baru berisik setelah
+**3 kali gagal berturut-turut**, supaya gangguan sesaat tidak langsung mengganggu. Bisa
+diubah lewat env:
+
+```bash
+SAHAMLENS_ALERT_AFTER_FAILURES=3
+SAHAMLENS_ALERT_REPEAT_EVERY=6
+```
+
+Dengan timer 5 menit, `SAHAMLENS_ALERT_REPEAT_EVERY=6` berarti pengingat ulang tiap
+sekitar 30 menit selama masalah belum pulih.
+
 ## Ini BUKAN pengganti pemantau eksternal
 
 Pemantau yang berjalan di mesin yang sama tidak bisa melaporkan mesin itu mati.
