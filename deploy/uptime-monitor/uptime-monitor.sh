@@ -35,6 +35,9 @@ STATE_FILE="${SAHAMLENS_DEPLOY_STATE:-/opt/sahamlens/deployed-sha}"
 ORIGIN="${SAHAMLENS_ORIGIN:-http://127.0.0.1:3001}"
 SERVICE="${SAHAMLENS_SERVICE:-sahamlens}"
 TIMEOUT_SEC="${SAHAMLENS_MONITOR_TIMEOUT:-20}"
+FAIL_STATE_FILE="${SAHAMLENS_MONITOR_FAIL_STATE:-/opt/sahamlens/uptime-monitor-fail-count}"
+ALERT_AFTER_FAILURES="${SAHAMLENS_ALERT_AFTER_FAILURES:-3}"
+ALERT_REPEAT_EVERY="${SAHAMLENS_ALERT_REPEAT_EVERY:-6}"
 # Opsional. Kalau kosong, peringatan hanya masuk journal - `journalctl -u
 # sahamlens-uptime-monitor` tetap merekam semuanya.
 WEBHOOK="${SAHAMLENS_ALERT_WEBHOOK:-}"
@@ -42,6 +45,16 @@ WEBHOOK="${SAHAMLENS_ALERT_WEBHOOK:-}"
 problems=()
 note() { echo "uptime-monitor: $*"; }
 problem() { problems+=("$1"); echo "uptime-monitor: MASALAH - $1" >&2; }
+read_fail_count() {
+  local n=""
+  [ -f "$FAIL_STATE_FILE" ] && n="$(cat "$FAIL_STATE_FILE" 2>/dev/null || true)"
+  [[ "$n" =~ ^[0-9]+$ ]] && printf '%s' "$n" || printf '0'
+}
+write_fail_count() {
+  local n="$1"
+  mkdir -p "$(dirname "$FAIL_STATE_FILE")" 2>/dev/null || true
+  printf '%s\n' "$n" > "$FAIL_STATE_FILE" 2>/dev/null || true
+}
 
 # --- 1. Aplikasi menjawab? ------------------------------------------------------------
 #
@@ -174,20 +187,36 @@ fi
 
 # --- Pelaporan --------------------------------------------------------------------------
 if [ "${#problems[@]}" -eq 0 ]; then
+  write_fail_count 0
   note "seluruh pemeriksaan lolos"
   exit 0
 fi
 
-summary="SahamLens: ${#problems[@]} masalah terdeteksi pada $(date -Is)"
+previous_fail_count="$(read_fail_count)"
+fail_count=$((previous_fail_count + 1))
+write_fail_count "$fail_count"
+
+summary="SahamLens: ${#problems[@]} masalah terdeteksi pada $(date -Is) (gagal beruntun: $fail_count)"
 for p in "${problems[@]}"; do summary="$summary"$'\n'"- $p"; done
 
 if [ -n "$WEBHOOK" ]; then
-  # --fail-with-body supaya webhook yang menolak tidak lolos diam-diam sebagai "terkirim".
-  if ! curl -s --max-time 15 --fail-with-body \
-      -H 'Content-Type: application/json' \
-      --data "$(printf '%s' "$summary" | python3 -c 'import json,sys; print(json.dumps({"text": sys.stdin.read()}))')" \
-      "$WEBHOOK" >/dev/null; then
-    echo "uptime-monitor: GAGAL mengirim peringatan ke webhook - isinya tetap ada di journal" >&2
+  should_alert=0
+  if [ "$fail_count" -eq "$ALERT_AFTER_FAILURES" ]; then
+    should_alert=1
+  elif [ "$fail_count" -gt "$ALERT_AFTER_FAILURES" ] && [ "$ALERT_REPEAT_EVERY" -gt 0 ] && [ $(((fail_count - ALERT_AFTER_FAILURES) % ALERT_REPEAT_EVERY)) -eq 0 ]; then
+    should_alert=1
+  fi
+
+  if [ "$should_alert" -eq 1 ]; then
+    # --fail-with-body supaya webhook yang menolak tidak lolos diam-diam sebagai "terkirim".
+    if ! curl -s --max-time 15 --fail-with-body \
+        -H 'Content-Type: application/json' \
+        --data "$(printf '%s' "$summary" | python3 -c 'import json,sys; print(json.dumps({"text": sys.stdin.read()}))')" \
+        "$WEBHOOK" >/dev/null; then
+      echo "uptime-monitor: GAGAL mengirim peringatan ke webhook - isinya tetap ada di journal" >&2
+    fi
+  else
+    note "peringatan webhook ditunda sampai gagal beruntun ke-$ALERT_AFTER_FAILURES (sekarang $fail_count)"
   fi
 fi
 
