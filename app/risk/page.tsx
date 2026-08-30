@@ -11,6 +11,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import Link from 'next/link';
 import { Lock } from 'lucide-react';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
 // AUDIT DATA INTEGRITY 2026-08-03 (temuan M-09): 4 kartu stress test di halaman ini
 // SEBELUMNYA angka TETAP ("-5.75%", "-12.5%", "-4.2%", "-6.8%") - halaman sudah jujur
@@ -49,6 +50,7 @@ export default function RiskPage() {
   const lockForGuest = !authResolved || authLoading || !authUser;
   const [importing, setImporting] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
   /**
    * Impor komposisi dari portofolio NYATA pengguna (2026-08-23).
@@ -138,6 +140,7 @@ export default function RiskPage() {
       subtitle="Beta historis 1 tahun (regresi return harian terhadap IHSG & USD/IDR, data Yahoo Finance) - dihitung dari komposisi portofolio Anda"
     >
       <div className="mb-6">
+        <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="mb-4" />
         <MenuUsageGuide
           menuKey="risk"
           whatItAnswers="Seberapa keras portofolio Anda terguncang kalau pasar jatuh?"
@@ -303,7 +306,7 @@ export default function RiskPage() {
           </div>
           )}
 
-          <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border text-xs text-tv-muted">
+          <div className={`${viewMode === 'full' ? '' : 'hidden'} p-3.5 rounded-md bg-tv-bg border border-tv-border text-xs text-tv-muted`}>
             <span className="font-bold text-tv-text">BI Rate Hike:</span> Data tidak tersedia - SahamLens belum
             memiliki sumber data historis BI Rate untuk menghitung sensitivitas riil (lihat{' '}
             <code className="text-tv-text">modules/macro/</code>, hanya kurs USD/IDR yang tersinkronkan). Angka
