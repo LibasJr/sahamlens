@@ -11,6 +11,7 @@ import { useLanguage } from '@/lib/i18n';
 import { apiRequest } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import { percentageWidthClass } from '@/shared/presentation/percentage-width';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
 interface NewsItemDto {
   title: string;
@@ -71,6 +72,7 @@ export default function NewsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<SentimentKey>('ALL');
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
   const loadNews = useCallback(() => {
     setLoading(true);
@@ -120,6 +122,7 @@ export default function NewsPage() {
       </header>
 
       <PageContainer className="p-4 md:p-6 lg:p-7">
+        <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="mb-5" />
         <MenuUsageGuide
           menuKey="news"
           whatItAnswers="Berita apa yang sedang menggerakkan pasar hari ini?"
@@ -252,6 +255,7 @@ export default function NewsPage() {
                   item={n}
                   meta={meta as string[]}
                   absoluteDate={relative ? tanggal : null}
+                compact={viewMode === 'compact'}
                 />
               );
             })}
