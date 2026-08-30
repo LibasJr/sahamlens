@@ -71,7 +71,7 @@ export function buildBankEvidenceMaturity(rows: MaturityInput[]): BankEvidenceMa
     const warnings: string[] = [];
     if (completeResearchPeriods === 0) warnings.push('Belum ada satu period pun dengan enam research metrics lengkap.');
     if (pitViolationRows > 0) warnings.push(`${pitViolationRows} evidence melanggar PIT boundary.`);
-    if (unspecifiedBasisRows > 0) warnings.push(`${unspecifiedBasisRows} evidence masih DISCLOSED_UNSPECIFIED.`);
+    if (unspecifiedBasisRows > 0) warnings.push(`${unspecifiedBasisRows} evidence masih DISCLOSED_UNSPECIFIED (DATA_ONLY; basis sengaja dibiarkan eksplisit).`);
     if (derivedRows > 0) warnings.push(`${derivedRows} evidence DERIVED harus dianalisis terpisah dari REPORTED.`);
     warnings.push('Tidak ada auto-scoring; maturity report hanya menentukan kelayakan analisis, bukan bobot LensScore.');
     return {

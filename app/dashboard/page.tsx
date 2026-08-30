@@ -232,7 +232,7 @@ function DashboardContent() {
               {/* Score Circle */}
               <div className="flex flex-col items-center justify-center gap-2 min-w-[140px]">
                 <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider text-center flex flex-col gap-1 items-center justify-center">
-                  LensScore
+                  Skor total
                 </div>
                 <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-extrabold font-number ${
                   data.scoring.total_score > 75 ? 'border-tv-green text-tv-green bg-tv-green/10' :
@@ -253,12 +253,12 @@ function DashboardContent() {
                     Coverage {coveragePct}%
                   </div>
                 )}
-                {/* Di kartu detail ini cukup tampilkan angka LensScore. Arah keputusan
+                {/* Di kartu detail ini cukup tampilkan angka skor total. Arah keputusan
                     BUY/SELL/HOLD/WATCH sengaja tidak diulang di bawah agar tidak
-                    bentrok dengan Ringkasan SahamLens/Konsensus AI di atas. */}
+                    bentrok dengan ringkasan SahamLens/Konsensus AI di atas. */}
                 {!decisionPresentation?.actionable && decisionPresentation?.explanation && (
                   <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[240px]">
-                    LensScore {data.scoring.total_score}/100 adalah skor informasi. Belum otomatis menjadi rekomendasi transaksi. {decisionPresentation.explanation}
+                    Skor total {data.scoring.total_score}/100 adalah skor informasi. Belum otomatis menjadi rekomendasi transaksi. {decisionPresentation.explanation}
                   </p>
                 )}
                 {coveragePct != null && coveragePct < 100 && (

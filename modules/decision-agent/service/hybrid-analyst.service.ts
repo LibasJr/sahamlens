@@ -95,7 +95,7 @@ function normalizeBaseUrl(raw: string): string | null {
 // sama. Daftar model dari provider/keluarga BERBEDA memberi peluang sungguhan lolos.
 //
 // DECISION_AGENT_LLM_MODEL boleh berisi satu model ATAU daftar dipisah koma
-// ("cc/claude-sonnet-5,cx/gpt-5.6-sol,ag/gemini-3.6-flash-medium"). Kalau kosong,
+// ("cx/gpt-5.4,cc/claude-sonnet-5,cx/gpt-5.5"). Kalau kosong,
 // fallback ke pencarian lama dari NINEROUTER_MODELS (opus lalu sonnet), supaya
 // deployment yang belum mengisi variabel baru ini tidak tiba-tiba SKIPPED_NOT_CONFIGURED.
 export function resolveHybridModels(): string[] {

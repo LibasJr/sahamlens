@@ -14,7 +14,7 @@ export default function AnalysisViewModeToggle({ mode, onChange, className = '' 
       <div className="min-w-0">
         <div className="text-xs font-semibold text-tv-text">Tampilan analisis</div>
         <div className="text-[10px] leading-relaxed text-tv-muted">
-          Ringkas menampilkan inti analisis. Lengkap membuka seluruh indikator.
+          Ringkas menampilkan inti. Lengkap membuka detail dan bukti.
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1" role="group" aria-label="Pilih tampilan analisis">

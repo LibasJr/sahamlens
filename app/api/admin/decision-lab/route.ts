@@ -9,6 +9,7 @@ import {
   executeLiveOrder,
   executePaperOrder,
   getDecisionAgentDashboard,
+  getLatestDecisionSignalForTicker,
   proposePaperOrder,
   rejectPaperOrder,
   runDecisionAgentScan,
@@ -64,6 +65,9 @@ export async function POST(request: Request) {
         break;
       case 'import-stockbit':
         result = await importStockbitCsv(input);
+        break;
+      case 'get-ticker-review':
+        result = await getLatestDecisionSignalForTicker(input.ticker);
         break;
       case 'propose-paper-order':
         result = await proposePaperOrder(input.signalId, input.thesis);

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Bookmark, Download, Lock, Sliders, X } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
 import type { ScreenerTemplate } from './screener-model';
 
@@ -83,7 +84,7 @@ export default function ScreenerControls({
           </div>
           <div>
             <h1 className="lens-page-title">Seleksi Profil Risiko Investor</h1>
-            <p className="text-xs text-tv-muted">Pilih toleransi risiko untuk memfilter 10 Saham IDX terbaik berdasarkan penilaian kuantitatif LensScore.</p>
+            <p className="text-xs text-tv-muted">Pilih toleransi risiko untuk memfilter 10 saham IDX terbaik berdasarkan skor total dan kualitas datanya.</p>
           </div>
         </div>
 

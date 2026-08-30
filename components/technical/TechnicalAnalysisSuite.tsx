@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import {
   buildTechnicalSuite,
   type OHLCVCandle,
@@ -42,6 +43,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedPivotMethod, setSelectedPivotMethod] = useState<PivotMethod>('CLASSIC');
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
   useEffect(() => {
     const controller = new AbortController();
@@ -116,6 +118,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
 
   return (
     <div className="space-y-6">
+      <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} />
       {/* 1. SECTION: PIVOT POINTS & 52-WEEK RANGE */}
       <Card padding="md" className="space-y-5 border-tv-blue/20">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border pb-3">
@@ -268,11 +271,11 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
 
         <p className="lens-meta leading-relaxed text-tv-muted/80">
           {isEn
-            ? 'Pattern labels are deterministic rule-based classifications, not empirical success probabilities.'
-            : 'Label pattern adalah klasifikasi rule-based deterministik, bukan probabilitas keberhasilan empiris.'}
+            ? 'Pattern labels follow transparent rules, not empirical success probabilities.'
+            : 'Label pola dibaca dengan aturan transparan, bukan probabilitas keberhasilan historis.'}
         </p>
 
-        {patterns.length > 0 ? (
+        {viewMode === 'full' && patterns.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {patterns.map((p) => (
               <div
@@ -310,7 +313,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
       </Card>
 
       {/* 4. SECTION: ATR TRADING PLAN & RISK / REWARD HELPER */}
-      {tradingPlan && (
+      {viewMode === 'full' && tradingPlan && (
         <Card padding="md" className="space-y-4 border-tv-purple/20">
           <div className="flex flex-wrap items-center justify-between gap-2 border-b border-tv-border pb-3">
             <div className="flex items-center gap-2">

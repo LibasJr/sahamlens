@@ -131,8 +131,8 @@ export const id = {
     tpClUnavailable: 'TP/CL belum tersedia',
   },
   guide: {
-    title: 'Mulai dari sini',
-    subtitle: 'Alur singkat untuk mengenal SahamLens—bukan rekomendasi beli atau jual.',
+    title: 'Panduan cepat',
+    subtitle: 'Langkah singkat untuk mengenal SahamLens—bukan rekomendasi beli atau jual.',
     step1Title: 'Cari saham',
     step1Text: 'Masukkan kode emiten yang ingin kamu cek.',
     step2Title: 'Baca ringkasan',

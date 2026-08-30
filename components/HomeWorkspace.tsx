@@ -61,8 +61,8 @@ const SENTIMENT_BADGE_VARIANT: Record<NewsInsight['sentiment'], 'success' | 'dan
 
 const TRUST_WORKFLOWS = [
   {
-    title: 'Cek Saham',
-    desc: 'Buka LensScore, alasan skor, confidence, risiko, dan sumber data per emiten.',
+    title: 'Analisis Saham',
+    desc: 'Buka skor total, alasan, risiko, dan sumber data per emiten.',
     href: '/technical/BBCA',
     icon: BarChart3,
   },
@@ -267,20 +267,16 @@ export default function HomeWorkspace() {
         radarStale={radarStale}
       />
 
-      {/* First-run guidance stays available, but no longer interrupts the brand →
-          market-context path on every fresh session. */}
-      <GettingStartedGuide />
-
       <motion.section initial="hidden" animate="show" variants={fadeUp} className="space-y-4">
         <SectionHeader
-          eyebrow="Alur riset"
-          title="Mulai dari data, cek buktinya, baru pantau"
+          eyebrow="Langkah riset"
+          title="Mulai dari cek data, lalu lihat buktinya"
           action={
             <Button
               variant="secondary"
               size="sm"
               type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { prompt: 'Jelaskan cara riset saham di SahamLens dari awal sampai pantau watchlist' } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { prompt: 'Jelaskan alur riset saham di SahamLens dari cek data sampai pantau watchlist' } }))}
               className="gap-2"
             >
               <Bot className="h-4 w-4" /> Tanya LensAI
@@ -489,7 +485,7 @@ export default function HomeWorkspace() {
                       coverage (porsi bobot yang benar-benar punya data) tidak pernah tampil
                       meski sudah lama dihitung. */}
                   <div className="text-right">
-                    <div className="lens-meta text-tv-muted uppercase tracking-wide">LensScore</div>
+                    <div className="lens-meta text-tv-muted uppercase tracking-wide">Skor total</div>
                     <div className="font-number text-3xl font-bold text-tv-blue">
                       <AnimatedNumber value={hero.finalScore} format={(n) => String(Math.round(n))} />
                       <span className="text-sm font-normal text-tv-muted">/100</span>

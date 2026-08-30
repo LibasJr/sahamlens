@@ -32,6 +32,7 @@ interface ScreenerResultsProps {
   sortDir: 'asc' | 'desc';
   onSort: (key: ColumnKey) => void;
   onRetry: () => void;
+  viewMode: 'compact' | 'full';
 }
 
 export default function ScreenerResults({
@@ -49,7 +50,12 @@ export default function ScreenerResults({
   sortDir,
   onSort: handleSort,
   onRetry,
+  viewMode,
 }: ScreenerResultsProps) {
+  const isFull = viewMode === 'full';
+  const visibleColumns = isFull
+    ? SORTABLE_COLUMNS
+    : SORTABLE_COLUMNS.filter((c) => !['bandarmology', 'moat', 'pattern_tag', 'sentiment', 'week52_high', 'atr_pct', 'market_cap', 'adv20_idr'].includes(c.key));
   return (
     <>
 {/* Screener Results Table */}
@@ -63,7 +69,7 @@ export default function ScreenerResults({
     </div>
     <div className="text-right">
       <span className="text-xs text-tv-muted block">
-        Ranking skor komposit (bobot beda per profil): PER vs Sektor, ROE, DER, Div Yield, Revenue Growth, Bandarmology (Chaikin Money Flow)
+        Peringkat gabungan untuk tiap profil risiko: nilai murah, laba, utang, dividen, pertumbuhan, dan aliran dana.
       </span>
       {/* BUG FIX (audit 2026-08-05, temuan M-13): backend SUDAH mengirim `_meta`
           (umur cache universe screener, TTL 30 menit) sejak audit sebelumnya, tapi
@@ -92,7 +98,7 @@ export default function ScreenerResults({
       <div className="flex items-center gap-2">
         <Lock className="w-3.5 h-3.5 flex-shrink-0" />
         <span>
-          <strong>{lockedCount} emiten lanjutan terkunci</strong> (LensScanner). Masuk untuk membuka seluruh hasil 10 LensScore.
+          <strong>{lockedCount} emiten lanjutan terkunci</strong> (LensScanner). Masuk untuk membuka seluruh hasil 10 saham.
         </span>
       </div>
       <Link
@@ -156,7 +162,7 @@ export default function ScreenerResults({
             memberi apa pun di sini selain kerusakan. */}
         <tr className="border-b border-tv-border bg-tv-bg text-tv-muted uppercase leading-none">
           <th className="w-12 p-3">#</th>
-          {SORTABLE_COLUMNS.map((col) => (
+          {visibleColumns.map((col) => (
             <th key={col.key} className={`p-3 ${col.align === 'right' ? 'text-right' : ''}`}>
               {/* Ikon dua-arah redup menandai kolom yang bisa diurutkan.
                   Sebelumnya penanda hanya muncul di kolom yang sedang aktif,
@@ -221,6 +227,7 @@ export default function ScreenerResults({
             <td className="p-3 text-right text-tv-accent font-bold font-number">{item.roe}</td>
             <td className="p-3 text-right text-tv-text font-number">{item.der}</td>
             <td className="p-3 text-right text-tv-yellow font-bold font-number">{item.div_yield}</td>
+            {isFull && (
             <td className="p-3">
               <span className={`px-2 py-0.5 rounded lens-chip font-bold ${
                 item.bandarmology === 'Akumulasi'
@@ -232,7 +239,8 @@ export default function ScreenerResults({
                 {item.bandarmology}
               </span>
             </td>
-            <td className="p-3 text-tv-text">{item.moat}</td>
+            )}
+            {isFull && <td className="p-3 text-tv-text">{item.moat}</td>}
             <td className="p-3">
               {item.decision?.advisory === true && item.decision?.action ? (
                 <span className={`inline-flex items-center justify-center px-2 py-0.5 rounded font-bold font-sans lens-chip ${
@@ -272,9 +280,12 @@ export default function ScreenerResults({
                 </span>
               )}
             </td>
+            {isFull && (
             <td className="p-3 text-tv-text lens-meta">
               {item.pattern_tag || <span className="text-tv-muted">Tidak ada pola cocok</span>}
             </td>
+            )}
+            {isFull && (
             <td className="p-3">
               <span className={`px-2 py-0.5 rounded lens-chip font-bold ${
                 item.sentiment === 'POSITIF'
@@ -286,9 +297,11 @@ export default function ScreenerResults({
                 {item.sentiment ? item.sentiment.charAt(0) + item.sentiment.slice(1).toLowerCase() : 'N/A'}
               </span>
             </td>
+            )}
             {/* `Rp {undefined?.toLocaleString()}` sebelumnya merender teks
                 "Rp " menggantung tanpa angka saat 52W high/low tidak ada -
                 terbaca seperti label yang belum selesai dimuat. */}
+            {isFull && (
             <td className="p-3 text-right text-white">
               {item.week52_high != null && item.week52_low != null ? (
                 <>
@@ -299,16 +312,19 @@ export default function ScreenerResults({
                 <span className="text-tv-muted lens-chip">N/A</span>
               )}
             </td>
+            )}
             <td className="p-3 text-right text-white">
               {item.entry != null
                 ? <span className="text-tv-yellow font-bold font-number">Rp {item.entry.toLocaleString('id-ID')}</span>
                 : <span className="text-tv-muted lens-chip">N/A</span>}
             </td>
+            {isFull && (
             <td className="p-3 text-right text-tv-text font-number">
               {item.atr_pct != null ? `±${item.atr_pct.toFixed(1)}%/hari` : 'N/A'}
             </td>
-            <td className="p-3 text-right text-tv-text font-number">{fmtTriliun(item.market_cap)}</td>
-            <td className="p-3 text-right text-tv-text font-number">{fmtMiliar(item.adv20_idr)}</td>
+            )}
+            {isFull && <td className="p-3 text-right text-tv-text font-number">{fmtTriliun(item.market_cap)}</td>}
+            {isFull && <td className="p-3 text-right text-tv-text font-number">{fmtMiliar(item.adv20_idr)}</td>}
           </tr>
         ))}
 
@@ -351,21 +367,25 @@ export default function ScreenerResults({
               <td className="p-3 text-right text-tv-accent font-bold font-number blur-sm select-none opacity-40">••%</td>
               <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">••</td>
               <td className="p-3 text-right text-tv-yellow font-bold font-number blur-sm select-none opacity-40">••%</td>
+              {isFull && (
               <td className="p-3 blur-sm select-none opacity-40">
                 <span className="px-2 py-0.5 rounded lens-chip bg-tv-hover text-tv-text font-bold">••••••••</span>
               </td>
-              <td className="p-3 text-tv-text blur-sm select-none opacity-40">••••••</td>
+              )}
+              {isFull && <td className="p-3 text-tv-text blur-sm select-none opacity-40">••••••</td>}
               <td className="p-3 blur-sm select-none opacity-40">
                 <span className="px-2 py-0.5 rounded lens-chip bg-tv-green/20 text-tv-green font-bold">REKOMENDASI: BUY</span>
               </td>
-              <td className="p-3 text-tv-text lens-meta blur-sm select-none opacity-40">••••••••</td>
+              {isFull && <td className="p-3 text-tv-text lens-meta blur-sm select-none opacity-40">••••••••</td>}
+              {isFull && (
               <td className="p-3 blur-sm select-none opacity-40">
                 <span className="px-2 py-0.5 rounded lens-chip bg-tv-hover text-tv-text font-bold">Positif</span>
               </td>
-              <td className="p-3 text-right text-white blur-sm select-none opacity-40">Rp •••• / Rp ••••</td>
+              )}
+              {isFull && <td className="p-3 text-right text-white blur-sm select-none opacity-40">Rp •••• / Rp ••••</td>}
               <td className="p-3 text-right text-white blur-sm select-none opacity-40">Rp ••••</td>
-              <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">±••%/hari</td>
-              <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">Rp •• T</td>
+              {isFull && <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">±••%/hari</td>}
+              {isFull && <td className="p-3 text-right text-tv-text font-number blur-sm select-none opacity-40">Rp •• T</td>}
               <td className="p-3 text-right text-tv-text font-number">
                 <div className="flex justify-end">
                   <Link

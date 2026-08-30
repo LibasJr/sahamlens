@@ -23,25 +23,25 @@ function factorRead(factor: Factor): { title: string; detail: string; tone: 'pos
   const denominator = factor.availableMax != null && factor.availableMax > 0 ? factor.availableMax : factor.max;
   const ratio = denominator > 0 ? factor.score / denominator : 0;
   const suffix = factor.availableMax != null && factor.availableMax > 0 && factor.availableMax < factor.max
-    ? ' dari data tersedia'
+    ? ' dari data yang tersedia'
     : '';
   if (ratio >= 0.72) {
     return {
-      title: `${factor.label} relatif kuat`,
-      detail: `${factor.score}/${Math.round(denominator)}${suffix} — menjadi salah satu penopang utama LensScore saat ini.`,
+      title: `${factor.label} cukup kuat`,
+      detail: `${factor.score}/${Math.round(denominator)}${suffix} — penopang utama skor.`,
       tone: 'positive',
     };
   }
   if (ratio <= 0.45) {
     return {
-      title: `${factor.label} perlu diperhatikan`,
-      detail: `${factor.score}/${Math.round(denominator)}${suffix} — kontribusinya masih lebih lemah dibanding komponen lain.`,
+      title: `${factor.label} masih lemah`,
+      detail: `${factor.score}/${Math.round(denominator)}${suffix} — kontribusinya kecil.`,
       tone: 'negative',
     };
   }
   return {
     title: `${factor.label} masih campuran`,
-    detail: `${factor.score}/${Math.round(denominator)}${suffix} — belum cukup dominan untuk menjadi penggerak utama skor.`,
+    detail: `${factor.score}/${Math.round(denominator)}${suffix} — belum dominan.`,
     tone: 'neutral',
   };
 }
@@ -71,19 +71,19 @@ export function DashboardInsightSummary({ data, dataFreshness, decisionPresentat
   });
   const modelValidated = data?.modelValidation?.validated === true || data?.advisoryEnabled === true;
   const lead = decisionPresentation?.actionable
-    ? `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} memiliki status keputusan yang actionable. Tetap periksa bukti per faktor dan batas risiko sebelum bertindak.`
+    ? `Skor total ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} sudah layak ditindaklanjuti. Tetap periksa bukti per faktor dan batas risiko sebelum bertindak.`
     : totalScore >= 70
-      ? `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} terlihat kuat secara informasi, tetapi belum otomatis menjadi rekomendasi transaksi. Eligibility dan risiko tetap menentukan apakah sinyal dapat ditindaklanjuti.`
+      ? `Skor total ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} terlihat kuat, tetapi belum otomatis jadi rekomendasi transaksi. Kelulusan syarat dan risiko tetap menentukan.`
       : totalScore >= 55
-        ? `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} menunjukkan setup yang masih selektif. Kekuatan antar faktor belum sepenuhnya selaras.`
-        : `LensScore ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} menunjukkan lebih banyak faktor yang belum mendukung. Prioritaskan alasan kelemahan sebelum melihat potensi upside.`;
+        ? `Skor total ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} masih campuran. Kekuatan antar faktor belum sepenuhnya selaras.`
+        : `Skor total ${totalScore}/100${coveragePct != null ? ` dengan coverage ${coveragePct}%` : ''} masih banyak ditahan faktor lemah. Prioritaskan perbaikannya dulu.`;
 
   return (
     <section aria-labelledby="why-it-matters" className="border-y border-tv-border/70 py-4 sm:py-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
-          <div className="lens-meta mb-1 font-bold uppercase tracking-[0.16em] text-tv-muted">Ringkasan keputusan</div>
-          <h2 id="why-it-matters" className="font-heading text-lg font-bold text-tv-text sm:text-xl">Yang penting dari saham ini</h2>
+          <div className="lens-meta mb-1 font-bold uppercase tracking-[0.16em] text-tv-muted">Ringkasan cepat</div>
+          <h2 id="why-it-matters" className="font-heading text-lg font-bold text-tv-text sm:text-xl">Yang perlu dilihat</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-tv-muted">{lead}</p>
           {flowInterpretation.kind !== 'FOREIGN_FLOW_ACTIVE' && (
             <p className="mt-1.5 text-xs leading-relaxed text-tv-muted">
