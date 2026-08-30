@@ -113,15 +113,17 @@ function FundamentalContent() {
     setFetchError(false);
     try {
       // Fetch data for chart and fundamental analyzers in parallel.
-      const [jsonStock, jsonAlgo] = await Promise.all([
+      const [stockResult, fundamentalResult] = await Promise.allSettled([
         apiRequest<StockApiResponseForFundamentalMerge>(`/api/stock/${symbol}`, { signal: controller.signal }),
         apiRequest<FundamentalApiResponse>(`/api/fundamental/${symbol}`, { signal: controller.signal }),
       ]);
       if (controller.signal.aborted) return;
+      const jsonStock = stockResult.status === 'fulfilled' ? stockResult.value : null;
+      const jsonAlgo = fundamentalResult.status === 'fulfilled' ? fundamentalResult.value : null;
       if (!jsonAlgo?.stock) { setFetchError(true); return; }
 
       {
-        // Merge so we get chart history from jsonStock but analyzers from jsonAlgo
+        // Fundamental boleh tetap ditampilkan meski endpoint chart gagal (misalnya guest 401).
         jsonAlgo.stock.history = jsonStock?.stock?.history || [];
         // Papan pencatatan IDX hanya dikirim /api/stock (temuan C-01). Ikut di-merge di
         // sini supaya lencana papan di halaman ini memakai sumber yang sama dengan
