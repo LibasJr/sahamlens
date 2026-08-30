@@ -9,11 +9,16 @@ vi.mock('@/modules/fundamental', () => ({
 vi.mock('@/shared/cache/redis-cache', () => ({
   getOrCompute: vi.fn(),
 }));
+vi.mock('@/shared/security/api-rate-limit', () => ({
+  checkPublicComputeBudget: vi.fn(),
+  rateLimitResult: vi.fn(),
+}));
 
 import { GET } from '../route';
 import { calculateDcfModel } from '@/modules/fundamental';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { getSession } from '@/modules/user';
+import { checkPublicComputeBudget } from '@/shared/security/api-rate-limit';
 
 function makeRequest(ticker: string): Request {
   return new Request(`http://localhost/api/dcf/${ticker}`);
@@ -47,6 +52,7 @@ describe('GET /api/dcf/[ticker]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getSession).mockResolvedValue(null);
+    vi.mocked(checkPublicComputeBudget).mockResolvedValue({ allowed: true, degraded: false, unavailable: false });
   });
 
   it('membaca lewat getOrCompute, kunci cache per ticker', async () => {
