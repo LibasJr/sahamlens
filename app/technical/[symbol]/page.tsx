@@ -795,7 +795,10 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           </p>
         ) : (
           <Suspense fallback={<LensConsensusAnalysisSkeleton symbol={symbol} />}>
-            <LensConsensusAnalysisDisplay symbol={symbol} />
+            <div aria-label={`Yang penting dari ${code}`}>
+              <h2 className="sr-only">Yang penting dari {code}</h2>
+              <LensConsensusAnalysisDisplay symbol={symbol} />
+            </div>
           </Suspense>
         )}
 

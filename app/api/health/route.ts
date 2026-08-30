@@ -37,6 +37,7 @@ export async function GET(request: NextRequest) {
     } catch { dataSources = []; }
 
     const activeDataSources = dataSources.filter((row) => !DEPRECATED_DATA_SOURCE_IDS.has(row.sourceId));
+    dataSources = activeDataSources;
     const sourceSummary = activeDataSources.reduce((acc, row) => {
       acc[row.status] += 1;
       return acc;
