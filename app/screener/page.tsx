@@ -253,7 +253,7 @@ export default function ScreenerPage() {
             'Daftar hasilnya menyusut mengikuti filter; klik judul kolom untuk mengurutkan.',
             'Klik salah satu saham untuk membuka analisis teknikal lengkapnya.',
           ]}
-          freeAccess={`${GUEST_VISIBLE_RESULT_COUNT} saham teratas dari hasil filter, lengkap dengan semua kolomnya`}
+          freeAccess={`${GUEST_VISIBLE_RESULT_COUNT} saham teratas dari hasil filter, dengan kolom inti dalam mode Ringkas atau semua kolom dalam mode Lengkap`}
           afterSignup="seluruh hasil filter tanpa batas, plus simpan kombinasi filter sebagai template"
           loginNext="/screener"
         />

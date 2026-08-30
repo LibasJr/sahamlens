@@ -88,7 +88,7 @@ export default function ScreenerControls({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 bg-tv-bg p-1.5 rounded-lg border border-tv-border">
+        <div className="flex max-w-full flex-wrap items-center justify-center gap-1 bg-tv-bg p-1.5 rounded-lg border border-tv-border">
           {(['Konservatif', 'Moderat', 'Agresif'] as const).map((profile) => (
             <motion.button
               key={profile}
