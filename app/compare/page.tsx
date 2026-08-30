@@ -408,7 +408,7 @@ function CompareContent() {
                           onClick={() => setCompareMode('advanced')}
                           className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${compareMode === 'advanced' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
                         >
-                          Advanced
+                          Lengkap
                         </Button>
                       </div>
                       <Button
