@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'src-tauri/**'
+      - 'desktop/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/desktop.yml'
@@ -11,6 +12,7 @@ on:
     branches: [main]
     paths:
       - 'src-tauri/**'
+      - 'desktop/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/desktop.yml'
@@ -27,6 +29,7 @@ jobs:
           cache: npm
       - uses: dtolnay/rust-toolchain@stable
       - run: npm ci
+      - run: npm install --prefix desktop
       - run: npm run desktop:build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ''

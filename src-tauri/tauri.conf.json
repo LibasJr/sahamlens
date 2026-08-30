@@ -4,7 +4,9 @@
   "version": "0.1.0",
   "identifier": "id.sahamlens.desktop",
   "build": {
-    "frontendDist": "https://sahamlens.id",
+    "frontendDist": "../desktop/dist",
+    "beforeDevCommand": "npm run dev --prefix desktop",
+    "beforeBuildCommand": "npm run build --prefix desktop",
     "devUrl": "http://localhost:3001"
   },
   "app": {
