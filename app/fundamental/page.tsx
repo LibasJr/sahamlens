@@ -356,8 +356,8 @@ function FundamentalContent() {
           ) : (
             <EmptyState
               illustration="empty"
-              title={`Data fundamental ${displayTicker(ticker)} gagal dimuat`}
-              description="Permintaan ke sumber data tidak sampai. Emiten yang baru tercatat atau jarang diperdagangkan kadang memang belum punya data fundamental di sumber ini."
+              title={`Data fundamental ${displayTicker(ticker)} belum tersedia`}
+              description="Sumber data sedang tidak membalas atau emiten ini belum punya data fundamental lengkap. Coba ulangi sebentar lagi, atau buka Teknikal untuk melihat harga, tren, dan level penting terlebih dulu."
               action={{ label: 'Coba lagi', onClick: () => fetchAnalyzerData(ticker) }}
             />
           )}

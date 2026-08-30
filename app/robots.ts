@@ -3,7 +3,7 @@ import type { MetadataRoute } from 'next';
 const SITE_URL = 'https://sahamlens.id';
 
 // Endpoint/API, panel admin, dan workbench internal bukan konten hasil pencarian.
-const DISALLOW = ['/api/', '/admin', '/admin-login', '/_workbench'];
+const DISALLOW = ['/api/', '/admin', '/admin-login', '/_workbench', '/multi-agent'];
 
 export default function robots(): MetadataRoute.Robots {
   return {

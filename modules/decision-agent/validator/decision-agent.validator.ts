@@ -28,6 +28,7 @@ export const decisionAgentActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('freeze-pilot-protocol') }),
   z.object({ action: z.literal('import-idx-ic'), csvText: z.string().min(1).max(5_000_000), sourceUrl: z.string().url().max(1_000), sourceAsOf: z.string().date() }),
   z.object({ action: z.literal('import-stockbit'), csvText: z.string().min(1).max(5_000_000), filename: z.string().trim().min(1).max(255), sourceType: z.enum(['TRANSACTION_HISTORY','E_STATEMENT']) }),
+  z.object({ action: z.literal('get-ticker-review'), ticker: z.string().trim().min(1).max(20) }),
   z.object({ action: z.literal('propose-paper-order'), signalId: z.string().uuid(), thesis: decisionThesisInputSchema.optional() }),
   z.object({ action: z.literal('execute-paper-order'), orderId: z.string().uuid() }),
   z.object({ action: z.literal('reject-paper-order'), orderId: z.string().uuid() }),

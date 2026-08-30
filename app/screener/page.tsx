@@ -22,6 +22,7 @@ import {
 } from '@/components/screener/screener-model';
 import type { ScreenerStock } from '@/modules/market/service/screener.service';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
 // Konstanta modul, bukan `|| []` inline: literal baru tiap render mengubah identitas
 // dependensi useMemo di bawah, jadi memo-nya tidak pernah benar-benar memo (dan eslint
@@ -60,6 +61,7 @@ export default function ScreenerPage() {
   const [templates, setTemplates] = useState<ScreenerTemplate[]>([]);
   const [templateNameDraft, setTemplateNameDraft] = useState('');
   const [showSaveTemplate, setShowSaveTemplate] = useState(false);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const hasTrackedGuestLock = useRef(false);
 
   useEffect(() => setTemplates(loadTemplates()), []);
@@ -242,6 +244,7 @@ export default function ScreenerPage() {
       />
 
       <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} />
         <MenuUsageGuide
           menuKey="screener"
           whatItAnswers="Saham mana yang sedang memenuhi kriteria teknikal yang Anda cari?"
@@ -284,6 +287,7 @@ export default function ScreenerPage() {
           data={data}
           riskProfile={riskProfile}
           loading={loading}
+          viewMode={viewMode}
           loadError={loadError}
           loadErrorMessage={loadErrorMessage}
           loadErrorRequestId={loadErrorRequestId}

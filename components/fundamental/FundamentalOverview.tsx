@@ -327,7 +327,7 @@ export default function FundamentalOverview({
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
                     <div className="text-xs font-bold uppercase tracking-wide text-tv-text">Rasio Khusus Bank — Evidence DATA_ONLY</div>
-                    <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-tv-muted">Rasio ini berasal dari pipeline laporan bank yang memiliki observed date dan sumber audit. Belum masuk LensScore sampai histori PIT dan validasinya cukup; nilai yang tidak tersedia tetap N/A, bukan diisi nol.</p>
+                    <p className="mt-1 max-w-3xl text-[11px] leading-relaxed text-tv-muted">Rasio ini berasal dari pipeline laporan bank yang memiliki observed date dan sumber audit. Belum masuk skor total sampai histori PIT dan validasinya cukup; nilai yang tidak tersedia tetap N/A, bukan diisi nol.</p>
                   </div>
                   <div className="text-right lens-meta text-tv-muted">
                     <div>{bank ? `Observed ${bank.observedDate}` : 'Belum ada snapshot bank terverifikasi'}</div>
