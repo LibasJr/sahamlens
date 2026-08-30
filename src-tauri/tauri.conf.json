@@ -10,7 +10,9 @@
   "app": {
     "windows": [
       {
-        "title": "SahamLens",
+        "title": "SahamLens — Analisis Saham Indonesia",
+        "visible": true,
+        "focus": true,
         "width": 1440,
         "height": 900,
         "minWidth": 1024,
