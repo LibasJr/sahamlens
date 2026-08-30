@@ -29,7 +29,7 @@ async function handlePOST(req: NextRequest) {
 
   try {
     const result = await withJobRunLog('news', async () => {
-      const data = await getMarketNews();
+      const data = await getMarketNews({ skipAi: true });
       await cacheSet(COMPUTED_CACHE_KEY.MARKET_NEWS, data, CACHE_TTL_SEC.MARKET_NEWS);
       return { items: data.items.length };
     });
