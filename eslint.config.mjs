@@ -18,6 +18,7 @@ export default [
       'out/**',
       'build/**',
       'dist/**',
+      'desktop/**',
       'coverage/**',
       'public/**',
       'data/**',
