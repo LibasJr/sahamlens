@@ -93,10 +93,12 @@ export function StructuredNewsCard({
   item,
   meta,
   absoluteDate,
+  compact = false,
 }: {
   item: StructuredNewsCardItem;
   meta: string[];
   absoluteDate?: string | null;
+  compact?: boolean;
 }) {
   const { t, dictionary, language } = useLanguage();
   const intelligence = item.intelligence;
@@ -150,7 +152,7 @@ export function StructuredNewsCard({
         <ExternalLink className="h-3.5 w-3.5 shrink-0 text-tv-muted/50 transition-colors group-hover:text-tv-muted" />
       </div>
 
-      {intelligence ? (
+      {intelligence && !compact ? (
         <div className="mt-4 rounded-md border border-white/[0.055] bg-tv-bg/50 p-3">
           <div className="flex flex-col gap-2 md:flex-row md:items-start md:gap-1">
             <Step label={dictionary.newsPage.stages.event}>
