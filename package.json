@@ -60,6 +60,7 @@
   "dependencies": {
     "@ai-sdk/openai": "^4.0.46",
     "@sentry/nextjs": "^10.69.0",
+    "@tauri-apps/api": "^2.11.1",
     "@upstash/qstash": "^2.11.3",
     "ai": "^7.0.77",
     "bcryptjs": "^3.0.3",
@@ -89,6 +90,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",
+    "@tauri-apps/cli": "^2.11.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.17.0",
     "@types/nodemailer": "^8.0.1",
