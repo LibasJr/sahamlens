@@ -108,11 +108,14 @@ echo "Updating source..."
 git reset --hard "$NEW_SHA"
 
 echo "Installing dependencies..."
-# npm ci perlu menghapus node_modules lama; deployment sebelumnya pernah membuat
-# sebagian tree sebagai root sehingga user lens gagal merapikannya.
-if [ -d node_modules ]; then
-  $SUDO /usr/bin/chown -R "$(id -u):$(id -g)" node_modules
-fi
+# npm ci dan next build perlu menghapus artefak lama. Deployment/manual repair
+# sebelumnya pernah membuat node_modules/.next sebagai root sehingga user lens gagal
+# merapikannya (contoh: EACCES unlink .next/diagnostics/build-diagnostics.json).
+for path in node_modules .next; do
+  if [ -e "$path" ]; then
+    $SUDO /usr/bin/chown -R "$(id -u):$(id -g)" "$path"
+  fi
+done
 if ! "$NPM_BIN" ci; then
   echo "npm ci GAGAL."
   restore_previous
