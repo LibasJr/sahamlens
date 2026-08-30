@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
+import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
 // BUG FIX (2026-08-01): halaman ini SEBELUMNYA selalu mulai dari ticker hardcoded
 // 'TLKM' - berapa pun emiten yang sedang dibuka user di Technical Analyzer, begitu
@@ -26,6 +27,7 @@ function DcfContent() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
   const setTicker = (newTicker: string) => {
     setTickerState(newTicker);
@@ -124,7 +126,8 @@ function DcfContent() {
         </div>
       }
     >
-      {!quant.not_applicable && quant?.assumptions?.retention_source && (
+      <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="mb-4" />
+      {viewMode === 'full' && !quant.not_applicable && quant?.assumptions?.retention_source && (
         <div className="rounded-lg border border-tv-yellow/30 bg-tv-yellow/5 p-3 text-xs text-tv-muted">
           <span className="font-semibold text-tv-text">Asumsi pertumbuhan DCF: </span>
           {quant.assumptions.retention_source === 'MODEL_ASSUMPTION_60_PCT'
@@ -151,7 +154,7 @@ function DcfContent() {
 
       {/* 5-Year FCF Projections Table */}
       {!quant.not_applicable && (
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className={`${viewMode === 'full' ? '' : 'hidden'} grid grid-cols-1 lg:grid-cols-2 gap-6`}>
         <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <TrendingUp className="w-5 h-5 text-tv-blue" />
