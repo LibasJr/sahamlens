@@ -54,7 +54,18 @@ jobs:
           npm run audit:a11y
       - run: npm run typecheck
       - run: npm run lint
+      - name: Start app for integration tests
+        run: |
+          npm run dev > /tmp/sahamlens-ci-server.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl --fail --silent http://127.0.0.1:3001/login >/dev/null && break
+            sleep 2
+          done
+          curl --fail --silent http://127.0.0.1:3001/login >/dev/null
       - run: npm test
+      - name: Show app log on failure
+        if: failure()
+        run: cat /tmp/sahamlens-ci-server.log
 
   build:
     runs-on: ubuntu-latest
