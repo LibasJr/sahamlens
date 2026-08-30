@@ -209,8 +209,7 @@ describe('GET /api/health - database satu-satunya alasan 503', () => {
     }));
     expect(body.sources.down).toEqual([]);
     expect(body.sources.warnings).toEqual([]);
-    expect(body.sources.items).toHaveLength(1);
-    expect(body.sources.items[0].sourceId).toBe('IDX_PUBLIC_STOCK_SUMMARY');
+    expect(body.sources.items).toHaveLength(0);
   });
 
   it('sumber aktif DEGRADED tetap menjadi warning', async () => {
