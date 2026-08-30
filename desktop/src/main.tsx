@@ -24,8 +24,10 @@ function App() {
   useEffect(() => {
     let mounted = true;
     checkHealth(API_BASE_URL).then((state) => { if (mounted) setHealth(state); });
-    getMarketPulse(API_BASE_URL).then((data) => { if (mounted) setPulse(data); }).catch(() => { if (mounted) setError(true); }).finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; };
+    const loadPulse = () => getMarketPulse(API_BASE_URL).then((data) => { if (mounted) { setPulse(data); setError(false); } }).catch(() => { if (mounted) setError(true); }).finally(() => { if (mounted) setLoading(false); });
+    loadPulse();
+    const timer = window.setInterval(loadPulse, 60_000);
+    return () => { mounted = false; window.clearInterval(timer); };
   }, []);
   const connectionLabel = health === 'connected' ? 'Data tersambung' : health === 'offline' ? 'Koneksi terputus' : 'Memeriksa koneksi';
   return <div className="terminal">
