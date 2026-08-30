@@ -108,6 +108,11 @@ echo "Updating source..."
 git reset --hard "$NEW_SHA"
 
 echo "Installing dependencies..."
+# npm ci perlu menghapus node_modules lama; deployment sebelumnya pernah membuat
+# sebagian tree sebagai root sehingga user lens gagal merapikannya.
+if [ -d node_modules ]; then
+  $SUDO /usr/bin/chown -R "$(id -u):$(id -g)" node_modules
+fi
 if ! "$NPM_BIN" ci; then
   echo "npm ci GAGAL."
   restore_previous
