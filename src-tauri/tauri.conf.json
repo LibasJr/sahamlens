@@ -5,7 +5,7 @@
   "identifier": "id.sahamlens.desktop",
   "build": {
     "frontendDist": "https://sahamlens.id",
-    "devUrl": "http://localhost:3000"
+    "devUrl": "http://localhost:3001"
   },
   "app": {
     "windows": [
