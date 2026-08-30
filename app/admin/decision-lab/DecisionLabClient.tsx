@@ -246,8 +246,8 @@ export default function DecisionLabClient({ initialDashboard }: { initialDashboa
         <span className="rounded-full border border-tv-border bg-tv-bg/70 px-2 py-1">Data real only</span>
       </div>
       <div className="mt-3 flex items-center gap-2">
-        <button type="button" className={`rounded-full px-3 py-1 text-xs font-semibold ${viewMode === 'ringkas' ? 'bg-tv-blue text-white' : 'bg-tv-bg/70 text-tv-muted'}`} onClick={() => setViewMode('ringkas')}>Ringkas</button>
-        <button type="button" className={`rounded-full px-3 py-1 text-xs font-semibold ${viewMode === 'detail' ? 'bg-tv-blue text-white' : 'bg-tv-bg/70 text-tv-muted'}`} onClick={() => setViewMode('detail')}>Detail</button>
+        <Button type="button" variant="bare" size="none" className={`rounded-full px-3 py-1 text-xs font-semibold ${viewMode === 'ringkas' ? 'bg-tv-blue text-white' : 'bg-tv-bg/70 text-tv-muted'}`} onClick={() => setViewMode('ringkas')}>Ringkas</Button>
+        <Button type="button" variant="bare" size="none" className={`rounded-full px-3 py-1 text-xs font-semibold ${viewMode === 'detail' ? 'bg-tv-blue text-white' : 'bg-tv-bg/70 text-tv-muted'}`} onClick={() => setViewMode('detail')}>Detail</Button>
       </div>
     </div>
     {error && <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">{error}</div>}
