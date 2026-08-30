@@ -48,7 +48,9 @@ for arg in "$@"; do
   esac
 done
 
-exec 9>/tmp/sahamlens-deploy.lock
+# Lock harus dapat ditulis oleh user deploy non-root; hindari file /tmp global
+LOCK_FILE="${TMPDIR:-/tmp}/sahamlens-deploy-${USER:-lens}.lock"
+exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
   echo "Deploy lain sedang berjalan."
   exit 1
