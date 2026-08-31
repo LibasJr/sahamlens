@@ -24,7 +24,7 @@ function App() {
   const [refreshing, setRefreshing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [watchlistExpanded, setWatchlistExpanded] = useState(false);
-  const refreshMarket = () => { setRefreshing(true); setError(false); getMarketPulse(API_BASE_URL).then(setPulse).catch(() => setError(true)).finally(() => setRefreshing(false)); };
+  const refreshMarket = () => { setRefreshing(true); setError(false); getMarketPulse(API_BASE_URL).then((data) => { setPulse(data); if (selectedTicker && ![...(data.topGainers ?? []), ...(data.topLosers ?? [])].some((item) => item.symbol === selectedTicker)) setSelectedTicker(null); }).catch(() => setError(true)).finally(() => setRefreshing(false)); };
   useEffect(() => {
     let mounted = true;
     checkHealth(API_BASE_URL).then((state) => { if (mounted) setHealth(state); });
