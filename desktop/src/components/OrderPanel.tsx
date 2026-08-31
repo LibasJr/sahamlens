@@ -1,14 +1,15 @@
-import { useEffect, useState } from 'react';
-import { ChevronDown, Info, LockKeyhole, Plus, Wallet } from 'lucide-react';
+import { Activity, BarChart3, Info, ShieldCheck } from 'lucide-react';
 import type { Ticker } from '../main';
 import { AIInsights } from './AIInsights';
-import { getAccount, getPortfolio } from '../api';
+
 export function OrderPanel({ ticker, apiBaseUrl }: { ticker?: Ticker; apiBaseUrl: string }) {
-  const [tab, setTab] = useState('Market'); const [side, setSide] = useState<'buy' | 'sell'>('buy');
-  const [account, setAccount] = useState<unknown>(null); const [portfolio, setPortfolio] = useState<unknown>(null); const [accountError, setAccountError] = useState('');
-  useEffect(() => { let live = true; void Promise.allSettled([getAccount(apiBaseUrl), getPortfolio(apiBaseUrl)]).then(([a, p]) => { if (!live) return; if (a.status === 'fulfilled') setAccount(a.value); else setAccountError(a.reason instanceof Error ? a.reason.message : 'Login diperlukan'); if (p.status === 'fulfilled') setPortfolio(p.value); }).catch(() => { if (live) setAccountError('Login diperlukan'); }); return () => { live = false; }; }, [apiBaseUrl]);
-  const accountObject = account && typeof account === 'object' ? account as Record<string, unknown> : {};
-  const portfolioObject = portfolio && typeof portfolio === 'object' ? portfolio as Record<string, unknown> : {};
-  const balance = accountObject.availableBalance ?? accountObject.cash ?? portfolioObject.availableBalance;
-  return <aside className="order-panel"><div className="order-profile"><div className="profile-avatar">L</div><div><strong>Personal account</strong><small>{account ? 'Connected to SahamLens API' : accountError || 'Memuat akun…'}</small></div><ChevronDown size={14} className="muted-icon" /></div>{!ticker ? <div className="order-empty">Pilih saham untuk melihat data akun dan membuat order.</div> : <><div className="account-balance"><div><span>AVAILABLE TO TRADE</span><strong>{balance == null ? (accountError || 'Login diperlukan') : String(balance)}</strong></div><Wallet size={17} /></div><div className="position-card"><div><span>POSITION · {ticker.symbol}</span><strong>Data API portfolio</strong></div><div className="position-pnl"><span>UNREALIZED P&amp;L</span><b>{portfolio ? 'LIVE' : '—'}</b></div></div><div className="order-tabs">{['Market', 'Limit', 'Stop'].map((item) => <button className={tab === item ? 'active' : ''} key={item} onClick={() => setTab(item)}>{item}</button>)}</div><div className="order-form"><label>Symbol <button className="symbol-select">{ticker.symbol}<ChevronDown size={13} /></button></label><label>Quantity <div className="input-wrap"><input placeholder="Enter quantity" /><span>SHARES</span></div></label><div className="estimated"><span>Order routing <Info size={12} /></span><strong>Read-only analysis</strong></div><div className="side-buttons"><button className="buy" onClick={() => setSide('buy')}>Buy {ticker.symbol}</button><button className="sell" onClick={() => setSide('sell')}>Sell {ticker.symbol}</button></div><div className="secure-note"><LockKeyhole size={12} /> Order execution belum tersedia di API SahamLens</div><small className="api-note">{apiBaseUrl.replace('https://', '')}</small></div><div className="orderbook"><div className="subsection-heading"><span>ORDER BOOK</span></div><div className="order-empty compact">Order book tidak tersedia dari API publik.</div></div><AIInsights ticker={ticker.symbol} /></>}</aside>;
+  return <aside className="order-panel">
+    <div className="order-profile"><div className="profile-avatar">S</div><div><strong>Analisis SahamLens</strong><small>Terhubung ke API SahamLens</small></div><ShieldCheck size={15} className="muted-icon" /></div>
+    {!ticker ? <div className="order-empty">Pilih saham untuk melihat analisis terverifikasi.</div> : <>
+      <div className="account-balance"><div><span>INSTRUMEN AKTIF</span><strong>{ticker.symbol}</strong></div><Activity size={17} /></div>
+      <div className="position-card"><div><span>HARGA TERAKHIR</span><strong>{ticker.price == null ? 'Memuat…' : `Rp ${ticker.price.toLocaleString('id-ID')}`}</strong></div><div className="position-pnl"><span>PERUBAHAN</span><b className={(ticker.change ?? 0) >= 0 ? 'positive' : 'negative'}>{ticker.change == null ? '—' : `${ticker.change >= 0 ? '+' : ''}${ticker.change.toFixed(2)}%`}</b></div></div>
+      <div className="order-form"><div className="estimated"><span>Status data <Info size={12} /></span><strong>Live API</strong></div><div className="estimated"><span>Mode aplikasi <BarChart3 size={12} /></span><strong>Analisis, bukan trading</strong></div><small className="api-note">Sumber: {apiBaseUrl.replace('https://', '')}</small></div>
+      <AIInsights ticker={ticker.symbol} />
+    </>}
+  </aside>;
 }
