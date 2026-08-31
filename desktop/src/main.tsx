@@ -5,11 +5,7 @@ import { ViewToggle, DetailHint } from './components';
 import './styles.css';
 
 type Stock = { code: string; name: string; price: string; change: string; positive?: boolean };
-const stocks: Stock[] = [
-  { code: 'BBCA', name: 'Bank Central Asia', price: '9.425', change: '+1,08%', positive: true },
-  { code: 'BMRI', name: 'Bank Mandiri', price: '5.375', change: '+0,94%', positive: true },
-  { code: 'TLKM', name: 'Telkom Indonesia', price: '2.680', change: '-0,74%' },
-];
+
 const menu = ['Overview', 'Market Pulse', 'Watchlist', 'Screener', 'Teknikal', 'Fundamental', 'Decision Lab'];
 
 function App() {
@@ -40,6 +36,7 @@ function App() {
   const benchmarkChange = benchmark?.changePct ?? 0;
   const formatPrice = (value: number) => value.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const changeLabel = `${benchmarkChange >= 0 ? '+' : ''}${benchmarkChange.toFixed(2).replace('.', ',')}%`;
+  const stocks: Stock[] = [...(pulse?.topGainers ?? []), ...(pulse?.topLosers ?? [])].slice(0, 3).map((item) => ({ code: item.symbol, name: item.symbol, price: item.price.toLocaleString('id-ID'), change: `${item.changePct >= 0 ? '+' : ''}${item.changePct.toFixed(2).replace('.', ',')}%`, positive: item.changePct >= 0 }));
   return <div className="terminal">
     <aside className="sidebar"><div className="brand"><span className="brand-mark">S</span><b>SahamLens</b></div><div className="workspace">INDONESIA MARKET</div><nav>{menu.map((item) => <button key={item} onClick={() => setActive(item)} className={active === item ? 'nav active' : 'nav'}><span className="nav-dot" />{item}</button>)}</nav><div className="profile"><div className="avatar">L</div><div><b>Libas</b><small>Personal workspace</small></div><span>⋮</span></div></aside>
     <main className="main"><header className="header"><div><p className="eyebrow">{new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date()).toUpperCase()}</p><h1>{active}</h1></div><div className="actions"><button className="search" onClick={() => setSearchOpen(!searchOpen)}>⌕&nbsp; Search stock <kbd>⌘ K</kbd></button>{searchOpen && <div className="search-box"><input autoFocus className="search-input" value={query} onChange={(e) => setQuery(e.target.value.toUpperCase())} onKeyDown={(e) => { if (e.key === 'Enter') selectSearchResult(); }} placeholder="Ticker, mis. BBCA" aria-label="Cari saham" />{query && <div className="search-results">{stocks.filter((s) => `${s.code} ${s.name}`.includes(query)).map((s) => <button key={s.code} onClick={() => { setQuery(s.code); setSearchOpen(false); }}><b>{s.code}</b><small>{s.name}</small></button>)}{!stocks.some((s) => `${s.code} ${s.name}`.includes(query)) && <span>Tidak ditemukan</span>}</div>}</div>}<button className="icon" onClick={refreshMarket} aria-label="Refresh data market">{refreshing ? '…' : '↻'}</button><button className="icon" aria-label="Buka pengaturan">⚙</button><div className={`connection ${health}`}><i />{connectionLabel}</div>{pulse?.timestamp && <span className="updated-at">Diperbarui {new Date(pulse.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>}<ViewToggle detail={detail} onChange={setDetail} /></div></header>
