@@ -31,7 +31,7 @@ describe('withJobRunLog', () => {
   it('menyimpan hasil job sebagai meta saat sukses', async () => {
     await withJobRunLog('ai-pick-scan', async () => ({ scored: 220, archived: 0 }));
 
-    const update = queries.find((q) => q.text.includes('UPDATE job_run_log'))!;
+    const update = queries.find((q) => q.text.includes('UPDATE job_run_log') && q.text.includes('WHERE id = $1'))!;
     expect(update.values[1]).toBe('SUCCESS');
     expect(JSON.parse(update.values[3] as string)).toEqual({ scored: 220, archived: 0 });
   });
@@ -39,7 +39,7 @@ describe('withJobRunLog', () => {
   it('hasil non-objek tidak dipaksa jadi meta', async () => {
     await withJobRunLog('job-angka', async () => 42);
 
-    const update = queries.find((q) => q.text.includes('UPDATE job_run_log'))!;
+    const update = queries.find((q) => q.text.includes('UPDATE job_run_log') && q.text.includes('WHERE id = $1'))!;
     expect(update.values[3]).toBeNull();
   });
 
@@ -48,7 +48,7 @@ describe('withJobRunLog', () => {
       withJobRunLog('job-gagal', async () => { throw new Error('Yahoo timeout'); })
     ).rejects.toThrow('Yahoo timeout');
 
-    const update = queries.find((q) => q.text.includes('UPDATE job_run_log'))!;
+    const update = queries.find((q) => q.text.includes('UPDATE job_run_log') && q.text.includes('WHERE id = $1'))!;
     expect(update.values[1]).toBe('FAILED');
     expect(update.values[2]).toBe('Yahoo timeout');
   });
