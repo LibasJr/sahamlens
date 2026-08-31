@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, ExternalLink, LoaderCircle, RefreshCw } from 'lucide-react';
-import { API_BASE_URL, apiFetch } from '../api';
-import { getToken } from '../tokenStore';
+import { API_BASE_URL, requestFeature } from '../api';
 
 type Method = 'GET' | 'POST';
 export type DesktopFeature = {
@@ -39,7 +38,7 @@ export const desktopFeatures: DesktopFeature[] = [
 
 function DataView({ payload }: { payload: unknown }) {
   if (payload == null) return <div className="data-empty">Server tidak mengembalikan data.</div>;
-  if (Array.isArray(payload)) return <div className="feature-json feature-list">{payload.map((item, i) => <div key={i}>{typeof item === 'object' ? JSON.stringify(item) : String(item)}</div>)}</div>;
+  if (Array.isArray(payload)) return <div className="feature-json feature-list">{payload.map((item, i) => <div key={i}>{typeof item === 'object' && item !== null ? JSON.stringify(item) : String(item)}</div>)}</div>;
   return <pre className="feature-json">{JSON.stringify(payload, null, 2)}</pre>;
 }
 
@@ -56,17 +55,10 @@ export function FeatureWorkspace({ feature, symbol }: { feature: DesktopFeature;
     if (!path) { setError('Masukkan atau pilih ticker terlebih dahulu.'); return; }
     setLoading(true); setError(null);
     try {
-      const token = await getToken();
-      const headers: HeadersInit = { ...(token ? { Authorization: `Bearer ${token}` } : {}) };
-      const init: RequestInit = { method: feature.method ?? 'GET', credentials: 'include', headers, signal: AbortSignal.timeout(60000) };
-      if (feature.method === 'POST') {
-        headers['Content-Type'] = 'application/json';
-        init.body = JSON.stringify(feature.body?.(inputSymbol.trim().toUpperCase(), secondary) ?? {});
-      }
-      const response = await apiFetch(`${API_BASE_URL}${path}`, init);
-      const body = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(body?.error ?? `HTTP ${response.status}`);
-      setPayload(body);
+      const init: RequestInit = { method: feature.method ?? 'GET', signal: AbortSignal.timeout(60000) };
+      if (feature.method === 'POST') init.body = JSON.stringify(feature.body?.(inputSymbol.trim().toUpperCase(), secondary) ?? {});
+      if (feature.method === 'POST') init.headers = { 'Content-Type': 'application/json' };
+      setPayload(await requestFeature(path, init));
     } catch (reason) { setPayload(null); setError(reason instanceof Error ? reason.message : 'Data tidak dapat dimuat.'); }
     finally { setLoading(false); }
   };
