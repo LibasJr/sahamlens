@@ -1,24 +1,33 @@
 {
-  "name": "sahamlens-desktop-ui",
+  "name": "sahamlens-desktop",
   "private": true,
   "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build --config vite.config.ts", "dist:win": "npm run build && electron-builder --win --x64"
+    "build": "tsc -b && vite build --config vite.config.ts",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
-    "@vitejs/plugin-react": "latest",
-    "lucide-react": "latest",
-    "react": "latest",
-    "react-dom": "latest",
-    "typescript": "latest",
-    "vite": "latest"
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/plugin-http": "^2.6.0",
+    "@tauri-apps/plugin-stronghold": "^2.2.0",
+    "lightweight-charts": "^5.0.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
   },
-  "main": "electron/main.cjs",
-  "build": { "appId": "com.sahamlens.desktop", "productName": "SahamLens Desktop", "directories": { "output": "release" }, "files": ["dist/**/*", "electron/**/*", "package.json"] },
   "devDependencies": {
-    "electron": "latest", "electron-builder": "latest", "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5"
+    "@tauri-apps/cli": "^2.8.0",
+    "@types/react": "^19.1.10",
+    "@types/react-dom": "^19.1.7",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.5"
   }
 }

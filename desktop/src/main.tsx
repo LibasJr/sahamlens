@@ -1,63 +1,43 @@
 import { StrictMode, useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { API_BASE_URL, checkHealth, getMarketPulse, type HealthState, type MarketPulse } from './api';
-import { ViewToggle, DetailHint } from './components';
+import { ChartPanel } from './components/ChartPanel';
+import { MarketScreener } from './components/MarketScreener';
+import { OrderPanel } from './components/OrderPanel';
+import { TitleBar } from './components/TitleBar';
+import { Watchlist } from './components/Watchlist';
+import { API_BASE_URL, checkHealth, getWatchlist } from './api';
+import { getToken, saveWatchlist } from './tokenStore';
+import { desktopFeatures, FeatureWorkspace } from './components/FeatureWorkspace';
 import './styles.css';
 
-type Stock = { code: string; name: string; price: string; change: string; positive?: boolean };
-
-const menu = ['Overview', 'Market Pulse', 'Watchlist', 'Screener', 'Teknikal', 'Fundamental', 'Decision Lab'];
+export type Ticker = { symbol: string; name: string; price: number | null; change: number | null };
 
 function App() {
-  const [active, setActive] = useState('Overview');
-  const [detail, setDetail] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [selectedTicker, setSelectedTicker] = useState<string | null>(null);
-  const [marketTab, setMarketTab] = useState('IDX');
-  const [chartRange, setChartRange] = useState('1D');
-  const supportedChartRange = chartRange === '1D' ? chartRange : '1D';
-  const chartRangeLabel = '1D · live';
-  const selectSearchResult = () => { const match = stocks.find((s) => `${s.code} ${s.name}`.includes(query)); if (match) { setQuery(match.code); setSelectedTicker(match.code); setSearchOpen(false); } };
-  const [health, setHealth] = useState<HealthState>('checking');
-  const [pulse, setPulse] = useState<MarketPulse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [watchlistExpanded, setWatchlistExpanded] = useState(false);
-  const refreshMarket = () => { setRefreshing(true); setError(null); getMarketPulse(API_BASE_URL).then((data) => { setPulse(data); if (selectedTicker && ![...(data.topGainers ?? []), ...(data.topLosers ?? [])].some((item) => item.symbol === selectedTicker)) setSelectedTicker(null); }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : 'Gagal memuat data market')).finally(() => setRefreshing(false)); };
-  useEffect(() => {
-    let mounted = true;
-    checkHealth(API_BASE_URL).then((state) => { if (mounted) setHealth(state); });
-    const loadPulse = () => getMarketPulse(API_BASE_URL).then((data) => { if (mounted) { setPulse(data); setError(null); } }).catch((reason: unknown) => { if (mounted) setError(reason instanceof Error ? reason.message : 'Gagal memuat data market'); }).finally(() => { if (mounted) setLoading(false); });
-    loadPulse();
-    const timer = window.setInterval(loadPulse, 60_000);
-    const shortcut = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setSearchOpen(true); } if (event.key === 'Escape') { setSearchOpen(false); setSettingsOpen(false); } };
-    window.addEventListener('keydown', shortcut);
-    return () => { mounted = false; window.clearInterval(timer); window.removeEventListener('keydown', shortcut); };
-  }, []);
-  const connectionLabel = health === 'connected' ? 'Data tersambung' : health === 'offline' ? 'Koneksi terputus' : 'Memeriksa koneksi';
-  const benchmark = pulse?.indices?.find((item) => item.symbol === 'IHSG') ?? pulse?.indices?.[0];
-  const benchmarkPrice = benchmark?.price ?? 0;
-  const benchmarkChange = benchmark?.changePct ?? 0;
-  const formatPrice = (value: number) => value.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const changeLabel = `${benchmarkChange >= 0 ? '+' : ''}${benchmarkChange.toFixed(2).replace('.', ',')}%`;
-  const stocks: Stock[] = [...(pulse?.topGainers ?? []), ...(pulse?.topLosers ?? [])].slice(0, 3).map((item) => ({ code: item.symbol, name: item.symbol, price: item.price.toLocaleString('id-ID'), change: `${item.changePct >= 0 ? '+' : ''}${item.changePct.toFixed(2).replace('.', ',')}%`, positive: item.changePct >= 0 }));
-  const sectionNote: Record<string, string> = { Overview: 'Ringkasan kondisi market dan saham yang perlu diperhatikan.', 'Market Pulse': 'Pergerakan market terbaru dari endpoint SahamLens.', Watchlist: 'Daftar saham pilihan dari data market yang tersedia.', Screener: 'Screener Desktop akan memakai filter saham SahamLens pada fase berikutnya.', Teknikal: 'Analisis teknikal per emiten akan tersedia pada fase berikutnya.', Fundamental: 'Data fundamental per emiten akan tersedia pada fase berikutnya.', 'Decision Lab': 'Decision Lab Desktop akan terhubung ke analisis AI pada fase berikutnya.' };
-  return <div className="terminal">
-    <aside className="sidebar"><div className="brand"><span className="brand-mark">S</span><b>SahamLens</b></div><div className="workspace">INDONESIA MARKET</div><nav>{menu.map((item) => <button key={item} onClick={() => setActive(item)} className={active === item ? 'nav active' : 'nav'} aria-current={active === item ? 'page' : undefined}><span className="nav-dot" />{item}</button>)}</nav><div className="profile"><div className="avatar">L</div><div><b>Libas</b><small>Personal workspace</small></div><span>⋮</span></div></aside>
-    <main className="main"><header className="header"><div><p className="eyebrow">{new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }).format(new Date()).toUpperCase()}</p><h1>{active}</h1></div><div className="actions"><button className="search" onClick={() => setSearchOpen(!searchOpen)}>⌕&nbsp; Search stock <kbd>⌘ K</kbd></button>{searchOpen && <div className="search-box"><input autoFocus className="search-input" value={query} onChange={(e) => setQuery(e.target.value.toUpperCase())} onKeyDown={(e) => { if (e.key === 'Enter') selectSearchResult(); }} placeholder="Ticker, mis. BBCA" aria-label="Cari saham" />{query && <div className="search-results">{stocks.filter((s) => `${s.code} ${s.name}`.includes(query)).map((s) => <button key={s.code} onClick={() => { setQuery(s.code); setSelectedTicker(s.code); setSearchOpen(false); }}><b>{s.code}</b><small>{s.name}</small></button>)}{!stocks.some((s) => `${s.code} ${s.name}`.includes(query)) && <span>Tidak ditemukan</span>}</div>}</div>}<button className="icon" onClick={refreshMarket} aria-label="Refresh data market">{refreshing ? '…' : '↻'}</button><button className="icon" onClick={() => setSettingsOpen(!settingsOpen)} aria-label="Buka pengaturan" aria-expanded={settingsOpen}>⚙</button>{settingsOpen && <div className="detail-hint" role="dialog">Pengaturan Desktop: API {API_BASE_URL}</div>}<div className={`connection ${health}`}><i />{connectionLabel}</div>{pulse?.timestamp && <span className="updated-at">Diperbarui {new Date(pulse.timestamp).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</span>}<ViewToggle detail={detail} onChange={setDetail} />{selectedTicker && <span className="updated-at" aria-live="polite">Dipilih: {selectedTicker}</span>}</div></header>
-      <section className="market-head"><div><p className="eyebrow">MARKET OVERVIEW</p><h2>{marketTab === 'IDX' ? 'Market at a glance' : marketTab === 'US' ? 'US market overview' : 'My watchlist overview'}</h2><p>{sectionNote[active]}</p></div><div className="market-tabs" role="tablist" aria-label="Pilih pasar">{['IDX', 'US', 'Watchlist'].map((tab) => <button key={tab} className={marketTab === tab ? 'selected' : ''} aria-selected={marketTab === tab} role="tab" onClick={() => setMarketTab(tab)}>{tab}</button>)}</div></section><DetailHint detail>Mode detail menampilkan konteks tambahan untuk membantu membaca data pasar dan risiko. Angka utama tetap berasal dari API SahamLens.</DetailHint>
-      {active !== 'Overview' && <section className="panel" aria-live="polite"><div className="panel-title"><div><p className="eyebrow">{active.toUpperCase()}</p><h3>{active} Desktop</h3></div></div><p>{sectionNote[active]}</p>{active === 'Market Pulse' || active === 'Watchlist' ? <p>Data live tersedia pada panel market di bawah.</p> : <p>Panel ini akan diaktifkan setelah endpoint dan kontrak datanya siap.</p>}</section>}
-       {(active === 'Overview' || active === 'Market Pulse' || active === 'Watchlist') && <>
-       {marketTab === 'US' ? <div className="detail-hint">Data US belum tersedia di endpoint market-pulse SahamLens.</div> : <section className="metrics"><Metric label={marketTab === 'Watchlist' ? 'Watchlist' : (benchmark?.symbol ?? 'Benchmark')} value={marketTab === 'Watchlist' ? `${stocks.length} saham` : (benchmark ? formatPrice(benchmarkPrice) : '—')} change={marketTab === 'Watchlist' ? 'Data market' : (benchmark ? changeLabel : 'Data belum tersedia')} positive={benchmarkChange >= 0} /><Metric label="Top gainers" value={pulse ? `${pulse.topGainers.length} saham` : '—'} change={pulse ? 'Data market' : 'Menunggu data'} positive /><Metric label="Top losers" value={pulse ? `${pulse.topLosers.length} saham` : '—'} change={pulse ? 'Data market' : 'Menunggu data'} /></section>}
-      <div className="columns"><section className="panel chart-panel"><div className="panel-title"><div><p className="eyebrow">{benchmark?.symbol ?? 'Benchmark'} · {supportedChartRange}</p><h3>{benchmark ? formatPrice(benchmarkPrice) : '—'} <span className={benchmarkChange >= 0 ? 'gain' : 'loss'}>{benchmark ? changeLabel : 'Data belum tersedia'}</span></h3></div><span className="ghost chart-range-readonly" role="status" aria-describedby="chart-range-help">{chartRangeLabel}</span><span id="chart-range-help" className="sr-only">Saat ini hanya data intraday live untuk 1D yang tersedia.</span></div><div className="chart" role="img" aria-label={`Chart ${benchmark?.symbol ?? 'benchmark'} rentang ${supportedChartRange}`}><div className="grid-lines" />{supportedChartRange !== '1D' ? <div className="detail-hint">Rentang {supportedChartRange} belum tersedia dari endpoint benchmark; menampilkan data intraday terbaru.</div> : benchmark?.sparkline?.length ? <svg viewBox="0 0 700 230" preserveAspectRatio="none" aria-hidden="true"><polyline points={benchmark.sparkline.map((value, index, values) => `${(index / Math.max(values.length - 1, 1)) * 700},${220 - ((value - Math.min(...values)) / Math.max(Math.max(...values) - Math.min(...values), 1)) * 190}`).join(' ')} fill="none" stroke="#39d0b1" strokeWidth="3" vectorEffect="non-scaling-stroke" /></svg> : <div className="detail-hint" role="status" aria-live="polite">Data {benchmark?.symbol ?? 'benchmark'} untuk rentang {supportedChartRange} belum tersedia.</div>}</div><div className="range" aria-label="Cakupan data chart"><span>Intraday live</span><span>Data terbaru</span></div></section><section className="panel"><div className="panel-title"><div><p className="eyebrow">WATCHLIST</p><h3>My stocks</h3></div><button className="plus" onClick={() => { setSearchOpen(true); setQuery(''); setActive('Watchlist'); }} aria-label="Tambah saham ke watchlist">＋</button></div><div className="stock-list">{stocks.map(s => <button type="button" className={selectedTicker === s.code ? 'stock selected-stock' : 'stock'} key={s.code} onClick={() => { setSelectedTicker(s.code); setActive('Watchlist'); }} aria-current={selectedTicker === s.code ? 'true' : undefined} aria-label={`Pilih ${s.code}, ${s.name}`}><div className="stock-logo">{s.code[0]}</div><div className="stock-name"><b>{s.code}</b><small>{s.name}</small></div><div className="stock-price"><b>Rp {s.price}</b><small className={s.positive ? 'gain' : 'loss'}>{s.change}</small></div></button>)}</div><button className="view-all" onClick={() => { setWatchlistExpanded(!watchlistExpanded); setActive('Watchlist'); }} aria-expanded={watchlistExpanded}>View all watchlist <span>→</span></button>{watchlistExpanded && <div className="detail-hint">Menampilkan {stocks.length} saham dari data market terbaru.</div>}</section></div>
-      {loading && <div className="detail-hint" role="status" aria-live="polite">Memuat data market terbaru…</div>}{error && <div className="detail-hint error-hint" role="alert"><span>{error}. Data yang tampil tetap dipertahankan sampai refresh berhasil.</span><button className="retry" onClick={refreshMarket} disabled={refreshing}>{refreshing ? 'Memuat…' : 'Coba lagi'}</button></div>}
-      {pulse?.topGainers?.length ? <section className="panel movers"><div className="panel-title"><div><p className="eyebrow">TOP GAINERS</p><h3>Saham terkuat hari ini</h3></div></div><div className="mover-list">{pulse.topGainers.slice(0, 5).map((item) => <div className="mover" key={item.symbol}><b>{item.symbol}</b><span>Rp {item.price.toLocaleString('id-ID')}</span><strong className="gain">+{item.changePct.toFixed(2)}%</strong></div>)}</div></section> : null}
-      <section className="bottom-row"><div className="section-label"><p className="eyebrow">TODAY'S SIGNALS</p><h2>What needs your attention</h2></div>{pulse ? <><div className="signal"><span className="signal-icon green">↗</span><div><b>Top momentum</b><p>{pulse.topGainers[0] ? `${pulse.topGainers[0].symbol} naik ${pulse.topGainers[0].changePct.toFixed(2).replace('.', ',')}%` : 'Belum ada data gainer'}</p></div><span className="arrow">→</span></div><div className="signal"><span className="signal-icon yellow">!</span><div><b>Review losers</b><p>{pulse.topLosers.length ? `${pulse.topLosers.length} saham perlu ditinjau` : 'Belum ada data loser'}</p></div><span className="arrow">→</span></div></> : <div className="detail-hint">Menunggu data market…</div>}</section></>}
-    </main>
-  </div>;
+  const [selected, setSelected] = useState('');
+  const [watchlist, setWatchlist] = useState<Ticker[]>([]);
+  const [featureId, setFeatureId] = useState('overview');
+  const [authVersion, setAuthVersion] = useState(0);
+  const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
+  useEffect(() => { let active = true; void checkHealth(API_BASE_URL).then(status => { if (active) setApiStatus(status === 'connected' ? 'online' : 'offline'); }); return () => { active = false; }; }, []);
+  useEffect(() => { let active = true; void getToken().then((token) => getWatchlist(API_BASE_URL, token ?? undefined)).then((remote) => { if (!active) return; const next = remote.map((item) => ({ symbol: item.symbol, name: item.name ?? item.symbol, price: item.price ?? null, change: item.changePct ?? null })); setWatchlist(next); setSelected((current) => current || next[0]?.symbol || ''); void saveWatchlist(next); }).catch(() => { if (active) setWatchlist([]); }); return () => { active = false; }; }, [authVersion]);
+  const active = watchlist.find((stock) => stock.symbol === selected) ?? watchlist[0];
+
+  return (
+    <div className="desktop-shell">
+      <div className="terminal-window">
+        <TitleBar apiStatus={apiStatus} />
+        <div className="terminal-body">
+          <Watchlist stocks={watchlist} selected={selected} onSelect={setSelected} onChange={setWatchlist} onAuthenticated={() => setAuthVersion(v => v + 1)} />
+          <main className="workspace-main">
+            <div className="feature-nav"><button className={featureId === 'overview' ? 'active' : ''} onClick={() => setFeatureId('overview')}>Overview</button>{desktopFeatures.map((feature) => <button key={feature.id} className={featureId === feature.id ? 'active' : ''} onClick={() => setFeatureId(feature.id)}>{feature.label}</button>)}</div>
+            <ChartPanel ticker={active} />
+            {featureId === 'overview' ? <MarketScreener onSelect={setSelected} /> : <FeatureWorkspace feature={desktopFeatures.find((feature) => feature.id === featureId) ?? desktopFeatures[0]} symbol={active?.symbol} />}
+          </main>
+          <OrderPanel ticker={active} apiBaseUrl={API_BASE_URL} />
+        </div>
+      </div>
+    </div>
+  );
 }
-function Metric({label, value, change, positive}: {label:string; value:string; change:string; positive?:boolean}) { return <article className="metric"><span>{label}</span><strong>{value}</strong><small className={positive ? 'gain' : ''}>{change}</small></article>; }
+
 createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
