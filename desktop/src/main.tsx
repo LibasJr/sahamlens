@@ -30,7 +30,7 @@ function App() {
     const loadPulse = () => getMarketPulse(API_BASE_URL).then((data) => { if (mounted) { setPulse(data); setError(false); } }).catch(() => { if (mounted) setError(true); }).finally(() => { if (mounted) setLoading(false); });
     loadPulse();
     const timer = window.setInterval(loadPulse, 60_000);
-    const shortcut = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setSearchOpen(true); } };
+    const shortcut = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); setSearchOpen(true); } if (event.key === 'Escape') { setSearchOpen(false); setSettingsOpen(false); } };
     window.addEventListener('keydown', shortcut);
     return () => { mounted = false; window.clearInterval(timer); window.removeEventListener('keydown', shortcut); };
   }, []);
