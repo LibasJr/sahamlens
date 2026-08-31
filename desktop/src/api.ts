@@ -5,7 +5,7 @@ export type MarketPulse = { timestamp: string; indices: Array<{ symbol: string; 
 export type MarketSummary = { timestamp: string; marketRegime: { benchmark: string; changePct: number; weeklyChangePct: number; trend: string }; topGainers: MarketItem[]; topLosers: MarketItem[]; _meta?: { freshness?: string; cachedAgeSec?: number; cacheTtlSec?: number } };
 
 export const apiFetch = tauriFetch;
-async function getJson<T>(url: string): Promise<T> { const response = await apiFetch(url, { signal: AbortSignal.timeout(10000) }); if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json() as Promise<T>; }
+async function getJson<T>(url: string): Promise<T> { const response = await apiFetch(url, { credentials: 'include', signal: AbortSignal.timeout(10000) }); if (!response.ok) throw new Error(`HTTP ${response.status}`); return response.json() as Promise<T>; }
 export async function checkHealth(baseUrl = ''): Promise<HealthState> { try { return (await apiFetch(`${baseUrl}/api/health`, { signal: AbortSignal.timeout(8000) })).ok ? 'connected' : 'offline'; } catch { return 'offline'; } }
 export async function getMarketSummary(baseUrl = ''): Promise<MarketSummary> { return getJson<MarketSummary>(`${baseUrl}/api/market-summary`); }
 export async function getMarketPulse(baseUrl = ''): Promise<MarketPulse> { return getJson<MarketPulse>(`${baseUrl}/api/market-pulse`); }
@@ -21,8 +21,13 @@ export async function getPublicChart(ticker: string, timeframe: string, baseUrl 
 export type ScreenerRow = { ticker: string; name: string; entry: number | null; signal: string | null; decision?: { action?: string } | null };
 export async function getScreener(baseUrl = API_BASE_URL) { const payload = await getJson<{ analysis?: { top_10_stocks?: ScreenerRow[] }; top_10_stocks?: ScreenerRow[] }>(`${baseUrl}/api/screener`); return payload.analysis?.top_10_stocks ?? payload.top_10_stocks ?? []; }
 export async function requestFeature(path: string, init: RequestInit = {}, baseUrl = API_BASE_URL) {
-  const { getToken } = await import('./tokenStore');
-  const token = await getToken();
+  let token: string | null = null;
+  try {
+    const { getToken } = await import('./tokenStore');
+    token = await getToken();
+  } catch {
+    // Public endpoints must remain usable when the optional local vault is unavailable.
+  }
   const headers = new Headers(init.headers);
   if (token) headers.set('Authorization', `Bearer ${token}`);
   const response = await apiFetch(`${baseUrl}${path}`, { ...init, credentials: 'include', headers, signal: init.signal ?? AbortSignal.timeout(60000) });
