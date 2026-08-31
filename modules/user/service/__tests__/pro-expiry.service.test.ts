@@ -1,13 +1,20 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { extendProExpiry } from '../pro-expiry.service';
 
 function monthsFromNow(n: number): Date {
+  // Gunakan tanggal aman agar setMonth tidak mengalami overflow kalender.
   const d = new Date();
+  d.setDate(15);
   d.setMonth(d.getMonth() + n);
   return d;
 }
 
 describe('extendProExpiry', () => {
+  beforeAll(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-08-15T08:00:00.000Z'));
+  });
+  afterAll(() => vi.useRealTimers());
   it('menumpuk dari tanggal berakhir kalau masa berlaku belum habis', () => {
     const belumHabis = monthsFromNow(1).toISOString();
 
