@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build"
+    "build": "tsc -b && vite build", "dist:win": "npm run build && electron-builder --win --x64"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -15,8 +15,10 @@
     "typescript": "latest",
     "vite": "latest"
   },
+  "main": "electron/main.cjs",
+  "build": { "appId": "com.sahamlens.desktop", "productName": "SahamLens Desktop", "directories": { "output": "release" }, "files": ["dist/**/*", "electron/**/*", "package.json"] },
   "devDependencies": {
-    "@types/react": "^19.2.18",
+    "electron": "latest", "electron-builder": "latest", "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5"
   }
 }
