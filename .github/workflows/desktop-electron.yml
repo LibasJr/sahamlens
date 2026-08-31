@@ -17,7 +17,8 @@ jobs:
       - name: Install desktop dependencies
         run: npm ci --prefix desktop
       - name: Build Windows installer
-        run: npm run dist:win --prefix desktop
+        working-directory: desktop
+        run: npm run dist:win
       - uses: actions/upload-artifact@v4
         with:
           name: SahamLens-Desktop-Windows-Installer
