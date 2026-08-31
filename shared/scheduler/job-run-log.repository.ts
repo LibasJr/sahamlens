@@ -25,6 +25,17 @@ export interface JobRunLog {
 
 export async function startJobRun(jobName: string, itemKey: string | null = null): Promise<number> {
   await ensureSharedSchema();
+  // A SIGKILL or upstream timeout can leave RUNNING rows behind. Reconcile
+  // those rows before creating a new run so the dashboard never reports a
+  // dead invocation as active and stale rows cannot accumulate on every tick.
+  await pool.query(
+    `UPDATE public.job_run_log
+        SET status = 'FAILED', finished_at = now(),
+            error_message = coalesce(error_message, 'Run diterminasi otomatis setelah melewati batas SLA')
+      WHERE job_name = $1 AND status = 'RUNNING'
+        AND started_at < now() - interval '10 minutes'`,
+    [jobName],
+  );
   const { rows } = await pool.query(
     `INSERT INTO job_run_log (job_name, item_key, status) VALUES ($1, $2, 'RUNNING') RETURNING id`,
     [jobName, itemKey]
@@ -35,7 +46,7 @@ export async function startJobRun(jobName: string, itemKey: string | null = null
 export async function finishJobRun(id: number, status: 'SUCCESS' | 'FAILED', errorMessage?: string, meta?: Record<string, unknown>): Promise<void> {
   await ensureSharedSchema();
   await pool.query(
-    `UPDATE job_run_log SET status = $2, finished_at = now(), error_message = $3, meta = $4 WHERE id = $1`,
+    `UPDATE job_run_log SET status = $2, finished_at = now(), error_message = $3, meta = $4 WHERE id = $1`, // finish current run
     [id, status, errorMessage ?? null, meta ? JSON.stringify(meta) : null]
   );
 }
