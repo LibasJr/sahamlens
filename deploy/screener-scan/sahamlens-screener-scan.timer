@@ -1,0 +1,11 @@
+[Unit]
+Description=Jadwal SahamLens - screener-scan
+
+[Timer]
+OnCalendar=Mon..Fri 09,10,11,12,13,14,15,16:00,20,40:00 Asia/Jakarta
+OnCalendar=Sat,Sun 09:00 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-screener-scan.service
+
+[Install]
+WantedBy=timers.target
