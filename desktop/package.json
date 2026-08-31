@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build", "dist:win": "npm run build && electron-builder --win --x64"
+    "build": "tsc -b && vite build --config vite.config.ts", "dist:win": "npm run build && electron-builder --win --x64"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
