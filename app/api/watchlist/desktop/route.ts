@@ -7,7 +7,7 @@ import { handleAddWatchlist, handleListWatchlist, handleRemoveWatchlist } from '
 import { UnauthorizedError } from '@/shared/errors/app-error';
 
 function requireDesktopBearer(request: Request) {
-  if (!request.headers.get('authorization')?.startsWith('Bearer ')) throw new UnauthorizedError('Token desktop diperlukan');
+  if (!/^Bearer\s+\S+$/i.test(request.headers.get('authorization') ?? '')) throw new UnauthorizedError('Token desktop diperlukan');
 }
 
 export async function GET(request: NextRequest) {
