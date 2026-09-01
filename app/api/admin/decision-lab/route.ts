@@ -16,6 +16,7 @@ import {
   freezePilotProtocol,
   importIdxIcCsv,
   importStockbitCsv,
+  runOfflinePolicyLearning,
 } from '@/modules/decision-agent';
 import { DataUnavailableError, ForbiddenError, ValidationError } from '@/shared/errors/app-error';
 import { runController } from '@/shared/http/next-response.adapter';
@@ -53,6 +54,9 @@ export async function POST(request: Request) {
       case 'scan':
         result = await runDecisionAgentScan({ trigger: 'ADMIN' });
         if (!result) throw new DataUnavailableError('Cache AI Pick aktual belum tersedia; scan tidak membuat sinyal pengganti');
+        break;
+      case 'run-offline-policy-learning':
+        result = await runOfflinePolicyLearning();
         break;
       case 'configure-paper-account':
         await configurePaperAccount(input.config);

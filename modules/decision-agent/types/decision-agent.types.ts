@@ -278,6 +278,7 @@ export interface DecisionAgentDashboard {
   performance: PaperPerformance;
   riskContext: PaperRiskContext;
   shadowEvaluation: DecisionShadowEvaluation;
+  offlinePolicyLearning: Record<string, unknown> | null;
   theses: DecisionThesis[];
   pilotProtocol: DecisionPilotProtocol | null;
   dataControls: DecisionDataControls;
