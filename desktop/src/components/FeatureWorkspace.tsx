@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ExternalLink, LoaderCircle, RefreshCw } from 'lucide-react';
-import { API_BASE_URL, requestFeature } from '../api';
+import { AlertCircle, LoaderCircle, RefreshCw } from 'lucide-react';
+import { requestFeature } from '../api';
 
 type Method = 'GET' | 'POST';
 type Field = { key: string; label: string; placeholder: string; type?: 'text' | 'number' };
@@ -92,7 +92,7 @@ export function FeatureWorkspace({ feature, symbol }: { feature: DesktopFeature;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [feature.id, path]);
   return <section className="feature-workspace">
-    <div className="feature-heading"><div><span className="section-kicker">RISET SAHAMLENS</span><h2>{feature.label}</h2><p>{feature.note}</p></div><div className="feature-heading-actions"><span className="feature-api-label"><i /> {feature.method ?? 'GET'} · {feature.access === 'pro' ? 'PRO' : feature.access === 'account' ? 'AKUN' : 'PUBLIK'}</span><button className="screener-tool" onClick={() => void load()} aria-label="Muat ulang"><RefreshCw size={14} /></button><a className="screener-tool feature-link" href={API_BASE_URL} target="_blank" rel="noreferrer" aria-label="Buka SahamLens di web"><ExternalLink size={14} /></a></div></div>
+    <div className="feature-heading"><div><span className="section-kicker">RISET SAHAMLENS</span><h2>{feature.label}</h2><p>{feature.note}</p></div><div className="feature-heading-actions"><span className="feature-api-label"><i /> {feature.method ?? 'GET'} · {feature.access === 'pro' ? 'PRO' : feature.access === 'account' ? 'AKUN' : 'PUBLIK'}</span><button className="screener-tool" onClick={() => void load()} aria-label="Muat ulang"><RefreshCw size={14} /> Refresh</button></div></div>
     {(feature.needsSymbol || feature.method === 'POST' || feature.fields) && <div className="feature-controls">{(feature.needsSymbol || feature.id === 'risk') && <input value={inputSymbol} onChange={e => setInputSymbol(e.target.value)} placeholder="Ticker, contoh BBCA" aria-label="Ticker" />}{feature.id === 'compare' && <input value={secondary} onChange={e => setSecondary(e.target.value)} placeholder="Ticker pembanding" aria-label="Ticker pembanding" />}{feature.fields?.map(field => <input key={field.key} type={field.type ?? 'text'} value={fields[field.key] ?? ''} onChange={e => setFields(current => ({ ...current, [field.key]: e.target.value }))} placeholder={`${field.label}: ${field.placeholder}`} aria-label={field.label} />)}<button className="primary-action" onClick={() => void load()}>Muat data</button></div>}
     {loading ? <div className="feature-state"><LoaderCircle className="spin" size={18} /> Memuat data resmi…</div> : error ? <div className="feature-state error"><AlertCircle size={17} /> {error.includes('401') ? 'Fitur ini memerlukan autentikasi desktop.' : error.includes('402') || error.includes('Pro') ? 'Fitur ini memerlukan akses Pro.' : error}</div> : <DataView payload={payload} />}
   </section>;
