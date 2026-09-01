@@ -19,6 +19,7 @@ import './shell.css';
 import './window.css';
 import './design-system.css';
 import './typography.css';
+import './search.css';
 import './resize.css';
 import './stock-workspace.css';
 import './radar.css';
@@ -57,7 +58,7 @@ function App() {
   useEffect(() => { syncWatchlist(); const listener = () => syncWatchlist(); window.addEventListener('desktop-auth-changed', listener); return () => window.removeEventListener('desktop-auth-changed', listener); }, []);
   const active = watchlist.find((stock) => stock.symbol === selected) ?? (selected ? { symbol: selected, name: selected, price: null, change: null } : undefined);
   const changeMode = (nextMode: ExperienceMode) => { setMode(nextMode); window.localStorage.setItem('sahamlens.desktop.mode', nextMode); };
-  const openSymbol = (symbol: string) => { const normalized = symbol.trim().toUpperCase().replace('.JK', ''); if (!normalized) return; if (!watchlist.some((stock) => stock.symbol === normalized)) setWatchlist((current) => [...current, { symbol: normalized, name: normalized, price: null, change: null }]); setSelected(normalized); setWorkspace('analysis'); };
+  const openSymbol = (symbol: string, name?: string) => { const normalized = symbol.trim().toUpperCase().replace('.JK', ''); if (!normalized) return; setWatchlist((current) => { const existing = current.find((stock) => stock.symbol === normalized); return existing ? current.map((stock) => stock.symbol === normalized ? { ...stock, name: name || stock.name } : stock) : [...current, { symbol: normalized, name: name || normalized, price: null, change: null }]; }); setSelected(normalized); setWorkspace('analysis'); };
   const selectFromMarket = (symbol: string) => { setSelected(symbol); setWorkspace('analysis'); };
   const workspaceContent = () => {
     if (workspace === 'home') return <div className="workspace-page"><WorkspaceTitle kicker="SAHAMLENS DESKTOP" title={mode === 'guided' ? 'Mulai dari konteks pasar' : 'Market Overview'} description={mode === 'guided' ? 'Ikuti alur riset sederhana sebelum menilai sebuah saham.' : 'Kondisi pasar, breadth, dan pergerakan saham dari API SahamLens.'} />{mode === 'guided' && <ResearchGuide onNavigate={setWorkspace} />}<MarketOverview market={market} error={marketError} onSelect={selectFromMarket} /><MarketScreener onSelect={selectFromMarket} /></div>;
