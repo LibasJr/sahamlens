@@ -11,6 +11,7 @@ import { ResearchPanel } from './components/ResearchPanel';
 import { ResearchGuide } from './components/ResearchGuide';
 import { PanelResizeHandle } from './components/PanelResizeHandle';
 import { StockResearchWorkspace } from './components/StockResearchWorkspace';
+import { PositionSizing, StockChecklist } from './components/ToolsWorkspace';
 import { RadarWorkspace } from './components/RadarWorkspace';
 import { TitleBar } from './components/TitleBar';
 import { Watchlist } from './components/Watchlist';
@@ -24,15 +25,16 @@ import './search.css';
 import './account-modal.css';
 import './resize.css';
 import './stock-workspace.css';
+import './tools-workspace.css';
 import './radar.css';
 
 export type Ticker = { symbol: string; name: string; price: number | null; change: number | null };
 const analysisTabs = ['overview', 'technical', 'fundamental', 'dcf', 'earnings', 'ownership', 'compare'];
-const toolTabs = ['dividend', 'backtest', 'risk'];
+const toolTabs = ['compare', 'checklist', 'position-sizing', 'earnings', 'dividend', 'backtest', 'risk'];
 const calendarTabs = ['calendar', 'news', 'macro'];
 
 function featureFor(id: string) { return desktopFeatures.find((feature) => feature.id === id) ?? desktopFeatures[0]; }
-function featureLabel(id: string) { return id === 'overview' ? 'Overview' : featureFor(id).label; }
+function featureLabel(id: string) { if (id === 'overview') return 'Overview'; if (id === 'checklist') return 'Checklist'; if (id === 'position-sizing') return 'Position Sizing'; return featureFor(id).label; }
 function WorkspaceTitle({ kicker, title, description }: { kicker: string; title: string; description: string }) { return <div className="workspace-title"><div><span className="section-kicker">{kicker}</span><h1>{title}</h1><p>{description}</p></div></div>; }
 function FeatureTabs({ ids, active, onChange }: { ids: string[]; active: string; onChange: (id: string) => void }) { return <nav className="workspace-tabs" aria-label="Tab workspace">{ids.map((id) => <button key={id} className={active === id ? 'active' : ''} onClick={() => onChange(id)}>{featureLabel(id)}</button>)}</nav>; }
 
@@ -71,7 +73,7 @@ function App() {
     if (workspace === 'radar') return <div className="workspace-page"><WorkspaceTitle kicker="RADAR & SIGNAL" title="Peluang terpantau" description="Signal server ditampilkan apa adanya; bukan rekomendasi transaksi otomatis." /><FeatureTabs ids={['breakout', 'recommendations']} active={radarTab} onChange={setRadarTab} />{radarTab === 'breakout' ? <RadarWorkspace onSelect={selectFromMarket} /> : <FeatureWorkspace feature={featureFor(radarTab)} symbol={active?.symbol} />}</div>;
     if (workspace === 'watchlist') return <div className="workspace-page"><WorkspaceTitle kicker="WATCHLIST" title="Daftar pantau" description="Pilih saham dari panel kiri untuk membuka chart dan analisis resminya." /><ChartPanel ticker={active} /></div>;
     if (workspace === 'analysis') return <div className="workspace-page"><WorkspaceTitle kicker="STOCK WORKSPACE" title={active?.symbol ?? 'Pilih emiten'} description="Analisis teknikal, fundamental, valuasi, earnings, dan kepemilikan dalam satu ruang kerja." /><ChartPanel ticker={active} /><FeatureTabs ids={analysisTabs} active={analysisTab} onChange={setAnalysisTab} />{(['overview', 'fundamental', 'dcf', 'earnings', 'ownership'] as string[]).includes(analysisTab) ? <StockResearchWorkspace tab={analysisTab as 'overview' | 'fundamental' | 'dcf' | 'earnings' | 'ownership'} symbol={active?.symbol} /> : <FeatureWorkspace feature={featureFor(analysisTab)} symbol={active?.symbol} />}</div>;
-    if (workspace === 'tools') return <div className="workspace-page"><WorkspaceTitle kicker="RESEARCH TOOLS" title="Tools analisis" description="Gunakan kalkulasi dan simulasi yang diproses oleh SahamLens." /><FeatureTabs ids={toolTabs} active={toolTab} onChange={setToolTab} /><FeatureWorkspace feature={featureFor(toolTab)} symbol={active?.symbol} /></div>;
+    if (workspace === 'tools') return <div className="workspace-page"><WorkspaceTitle kicker="RESEARCH TOOLS" title="Tools analisis" description="Bandingkan emiten, cek kelengkapan data, dan gunakan kalkulasi risiko secara transparan." /><FeatureTabs ids={toolTabs} active={toolTab} onChange={setToolTab} />{toolTab === 'checklist' ? <StockChecklist symbol={active?.symbol} /> : toolTab === 'position-sizing' ? <PositionSizing /> : toolTab === 'earnings' ? <StockResearchWorkspace tab="earnings" symbol={active?.symbol} /> : <FeatureWorkspace feature={featureFor(toolTab)} symbol={active?.symbol} />}</div>;
     return <div className="workspace-page"><WorkspaceTitle kicker="INFORMASI PASAR" title="Kalender & News" description="Aksi korporasi, berita, dan konteks makro dari sumber SahamLens." /><FeatureTabs ids={calendarTabs} active={calendarTab} onChange={setCalendarTab} /><FeatureWorkspace feature={featureFor(calendarTab)} symbol={active?.symbol} /></div>;
   };
   const resizeWatchlist = (delta: number) => setWatchlistWidth((width) => Math.max(220, Math.min(380, width + delta)));
