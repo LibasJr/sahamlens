@@ -45,4 +45,10 @@ describe('kontrak rilis Tauri desktop', () => {
     const tokenStore = read('desktop/src/tokenStore.ts');
     expect(tokenStore).not.toContain('sahamlens-desktop-local-vault');
   });
+
+  it('tidak membuka vault installer lama dengan password acak baru', () => {
+    const tokenStore = read('desktop/src/tokenStore.ts');
+    expect(tokenStore).toContain("const vaultPath = 'sahamlens-v2.hold'");
+    expect(tokenStore).not.toContain("const vaultPath = 'sahamlens.hold'");
+  });
 });
