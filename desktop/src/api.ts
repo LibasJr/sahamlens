@@ -17,6 +17,11 @@ export async function checkHealth(baseUrl = ''): Promise<HealthState> { try { re
 export async function getMarketSummary(baseUrl = ''): Promise<MarketSummary> { return getJson<MarketSummary>(`${baseUrl}/api/market-summary`); }
 export async function getMarketPulse(baseUrl = ''): Promise<MarketPulse> { return getJson<MarketPulse>(`${baseUrl}/api/market-pulse`); }
 export const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'https://sahamlens.id';
+export type TickerSearchItem = { symbol: string; name: string };
+export async function searchTickers(query: string, baseUrl = API_BASE_URL) {
+  const payload = await getJson<{ data?: { items?: TickerSearchItem[] }; items?: TickerSearchItem[] }>(`${baseUrl}/api/tickers/search?q=${encodeURIComponent(query)}`);
+  return payload.data?.items ?? payload.items ?? [];
+}
 export async function getResearchUniverse(baseUrl = API_BASE_URL) {
   const [summary, pulse] = await Promise.all([getMarketSummary(baseUrl), getMarketPulse(baseUrl)]);
   return { summary, pulse };

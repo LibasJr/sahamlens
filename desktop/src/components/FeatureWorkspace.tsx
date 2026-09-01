@@ -83,7 +83,14 @@ export function FeatureWorkspace({ feature, symbol }: { feature: DesktopFeature;
     } catch (reason) { setPayload(null); setError(reason instanceof Error ? reason.message : 'Data tidak dapat dimuat.'); }
     finally { setLoading(false); }
   };
-  useEffect(() => { if (!feature.needsSymbol) void load(); }, [feature.id]);
+  useEffect(() => {
+    setPayload(null); setError(null);
+    // A selected issuer must immediately populate its research tab. POST tools and
+    // comparisons remain explicit actions because they need user-entered parameters.
+    if (path && feature.method !== 'POST' && feature.id !== 'compare') void load();
+  // `path` is the complete request identity; load intentionally reads the current form state.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [feature.id, path]);
   return <section className="feature-workspace">
     <div className="feature-heading"><div><span className="section-kicker">RISET SAHAMLENS</span><h2>{feature.label}</h2><p>{feature.note}</p></div><div className="feature-heading-actions"><span className="feature-api-label"><i /> {feature.method ?? 'GET'} · {feature.access === 'pro' ? 'PRO' : feature.access === 'account' ? 'AKUN' : 'PUBLIK'}</span><button className="screener-tool" onClick={() => void load()} aria-label="Muat ulang"><RefreshCw size={14} /></button><a className="screener-tool feature-link" href={API_BASE_URL} target="_blank" rel="noreferrer" aria-label="Buka SahamLens di web"><ExternalLink size={14} /></a></div></div>
     {(feature.needsSymbol || feature.method === 'POST' || feature.fields) && <div className="feature-controls">{(feature.needsSymbol || feature.id === 'risk') && <input value={inputSymbol} onChange={e => setInputSymbol(e.target.value)} placeholder="Ticker, contoh BBCA" aria-label="Ticker" />}{feature.id === 'compare' && <input value={secondary} onChange={e => setSecondary(e.target.value)} placeholder="Ticker pembanding" aria-label="Ticker pembanding" />}{feature.fields?.map(field => <input key={field.key} type={field.type ?? 'text'} value={fields[field.key] ?? ''} onChange={e => setFields(current => ({ ...current, [field.key]: e.target.value }))} placeholder={`${field.label}: ${field.placeholder}`} aria-label={field.label} />)}<button className="primary-action" onClick={() => void load()}>Muat data</button></div>}
