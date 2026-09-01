@@ -29,7 +29,11 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // aktif. Sebelum menaikkan, compare sudah dipangkas dari framer-motion, icon tambahan,
 // formatter freshness, dan feedback state supaya pertumbuhan hanya membayar fitur.
 // Dinaikkan 6.020 -> 6.040 KB pada 2026-08-30 untuk kontrol Ringkas/Detail Decision Lab.
-const TOTAL_BUDGET_KB = 6_040;
+// Dinaikkan 6.040 -> 6.048 KB pada 2026-09-01 untuk tiga route kontrak desktop baru
+// (ticker search, watchlist bearer, dan admin overview). Build pembanding origin/main
+// terukur 6.034 KB; branch ini 6.041 KB. Pertumbuhan bukan dependensi UI atau muatan awal
+// halaman web, melainkan chunk route yang tetap dihitung audit Next pada direktori ini.
+const TOTAL_BUDGET_KB = 6_048;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
