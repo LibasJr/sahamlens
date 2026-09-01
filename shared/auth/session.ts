@@ -1,4 +1,4 @@
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import { decrypt, type SessionPayload } from './jwt';
 import { SESSION_COOKIE, ADMIN_COOKIE } from '../constants/cookie-names';
 import { verifyAdminTokenLive } from './admin-token-live';
@@ -17,7 +17,11 @@ export type { SessionPayload };
 // yang jadi tanggung jawab domain modules/user (lihat modules/user/service/session.service.ts).
 export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
-  const session = cookieStore.get(SESSION_COOKIE)?.value;
+  const authorization = (await headers()).get('authorization');
+  const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
+  // Desktop menyimpan token di Stronghold dan mengirimkannya sebagai Bearer. Browser
+  // tetap memakai cookie HttpOnly; token Bearer tidak pernah diterbitkan oleh endpoint web.
+  const session = bearer || cookieStore.get(SESSION_COOKIE)?.value;
 
   if (session) {
     const payload = await decrypt(session);

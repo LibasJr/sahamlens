@@ -9,4 +9,5 @@ async function put(key: string, value: string) { const { vault, store } = await 
 async function read(key: string) { const { store } = await getStore(); const value = await store.get(key); return value ? new TextDecoder().decode(new Uint8Array(value)) : null; }
 export async function saveToken(token: string) { await put('jwt', token); }
 export async function getToken() { return read('jwt'); }
+export async function clearToken() { const { vault, store } = await getStore(); await store.remove('jwt'); await vault.save(); }
 export async function saveWatchlist(stocks: Ticker[]) { await put('watchlist', JSON.stringify(stocks)); }

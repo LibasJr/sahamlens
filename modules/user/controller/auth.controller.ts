@@ -40,6 +40,19 @@ export async function handleLogin(rawBody: unknown, requestMeta?: AuthRequestMet
   return { status: 200, body: { success: true, role: result.role }, cookiesToSet: sessionCookies(result) };
 }
 
+/**
+ * Login khusus klien desktop. Token hanya dikirim ke proses Tauri untuk disimpan dalam
+ * Stronghold; endpoint browser biasa tetap hanya menerbitkan cookie HttpOnly.
+ */
+export async function handleDesktopLogin(rawBody: unknown, requestMeta?: AuthRequestMeta): Promise<HttpResult> {
+  const input = parseOrThrow(loginSchema, rawBody);
+  const result = await login(input);
+  if (requestMeta) {
+    await recordAuthEventSafely({ userId: result.userId, email: result.email, eventType: 'login', requestMeta });
+  }
+  return { status: 200, body: { success: true, token: result.token, role: result.role, email: result.email } };
+}
+
 export async function handleSignup(rawBody: unknown, requestMeta?: AuthRequestMeta): Promise<HttpResult> {
   const input = parseOrThrow(signupSchema, rawBody);
   const created = await signup(input);

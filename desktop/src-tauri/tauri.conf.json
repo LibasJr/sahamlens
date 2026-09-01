@@ -5,5 +5,5 @@
   "identifier": "id.sahamlens.desktop",
   "build": { "beforeDevCommand": "npm run dev", "beforeBuildCommand": "npm run build", "devUrl": "http://localhost:1420", "frontendDist": "../dist" },
   "app": { "windows": [{ "title": "SahamLens Desktop", "width": 1400, "height": 900, "minWidth": 1050, "minHeight": 760, "decorations": false, "transparent": true, "backgroundColor": "#00000000", "resizable": true }] },
-  "bundle": { "active": true, "targets": "all", "icon": ["icons/icon.ico"] }
+  "bundle": { "active": true, "targets": "all", "icon": ["icons/icon.png", "icons/icon.ico"] }
 }
