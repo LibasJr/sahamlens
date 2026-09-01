@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { BarChart3, Crosshair, Eye, LayoutGrid, Plus, Search, Star } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import type { Ticker } from '../main';
 
 type Props = { stocks: Ticker[]; selected: string; onSelect: (symbol: string) => void; onChange: (stocks: Ticker[]) => void };
@@ -13,7 +13,6 @@ export function Watchlist({ stocks, selected, onSelect, onChange }: Props) {
     onChange(next); onSelect(symbol);
   };
   return <aside className="watchlist-panel">
-    <div className="rail"><div className="rail-logo">S</div><button className="rail-button active"><LayoutGrid size={17} /></button><button className="rail-button"><BarChart3 size={17} /></button><button className="rail-button"><Crosshair size={17} /></button><button className="rail-button"><Star size={17} /></button><div className="rail-spacer" /><button className="rail-button"><Eye size={17} /></button></div>
     <div className="watchlist-content">
       <div className="watchlist-heading"><div><span className="section-kicker">PASAR HARI INI</span><h2>Daftar pantau</h2></div><button className="icon-button" aria-label="Tambah ticker" onClick={addSymbol}><Plus size={16} /></button></div>
       <label className="ticker-search"><Search size={14} /><input value={query} onChange={event => setQuery(event.target.value)} placeholder="Cari ticker" aria-label="Cari ticker" /></label>
