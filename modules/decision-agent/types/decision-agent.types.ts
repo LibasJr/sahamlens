@@ -31,6 +31,13 @@ export interface HybridSignalReview {
   nextEvidence: HybridNextEvidence[];
   model: string;
   reviewedAt: string;
+  debate?: {
+    bullEvidenceRefs: string[];
+    bearEvidenceRefs: string[];
+    bullThesis: string;
+    bearThesis: string;
+    riskRationale: string;
+  };
 }
 
 export type HybridRunStatus =
