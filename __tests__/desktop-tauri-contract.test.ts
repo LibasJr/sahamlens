@@ -50,7 +50,9 @@ describe('kontrak rilis Tauri desktop', () => {
     const tokenStore = read('desktop/src/tokenStore.ts');
     expect(tokenStore).toContain("const vaultPasswordKey = 'sahamlens.vault-key.v3'");
     expect(tokenStore).toContain("crypto.subtle.digest('SHA-256'");
-    expect(tokenStore).toContain('`sahamlens-${fingerprint}.hold`');
+    expect(tokenStore).toContain('join(await appDataDir(), `sahamlens-${fingerprint}.hold`)');
+    expect(tokenStore).toContain("import { appDataDir, join } from '@tauri-apps/api/path'");
+    expect(tokenStore).not.toContain('return `sahamlens-${fingerprint}.hold`');
     expect(tokenStore).not.toContain("const vaultPath = 'sahamlens-v2.hold'");
     expect(tokenStore).not.toContain("const vaultPasswordKey = 'sahamlens.vault-key.v2'");
   });
