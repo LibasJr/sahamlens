@@ -1,0 +1,11 @@
+.tool-workspace { padding: 20px; border: 1px solid #293640; border-radius: 12px; background: #11171d; }
+.tool-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.tool-heading h2 { margin: 4px 0 6px; color: #edf4f0; font-size: 20px; }
+.tool-heading p { max-width: 680px; margin: 0; color: #a5b2ab; font-size: 13px; line-height: 1.55; }
+.tool-heading > svg { flex: none; color: #79d99a; }
+.checklist-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-top: 18px; }
+.checklist-item { display: flex; align-items: flex-start; gap: 9px; min-width: 0; padding: 12px; border: 1px solid #2a3740; border-radius: 8px; background: #10161b; }
+.checklist-item > div { display: grid; gap: 3px; min-width: 0; }.checklist-item strong { color: #e5ece8; font-size: 13px; }.checklist-item span { overflow: hidden; color: #9aa8a0; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.position-form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 18px; }.position-form label { display: grid; gap: 6px; color: #b5c2ba; font-size: 12px; }.position-form input { height: 38px; padding: 0 10px; border: 1px solid #33413c; border-radius: 7px; outline: 0; background: #0d1310; color: #edf5ef; font-size: 13px; }.position-form input:focus { border-color: #58b878; }.position-form .primary-action { align-self: end; height: 38px; }
+.position-result { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin-top: 15px; }.position-result > div { display: grid; gap: 6px; padding: 12px; border: 1px solid #2b4737; border-radius: 8px; background: #101a14; }.position-result span { color: #9ab0a0; font-size: 11px; }.position-result strong { color: #eff8f1; font: 600 13px 'JetBrains Mono', monospace; }.position-result p { grid-column: 1 / -1; margin: 0; padding: 12px; color: #e7a1a6; border: 1px solid #63383e; border-radius: 8px; background: #211619; font-size: 12px; }
+@media (max-width: 960px) { .checklist-grid, .position-result { grid-template-columns: 1fr 1fr; } }.tool-workspace .muted { color: #839099; }
