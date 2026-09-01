@@ -70,11 +70,20 @@ export async function requestFeature(path: string, init: RequestInit = {}, baseU
 export async function getAIInsights(ticker: string, baseUrl = API_BASE_URL) { return requestFeature(`/api/recommendations?symbols=${encodeURIComponent(ticker)}`, {}, baseUrl); }
 export async function getAccount(baseUrl = API_BASE_URL) { return requestFeature('/api/auth/me', {}, baseUrl); }
 export async function getPortfolio(baseUrl = API_BASE_URL) { return requestFeature('/api/portfolio', {}, baseUrl); }
+export async function getAdminOverview(baseUrl = API_BASE_URL) { return requestFeature('/api/admin/desktop-overview', {}, baseUrl); }
 export type DesktopAccount = { authenticated: boolean; user?: { email?: string; role?: string; is_pro?: boolean } };
 export async function loginDesktop(email: string, password: string, baseUrl = API_BASE_URL) {
   const response = await apiFetch(`${baseUrl}/api/auth/desktop/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }), signal: AbortSignal.timeout(20000) });
   const payload = await response.json().catch(() => null) as { error?: string; token?: string } | null;
   if (!response.ok || !payload?.token) throw new Error(payload?.error ?? 'Login gagal.');
-  const { saveToken } = await import('./tokenStore'); await saveToken(payload.token);
-  return payload;
+  const { clearToken, saveToken } = await import('./tokenStore');
+  await saveToken(payload.token);
+  try {
+    const account = await getAccount(baseUrl) as DesktopAccount;
+    if (!account.authenticated || !account.user) throw new Error('Sesi desktop tidak dapat diverifikasi.');
+    return account;
+  } catch (error) {
+    await clearToken();
+    throw error;
+  }
 }
