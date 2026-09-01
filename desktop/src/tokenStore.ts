@@ -1,7 +1,10 @@
 import { Stronghold } from '@tauri-apps/plugin-stronghold';
 import type { Ticker } from './main';
 
-const vaultPath = 'sahamlens.hold';
+// v1 memakai password tetap. Phase 37 menggantinya dengan password acak tetapi tetap
+// membuka snapshot v1, sehingga instalasi upgrade selalu gagal membuka Stronghold sebelum
+// token baru sempat disimpan. Gunakan snapshot baru; user cukup login sekali setelah update.
+const vaultPath = 'sahamlens-v2.hold';
 const vaultPasswordKey = 'sahamlens.vault-key.v1';
 
 function getVaultPassword(): string {
