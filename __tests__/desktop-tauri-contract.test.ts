@@ -46,11 +46,17 @@ describe('kontrak rilis Tauri desktop', () => {
     expect(tokenStore).not.toContain('sahamlens-desktop-local-vault');
   });
 
-  it('tidak membuka vault installer lama dengan password acak baru', () => {
+  it('mengikat nama vault ke fingerprint password agar reset WebView tidak membuka snapshot lama', () => {
     const tokenStore = read('desktop/src/tokenStore.ts');
-    expect(tokenStore).toContain("const vaultPath = 'sahamlens-v2.hold'");
-    expect(tokenStore).toContain("const vaultPasswordKey = 'sahamlens.vault-key.v2'");
-    expect(tokenStore).not.toContain("const vaultPath = 'sahamlens.hold'");
-    expect(tokenStore).not.toContain("const vaultPasswordKey = 'sahamlens.vault-key.v1'");
+    expect(tokenStore).toContain("const vaultPasswordKey = 'sahamlens.vault-key.v3'");
+    expect(tokenStore).toContain("crypto.subtle.digest('SHA-256'");
+    expect(tokenStore).toContain('`sahamlens-${fingerprint}.hold`');
+    expect(tokenStore).not.toContain("const vaultPath = 'sahamlens-v2.hold'");
+    expect(tokenStore).not.toContain("const vaultPasswordKey = 'sahamlens.vault-key.v2'");
+  });
+
+  it('memberi error yang dapat ditindaklanjuti saat localStorage tidak dapat menyimpan kunci', () => {
+    const tokenStore = read('desktop/src/tokenStore.ts');
+    expect(tokenStore).toContain('Penyimpanan aman desktop tidak tersedia. Tutup aplikasi lalu buka kembali.');
   });
 });
