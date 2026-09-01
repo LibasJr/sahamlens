@@ -72,6 +72,11 @@ export async function getAccount(baseUrl = API_BASE_URL) { return requestFeature
 export async function getPortfolio(baseUrl = API_BASE_URL) { return requestFeature('/api/portfolio', {}, baseUrl); }
 export async function getAdminOverview(baseUrl = API_BASE_URL) { return requestFeature('/api/admin/desktop-overview', {}, baseUrl); }
 export type DesktopAccount = { authenticated: boolean; user?: { email?: string; role?: string; is_pro?: boolean } };
+function errorMessage(error: unknown): string {
+  if (error instanceof Error && error.message) return error.message;
+  if (typeof error === 'string') return error;
+  try { return JSON.stringify(error); } catch { return String(error); }
+}
 export async function loginDesktop(email: string, password: string, baseUrl = API_BASE_URL) {
   const response = await apiFetch(`${baseUrl}/api/auth/desktop/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }), signal: AbortSignal.timeout(20000) });
   const payload = await response.json().catch(() => null) as { error?: string; token?: string; meta?: { requestId?: string } } | null;
@@ -83,7 +88,7 @@ export async function loginDesktop(email: string, password: string, baseUrl = AP
   try {
     await saveToken(payload.token);
   } catch (error) {
-    throw new Error(`Credential diterima server, tetapi token gagal disimpan aman: ${error instanceof Error ? error.message : 'vault tidak tersedia'}`);
+    throw new Error(`Credential diterima server, tetapi token gagal disimpan aman: ${errorMessage(error)}`);
   }
   try {
     const account = await getAccount(baseUrl) as DesktopAccount;
