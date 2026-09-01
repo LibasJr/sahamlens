@@ -10,15 +10,17 @@ import { ResearchPanel } from './components/ResearchPanel';
 import { ResearchGuide } from './components/ResearchGuide';
 import { PanelResizeHandle } from './components/PanelResizeHandle';
 import { StockResearchWorkspace } from './components/StockResearchWorkspace';
+import { RadarWorkspace } from './components/RadarWorkspace';
 import { TitleBar } from './components/TitleBar';
 import { Watchlist } from './components/Watchlist';
-import { API_BASE_URL, checkHealth, getResearchUniverse, type MarketPulse, type MarketSummary } from './api';
+import { API_BASE_URL, addDesktopWatchlist, checkHealth, getDesktopWatchlist, getResearchUniverse, type MarketPulse, type MarketSummary } from './api';
 import './styles.css';
 import './shell.css';
 import './window.css';
 import './design-system.css';
 import './resize.css';
 import './stock-workspace.css';
+import './radar.css';
 
 export type Ticker = { symbol: string; name: string; price: number | null; change: number | null };
 const analysisTabs = ['overview', 'technical', 'fundamental', 'dcf', 'earnings', 'ownership', 'compare'];
@@ -46,8 +48,12 @@ function App() {
   const [insightCollapsed, setInsightCollapsed] = useState(false);
   const [watchlistWidth, setWatchlistWidth] = useState(260);
   const [insightWidth, setInsightWidth] = useState(310);
+  const [watchlistSyncError, setWatchlistSyncError] = useState('');
+  const [savedSymbols, setSavedSymbols] = useState<string[]>([]);
   useEffect(() => { let active = true; void checkHealth(API_BASE_URL).then(status => { if (active) setApiStatus(status === 'connected' ? 'online' : 'offline'); }); return () => { active = false; }; }, []);
   useEffect(() => { let active = true; void getResearchUniverse(API_BASE_URL).then((nextMarket) => { if (!active) return; const seen = new Set<string>(); const rows = [...nextMarket.summary.topGainers, ...nextMarket.summary.topLosers].filter((item) => !seen.has(item.symbol) && Boolean(seen.add(item.symbol))).slice(0, 12).map((item) => ({ symbol: item.symbol, name: item.symbol, price: item.price, change: item.changePct })); setMarket(nextMarket); setWatchlist(rows); setSelected((current) => current || rows[0]?.symbol || ''); setMarketError(''); }).catch(() => { if (active) setMarketError('Data pasar belum dapat dimuat. Periksa koneksi ke SahamLens.'); }); return () => { active = false; }; }, []);
+  const syncWatchlist = () => { void getDesktopWatchlist().then((items) => { setSavedSymbols(items.map((item) => item.symbol)); setWatchlist((current) => { const existing = new Set(current.map((item) => item.symbol)); return [...current, ...items.filter((item) => !existing.has(item.symbol)).map((item) => ({ symbol: item.symbol, name: item.symbol, price: null, change: null }))]; }); setWatchlistSyncError(''); }).catch(() => { setSavedSymbols([]); setWatchlistSyncError('Masuk untuk sinkronisasi Watchlist.'); }); };
+  useEffect(() => { syncWatchlist(); const listener = () => syncWatchlist(); window.addEventListener('desktop-auth-changed', listener); return () => window.removeEventListener('desktop-auth-changed', listener); }, []);
   const active = watchlist.find((stock) => stock.symbol === selected) ?? (selected ? { symbol: selected, name: selected, price: null, change: null } : undefined);
   const changeMode = (nextMode: ExperienceMode) => { setMode(nextMode); window.localStorage.setItem('sahamlens.desktop.mode', nextMode); };
   const openSymbol = (symbol: string) => { const normalized = symbol.trim().toUpperCase().replace('.JK', ''); if (!normalized) return; if (!watchlist.some((stock) => stock.symbol === normalized)) setWatchlist((current) => [...current, { symbol: normalized, name: normalized, price: null, change: null }]); setSelected(normalized); setWorkspace('analysis'); };
@@ -55,7 +61,7 @@ function App() {
   const workspaceContent = () => {
     if (workspace === 'home') return <div className="workspace-page"><WorkspaceTitle kicker="SAHAMLENS DESKTOP" title={mode === 'guided' ? 'Mulai dari konteks pasar' : 'Market Overview'} description={mode === 'guided' ? 'Ikuti alur riset sederhana sebelum menilai sebuah saham.' : 'Kondisi pasar, breadth, dan pergerakan saham dari API SahamLens.'} />{mode === 'guided' && <ResearchGuide onNavigate={setWorkspace} />}<MarketOverview market={market} error={marketError} onSelect={selectFromMarket} /><MarketScreener onSelect={selectFromMarket} /></div>;
     if (workspace === 'market') return <div className="workspace-page"><WorkspaceTitle kicker="MARKET INTELLIGENCE" title="Market & Breadth" description="Pantau indeks, market movers, dan kandidat dari data pasar terkini." /><MarketOverview market={market} error={marketError} onSelect={selectFromMarket} /><MarketScreener onSelect={selectFromMarket} /></div>;
-    if (workspace === 'radar') return <div className="workspace-page"><WorkspaceTitle kicker="RADAR & SIGNAL" title="Peluang terpantau" description="Signal server ditampilkan apa adanya; bukan rekomendasi transaksi otomatis." /><FeatureTabs ids={['breakout', 'recommendations']} active={radarTab} onChange={setRadarTab} /><FeatureWorkspace feature={featureFor(radarTab)} symbol={active?.symbol} /></div>;
+    if (workspace === 'radar') return <div className="workspace-page"><WorkspaceTitle kicker="RADAR & SIGNAL" title="Peluang terpantau" description="Signal server ditampilkan apa adanya; bukan rekomendasi transaksi otomatis." /><FeatureTabs ids={['breakout', 'recommendations']} active={radarTab} onChange={setRadarTab} />{radarTab === 'breakout' ? <RadarWorkspace onSelect={selectFromMarket} /> : <FeatureWorkspace feature={featureFor(radarTab)} symbol={active?.symbol} />}</div>;
     if (workspace === 'watchlist') return <div className="workspace-page"><WorkspaceTitle kicker="WATCHLIST" title="Daftar pantau" description="Pilih saham dari panel kiri untuk membuka chart dan analisis resminya." /><ChartPanel ticker={active} /></div>;
     if (workspace === 'analysis') return <div className="workspace-page"><WorkspaceTitle kicker="STOCK WORKSPACE" title={active?.symbol ?? 'Pilih emiten'} description="Analisis teknikal, fundamental, valuasi, earnings, dan kepemilikan dalam satu ruang kerja." /><ChartPanel ticker={active} /><FeatureTabs ids={analysisTabs} active={analysisTab} onChange={setAnalysisTab} />{(['overview', 'fundamental', 'dcf', 'earnings', 'ownership'] as string[]).includes(analysisTab) ? <StockResearchWorkspace tab={analysisTab as 'overview' | 'fundamental' | 'dcf' | 'earnings' | 'ownership'} symbol={active?.symbol} /> : <FeatureWorkspace feature={featureFor(analysisTab)} symbol={active?.symbol} />}</div>;
     if (workspace === 'tools') return <div className="workspace-page"><WorkspaceTitle kicker="RESEARCH TOOLS" title="Tools analisis" description="Gunakan kalkulasi dan simulasi yang diproses oleh SahamLens." /><FeatureTabs ids={toolTabs} active={toolTab} onChange={setToolTab} /><FeatureWorkspace feature={featureFor(toolTab)} symbol={active?.symbol} /></div>;
@@ -68,7 +74,7 @@ function App() {
     <TitleBar apiStatus={apiStatus} />
     <AppNavigation active={workspace} onChange={setWorkspace} />
     <GlobalHeader apiStatus={apiStatus} mode={mode} onModeChange={changeMode} onSearch={openSymbol} onToggleWatchlist={() => setWatchlistCollapsed((value) => !value)} onToggleInsight={() => setInsightCollapsed((value) => !value)} />
-    <Watchlist stocks={watchlist} selected={selected} onSelect={(symbol) => { setSelected(symbol); setWorkspace('analysis'); }} onChange={setWatchlist} />
+    <Watchlist stocks={watchlist} selected={selected} onSelect={(symbol) => { setSelected(symbol); setWorkspace('analysis'); }} onChange={setWatchlist} savedSymbols={savedSymbols} syncError={watchlistSyncError} onAddSymbol={async (symbol) => { try { await addDesktopWatchlist(symbol); setSavedSymbols((current) => current.includes(symbol) ? current : [...current, symbol]); setWatchlistSyncError(''); } catch (reason) { const message = reason instanceof Error ? reason.message : 'Watchlist tidak dapat disinkronkan.'; setWatchlistSyncError(message); throw reason; } }} />
     <PanelResizeHandle side="left" onResize={resizeWatchlist} />
     <main className="workspace-main">{workspaceContent()}</main>
     <ResearchPanel ticker={active} apiBaseUrl={API_BASE_URL} apiStatus={apiStatus} />

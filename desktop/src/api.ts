@@ -6,6 +6,7 @@ export type MarketPulse = {
   indices: Array<{ symbol: string; name: string; price: number; changePct: number; sparkline?: number[] }>;
   topGainers: MarketItem[];
   topLosers: MarketItem[];
+  sectorHeatmap?: Array<{ sector: string; changePct: number; sampleSize?: number; isProxy?: boolean }>;
   marketRegime?: { regime?: { label?: string }; summary?: string; score?: number; confidence?: number; indicators?: Array<{ id: string; label: string; score?: number; raw?: { advanceShare?: number; advancing?: number; declining?: number } }> };
 };
 export type MarketSummary = { timestamp: string; marketRegime: { benchmark: string; changePct: number; weeklyChangePct: number; trend: string }; topGainers: MarketItem[]; topLosers: MarketItem[]; _meta?: { freshness?: string; cachedAgeSec?: number; cacheTtlSec?: number } };
@@ -38,6 +39,10 @@ export async function getWatchlist(baseUrl = API_BASE_URL, token?: string) {
   const payload = await response.json() as { data?: { symbol: string; name?: string; price?: number; changePct?: number }[] } | { symbol: string; name?: string; price?: number; changePct?: number }[];
   return Array.isArray(payload) ? payload : payload.data ?? [];
 }
+export type DesktopWatchlistItem = { symbol: string; buy_price?: number | null; alert_price?: number | null; lot?: number | null };
+export async function getDesktopWatchlist() { const payload = await requestFeature('/api/watchlist/desktop') as { data?: DesktopWatchlistItem[] }; return payload.data ?? []; }
+export async function addDesktopWatchlist(symbol: string) { return requestFeature('/api/watchlist/desktop', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ symbol }) }); }
+export async function removeDesktopWatchlist(symbol: string) { return requestFeature(`/api/watchlist/desktop?symbol=${encodeURIComponent(symbol)}`, { method: 'DELETE' }); }
 export type PublicChart = { ticker: string; history: { time: string; open: number; high: number; low: number; close: number; volume: number }[] };
 export async function getPublicChart(ticker: string, timeframe: string, baseUrl = API_BASE_URL) { return getJson<PublicChart>(`${baseUrl}/api/public-chart/${encodeURIComponent(ticker)}?tf=${timeframe}`); }
 export type ScreenerRow = { ticker: string; name: string; entry: number | null; signal: string | null; decision?: { action?: string } | null };

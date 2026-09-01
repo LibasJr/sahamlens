@@ -19,8 +19,8 @@ export function ResearchPanel({ ticker, apiBaseUrl, apiStatus }: { ticker?: Tick
     void getFundamentalSnapshot(ticker.symbol).then((result) => { if (alive) setData(result); }).catch((reason) => { if (alive) setError(reason instanceof Error ? reason.message : 'Data fundamental belum tersedia.'); }).finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
   }, [ticker?.symbol]);
-  const signIn = async () => { setAuthLoading(true); setAuthError(''); try { await loginDesktop(email, password); setPassword(''); refreshAccount(); } catch (reason) { setAuthError(reason instanceof Error ? reason.message : 'Login gagal.'); } finally { setAuthLoading(false); } };
-  const signOut = async () => { await clearToken(); setAccount(null); };
+  const signIn = async () => { setAuthLoading(true); setAuthError(''); try { await loginDesktop(email, password); setPassword(''); refreshAccount(); window.dispatchEvent(new Event('desktop-auth-changed')); } catch (reason) { setAuthError(reason instanceof Error ? reason.message : 'Login gagal.'); } finally { setAuthLoading(false); } };
+  const signOut = async () => { await clearToken(); setAccount(null); window.dispatchEvent(new Event('desktop-auth-changed')); };
   const metrics = data?.fundamentals;
   return <aside className="research-panel">
     <div className="research-heading"><div className="profile-avatar"><Building2 size={15} /></div><div><strong>Riset emiten</strong><small>{apiStatus === 'online' ? 'API SahamLens terhubung' : apiStatus === 'offline' ? 'API belum dapat dihubungi' : 'Memeriksa koneksi API'}</small></div><BadgeCheck size={15} className="muted-icon" /></div>
