@@ -8,10 +8,8 @@ import { getAuthRequestMeta } from '@/shared/security/auth-request-meta';
 
 export async function POST(req: NextRequest) {
   return runController(async () => {
-    // Tauri sends its internal application origin (for example tauri://localhost),
-    // which is deliberately not a trusted browser origin. This route issues no
-    // cookie and returns a bearer token only to the native HTTP client, so browser
-    // CSRF protection is neither applicable nor a valid desktop trust signal.
+    // Native clients authenticate with a bearer token rather than a browser cookie,
+    // so their internal Tauri origin is not a browser CSRF trust signal.
     return handleDesktopLogin(await req.json(), getAuthRequestMeta(req));
   }, req);
 }
