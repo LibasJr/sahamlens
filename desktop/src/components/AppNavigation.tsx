@@ -1,4 +1,4 @@
-import { Bell, CalendarDays, ChartNoAxesCombined, Crosshair, LayoutDashboard, Radar, Settings2, Star, Wrench } from 'lucide-react';
+import { CalendarDays, ChartNoAxesCombined, Crosshair, LayoutDashboard, Radar, Star, Wrench } from 'lucide-react';
 
 export type Workspace = 'home' | 'market' | 'radar' | 'watchlist' | 'analysis' | 'tools' | 'calendar';
 
@@ -16,6 +16,5 @@ export function AppNavigation({ active, onChange }: { active: Workspace; onChang
   return <nav className="app-navigation" aria-label="Navigasi utama">
     <div className="nav-brand" aria-label="SahamLens">S</div>
     <div className="nav-items">{items.map(({ id, label, icon: Icon }) => <button key={id} className={active === id ? 'active' : ''} onClick={() => onChange(id)} title={label} aria-label={label}><Icon size={18} /><span>{label}</span></button>)}</div>
-    <div className="nav-bottom"><button aria-label="Notifikasi" title="Notifikasi"><Bell size={18} /></button><button aria-label="Pengaturan" title="Pengaturan"><Settings2 size={18} /></button></div>
   </nav>;
 }
