@@ -28,7 +28,9 @@ describe('kontrak API desktop', () => {
   it('memvalidasi sesi bearer sesudah token disimpan sebelum login dinyatakan berhasil', () => {
     expect(desktopApi).toContain('await saveToken(payload.token)');
     expect(desktopApi).toContain('await getAccount(baseUrl)');
-    expect(desktopApi).toContain('await clearToken()');
+    expect(desktopApi).toContain('await clearToken().catch(() => undefined)');
+    expect(desktopApi).toContain('Credential diterima server, tetapi token gagal disimpan aman');
+    expect(desktopApi).toContain('meta?.requestId');
   });
 
   it('route watchlist menerima skema bearer case-insensitive dan menolak token kosong', () => {
