@@ -49,6 +49,8 @@ describe('kontrak rilis Tauri desktop', () => {
   it('tidak membuka vault installer lama dengan password acak baru', () => {
     const tokenStore = read('desktop/src/tokenStore.ts');
     expect(tokenStore).toContain("const vaultPath = 'sahamlens-v2.hold'");
+    expect(tokenStore).toContain("const vaultPasswordKey = 'sahamlens.vault-key.v2'");
     expect(tokenStore).not.toContain("const vaultPath = 'sahamlens.hold'");
+    expect(tokenStore).not.toContain("const vaultPasswordKey = 'sahamlens.vault-key.v1'");
   });
 });
