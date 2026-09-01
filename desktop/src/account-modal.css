@@ -1,0 +1,15 @@
+.account-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 24px; background: rgba(3, 7, 10, .7); backdrop-filter: blur(5px); }
+.account-modal { position: relative; width: min(420px, 100%); padding: 30px; border: 1px solid #315142; border-radius: 14px; background: radial-gradient(circle at 85% 0, #1e3b29, transparent 42%), #10171b; box-shadow: 0 24px 70px rgba(0, 0, 0, .5); }
+.account-modal-icon { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 18px; border-radius: 12px; background: #1b5632; color: #9bf0b8; }
+.account-modal h2 { margin: 5px 0 8px; color: #eff7f1; font-size: 22px; letter-spacing: -.025em; }
+.account-modal p { margin: 0 0 20px; color: #aab9b0; font-size: 13px; line-height: 1.55; }
+.account-modal label { display: grid; gap: 6px; margin: 13px 0; color: #b7c5bd; font-size: 12px; }
+.account-modal input { height: 39px; padding: 0 10px; border: 1px solid #33413b; border-radius: 7px; outline: 0; background: #0d1310; color: #edf4ef; font-size: 14px; }
+.account-modal input:focus { border-color: #56b979; box-shadow: 0 0 0 3px rgba(86, 185, 121, .13); }
+.account-modal-action { display: flex; align-items: center; justify-content: center; gap: 7px; width: 100%; height: 40px; margin-top: 20px; border: 1px solid #3d5145; border-radius: 7px; background: #17211b; color: #dcebe1; font-size: 13px; font-weight: 700; cursor: pointer; }
+.account-modal-action.primary { border-color: #2d8050; background: #237544; color: #f2fff5; }
+.account-modal-action:disabled { cursor: wait; opacity: .65; }
+.account-modal-close { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: 6px; background: transparent; color: #8f9da5; cursor: pointer; }
+.account-modal-close:hover { background: #223029; color: #fff; }
+.account-modal-error { margin: 11px 0 0 !important; color: #f0939a !important; font-size: 12px !important; }
+.desktop-app .header-actions .profile-chip { width: auto; min-width: 46px; }
