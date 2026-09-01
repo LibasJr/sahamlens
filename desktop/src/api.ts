@@ -6,7 +6,7 @@ export type MarketPulse = {
   indices: Array<{ symbol: string; name: string; price: number; changePct: number; sparkline?: number[] }>;
   topGainers: MarketItem[];
   topLosers: MarketItem[];
-  marketRegime?: { regime?: { label?: string }; summary?: string };
+  marketRegime?: { regime?: { label?: string }; summary?: string; score?: number; confidence?: number; indicators?: Array<{ id: string; label: string; score?: number; raw?: { advanceShare?: number; advancing?: number; declining?: number } }> };
 };
 export type MarketSummary = { timestamp: string; marketRegime: { benchmark: string; changePct: number; weeklyChangePct: number; trend: string }; topGainers: MarketItem[]; topLosers: MarketItem[]; _meta?: { freshness?: string; cachedAgeSec?: number; cacheTtlSec?: number } };
 
