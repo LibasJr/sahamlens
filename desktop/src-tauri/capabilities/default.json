@@ -8,9 +8,7 @@
     "http:default",
     {
       "identifier": "http:allow-fetch",
-      "scope": {
-        "allow": [{ "url": "https://sahamlens.id/**" }]
-      }
+      "allow": [{ "url": "https://sahamlens.id/**" }]
     }
   ]
 }

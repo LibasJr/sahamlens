@@ -1,1 +1,1 @@
-{"default":{"identifier":"default","description":"SahamLens desktop permissions","local":true,"windows":["main"],"permissions":["core:default","http:default",{"identifier":"http:allow-fetch"}]}}
+{"default":{"identifier":"default","description":"SahamLens desktop permissions","local":true,"windows":["main"],"permissions":["core:default","http:default",{"identifier":"http:allow-fetch","allow":[{"url":"https://sahamlens.id/**"}]}]}}
