@@ -1,6 +1,7 @@
 name: Desktop
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'src-tauri/**'
@@ -27,14 +28,14 @@ jobs:
         with:
           node-version: '22'
           cache: npm
+          cache-dependency-path: desktop/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
-      - run: npm ci
-      - run: npm install --prefix desktop
-      - run: npm run desktop:build
+      - run: npm ci --prefix desktop
+      - run: npm run tauri:build --prefix desktop
         env:
           TAURI_SIGNING_PRIVATE_KEY: ''
       - uses: actions/upload-artifact@v4
         with:
           name: SahamLens-windows-installer
-          path: src-tauri/target/release/bundle/**
+          path: desktop/src-tauri/target/release/bundle/**
           if-no-files-found: error
