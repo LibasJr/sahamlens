@@ -1,4 +1,5 @@
 import { Stronghold } from '@tauri-apps/plugin-stronghold';
+import { appDataDir, join } from '@tauri-apps/api/path';
 import type { Ticker } from './main';
 
 const vaultPasswordKey = 'sahamlens.vault-key.v3';
@@ -23,7 +24,7 @@ function getVaultPassword(): string {
 async function vaultPathFor(password: string): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(password));
   const fingerprint = Array.from(new Uint8Array(digest).slice(0, 8), (byte) => byte.toString(16).padStart(2, '0')).join('');
-  return `sahamlens-${fingerprint}.hold`;
+  return join(await appDataDir(), `sahamlens-${fingerprint}.hold`);
 }
 
 async function getStore() {
