@@ -30,6 +30,7 @@ describe('kontrak API desktop', () => {
     expect(desktopApi).toContain('await getAccount(baseUrl)');
     expect(desktopApi).toContain('await clearToken().catch(() => undefined)');
     expect(desktopApi).toContain('Credential diterima server, tetapi token gagal disimpan aman');
+    expect(desktopApi).toContain('errorMessage(error)');
     expect(desktopApi).toContain('meta?.requestId');
   });
 
