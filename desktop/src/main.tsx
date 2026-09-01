@@ -18,6 +18,7 @@ import './styles.css';
 import './shell.css';
 import './window.css';
 import './design-system.css';
+import './typography.css';
 import './resize.css';
 import './stock-workspace.css';
 import './radar.css';
