@@ -1,4 +1,4 @@
-import { Activity, AlertCircle, BrainCircuit, Database, LoaderCircle, RefreshCw, ShieldCheck } from 'lucide-react';
+import { Activity, AlertCircle, BarChart3, BrainCircuit, Database, LoaderCircle, Radar, RefreshCw, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import type { MarketPulse, MarketSummary } from '../api';
 import { requestFeature } from '../api';
@@ -6,8 +6,20 @@ import { MarketOverview } from './MarketOverview';
 import { RadarWorkspace } from './RadarWorkspace';
 
 export function IntelligenceWorkspace({ market, error, onSelect }: { market: { summary: MarketSummary; pulse: MarketPulse } | null; error: string; onSelect: (symbol: string) => void }) {
-  return <div className="operations-workspace"><div className="operations-intro"><BrainCircuit size={26} /><div><span className="section-kicker">MARKET INTELLIGENCE</span><h2>Konteks sebelum keputusan</h2><p>Regime, breadth, sektor, movers, dan kandidat scanner dari data SahamLens.</p></div></div><MarketOverview market={market} error={error} onSelect={onSelect} /><RadarWorkspace onSelect={onSelect} /></div>;
+  const [tab, setTab] = useState<'overview' | 'breadth' | 'radar'>('overview');
+  return <div className="operations-workspace"><div className="operations-intro"><BrainCircuit size={26} /><div><span className="section-kicker">MARKET INTELLIGENCE</span><h2>Konteks sebelum keputusan</h2><p>Overview untuk arah pasar, Breadth untuk kualitas partisipasi, dan Radar untuk kandidat riset.</p></div></div><nav className="intelligence-tabs" aria-label="Bagian Market Intelligence"><button className={tab === 'overview' ? 'active' : ''} onClick={() => setTab('overview')}><Activity size={15} /> Overview</button><button className={tab === 'breadth' ? 'active' : ''} onClick={() => setTab('breadth')}><BarChart3 size={15} /> Market Breadth</button><button className={tab === 'radar' ? 'active' : ''} onClick={() => setTab('radar')}><Radar size={15} /> Radar</button></nav>{tab === 'overview' ? <MarketOverview market={market} error={error} onSelect={onSelect} hideBreadth /> : tab === 'breadth' ? <BreadthWorkspace market={market} error={error} /> : <RadarWorkspace onSelect={onSelect} />}</div>;
 }
+
+function BreadthWorkspace({ market, error }: { market: { summary: MarketSummary; pulse: MarketPulse } | null; error: string }) {
+  if (error) return <div className="stock-research-state error"><AlertCircle size={19} /> {error}</div>;
+  if (!market) return <div className="stock-research-state"><LoaderCircle className="spin" size={19} /> Memuat breadth pasar…</div>;
+  const breadth = market.pulse.marketRegime?.indicators?.find((item) => item.id === 'breadth');
+  const raw = breadth?.raw; const advancing = raw?.advancing; const declining = raw?.declining;
+  const ratio = typeof advancing === 'number' && typeof declining === 'number' ? (declining === 0 ? '∞' : (advancing / declining).toFixed(2)) : '—';
+  const sectors = [...(market.pulse.sectorHeatmap ?? [])].sort((a, b) => b.changePct - a.changePct);
+  return <section className="breadth-workspace"><div className="breadth-heading"><div><span className="section-kicker">MARKET BREADTH</span><h2>Seberapa luas partisipasi pasar?</h2><p>Ini mengukur penyebaran saham naik dan turun pada universe terpantau SahamLens, bukan konstituen indeks resmi.</p></div></div><div className="breadth-metrics"><BreadthMetric label="SAHAM MENGUAT" value={advancing == null ? '—' : String(advancing)} tone="positive" /><BreadthMetric label="SAHAM MELEMAH" value={declining == null ? '—' : String(declining)} tone="negative" /><BreadthMetric label="ADVANCE / DECLINE" value={ratio} /><BreadthMetric label="PARTISIPASI NAIK" value={raw?.advanceShare == null ? '—' : `${raw.advanceShare.toFixed(1)}%`} /><BreadthMetric label="SKOR BREADTH" value={breadth?.score == null ? '—' : String(breadth.score)} /></div><div className="breadth-indicators"><h3>Indikator regime</h3>{market.pulse.marketRegime?.indicators?.length ? market.pulse.marketRegime.indicators.map((item) => <div key={item.id}><strong>{item.label}</strong><span>{item.score == null ? 'Skor belum tersedia' : `Skor ${item.score}`}</span></div>) : <p>Indikator regime belum tersedia dari API.</p>}</div><div className="breadth-sectors"><div><h3>Distribusi kekuatan sektor</h3><span>{sectors.length} sektor terpantau</span></div>{sectors.length ? <div className="breadth-sector-grid">{sectors.map((sector) => <div key={sector.sector} className={sector.changePct >= 0 ? 'up' : 'down'}><strong>{sector.sector}</strong><span>{sector.changePct >= 0 ? '+' : ''}{sector.changePct.toFixed(2)}%</span><small>{sector.sampleSize == null ? 'Sampel tidak disebutkan' : `${sector.sampleSize} saham sampel`}</small></div>)}</div> : <p>Peta sektor belum tersedia dari API.</p>}</div></section>;
+}
+function BreadthMetric({ label, value, tone }: { label: string; value: string; tone?: 'positive' | 'negative' }) { return <div><span>{label}</span><strong className={tone}>{value}</strong></div>; }
 
 type AdminPayload = { redis?: string; jobs?: Array<{ job_name?: string; last_status?: string; last_success_at?: string | null; failures_24h?: number }>; sources?: Array<{ sourceId?: string; status?: string; message?: string }> };
 export function AdminConsole() {
