@@ -19,8 +19,8 @@ export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const authorization = (await headers()).get('authorization');
   const bearer = authorization?.match(/^Bearer\s+(.+)$/i)?.[1]?.trim();
-  // Desktop menyimpan token di Stronghold dan mengirimkannya sebagai Bearer. Browser
-  // tetap memakai cookie HttpOnly; token Bearer tidak pernah diterbitkan oleh endpoint web.
+  // Desktop menyimpan token di Stronghold dan mengirimkannya sebagai Bearer.
+  // Browser tetap memakai cookie HttpOnly dari endpoint login web.
   const session = bearer || cookieStore.get(SESSION_COOKIE)?.value;
 
   if (session) {
