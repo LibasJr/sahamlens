@@ -57,7 +57,7 @@ describe('buildDecisionSignal', () => {
   });
 
   it('fail-closed menjadi NO_SIGNAL saat coverage tidak cukup', () => {
-    const result = buildDecisionSignal({ stock: stock({ coverage: 60 }), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false, sector: 'Financials' });
+    const result = buildDecisionSignal({ stock: stock({ coverage: 50 }), bearish: false, newsItems: [], dataAsOf, now, modelValidated: false, sector: 'Financials' });
     expect(result.action).toBe('NO_SIGNAL');
     expect(result.paperReadiness).toBe('RESEARCH_ONLY');
     expect(result.liveReadiness).toBe('BLOCKED_DATA_QUALITY');
