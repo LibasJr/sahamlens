@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useState, type CSSProperties } from 'react';
 import { createRoot } from 'react-dom/client';
 import { AppNavigation, type Workspace } from './components/AppNavigation';
+import { AccountModal, type DesktopAccount } from './components/AccountModal';
 import { ChartPanel } from './components/ChartPanel';
 import { FeatureWorkspace, desktopFeatures } from './components/FeatureWorkspace';
 import { GlobalHeader, type ExperienceMode } from './components/GlobalHeader';
@@ -13,13 +14,14 @@ import { StockResearchWorkspace } from './components/StockResearchWorkspace';
 import { RadarWorkspace } from './components/RadarWorkspace';
 import { TitleBar } from './components/TitleBar';
 import { Watchlist } from './components/Watchlist';
-import { API_BASE_URL, addDesktopWatchlist, checkHealth, getDesktopWatchlist, getResearchUniverse, type MarketPulse, type MarketSummary } from './api';
+import { API_BASE_URL, addDesktopWatchlist, checkHealth, getAccount, getDesktopWatchlist, getResearchUniverse, type MarketPulse, type MarketSummary } from './api';
 import './styles.css';
 import './shell.css';
 import './window.css';
 import './design-system.css';
 import './typography.css';
 import './search.css';
+import './account-modal.css';
 import './resize.css';
 import './stock-workspace.css';
 import './radar.css';
@@ -52,10 +54,13 @@ function App() {
   const [insightWidth, setInsightWidth] = useState(310);
   const [watchlistSyncError, setWatchlistSyncError] = useState('');
   const [savedSymbols, setSavedSymbols] = useState<string[]>([]);
+  const [account, setAccount] = useState<DesktopAccount>(null);
+  const [accountOpen, setAccountOpen] = useState(false);
   useEffect(() => { let active = true; void checkHealth(API_BASE_URL).then(status => { if (active) setApiStatus(status === 'connected' ? 'online' : 'offline'); }); return () => { active = false; }; }, []);
   useEffect(() => { let active = true; void getResearchUniverse(API_BASE_URL).then((nextMarket) => { if (!active) return; const seen = new Set<string>(); const rows = [...nextMarket.summary.topGainers, ...nextMarket.summary.topLosers].filter((item) => !seen.has(item.symbol) && Boolean(seen.add(item.symbol))).slice(0, 12).map((item) => ({ symbol: item.symbol, name: item.symbol, price: item.price, change: item.changePct })); setMarket(nextMarket); setWatchlist(rows); setSelected((current) => current || rows[0]?.symbol || ''); setMarketError(''); }).catch(() => { if (active) setMarketError('Data pasar belum dapat dimuat. Periksa koneksi ke SahamLens.'); }); return () => { active = false; }; }, []);
   const syncWatchlist = () => { void getDesktopWatchlist().then((items) => { setSavedSymbols(items.map((item) => item.symbol)); setWatchlist((current) => { const existing = new Set(current.map((item) => item.symbol)); return [...current, ...items.filter((item) => !existing.has(item.symbol)).map((item) => ({ symbol: item.symbol, name: item.symbol, price: null, change: null }))]; }); setWatchlistSyncError(''); }).catch(() => { setSavedSymbols([]); setWatchlistSyncError('Masuk untuk sinkronisasi Watchlist.'); }); };
-  useEffect(() => { syncWatchlist(); const listener = () => syncWatchlist(); window.addEventListener('desktop-auth-changed', listener); return () => window.removeEventListener('desktop-auth-changed', listener); }, []);
+  const refreshAccount = () => { void getAccount().then((payload) => setAccount((payload as { user?: DesktopAccount }).user ?? null)).catch(() => setAccount(null)); };
+  useEffect(() => { syncWatchlist(); refreshAccount(); const listener = () => { syncWatchlist(); refreshAccount(); }; window.addEventListener('desktop-auth-changed', listener); return () => window.removeEventListener('desktop-auth-changed', listener); }, []);
   const active = watchlist.find((stock) => stock.symbol === selected) ?? (selected ? { symbol: selected, name: selected, price: null, change: null } : undefined);
   const changeMode = (nextMode: ExperienceMode) => { setMode(nextMode); window.localStorage.setItem('sahamlens.desktop.mode', nextMode); };
   const openSymbol = (symbol: string, name?: string) => { const normalized = symbol.trim().toUpperCase().replace('.JK', ''); if (!normalized) return; setWatchlist((current) => { const existing = current.find((stock) => stock.symbol === normalized); return existing ? current.map((stock) => stock.symbol === normalized ? { ...stock, name: name || stock.name } : stock) : [...current, { symbol: normalized, name: name || normalized, price: null, change: null }]; }); setSelected(normalized); setWorkspace('analysis'); };
@@ -75,12 +80,13 @@ function App() {
   return <div style={layoutStyle} className={`desktop-app mode-${mode}${watchlistCollapsed ? ' watchlist-collapsed' : ''}${insightCollapsed ? ' insight-collapsed' : ''}`}>
     <TitleBar apiStatus={apiStatus} />
     <AppNavigation active={workspace} onChange={setWorkspace} />
-    <GlobalHeader apiStatus={apiStatus} mode={mode} onModeChange={changeMode} onSearch={openSymbol} onToggleWatchlist={() => setWatchlistCollapsed((value) => !value)} onToggleInsight={() => setInsightCollapsed((value) => !value)} />
+    <GlobalHeader apiStatus={apiStatus} mode={mode} onModeChange={changeMode} onSearch={openSymbol} onToggleWatchlist={() => setWatchlistCollapsed((value) => !value)} onToggleInsight={() => setInsightCollapsed((value) => !value)} accountEmail={account?.email} onOpenAccount={() => setAccountOpen(true)} />
     <Watchlist stocks={watchlist} selected={selected} onSelect={(symbol) => { setSelected(symbol); setWorkspace('analysis'); }} onChange={setWatchlist} savedSymbols={savedSymbols} syncError={watchlistSyncError} onAddSymbol={async (symbol) => { try { await addDesktopWatchlist(symbol); setSavedSymbols((current) => current.includes(symbol) ? current : [...current, symbol]); setWatchlistSyncError(''); } catch (reason) { const message = reason instanceof Error ? reason.message : 'Watchlist tidak dapat disinkronkan.'; setWatchlistSyncError(message); throw reason; } }} />
     <PanelResizeHandle side="left" onResize={resizeWatchlist} />
     <main className="workspace-main">{workspaceContent()}</main>
     <ResearchPanel ticker={active} apiBaseUrl={API_BASE_URL} apiStatus={apiStatus} />
     <PanelResizeHandle side="right" onResize={resizeInsight} />
+    <AccountModal open={accountOpen} account={account} onClose={() => setAccountOpen(false)} />
   </div>;
 }
 
