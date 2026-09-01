@@ -13,6 +13,7 @@ import { PanelResizeHandle } from './components/PanelResizeHandle';
 import { StockResearchWorkspace } from './components/StockResearchWorkspace';
 import { PositionSizing, StockChecklist } from './components/ToolsWorkspace';
 import { RadarWorkspace } from './components/RadarWorkspace';
+import { AdminConsole, IntelligenceWorkspace } from './components/OperationsWorkspace';
 import { TitleBar } from './components/TitleBar';
 import { Watchlist } from './components/Watchlist';
 import { API_BASE_URL, addDesktopWatchlist, checkHealth, getAccount, getDesktopWatchlist, getResearchUniverse, type MarketPulse, type MarketSummary } from './api';
@@ -26,6 +27,7 @@ import './account-modal.css';
 import './resize.css';
 import './stock-workspace.css';
 import './tools-workspace.css';
+import './operations.css';
 import './radar.css';
 
 export type Ticker = { symbol: string; name: string; price: number | null; change: number | null };
@@ -70,10 +72,12 @@ function App() {
   const workspaceContent = () => {
     if (workspace === 'home') return <div className="workspace-page"><WorkspaceTitle kicker="SAHAMLENS DESKTOP" title={mode === 'guided' ? 'Mulai dari konteks pasar' : 'Market Overview'} description={mode === 'guided' ? 'Ikuti alur riset sederhana sebelum menilai sebuah saham.' : 'Kondisi pasar, breadth, dan pergerakan saham dari API SahamLens.'} />{mode === 'guided' && <ResearchGuide onNavigate={setWorkspace} />}<MarketOverview market={market} error={marketError} onSelect={selectFromMarket} /><MarketScreener onSelect={selectFromMarket} /></div>;
     if (workspace === 'market') return <div className="workspace-page"><WorkspaceTitle kicker="MARKET INTELLIGENCE" title="Market & Breadth" description="Pantau indeks, market movers, dan kandidat dari data pasar terkini." /><MarketOverview market={market} error={marketError} onSelect={selectFromMarket} /><MarketScreener onSelect={selectFromMarket} /></div>;
+    if (workspace === 'intelligence') return <div className="workspace-page"><WorkspaceTitle kicker="MARKET INTELLIGENCE" title="Baca konteks pasar" description="Gabungkan regime, breadth, sektor, movers, dan radar sebelum melanjutkan riset emiten." /><IntelligenceWorkspace market={market} error={marketError} onSelect={selectFromMarket} /></div>;
     if (workspace === 'radar') return <div className="workspace-page"><WorkspaceTitle kicker="RADAR & SIGNAL" title="Peluang terpantau" description="Signal server ditampilkan apa adanya; bukan rekomendasi transaksi otomatis." /><FeatureTabs ids={['breakout', 'recommendations']} active={radarTab} onChange={setRadarTab} />{radarTab === 'breakout' ? <RadarWorkspace onSelect={selectFromMarket} /> : <FeatureWorkspace feature={featureFor(radarTab)} symbol={active?.symbol} />}</div>;
     if (workspace === 'watchlist') return <div className="workspace-page"><WorkspaceTitle kicker="WATCHLIST" title="Daftar pantau" description="Pilih saham dari panel kiri untuk membuka chart dan analisis resminya." /><ChartPanel ticker={active} /></div>;
     if (workspace === 'analysis') return <div className="workspace-page"><WorkspaceTitle kicker="STOCK WORKSPACE" title={active?.symbol ?? 'Pilih emiten'} description="Analisis teknikal, fundamental, valuasi, earnings, dan kepemilikan dalam satu ruang kerja." /><ChartPanel ticker={active} /><FeatureTabs ids={analysisTabs} active={analysisTab} onChange={setAnalysisTab} />{(['overview', 'fundamental', 'dcf', 'earnings', 'ownership'] as string[]).includes(analysisTab) ? <StockResearchWorkspace tab={analysisTab as 'overview' | 'fundamental' | 'dcf' | 'earnings' | 'ownership'} symbol={active?.symbol} /> : <FeatureWorkspace feature={featureFor(analysisTab)} symbol={active?.symbol} />}</div>;
     if (workspace === 'tools') return <div className="workspace-page"><WorkspaceTitle kicker="RESEARCH TOOLS" title="Tools analisis" description="Bandingkan emiten, cek kelengkapan data, dan gunakan kalkulasi risiko secara transparan." /><FeatureTabs ids={toolTabs} active={toolTab} onChange={setToolTab} />{toolTab === 'checklist' ? <StockChecklist symbol={active?.symbol} /> : toolTab === 'position-sizing' ? <PositionSizing /> : toolTab === 'earnings' ? <StockResearchWorkspace tab="earnings" symbol={active?.symbol} /> : <FeatureWorkspace feature={featureFor(toolTab)} symbol={active?.symbol} />}</div>;
+    if (workspace === 'admin') return <div className="workspace-page"><WorkspaceTitle kicker="ADMIN CONSOLE" title="Operasional platform" description="Status sistem dan sumber data khusus administrator SahamLens." /><AdminConsole /></div>;
     return <div className="workspace-page"><WorkspaceTitle kicker="INFORMASI PASAR" title="Kalender & News" description="Aksi korporasi, berita, dan konteks makro dari sumber SahamLens." /><FeatureTabs ids={calendarTabs} active={calendarTab} onChange={setCalendarTab} /><FeatureWorkspace feature={featureFor(calendarTab)} symbol={active?.symbol} /></div>;
   };
   const resizeWatchlist = (delta: number) => setWatchlistWidth((width) => Math.max(220, Math.min(380, width + delta)));
@@ -81,7 +85,7 @@ function App() {
   const layoutStyle = { '--watchlist-width': `${watchlistWidth}px`, '--insight-width': `${insightWidth}px` } as CSSProperties;
   return <div style={layoutStyle} className={`desktop-app mode-${mode}${watchlistCollapsed ? ' watchlist-collapsed' : ''}${insightCollapsed ? ' insight-collapsed' : ''}`}>
     <TitleBar apiStatus={apiStatus} />
-    <AppNavigation active={workspace} onChange={setWorkspace} />
+    <AppNavigation active={workspace} onChange={setWorkspace} isAdmin={account?.role === 'admin'} />
     <GlobalHeader apiStatus={apiStatus} mode={mode} onModeChange={changeMode} onSearch={openSymbol} onToggleWatchlist={() => setWatchlistCollapsed((value) => !value)} onToggleInsight={() => setInsightCollapsed((value) => !value)} accountEmail={account?.email} onOpenAccount={() => setAccountOpen(true)} />
     <Watchlist stocks={watchlist} selected={selected} onSelect={(symbol) => { setSelected(symbol); setWorkspace('analysis'); }} onChange={setWatchlist} savedSymbols={savedSymbols} syncError={watchlistSyncError} onAddSymbol={async (symbol) => { try { await addDesktopWatchlist(symbol); setSavedSymbols((current) => current.includes(symbol) ? current : [...current, symbol]); setWatchlistSyncError(''); } catch (reason) { const message = reason instanceof Error ? reason.message : 'Watchlist tidak dapat disinkronkan.'; setWatchlistSyncError(message); throw reason; } }} />
     <PanelResizeHandle side="left" onResize={resizeWatchlist} />
