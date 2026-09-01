@@ -225,15 +225,15 @@ describe('hybrid analyst evidence gate', () => {
     expect(result.meta.status).toBe('SKIPPED_NO_ELIGIBLE_SIGNALS');
   });
 
-  it('hanya mengirim maksimal 10 kandidat ke hybrid analyst', async () => {
-    const signals = Array.from({ length: 12 }, (_, index) => ({
+  it('hanya mengirim maksimal 6 kandidat ke hybrid analyst', async () => {
+    const signals = Array.from({ length: 8 }, (_, index) => ({
       ...candidate({ symbol: `T${String(index + 1).padStart(3, '0')}.JK`, totalScore: 82 }),
       ticker: `T${String(index + 1).padStart(3, '0')}`,
     }));
     const runner = vi.fn(async (args: { evidence: Array<{ ticker: string }> }) => {
-      expect(args.evidence).toHaveLength(10);
+      expect(args.evidence).toHaveLength(6);
       const tickers = args.evidence.map((item) => item.ticker);
-      expect(tickers).toEqual(signals.slice(0, 10).map((signal) => signal.ticker));
+      expect(tickers).toEqual(signals.slice(0, 6).map((signal) => signal.ticker));
       return {
         output: { reviews: tickers.map((ticker) => ({ ticker, verdict: 'CHALLENGE' as const, confidence: 'LOW' as const, evidenceRefs: [`E:${ticker}:ruleAction`, `E:${ticker}:modelValidated`], concerns: ['MODEL_UNVALIDATED' as const], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION' as const] })) },
         inputTokens: 100,
@@ -245,7 +245,7 @@ describe('hybrid analyst evidence gate', () => {
 
     expect(runner).toHaveBeenCalledTimes(1);
     expect(result.meta.status).toBe('COMPLETED');
-    expect(result.meta.reviewedCount).toBe(10);
+    expect(result.meta.reviewedCount).toBe(6);
   });
 
   it('melewati kandidat dengan LensScore di bawah 75 sebelum memanggil hybrid analyst', async () => {
@@ -265,6 +265,62 @@ describe('hybrid analyst evidence gate', () => {
     expect(runner).toHaveBeenCalledTimes(1);
     expect(result.meta.status).toBe('COMPLETED');
     expect(result.meta.reviewedCount).toBe(1);
+  });
+
+  it('menjalankan Bull, Bear, lalu Risk Judge dan menyimpan transcript audit', async () => {
+    const signal = candidate();
+    const debateRunner = vi.fn(async (args: { phase: string }) => ({
+      output: { positions: [{
+        ticker: 'BBCA',
+        thesis: args.phase === 'BULL' ? 'Skor dan risk reward mendukung.' : 'Model belum tervalidasi.',
+        evidenceRefs: args.phase === 'BULL'
+          ? ['E:BBCA:lensScore', 'E:BBCA:riskReward']
+          : ['E:BBCA:modelValidated'],
+      }] },
+      inputTokens: 10,
+      outputTokens: 5,
+    }));
+    const runner = vi.fn(async (args: { phase: string; debate?: unknown[] }) => {
+      expect(args.phase).toBe('RISK_JUDGE');
+      expect(args.debate).toHaveLength(1);
+      return {
+        output: { reviews: [{
+          ticker: 'BBCA', verdict: 'CHALLENGE', confidence: 'LOW',
+          evidenceRefs: ['E:BBCA:ruleAction', 'E:BBCA:modelValidated'],
+          concerns: ['MODEL_UNVALIDATED'], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION'],
+          riskRationale: 'Risiko validasi lebih berat daripada tesis Bull.',
+        }] },
+        inputTokens: 20,
+        outputTokens: 10,
+      };
+    });
+
+    const result = await applyHybridAnalysis({ signals: [signal], runner: runner as any, debateRunner: debateRunner as any });
+
+    expect(debateRunner.mock.calls.map((call) => call[0].phase)).toEqual(['BULL', 'BEAR']);
+    expect(result.meta).toMatchObject({ status: 'COMPLETED', inputTokens: 40, outputTokens: 20 });
+    expect(result.signals[0].hybridReview?.debate).toEqual({
+      bullEvidenceRefs: ['E:BBCA:lensScore', 'E:BBCA:riskReward'],
+      bearEvidenceRefs: ['E:BBCA:modelValidated'],
+      bullThesis: 'Skor dan risk reward mendukung.',
+      bearThesis: 'Model belum tervalidasi.',
+      riskRationale: 'Risiko validasi lebih berat daripada tesis Bull.',
+    });
+  });
+
+  it('fail-closed jika agent debat mengembalikan evidence ref asing', async () => {
+    const debateRunner = vi.fn(async () => ({
+      output: { positions: [{ ticker: 'BBCA', thesis: 'Tesis tidak grounded.', evidenceRefs: ['E:BBCA:invented'] }] },
+      inputTokens: 10,
+      outputTokens: 5,
+    }));
+    const runner = vi.fn();
+
+    const result = await applyHybridAnalysis({ signals: [candidate()], runner, debateRunner: debateRunner as any });
+
+    expect(result.meta).toMatchObject({ status: 'INVALID_OUTPUT', errorCode: 'DEBATE_INVALID' });
+    expect(runner).not.toHaveBeenCalled();
+    expect(result.signals[0].hybridReview).toBeNull();
   });
 
   it('mengizinkan preset live menaikkan batas LensScore minimum ke 80 lewat env', async () => {
