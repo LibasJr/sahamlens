@@ -11,6 +11,8 @@
     "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
     "@tauri-apps/api": "^2.8.0",
     "@tauri-apps/plugin-http": "^2.6.0",
     "@tauri-apps/plugin-stronghold": "^2.2.0",

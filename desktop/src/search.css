@@ -1,0 +1,8 @@
+.global-search { position: relative; }
+.ticker-suggestions { position: absolute; top: calc(100% + 7px); left: 0; z-index: 30; display: grid; width: min(520px, 62vw); max-height: 350px; overflow: auto; padding: 5px; border: 1px solid #33434d; border-radius: 9px; background: #11181e; box-shadow: 0 16px 34px rgba(0, 0, 0, .38); }
+.ticker-suggestions button { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 6px; background: transparent; color: #dfe8ec; text-align: left; cursor: pointer; }
+.ticker-suggestions button:hover, .ticker-suggestions button.active { background: #183024; }
+.ticker-suggestions strong { color: #8bf0ad; font: 700 12px 'JetBrains Mono', ui-monospace, monospace; }
+.ticker-suggestions span { overflow: hidden; color: #aab8c1; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.ticker-suggestions-empty { padding: 10px; color: #94a3ad; font-size: 12px; }
+.indicator-button{display:flex;align-items:center;gap:5px;height:29px;padding:0 9px;border:1px solid #31424a;border-radius:6px;background:#131b20;color:#b6c4cc;font-size:12px;cursor:pointer}.indicator-picker{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.indicator-picker button,.indicator-chips span{padding:5px 8px;border:1px solid #2f3d44;border-radius:5px;background:#11181d;color:#aab8c0;font-size:11px;cursor:pointer}.indicator-picker button.active{border-color:#3f7d57;background:#183124;color:#9cf1b7}.indicator-chips{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 8px}.indicator-chips span{display:flex;align-items:center;gap:5px;color:#9cf1b7}.indicator-chips button{display:grid;place-items:center;padding:0;border:0;background:transparent;color:inherit;cursor:pointer}
