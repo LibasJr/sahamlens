@@ -5,7 +5,7 @@ import type { Ticker } from './main';
 // membuka snapshot v1, sehingga instalasi upgrade selalu gagal membuka Stronghold sebelum
 // token baru sempat disimpan. Gunakan snapshot baru; user cukup login sekali setelah update.
 const vaultPath = 'sahamlens-v2.hold';
-const vaultPasswordKey = 'sahamlens.vault-key.v1';
+const vaultPasswordKey = 'sahamlens.vault-key.v2';
 
 function getVaultPassword(): string {
   const saved = localStorage.getItem(vaultPasswordKey);
