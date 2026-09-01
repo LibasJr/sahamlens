@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import type { FundamentalSnapshot } from '../api';
 import { getFundamentalSnapshot } from '../api';
 import type { Ticker } from '../main';
+import { AIInsights } from './AIInsights';
 
 export function ResearchPanel({ ticker, apiBaseUrl, apiStatus }: { ticker?: Ticker; apiBaseUrl: string; apiStatus: 'checking' | 'online' | 'offline' }) {
   const [data, setData] = useState<FundamentalSnapshot | null>(null);
@@ -23,6 +24,7 @@ export function ResearchPanel({ ticker, apiBaseUrl, apiStatus }: { ticker?: Tick
       <div className="metric-grid"><Metric label="P/E" value={formatMultiple(metrics?.trailingPE)} /><Metric label="PBV" value={formatMultiple(metrics?.priceToBook)} /><Metric label="ROE" value={formatPercent(metrics?.returnOnEquity)} /><Metric label="DIVIDEN" value={formatPercent(metrics?.dividendYield)} /></div>
       <div className="research-list"><span>INDIKATOR TERATAS</span>{data.analyzers?.filter((item) => item.value !== 'N/A').slice(0, 5).map((item) => <div key={item.label}><small>{item.label}</small><strong>{item.value}</strong><b className={item.decision === 'BULLISH' ? 'positive' : item.decision === 'BEARISH' ? 'negative' : ''}>{item.decision}</b></div>)}</div>
     </> : <div className="research-state">Belum ada data fundamental.</div>}
+    {ticker && <AIInsights ticker={ticker.symbol} />}
     <small className="api-note">Sumber: {apiBaseUrl.replace('https://', '')}</small>
   </aside>;
 }
