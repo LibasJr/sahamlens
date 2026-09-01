@@ -5,12 +5,15 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-close",
+    "stronghold:default",
+    "stronghold:allow-remove-store-record",
     "http:default",
     {
       "identifier": "http:allow-fetch",
-      "scope": {
-        "allow": [{ "url": "https://sahamlens.id/**" }]
-      }
+      "allow": [{ "url": "https://sahamlens.id/**" }]
     }
   ]
 }
