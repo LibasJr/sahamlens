@@ -24,6 +24,7 @@ export const decisionThesisInputSchema = z.object({
 
 export const decisionAgentActionSchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('scan') }),
+  z.object({ action: z.literal('run-offline-policy-learning') }),
   z.object({ action: z.literal('configure-paper-account'), config: configurePaperAccountSchema }),
   z.object({ action: z.literal('freeze-pilot-protocol') }),
   z.object({ action: z.literal('import-idx-ic'), csvText: z.string().min(1).max(5_000_000), sourceUrl: z.string().url().max(1_000), sourceAsOf: z.string().date() }),

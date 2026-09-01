@@ -187,7 +187,7 @@ export async function getLatestDecisionSignalForTicker(ticker: string): Promise<
 
 export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboard> {
   await ensureSharedSchema();
-  const [runResult, accountResult, positionResult, orderResult, roundTripResult, navSnapshotResult, thesisResult, shadowResult, protocolResult, controlsResult] = await Promise.all([
+  const [runResult, accountResult, positionResult, orderResult, roundTripResult, navSnapshotResult, thesisResult, shadowResult, protocolResult, controlsResult, learningResult] = await Promise.all([
     pool.query(`SELECT * FROM decision_agent_runs ORDER BY created_at DESC LIMIT 1`),
     pool.query(`SELECT * FROM decision_agent_paper_accounts WHERE id = 'internal-paper'`),
     pool.query(`SELECT * FROM decision_agent_paper_positions WHERE account_id = 'internal-paper' AND lots > 0 ORDER BY ticker`),
@@ -235,6 +235,7 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
       (SELECT COUNT(*)::int FROM decision_agent_broker_transactions) AS broker_transaction_count,
       (SELECT COUNT(*)::int FROM decision_agent_broker_transactions WHERE reconciliation_status='UNMATCHED') AS unmatched_broker_transactions,
       (SELECT COALESCE(SUM(amount),0) FROM decision_agent_paper_costs WHERE account_id='internal-paper') AS external_costs`),
+    pool.query(`SELECT * FROM decision_agent_policy_learning_runs ORDER BY created_at DESC LIMIT 1`),
   ]);
 
   const runRow = runResult.rows[0] as Record<string, unknown> | undefined;
@@ -385,6 +386,19 @@ export async function getDecisionAgentDashboard(): Promise<DecisionAgentDashboar
       entryRule: 'NEXT_OBSERVED_TRADING_CLOSE',
       cohorts: shadowCohorts,
     },
+    offlinePolicyLearning: learningResult.rows[0] ? {
+      id: learningResult.rows[0].id,
+      status: learningResult.rows[0].status,
+      observationCount: number(learningResult.rows[0].observation_count),
+      baseline: learningResult.rows[0].baseline_policy,
+      challenger: learningResult.rows[0].challenger_policy,
+      train: learningResult.rows[0].train_metrics,
+      validation: learningResult.rows[0].validation_metrics,
+      promotionEligible: Boolean(learningResult.rows[0].promotion_eligible),
+      blockers: learningResult.rows[0].blockers,
+      rewardVersion: learningResult.rows[0].reward_version,
+      createdAt: new Date(String(learningResult.rows[0].created_at)).toISOString(),
+    } : null,
     theses: thesisResult.rows.map((row) => ({
       id: String(row.id), ticker: String(row.ticker), status: row.status as 'ACTIVE' | 'CLOSED',
       thesis: String(row.thesis), invalidationCriteria: Array.isArray(row.invalidation_criteria) ? row.invalidation_criteria.map(String) : [],
