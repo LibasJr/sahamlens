@@ -9,7 +9,8 @@ import {
   type DecisionRiskSetup,
 } from '../types/decision-agent.types';
 
-const MIN_COVERAGE_PCT = 70;
+import { MIN_COVERAGE_PCT } from '@/modules/technical/service/scoring.service';
+
 const BUY_CANDIDATE_SCORE = 70;
 const WATCH_SCORE = 60;
 const MAX_EXECUTABLE_AGE_MINUTES = 30;
