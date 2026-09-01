@@ -11,6 +11,7 @@ export type { User, DemoSession } from './types/user.types';
 
 export {
   handleLogin,
+  handleDesktopLogin,
   handleSignup,
   handleVerify,
   handleForgotPassword,
