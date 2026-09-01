@@ -35,6 +35,8 @@ describe('kontrak rilis Tauri desktop', () => {
     );
 
     expect(rust).toContain('tauri_plugin_stronghold');
+    expect(rust).toContain('Sha256::digest(password).to_vec()');
+    expect(rust).not.toMatch(/Builder::new\(\|password\|\s*password\.(?:to_vec|to_owned)/);
     expect(rust).toContain('tauri_plugin_http');
     expect(permissions).toContain('stronghold:default');
     expect(permissions).toContain('stronghold:allow-remove-store-record');
