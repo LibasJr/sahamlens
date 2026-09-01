@@ -74,16 +74,23 @@ export async function getAdminOverview(baseUrl = API_BASE_URL) { return requestF
 export type DesktopAccount = { authenticated: boolean; user?: { email?: string; role?: string; is_pro?: boolean } };
 export async function loginDesktop(email: string, password: string, baseUrl = API_BASE_URL) {
   const response = await apiFetch(`${baseUrl}/api/auth/desktop/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }), signal: AbortSignal.timeout(20000) });
-  const payload = await response.json().catch(() => null) as { error?: string; token?: string } | null;
-  if (!response.ok || !payload?.token) throw new Error(payload?.error ?? 'Login gagal.');
+  const payload = await response.json().catch(() => null) as { error?: string; token?: string; meta?: { requestId?: string } } | null;
+  if (!response.ok || !payload?.token) {
+    const requestId = payload?.meta?.requestId;
+    throw new Error(`${payload?.error ?? `Login gagal (HTTP ${response.status}).`}${requestId ? ` ID: ${requestId}` : ''}`);
+  }
   const { clearToken, saveToken } = await import('./tokenStore');
-  await saveToken(payload.token);
+  try {
+    await saveToken(payload.token);
+  } catch (error) {
+    throw new Error(`Credential diterima server, tetapi token gagal disimpan aman: ${error instanceof Error ? error.message : 'vault tidak tersedia'}`);
+  }
   try {
     const account = await getAccount(baseUrl) as DesktopAccount;
     if (!account.authenticated || !account.user) throw new Error('Sesi desktop tidak dapat diverifikasi.');
     return account;
   } catch (error) {
-    await clearToken();
+    await clearToken().catch(() => undefined);
     throw error;
   }
 }
