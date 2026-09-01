@@ -32,6 +32,7 @@ import './tools-workspace.css';
 import './operations.css';
 import './calendar-workspace.css';
 import './radar.css';
+import './ai-insights.css';
 
 export type Ticker = { symbol: string; name: string; price: number | null; change: number | null };
 const analysisTabs = ['overview', 'technical', 'fundamental', 'dcf', 'earnings', 'ownership', 'compare'];
