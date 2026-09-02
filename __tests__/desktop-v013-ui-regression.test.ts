@@ -41,6 +41,7 @@ describe('Desktop v0.1.3 screenshot regressions', () => {
     expect(backtest).toContain('<CandleReplay candles={candles} visible={visible} />');
     for (const control of ['Backtest', 'Start', 'Stop', 'Ulang', '24 bulan']) expect(backtest).toContain(control);
     expect(backtest).toContain('requestAnimationFrame');
+    expect(backtest).not.toContain('.at(');
   });
   it('menjaga metadata installer pada 0.1.3', () => {
     expect(JSON.parse(read('desktop/package.json')).version).toBe('0.1.3');
