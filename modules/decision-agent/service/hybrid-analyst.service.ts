@@ -2,6 +2,7 @@ import { createOpenAI } from '@ai-sdk/openai';
 import { APICallError, generateText } from 'ai';
 import { z } from 'zod';
 import { logger } from '@/shared/logger/logger';
+import { ninerouterCompatibleFetch } from './ninerouter-sse-fetch';
 import type {
   DecisionAgentSignal,
   HybridConcern,
@@ -251,6 +252,7 @@ async function callHybridAgent(args: Parameters<HybridAgentRunner>[0]): ReturnTy
   if (!baseURL || !apiKey) throw new Error('NINEROUTER_NOT_CONFIGURED');
   const provider = createOpenAI({
     name: '9router-decision-agent', baseURL, apiKey,
+    fetch: ninerouterCompatibleFetch,
     headers: { 'HTTP-Referer': 'https://sahamlens.id', 'X-Title': 'SahamLens Decision Agent' },
   });
   const phase = args.phase ?? 'RISK_JUDGE';
