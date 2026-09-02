@@ -1,0 +1,16 @@
+<UserControl x:Class="SahamLens.WinUI.Views.ScreenerView" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <StackPanel Spacing="12">
+    <Grid ColumnDefinitions="220,220,*,Auto" ColumnSpacing="10">
+      <ComboBox x:Name="Profile" Header="Profil risiko" SelectedIndex="1"><ComboBoxItem Content="Konservatif"/><ComboBoxItem Content="Moderat"/><ComboBoxItem Content="Agresif"/></ComboBox>
+      <ComboBox Grid.Column="1" x:Name="Sector" Header="Sektor"><ComboBoxItem Content="Semua sektor"/></ComboBox>
+      <TextBlock Grid.Column="2" x:Name="Summary" VerticalAlignment="Bottom" Margin="0,0,0,10" Opacity="0.7"/>
+      <Button Grid.Column="3" Content="Refresh" VerticalAlignment="Bottom" Click="OnRefresh"/>
+    </Grid>
+    <InfoBar x:Name="GuestWarning" Severity="Warning" IsClosable="False" IsOpen="False" Title="Sesi guest terdeteksi" Message="Masuk dengan akun Anda untuk membuka hasil penuh."/>
+    <ProgressRing x:Name="LoadingRing" IsActive="False" HorizontalAlignment="Left"/>
+    <ListView x:Name="Results" SelectionMode="Single">
+      <ListView.Header><Grid ColumnDefinitions="100,2*,1.5*,120,100,100,100" Padding="12"><TextBlock Text="Ticker"/><TextBlock Grid.Column="1" Text="Nama"/><TextBlock Grid.Column="2" Text="Sektor"/><TextBlock Grid.Column="3" Text="Sinyal"/><TextBlock Grid.Column="4" Text="Harga"/><TextBlock Grid.Column="5" Text="PER"/><TextBlock Grid.Column="6" Text="PBV"/></Grid></ListView.Header>
+      <ListView.ItemTemplate><DataTemplate><Grid ColumnDefinitions="100,2*,1.5*,120,100,100,100" Padding="12,9"><TextBlock Text="{Binding Ticker}" FontWeight="SemiBold"/><TextBlock Grid.Column="1" Text="{Binding Name}"/><TextBlock Grid.Column="2" Text="{Binding Sector}"/><TextBlock Grid.Column="3" Text="{Binding Signal}"/><TextBlock Grid.Column="4" Text="{Binding Entry}"/><TextBlock Grid.Column="5" Text="{Binding Per}"/><TextBlock Grid.Column="6" Text="{Binding Pbv}"/></Grid></DataTemplate></ListView.ItemTemplate>
+    </ListView>
+  </StackPanel>
+</UserControl>
