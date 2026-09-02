@@ -62,6 +62,25 @@ public sealed class ArchitectureTests
         Assert.DoesNotContain("class App : Application", source);
     }
 
+    [Fact]
+    public void Native_chart_exposes_full_indicator_catalog_and_contains_no_webview()
+    {
+        Assert.Equal(13, TechnicalIndicators.All.Count);
+        Assert.Contains(TechnicalIndicators.All, x => x.Id == "bollinger");
+        Assert.Contains(TechnicalIndicators.All, x => x.Id == "macd");
+        Assert.Contains(TechnicalIndicators.All, x => x.Id == "williams");
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var native = Directory.GetFiles(Path.Combine(root, "src/SahamLens.WinUI"), "*.*", SearchOption.AllDirectories)
+            .Where(path => path.EndsWith(".cs") || path.EndsWith(".xaml"))
+            .Select(File.ReadAllText);
+        var source = string.Join('\n', native);
+        Assert.DoesNotContain("WebView2", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("Tauri", source, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("React", source, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("OhlcLabel", source);
+        Assert.Contains("ReplayProgress", source);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(responder(request));
