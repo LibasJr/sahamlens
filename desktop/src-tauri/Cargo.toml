@@ -1,6 +1,6 @@
 [package]
 name = "sahamlens-desktop"
-version = "0.1.1"
+version = "0.1.2"
 description = "SahamLens desktop research client"
 authors = ["SahamLens"]
 edition = "2021"
@@ -19,6 +19,7 @@ tauri-plugin-http = { version = "2.6.0", default-features = false, features = ["
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
+tauri-plugin-window-state = "2"
 
 [features]
 custom-protocol = ["tauri/custom-protocol"]

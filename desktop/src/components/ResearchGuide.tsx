@@ -3,7 +3,7 @@ import type { Workspace } from './AppNavigation';
 
 const steps: Array<{ title: string; detail: string; workspace: Workspace; icon: typeof Radar }> = [
   { title: 'Lihat kondisi pasar', detail: 'Mulai dari regime dan breadth sebelum melihat saham individual.', workspace: 'market', icon: Radar },
-  { title: 'Cari kandidat', detail: 'Gunakan Radar untuk menemukan saham yang layak diperiksa lebih lanjut.', workspace: 'radar', icon: CandlestickChart },
+  { title: 'Cari kandidat', detail: 'Gunakan Radar untuk menemukan saham yang layak diperiksa lebih lanjut.', workspace: 'intelligence', icon: CandlestickChart },
   { title: 'Validasi dengan bukti', detail: 'Buka Stock Workspace untuk chart, fundamental, valuasi, dan risiko.', workspace: 'analysis', icon: BookOpenCheck },
 ];
 
