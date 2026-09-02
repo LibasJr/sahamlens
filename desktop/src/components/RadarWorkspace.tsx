@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AlertCircle, ArrowUpRight, Crosshair, LoaderCircle, RefreshCw } from 'lucide-react';
 import { requestFeature } from '../api';
 
@@ -7,8 +7,9 @@ type RadarPayload = { data?: RadarItem[]; crossSignals?: { golden?: RadarItem[];
 
 export function RadarWorkspace({ onSelect }: { onSelect: (symbol: string) => void }) {
   const [payload, setPayload] = useState<RadarPayload | null>(null); const [error, setError] = useState(''); const [loading, setLoading] = useState(false);
-  const load = () => { setLoading(true); setError(''); void requestFeature('/api/breakout-radar').then((data) => setPayload(data as RadarPayload)).catch((reason) => setError(reason instanceof Error ? reason.message : 'Radar belum tersedia.')).finally(() => setLoading(false)); };
-  useEffect(load, []);
+  const requestSequence = useRef(0);
+  const load = () => { const requestId = ++requestSequence.current; setLoading(true); setError(''); void requestFeature('/api/breakout-radar').then((data) => { if (requestId === requestSequence.current) setPayload(data as RadarPayload); }).catch((reason) => { if (requestId === requestSequence.current) setError(reason instanceof Error ? reason.message : 'Radar belum tersedia.'); }).finally(() => { if (requestId === requestSequence.current) setLoading(false); }); };
+  useEffect(() => { load(); return () => { requestSequence.current += 1; }; }, []);
   const items = payload?.data ?? []; const golden = payload?.crossSignals?.golden ?? []; const dead = payload?.crossSignals?.dead ?? [];
   return <section className="radar-workspace"><div className="radar-heading"><div><span className="section-kicker">RADAR & SIGNAL</span><h2>Kandidat untuk diperiksa</h2><p>Scanner menyajikan kondisi yang terdeteksi server; bukan instruksi beli atau jual.</p></div><button className="screener-tool" onClick={load} aria-label="Muat ulang radar"><RefreshCw className={loading ? 'spin' : ''} size={15} /> Refresh</button></div>{loading ? <div className="radar-state"><LoaderCircle className="spin" size={18} /> Memuat hasil scanner…</div> : error ? <div className="radar-state error"><AlertCircle size={18} /> {error}</div> : <><div className="radar-meta"><span><i /> {items.length} kandidat terdeteksi</span><span>{payload?.lastUpdate ? `Update ${new Date(payload.lastUpdate).toLocaleString('id-ID')}` : 'Waktu update belum tersedia'}</span></div>{items.length ? <div className="radar-list">{items.map((item) => <button key={item.symbol} onClick={() => onSelect(item.symbol)}><div className="radar-symbol"><span>{item.symbol.replace('.JK', '')}</span><small>{item.signals?.join(' · ') || 'Signal terdeteksi'}</small></div><div><span>HARGA</span><strong>{item.price == null ? '—' : `Rp ${item.price.toLocaleString('id-ID')}`}</strong></div><div><span>PERUBAHAN</span><strong className={item.change?.startsWith('-') ? 'negative' : 'positive'}>{item.change ?? '—'}</strong></div><div><span>KUALITAS SIGNAL</span><strong>{item.score == null ? '—' : `${item.score} indikator`}</strong></div><ArrowUpRight size={17} /></button>)}</div> : <div className="radar-state"><Crosshair size={18} /> Belum ada kandidat dari scan terakhir.</div>}<div className="cross-signal-grid"><CrossSignal title="Golden cross terpantau" items={golden} onSelect={onSelect} /><CrossSignal title="Dead cross terpantau" items={dead} onSelect={onSelect} negative /></div></>}</section>;
 }

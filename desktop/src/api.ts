@@ -88,6 +88,7 @@ export async function loginDesktop(email: string, password: string, baseUrl = AP
   try {
     await saveToken(payload.token);
   } catch (error) {
+    await clearToken().catch(() => undefined);
     throw new Error(`Credential diterima server, tetapi token gagal disimpan aman: ${errorMessage(error)}`);
   }
   try {

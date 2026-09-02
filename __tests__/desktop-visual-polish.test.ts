@@ -14,7 +14,9 @@ describe('desktop visual polish contract', () => {
     for (const token of ['--ui-accent:#38bdf8', '--ui-accent-strong:#0284c7', '--ui-muted:#9aabba', '--radius-md:10px', '--focus-ring:']) {
       expect(polish).toContain(token);
     }
-    expect(polish).toContain('.nav-brand{background:linear-gradient(145deg,var(--ui-accent)');
+    expect(polish).toContain('--ui-brand-navy:#14213d');
+    expect(polish).toContain('--ui-brand-indigo:#3730a3');
+    expect(polish).toContain('.nav-brand{background:linear-gradient(145deg,var(--ui-brand-navy),var(--ui-brand-indigo))');
     expect(polish).toContain('.mode-switch button.active,.workspace-tabs button.active');
   });
 

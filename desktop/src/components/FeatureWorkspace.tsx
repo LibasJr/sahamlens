@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AlertCircle, LockKeyhole, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { requestFeature } from '../api';
 
@@ -61,6 +61,7 @@ export function FeatureWorkspace({ feature, symbol, authenticated = false, onReq
   const [payload, setPayload] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const requestSequence = useRef(0);
   const [inputSymbol, setInputSymbol] = useState(symbol ?? '');
   const [secondary, setSecondary] = useState('');
   const [fields, setFields] = useState<Record<string, string>>({ capital: '10000000', targetMonthly: '500000', modal: '10000000', period: '1', lang: 'id' });
@@ -73,6 +74,7 @@ export function FeatureWorkspace({ feature, symbol, authenticated = false, onReq
   }, [feature, inputSymbol, secondary, fields]);
 
   const load = async () => {
+    const requestId = ++requestSequence.current;
     if (feature.access === 'pro') { setError('PRO_DISABLED_TESTING'); return; }
     if (feature.access === 'account' && !authenticated) { setError('ACCOUNT_REQUIRED'); return; }
     if (!path) { setError('Masukkan atau pilih ticker terlebih dahulu.'); return; }
@@ -81,9 +83,11 @@ export function FeatureWorkspace({ feature, symbol, authenticated = false, onReq
       const init: RequestInit = { method: feature.method ?? 'GET', signal: AbortSignal.timeout(60000) };
       if (feature.method === 'POST') init.body = JSON.stringify(feature.body?.(inputSymbol.trim().toUpperCase(), secondary, fields) ?? {});
       if (feature.method === 'POST') init.headers = { 'Content-Type': 'application/json' };
-      setPayload(await requestFeature(path, init));
-    } catch (reason) { setPayload(null); setError(reason instanceof Error ? reason.message : 'Data tidak dapat dimuat.'); }
-    finally { setLoading(false); }
+      const nextPayload = await requestFeature(path, init);
+      if (requestId !== requestSequence.current) return;
+      setPayload(nextPayload);
+    } catch (reason) { if (requestId === requestSequence.current) { setPayload(null); setError(reason instanceof Error ? reason.message : 'Data tidak dapat dimuat.'); } }
+    finally { if (requestId === requestSequence.current) setLoading(false); }
   };
   useEffect(() => {
     setPayload(null); setError(null);
