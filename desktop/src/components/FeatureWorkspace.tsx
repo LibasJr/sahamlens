@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, LoaderCircle, RefreshCw } from 'lucide-react';
+import { AlertCircle, LockKeyhole, LoaderCircle, RefreshCw, Sparkles } from 'lucide-react';
 import { requestFeature } from '../api';
 
 type Method = 'GET' | 'POST';
@@ -57,7 +57,7 @@ function DataCard({ value }: { value: unknown }) {
   return <div className="data-card"><div className="data-fields">{primitive.map(([key, item]) => <div key={key}><span>{labelFor(key)}</span><strong>{valueText(item)}</strong></div>)}</div>{collections.map(([key, items]) => <div className="data-collection" key={key}><span>{labelFor(key)}</span>{(items as unknown[]).slice(0, 6).map((item, index) => <DataCard key={index} value={item} />)}</div>)}</div>;
 }
 
-export function FeatureWorkspace({ feature, symbol }: { feature: DesktopFeature; symbol?: string }) {
+export function FeatureWorkspace({ feature, symbol, authenticated = false, onRequestAuth }: { feature: DesktopFeature; symbol?: string; authenticated?: boolean; onRequestAuth?: () => void }) {
   const [payload, setPayload] = useState<unknown>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,6 +73,8 @@ export function FeatureWorkspace({ feature, symbol }: { feature: DesktopFeature;
   }, [feature, inputSymbol, secondary, fields]);
 
   const load = async () => {
+    if (feature.access === 'pro') { setError('PRO_DISABLED_TESTING'); return; }
+    if (feature.access === 'account' && !authenticated) { setError('ACCOUNT_REQUIRED'); return; }
     if (!path) { setError('Masukkan atau pilih ticker terlebih dahulu.'); return; }
     setLoading(true); setError(null);
     try {
@@ -87,13 +89,14 @@ export function FeatureWorkspace({ feature, symbol }: { feature: DesktopFeature;
     setPayload(null); setError(null);
     // A selected issuer must immediately populate its research tab. POST tools and
     // comparisons remain explicit actions because they need user-entered parameters.
-    if (path && feature.method !== 'POST' && feature.id !== 'compare') void load();
+    if (path && feature.method !== 'POST' && feature.id !== 'compare' && feature.access !== 'pro' && (feature.access !== 'account' || authenticated)) void load();
   // `path` is the complete request identity; load intentionally reads the current form state.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [feature.id, path]);
+  }, [feature.id, path, authenticated]);
+  const locked = feature.access === 'pro' || (feature.access === 'account' && !authenticated);
   return <section className="feature-workspace">
     <div className="feature-heading"><div><span className="section-kicker">RISET SAHAMLENS</span><h2>{feature.label}</h2><p>{feature.note}</p></div><div className="feature-heading-actions"><span className="feature-api-label"><i /> {feature.method ?? 'GET'} · {feature.access === 'pro' ? 'PRO' : feature.access === 'account' ? 'AKUN' : 'PUBLIK'}</span><button className="screener-tool" onClick={() => void load()} aria-label="Muat ulang"><RefreshCw size={14} /> Refresh</button></div></div>
-    {(feature.needsSymbol || feature.method === 'POST' || feature.fields) && <div className="feature-controls">{(feature.needsSymbol || feature.id === 'risk') && <input value={inputSymbol} onChange={e => setInputSymbol(e.target.value)} placeholder="Ticker, contoh BBCA" aria-label="Ticker" />}{feature.id === 'compare' && <input value={secondary} onChange={e => setSecondary(e.target.value)} placeholder="Ticker pembanding" aria-label="Ticker pembanding" />}{feature.fields?.map(field => <input key={field.key} type={field.type ?? 'text'} value={fields[field.key] ?? ''} onChange={e => setFields(current => ({ ...current, [field.key]: e.target.value }))} placeholder={`${field.label}: ${field.placeholder}`} aria-label={field.label} />)}<button className="primary-action" onClick={() => void load()}>Muat data</button></div>}
+    {locked ? <div className="feature-access-gate" role="status">{feature.access === 'pro' ? <Sparkles size={22} /> : <LockKeyhole size={22} />}<div><strong>{feature.access === 'pro' ? 'Segera hadir setelah masa testing' : 'Buka riset lengkap dengan akun gratis'}</strong><p>{feature.access === 'pro' ? 'Fitur ini ditampilkan sebagai pratinjau. Akses Pro belum diaktifkan untuk akun mana pun.' : 'Daftar atau masuk untuk membuka fitur akun dan menyinkronkan riset lintas perangkat.'}</p></div>{feature.access === 'account' && <button className="primary-action" onClick={onRequestAuth}>Daftar / Masuk</button>}</div> : <>{(feature.needsSymbol || feature.method === 'POST' || feature.fields) && <div className="feature-controls">{(feature.needsSymbol || feature.id === 'risk') && <input value={inputSymbol} onChange={e => setInputSymbol(e.target.value)} placeholder="Ticker, contoh BBCA" aria-label="Ticker" />}{feature.id === 'compare' && <input value={secondary} onChange={e => setSecondary(e.target.value)} placeholder="Ticker pembanding" aria-label="Ticker pembanding" />}{feature.fields?.map(field => <input key={field.key} type={field.type ?? 'text'} value={fields[field.key] ?? ''} onChange={e => setFields(current => ({ ...current, [field.key]: e.target.value }))} placeholder={`${field.label}: ${field.placeholder}`} aria-label={field.label} />)}<button className="primary-action" onClick={() => void load()}>Muat data</button></div>}
     {loading ? <div className="feature-state"><LoaderCircle className="spin" size={18} /> Memuat data resmi…</div> : error ? <div className="feature-state error"><AlertCircle size={17} /> {error.includes('401') ? 'Fitur ini memerlukan autentikasi desktop.' : error.includes('402') || error.includes('Pro') ? 'Fitur ini memerlukan akses Pro.' : error}</div> : <DataView payload={payload} />}
-  </section>;
-}
+  </>}</section>;
+  }
