@@ -2,7 +2,7 @@ import { Search, Wifi, WifiOff } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { searchTickers, type TickerSearchItem } from '../api';
 
-export type ExperienceMode = 'guided' | 'focus' | 'pro';
+export type ExperienceMode = 'guided' | 'focus' | 'expert';
 
 type Props = {
   apiStatus: 'checking' | 'online' | 'offline';
@@ -72,6 +72,6 @@ export function GlobalHeader({ apiStatus, mode, onModeChange, onSearch, onToggle
         {searchError ? <div className="ticker-suggestions-empty error" role="alert">{searchError}</div> : items.length ? items.map((item, index) => <button type="button" key={item.symbol} className={index === activeIndex ? 'active' : ''} role="option" aria-selected={index === activeIndex} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(item)}><strong>{item.symbol}</strong><span>{item.name}</span></button>) : <div className="ticker-suggestions-empty">Ticker atau nama emiten tidak ditemukan.</div>}
       </div>}
     </form>
-    <div className="header-actions"><div className="mode-switch" aria-label="Mode tampilan">{(['guided', 'focus', 'pro'] as const).map((item) => <button key={item} className={mode === item ? 'active' : ''} onClick={() => onModeChange(item)}>{item === 'guided' ? 'Guided' : item === 'focus' ? 'Focus' : 'Pro'}</button>)}</div><span className={`api-chip ${apiStatus}`} title={statusLabel}>{apiStatus === 'offline' ? <WifiOff size={13} /> : <Wifi size={13} />}{statusLabel}</span><button onClick={onToggleWatchlist}>Watchlist</button><button onClick={onToggleInsight}>Insight</button><button className="profile-chip" aria-label={accountEmail ? `Akun ${accountEmail}` : 'Masuk ke akun'} title={accountEmail ?? 'Masuk'} onClick={onOpenAccount}>{accountEmail ? accountEmail.slice(0, 1).toUpperCase() : 'Masuk'}</button></div>
+    <div className="header-actions"><div className="mode-switch" aria-label="Mode tampilan">{(['guided', 'focus', 'expert'] as const).map((item) => <button key={item} className={mode === item ? 'active' : ''} onClick={() => onModeChange(item)}>{item === 'guided' ? 'Guided' : item === 'focus' ? 'Focus' : 'Expert'}</button>)}</div><span className={`api-chip ${apiStatus}`} title={statusLabel}>{apiStatus === 'offline' ? <WifiOff size={13} /> : <Wifi size={13} />}{statusLabel}</span><button onClick={onToggleWatchlist}>Watchlist</button><button onClick={onToggleInsight}>Insight</button><button className="profile-chip" aria-label={accountEmail ? `Akun ${accountEmail}` : 'Masuk ke akun'} title={accountEmail ?? 'Masuk'} onClick={onOpenAccount}>{accountEmail ? accountEmail.slice(0, 1).toUpperCase() : 'Masuk'}</button></div>
   </header>;
 }
