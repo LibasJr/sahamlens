@@ -57,6 +57,8 @@ function App() {
   const [calendarTab, setCalendarTab] = useState('calendar');
   const [apiStatus, setApiStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [mode, setMode] = useState<ExperienceMode>(() => { const saved = window.localStorage.getItem('sahamlens.desktop.mode'); return saved === 'pro' ? 'expert' : saved === 'focus' || saved === 'expert' ? saved : 'guided'; });
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => { const saved = window.localStorage.getItem('sahamlens.desktop.theme'); if (saved === 'light' || saved === 'dark') return saved; return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'; });
+  useEffect(() => { document.documentElement.classList.toggle('theme-dark', theme === 'dark'); document.documentElement.classList.toggle('theme-light', theme === 'light'); }, [theme]);
   const [watchlistCollapsed, setWatchlistCollapsed] = useState(false);
   const [insightCollapsed, setInsightCollapsed] = useState(false);
   const [watchlistWidth, setWatchlistWidth] = useState(260);
@@ -72,6 +74,7 @@ function App() {
   useEffect(() => { syncWatchlist(); refreshAccount(); const listener = () => { syncWatchlist(); refreshAccount(); }; window.addEventListener('desktop-auth-changed', listener); return () => window.removeEventListener('desktop-auth-changed', listener); }, []);
   const active = watchlist.find((stock) => stock.symbol === selected) ?? (selected ? { symbol: selected, name: selected, price: null, change: null } : undefined);
   const changeMode = (nextMode: ExperienceMode) => { setMode(nextMode); window.localStorage.setItem('sahamlens.desktop.mode', nextMode); };
+  const toggleTheme = () => setTheme((current) => { const next = current === 'dark' ? 'light' : 'dark'; window.localStorage.setItem('sahamlens.desktop.theme', next); return next; });
   const openSymbol = (symbol: string, name?: string) => { const normalized = symbol.trim().toUpperCase().replace('.JK', ''); if (!normalized) return; setWatchlist((current) => { const existing = current.find((stock) => stock.symbol === normalized); return existing ? current.map((stock) => stock.symbol === normalized ? { ...stock, name: name || stock.name } : stock) : [...current, { symbol: normalized, name: name || normalized, price: null, change: null }]; }); setSelected(normalized); setWorkspace('analysis'); };
   const selectFromMarket = (symbol: string) => { setSelected(symbol); setWorkspace('analysis'); };
   const featureWorkspace = (id: string) => <FeatureWorkspace feature={featureFor(id)} symbol={active?.symbol} authenticated={Boolean(account)} onRequestAuth={() => setAccountOpen(true)} />;
@@ -89,10 +92,10 @@ function App() {
   const resizeWatchlist = (delta: number) => setWatchlistWidth((width) => Math.max(220, Math.min(380, width + delta)));
   const resizeInsight = (delta: number) => setInsightWidth((width) => Math.max(280, Math.min(460, width + delta)));
   const layoutStyle = { '--watchlist-width': `${watchlistWidth}px`, '--insight-width': `${insightWidth}px` } as CSSProperties;
-  return <div style={layoutStyle} className={`desktop-app mode-${mode}${watchlistCollapsed ? ' watchlist-collapsed' : ''}${insightCollapsed ? ' insight-collapsed' : ''}`}>
+  return <div style={layoutStyle} data-theme={theme} className={`desktop-app mode-${mode}${watchlistCollapsed ? ' watchlist-collapsed' : ''}${insightCollapsed ? ' insight-collapsed' : ''}`}>
     <TitleBar apiStatus={apiStatus} />
     <AppNavigation active={workspace} onChange={setWorkspace} isAdmin={account?.role === 'admin'} />
-    <GlobalHeader apiStatus={apiStatus} mode={mode} onModeChange={changeMode} onSearch={openSymbol} onToggleWatchlist={() => setWatchlistCollapsed((value) => !value)} onToggleInsight={() => setInsightCollapsed((value) => !value)} accountEmail={account?.email} onOpenAccount={() => setAccountOpen(true)} />
+    <GlobalHeader apiStatus={apiStatus} mode={mode} onModeChange={changeMode} theme={theme} onToggleTheme={toggleTheme} onSearch={openSymbol} onToggleWatchlist={() => setWatchlistCollapsed((value) => !value)} onToggleInsight={() => setInsightCollapsed((value) => !value)} accountEmail={account?.email} onOpenAccount={() => setAccountOpen(true)} />
     <Watchlist stocks={watchlist} selected={selected} onSelect={(symbol) => { setSelected(symbol); setWorkspace('analysis'); }} onChange={setWatchlist} savedSymbols={savedSymbols} syncError={watchlistSyncError} onAddSymbol={async (symbol) => { try { await addDesktopWatchlist(symbol); setSavedSymbols((current) => current.includes(symbol) ? current : [...current, symbol]); setWatchlistSyncError(''); } catch (reason) { const message = reason instanceof Error ? reason.message : 'Watchlist tidak dapat disinkronkan.'; setWatchlistSyncError(message); throw reason; } }} />
     <PanelResizeHandle side="left" onResize={resizeWatchlist} />
     <main className="workspace-main">{workspaceContent()}</main>
