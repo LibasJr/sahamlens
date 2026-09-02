@@ -43,8 +43,12 @@ describe('Desktop v0.1.3 screenshot regressions', () => {
     expect(backtest).toContain('requestAnimationFrame');
     expect(backtest).not.toContain('.at(');
   });
-  it('menjaga metadata installer pada 0.1.3', () => {
+  it('menjaga metadata installer pada 0.1.3 tanpa mengubah versi dependency Cargo', () => {
     expect(JSON.parse(read('desktop/package.json')).version).toBe('0.1.3');
     expect(JSON.parse(read('desktop/src-tauri/tauri.conf.json')).version).toBe('0.1.3');
+    const lock = read('desktop/src-tauri/Cargo.lock');
+    expect(lock).toMatch(/name = "sahamlens-desktop"\nversion = "0\.1\.3"/);
+    expect(lock).toMatch(/name = "serde_repr"\nversion = "0\.1\.21"/);
+    expect(lock).not.toContain('name = "serde_repr"\nversion = "0.1.31"');
   });
 });
