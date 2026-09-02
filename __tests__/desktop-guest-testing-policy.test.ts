@@ -25,10 +25,11 @@ describe('policy desktop selama masa testing', () => {
 
   it('meneruskan policy akun melalui satu helper ke seluruh FeatureWorkspace', () => {
     expect(main.match(/<FeatureWorkspace/g)).toHaveLength(1);
-    expect(main).toContain('featureWorkspace(radarTab)');
+    expect(main).not.toContain('featureWorkspace(radarTab)');
     expect(main).toContain('featureWorkspace(analysisTab)');
     expect(main).toContain('featureWorkspace(toolTab)');
     expect(main).toContain('featureWorkspace(calendarTab)');
+    expect(main).toContain("workspace === 'intelligence'");
   });
 
   it('mengganti mode tampilan Pro menjadi Expert dan memigrasikan preferensi lama', () => {
