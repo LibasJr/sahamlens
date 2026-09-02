@@ -1,11 +1,10 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { cookies } from 'next/headers';
 import { type NextRequest } from 'next/server';
 import { runController } from '@/shared/http/next-response.adapter';
-import { ForbiddenError, ValidationError } from '@/shared/errors/app-error';
-import { isAdminFromRequestCookies } from '@/modules/user';
+import { ValidationError } from '@/shared/errors/app-error';
+import { requireAdminSession } from '@/shared/auth/admin-session';
 import {
   DEFAULT_TPCL_HISTORY_RANGE,
   isTpclHistoryRange,
@@ -17,7 +16,7 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(req: NextRequest) {
   return runController(async () => {
-    if (!await isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
+    await requireAdminSession();
 
     const rawRange = req.nextUrl.searchParams.get('range') ?? DEFAULT_TPCL_HISTORY_RANGE;
     if (!isTpclHistoryRange(rawRange)) {

@@ -94,7 +94,8 @@ public sealed partial class MainWindow : Window
         Loading.IsActive = true; StateBar.IsOpen = false; DataPreview.Text = string.Empty; NativeContent.Content = null; DataPreview.Visibility = Visibility.Collapsed;
         try
         {
-            if (module.Id == "news") NativeContent.Content = new NewsView(api);
+            if (module.Workspace == WorkspaceId.Admin) NativeContent.Content = new AdminModuleView(api, module);
+            else if (module.Id == "news") NativeContent.Content = new NewsView(api);
             else if (module.Id is "technical" or "backtest")
             {
                 var chartModule = ProductCatalog.Get("technical");
