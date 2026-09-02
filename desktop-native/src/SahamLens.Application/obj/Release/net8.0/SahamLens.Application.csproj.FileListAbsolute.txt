@@ -1,0 +1,16 @@
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/bin/Release/net8.0/SahamLens.Application.deps.json
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/bin/Release/net8.0/SahamLens.Application.dll
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/bin/Release/net8.0/SahamLens.Application.pdb
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/bin/Release/net8.0/SahamLens.Domain.dll
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/bin/Release/net8.0/SahamLens.Domain.pdb
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLens.Application.csproj.AssemblyReference.cache
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLens.Application.GeneratedMSBuildEditorConfig.editorconfig
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLens.Application.AssemblyInfoInputs.cache
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLens.Application.AssemblyInfo.cs
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLens.Application.csproj.CoreCompileInputs.cache
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLens.Application.sourcelink.json
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLen.E1C4BC37.Up2Date
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLens.Application.dll
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/refint/SahamLens.Application.dll
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/SahamLens.Application.pdb
+/home/lens/wt-desktop-v014/desktop-native/src/SahamLens.Application/obj/Release/net8.0/ref/SahamLens.Application.dll

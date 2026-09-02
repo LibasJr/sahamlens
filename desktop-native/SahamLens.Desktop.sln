@@ -1,0 +1,57 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{DFAD173D-A555-4BE3-B109-81D1AB5E8913}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SahamLens.Domain", "src\SahamLens.Domain\SahamLens.Domain.csproj", "{0E59BE17-6578-491D-A4BC-4589A3493D4C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SahamLens.Application", "src\SahamLens.Application\SahamLens.Application.csproj", "{6CEAC8A9-19F5-4BCE-922D-D077609E2E7A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SahamLens.Infrastructure", "src\SahamLens.Infrastructure\SahamLens.Infrastructure.csproj", "{DD08B28C-1B99-4C44-BE39-D20553D1AE2B}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{05324A1D-36FB-4C47-8DBA-28AABC213CF2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SahamLens.Tests", "tests\SahamLens.Tests\SahamLens.Tests.csproj", "{85D9193B-819C-4B7A-A5C7-12A841ED9955}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SahamLens.WinUI", "src\SahamLens.WinUI\SahamLens.WinUI.csproj", "{549CC314-9ECD-4503-BE1C-79A580C71323}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0E59BE17-6578-491D-A4BC-4589A3493D4C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0E59BE17-6578-491D-A4BC-4589A3493D4C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0E59BE17-6578-491D-A4BC-4589A3493D4C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0E59BE17-6578-491D-A4BC-4589A3493D4C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6CEAC8A9-19F5-4BCE-922D-D077609E2E7A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6CEAC8A9-19F5-4BCE-922D-D077609E2E7A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6CEAC8A9-19F5-4BCE-922D-D077609E2E7A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6CEAC8A9-19F5-4BCE-922D-D077609E2E7A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD08B28C-1B99-4C44-BE39-D20553D1AE2B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD08B28C-1B99-4C44-BE39-D20553D1AE2B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD08B28C-1B99-4C44-BE39-D20553D1AE2B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD08B28C-1B99-4C44-BE39-D20553D1AE2B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{85D9193B-819C-4B7A-A5C7-12A841ED9955}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{85D9193B-819C-4B7A-A5C7-12A841ED9955}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{85D9193B-819C-4B7A-A5C7-12A841ED9955}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{85D9193B-819C-4B7A-A5C7-12A841ED9955}.Release|Any CPU.Build.0 = Release|Any CPU
+		{549CC314-9ECD-4503-BE1C-79A580C71323}.Debug|Any CPU.ActiveCfg = Debug|x64
+		{549CC314-9ECD-4503-BE1C-79A580C71323}.Debug|Any CPU.Build.0 = Debug|x64
+		{549CC314-9ECD-4503-BE1C-79A580C71323}.Release|Any CPU.ActiveCfg = Release|x64
+		{549CC314-9ECD-4503-BE1C-79A580C71323}.Release|Any CPU.Build.0 = Release|x64
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{0E59BE17-6578-491D-A4BC-4589A3493D4C} = {DFAD173D-A555-4BE3-B109-81D1AB5E8913}
+		{6CEAC8A9-19F5-4BCE-922D-D077609E2E7A} = {DFAD173D-A555-4BE3-B109-81D1AB5E8913}
+		{DD08B28C-1B99-4C44-BE39-D20553D1AE2B} = {DFAD173D-A555-4BE3-B109-81D1AB5E8913}
+		{85D9193B-819C-4B7A-A5C7-12A841ED9955} = {05324A1D-36FB-4C47-8DBA-28AABC213CF2}
+		{549CC314-9ECD-4503-BE1C-79A580C71323} = {DFAD173D-A555-4BE3-B109-81D1AB5E8913}
+	EndGlobalSection
+EndGlobal
