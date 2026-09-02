@@ -22,6 +22,30 @@ public sealed record ScreenerStock
     [JsonPropertyName("atr_pct")] public decimal? AtrPercent { get; init; }
 }
 
+public sealed record ScreenerAnalysis
+{
+    [JsonPropertyName("top_10_stocks")] public IReadOnlyList<ScreenerStock> Stocks { get; init; } = [];
+    [JsonPropertyName("total_count")] public int TotalCount { get; init; }
+    [JsonPropertyName("locked_count")] public int LockedCount { get; init; }
+    [JsonPropertyName("is_guest_limited")] public bool IsGuestLimited { get; init; }
+}
+public sealed record ScreenerResult
+{
+    [JsonPropertyName("profile")] public string Profile { get; init; } = "Moderat";
+    [JsonPropertyName("analysis")] public ScreenerAnalysis Analysis { get; init; } = new();
+    [JsonPropertyName("availableSectors")] public IReadOnlyList<string> AvailableSectors { get; init; } = [];
+}
+public sealed record ChartResult
+{
+    [JsonPropertyName("ticker")] public string Ticker { get; init; } = "";
+    [JsonPropertyName("history")] public IReadOnlyList<Candle> History { get; init; } = [];
+}
+public sealed record NewsResult
+{
+    [JsonPropertyName("items")] public IReadOnlyList<NewsItem> Items { get; init; } = [];
+    [JsonPropertyName("sentimentSource")] public string SentimentSource { get; init; } = "";
+}
+
 public sealed record NewsItem
 {
     [JsonPropertyName("title")] public string Title { get; init; } = "";

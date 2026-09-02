@@ -81,6 +81,26 @@ public sealed class ArchitectureTests
         Assert.Contains("ReplayProgress", source);
     }
 
+    [Fact]
+    public async Task Typed_client_unwraps_standard_data_envelope()
+    {
+        var handler = new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"data\":{\"ticker\":\"BBCA.JK\",\"history\":[{\"time\":\"2026-09-01\",\"open\":8000,\"high\":8200,\"low\":7900,\"close\":8150,\"volume\":1000}]}}", Encoding.UTF8, "application/json") });
+        var api = new SahamLensApiClient(new HttpClient(handler) { BaseAddress = new Uri("https://sahamlens.id") }, new MemorySessionStore());
+        var chart = await api.SendAsync<ChartResult>(ProductCatalog.Get("technical"), "BBCA");
+        Assert.Equal("BBCA.JK", chart.Ticker);
+        Assert.Single(chart.History);
+        Assert.Equal(8150, chart.History[0].Close);
+    }
+
+    [Fact]
+    public void Key_modules_have_dedicated_native_renderers()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.WinUI/Views/ScreenerView.xaml")));
+        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.WinUI/Views/NewsView.cs")));
+        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.WinUI/Controls/NativeChartControl.xaml")));
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(responder(request));

@@ -8,6 +8,16 @@ namespace SahamLens.Infrastructure;
 
 public sealed class SahamLensApiClient(HttpClient http, ISessionStore sessions) : ISahamLensApi
 {
+    private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+
+    public async Task<T> SendAsync<T>(ProductModule module, string? ticker = null, object? body = null, CancellationToken cancellationToken = default)
+    {
+        using var document = await SendAsync(module, ticker, body, cancellationToken);
+        var root = document.RootElement;
+        var payload = root.TryGetProperty("data", out var data) ? data : root;
+        return payload.Deserialize<T>(Json) ?? throw new ApiException(500, $"Payload {module.Label} tidak sesuai kontrak native.");
+    }
+
     public async Task<JsonDocument> SendAsync(ProductModule module, string? ticker = null, object? body = null, CancellationToken cancellationToken = default)
     {
         var session = await sessions.LoadAsync(cancellationToken);

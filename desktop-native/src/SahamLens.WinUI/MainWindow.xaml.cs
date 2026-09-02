@@ -5,6 +5,8 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using SahamLens.Application;
 using SahamLens.Domain;
+using SahamLens.WinUI.Controls;
+using SahamLens.WinUI.Views;
 
 namespace SahamLens.WinUI;
 
@@ -81,17 +83,30 @@ public sealed partial class MainWindow : Window
             button.Click += async (_, _) => await LoadModuleAsync(module);
             ModuleBar.PrimaryCommands.Add(button);
         }
+        NativeContent.Content = selected == WorkspaceId.Screener ? new ScreenerView(api) : null;
+        DataPreview.Visibility = selected == WorkspaceId.Screener ? Visibility.Collapsed : Visibility.Visible;
         DataPreview.Text = "Pilih modul untuk memuat data native SahamLens.";
         StateBar.IsOpen = false;
     }
 
     private async Task LoadModuleAsync(ProductModule module)
     {
-        Loading.IsActive = true; StateBar.IsOpen = false; DataPreview.Text = string.Empty;
+        Loading.IsActive = true; StateBar.IsOpen = false; DataPreview.Text = string.Empty; NativeContent.Content = null; DataPreview.Visibility = Visibility.Collapsed;
         try
         {
-            using var result = await api.SendAsync(module, module.RequiresTicker ? ticker : null);
-            DataPreview.Text = JsonSerializer.Serialize(result.RootElement, new JsonSerializerOptions { WriteIndented = true });
+            if (module.Id == "news") NativeContent.Content = new NewsView(api);
+            else if (module.Id is "technical" or "backtest")
+            {
+                var chartModule = ProductCatalog.Get("technical");
+                var result = await api.SendAsync<ChartResult>(chartModule, ticker);
+                var chart = new NativeChartControl(); chart.SetData(ticker, result.History, module.Id == "backtest"); NativeContent.Content = chart;
+            }
+            else
+            {
+                using var result = await api.SendAsync(module, module.RequiresTicker ? ticker : null);
+                DataPreview.Visibility = Visibility.Visible;
+                DataPreview.Text = JsonSerializer.Serialize(result.RootElement, new JsonSerializerOptions { WriteIndented = true });
+            }
             StateBar.Severity = InfoBarSeverity.Success; StateBar.Title = module.Label; StateBar.Message = "Data API berhasil dimuat."; StateBar.IsOpen = true;
         }
         catch (AccessDeniedException error)
