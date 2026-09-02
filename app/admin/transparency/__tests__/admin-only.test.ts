@@ -42,7 +42,8 @@ describe('transparansi public/admin split', () => {
     expect(
       adminRoute,
       '/api/admin/transparency terbuka - gerbang halaman jadi hiasan, data tetap bisa diambil langsung',
-    ).toMatch(/if\s*\(\s*!\s*await isAdminFromRequestCookies[\s\S]{0,80}?throw new ForbiddenError\(\)/);
+    ).toContain('await requireAdminSession()');
+    expect(adminRoute).not.toContain('isAdminFromRequestCookies');
   });
 
   it('endpoint admin bersesi tidak boleh di-cache CDN sebagai publik', () => {

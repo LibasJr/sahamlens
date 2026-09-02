@@ -1,0 +1,50 @@
+name: Desktop Native Windows
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'desktop-native/**'
+      - '.github/workflows/desktop-native.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'desktop-native/**'
+      - '.github/workflows/desktop-native.yml'
+
+jobs:
+  core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: desktop-native/**/*.csproj
+      - run: dotnet restore desktop-native/tests/SahamLens.Tests/SahamLens.Tests.csproj
+      - run: dotnet build desktop-native/tests/SahamLens.Tests/SahamLens.Tests.csproj -c Release --no-restore -p:BuildInParallel=false
+      - run: dotnet test desktop-native/tests/SahamLens.Tests/SahamLens.Tests.csproj -c Release --no-build --maxcpucount:1
+
+  winui-x64:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+          cache: true
+          cache-dependency-path: desktop-native/**/*.csproj
+      - name: Restore WinUI
+        run: dotnet restore desktop-native/src/SahamLens.WinUI/SahamLens.WinUI.csproj -r win-x64
+      - name: Build WinUI
+        run: dotnet build desktop-native/src/SahamLens.WinUI/SahamLens.WinUI.csproj -c Release -r win-x64 --no-restore -p:Platform=x64
+      - name: Publish native x64
+        run: dotnet publish desktop-native/src/SahamLens.WinUI/SahamLens.WinUI.csproj -c Release -r win-x64 --self-contained true --no-restore -p:Platform=x64 -o desktop-native/artifacts/win-x64
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SahamLens-Native-win-x64
+          path: desktop-native/artifacts/win-x64/**
+          if-no-files-found: error

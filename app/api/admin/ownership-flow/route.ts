@@ -1,10 +1,8 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { cookies } from 'next/headers';
 import { runController } from '@/shared/http/next-response.adapter';
-import { ForbiddenError } from '@/shared/errors/app-error';
-import { isAdminFromRequestCookies } from '@/modules/user';
+import { requireAdminSession } from '@/shared/auth/admin-session';
 import { getOwnershipFlowMonitor } from '@/modules/ownership-flow/service/ownership-flow-monitor.service';
 
 // STATUS INGESTION OWNERSHIP FLOW untuk panel admin.
@@ -18,7 +16,7 @@ export const maxDuration = 60;
 
 export async function GET() {
   return runController(async () => {
-    if (!(await isAdminFromRequestCookies(await cookies()))) throw new ForbiddenError();
+    await requireAdminSession();
     const monitor = await getOwnershipFlowMonitor();
     return { status: 200, body: monitor };
   });
