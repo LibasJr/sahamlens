@@ -1,6 +1,6 @@
 [package]
 name = "sahamlens-desktop"
-version = "0.1.0"
+version = "0.1.1"
 description = "SahamLens desktop research client"
 authors = ["SahamLens"]
 edition = "2021"

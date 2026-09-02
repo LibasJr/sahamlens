@@ -82,7 +82,7 @@ function majorityBearish(day: TickerDayData, filters: IndicatorName[]): boolean 
 }
 
 export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateInput): SimulateResult {
-  const { filters, modal, periodMonths, endDate } = input;
+  const { filters, modal, periodMonths, endDate, symbols } = input;
   const tradingDays = periodMonths * TRADING_DAYS_PER_MONTH;
 
   // Tanggal string YYYY-MM-DD aman dibandingkan leksikografis (zero-padded, urutan
@@ -94,7 +94,9 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     // return/alpha dan kurva benchmark fiktif. Biarkan request gagal secara eksplisit.
     throw new Error('BACKTEST_BENCHMARK_UNAVAILABLE');
   }
+  const requestedSymbols = symbols?.length ? new Set(symbols) : null;
   const allIndexes = cache.tickers
+    .filter((series) => !requestedSymbols || requestedSymbols.has(series.ticker))
     .map((series) => ({ ticker: series.ticker, index: buildTickerIndex(series) }));
   const tickerIndexes = allIndexes
     // Yang dihitung adalah bar DI DALAM jendela, bukan total bar yang dipunya ticker:
