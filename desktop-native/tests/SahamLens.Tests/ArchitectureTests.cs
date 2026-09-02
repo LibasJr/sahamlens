@@ -53,6 +53,15 @@ public sealed class ArchitectureTests
         Assert.Equal(847, result.RootElement.GetProperty("analysis").GetProperty("total_count").GetInt32());
     }
 
+    [Fact]
+    public void WinUI_app_qualifies_framework_application_to_avoid_domain_namespace_collision()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var source = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/App.xaml.cs"));
+        Assert.Contains("Microsoft.UI.Xaml.Application", source);
+        Assert.DoesNotContain("class App : Application", source);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(responder(request));

@@ -5,7 +5,7 @@ using SahamLens.Infrastructure;
 
 namespace SahamLens.WinUI;
 
-public partial class App : Application
+public partial class App : Microsoft.UI.Xaml.Application
 {
     private Window? window;
     public IServiceProvider Services { get; }
