@@ -60,6 +60,8 @@ public sealed class ArchitectureTests
         var source = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/App.xaml.cs"));
         Assert.Contains("Microsoft.UI.Xaml.Application", source);
         Assert.DoesNotContain("class App : Application", source);
+        Assert.DoesNotContain("(Brush)Application.Current", source);
+        Assert.DoesNotContain("Windows.UI.Text.FontWeights", source);
     }
 
     [Fact]

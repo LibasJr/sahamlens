@@ -12,7 +12,7 @@ public sealed partial class ScreenerView : UserControl
     private async void OnRefresh(object sender, RoutedEventArgs e) => await LoadAsync();
     private async Task LoadAsync()
     {
-        Loading.IsActive = true;
+        LoadingRing.IsActive = true;
         try
         {
             var profile = ((ComboBoxItem)Profile.SelectedItem).Content.ToString()!;
@@ -27,6 +27,6 @@ public sealed partial class ScreenerView : UserControl
             Sector.SelectedIndex = 0;
         }
         catch (Exception error) { GuestWarning.Severity = InfoBarSeverity.Error; GuestWarning.Title = "Screener gagal dimuat"; GuestWarning.Message = error.Message; GuestWarning.IsOpen = true; }
-        finally { Loading.IsActive = false; }
+        finally { LoadingRing.IsActive = false; }
     }
 }

@@ -7,7 +7,7 @@
       <Button Grid.Column="3" Content="Refresh" VerticalAlignment="Bottom" Click="OnRefresh"/>
     </Grid>
     <InfoBar x:Name="GuestWarning" Severity="Warning" IsClosable="False" IsOpen="False" Title="Sesi guest terdeteksi" Message="Masuk dengan akun Anda untuk membuka hasil penuh."/>
-    <ProgressRing x:Name="Loading" IsActive="False" HorizontalAlignment="Left"/>
+    <ProgressRing x:Name="LoadingRing" IsActive="False" HorizontalAlignment="Left"/>
     <ListView x:Name="Results" SelectionMode="Single">
       <ListView.Header><Grid ColumnDefinitions="100,2*,1.5*,120,100,100,100" Padding="12"><TextBlock Text="Ticker"/><TextBlock Grid.Column="1" Text="Nama"/><TextBlock Grid.Column="2" Text="Sektor"/><TextBlock Grid.Column="3" Text="Sinyal"/><TextBlock Grid.Column="4" Text="Harga"/><TextBlock Grid.Column="5" Text="PER"/><TextBlock Grid.Column="6" Text="PBV"/></Grid></ListView.Header>
       <ListView.ItemTemplate><DataTemplate><Grid ColumnDefinitions="100,2*,1.5*,120,100,100,100" Padding="12,9"><TextBlock Text="{Binding Ticker}" FontWeight="SemiBold"/><TextBlock Grid.Column="1" Text="{Binding Name}"/><TextBlock Grid.Column="2" Text="{Binding Sector}"/><TextBlock Grid.Column="3" Text="{Binding Signal}"/><TextBlock Grid.Column="4" Text="{Binding Entry}"/><TextBlock Grid.Column="5" Text="{Binding Per}"/><TextBlock Grid.Column="6" Text="{Binding Pbv}"/></Grid></DataTemplate></ListView.ItemTemplate>
