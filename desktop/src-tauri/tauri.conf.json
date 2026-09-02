@@ -10,5 +10,5 @@
       "csp": "default-src 'self'; connect-src 'self' https://sahamlens.id; img-src 'self' asset: data:; font-src 'self'; style-src 'self' 'unsafe-inline'"
     }
   },
-  "bundle": { "active": true, "targets": "all", "icon": ["icons/sahamlens-0.1.1.png"] }
+  "bundle": { "active": true, "targets": "all", "icon": ["icons/icon.png", "icons/icon.ico"] }
 }
