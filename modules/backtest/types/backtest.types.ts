@@ -51,6 +51,8 @@ export interface SimulateInput {
    * tanpa ini setiap periode selalu berakhir di hari yang sama, sehingga hasil 3/6/12/24
    * bulan saling tumpang tindih dan bukan empat bukti yang saling bebas. */
   endDate?: string;
+  /** Optional fixed universe for an issuer-focused backtest. Tickers use Yahoo format. */
+  symbols?: string[];
 }
 
 export interface TradeRecord {
