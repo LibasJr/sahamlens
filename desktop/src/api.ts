@@ -59,8 +59,9 @@ export async function addDesktopWatchlist(symbol: string) { return requestFeatur
 export async function removeDesktopWatchlist(symbol: string) { return requestFeature(`/api/watchlist/desktop?symbol=${encodeURIComponent(symbol)}`, { method: 'DELETE' }); }
 export type PublicChart = { ticker: string; history: { time: string; open: number; high: number; low: number; close: number; volume: number }[] };
 export async function getPublicChart(ticker: string, timeframe: string, baseUrl = API_BASE_URL) { return getCachedJson<PublicChart>(`${baseUrl}/api/public-chart/${encodeURIComponent(ticker)}?tf=${timeframe}`, 30_000); }
-export type ScreenerRow = { ticker: string; name: string; entry: number | null; signal: string | null; decision?: { action?: string } | null };
-export async function getScreener(baseUrl = API_BASE_URL) { const payload = await getCachedJson<{ analysis?: { top_10_stocks?: ScreenerRow[] }; top_10_stocks?: ScreenerRow[] }>(`${baseUrl}/api/screener`, 30_000); return payload.analysis?.top_10_stocks ?? payload.top_10_stocks ?? []; }
+export type ScreenerRow = { ticker: string; name: string; sector?: string; entry: number | null; signal: string | null; decision?: { action?: string } | null; per?: number | null; pbv?: number | null; rev_growth_ttm?: string | null; roe?: string | number | null; der?: string | number | null; div_yield?: string | number | null; bandarmology?: string | null; moat?: string | null; pattern_tag?: string | null; sentiment?: string | null; week52_high?: string | number | null; atr_pct?: number | null; market_cap?: number | null; adv20_idr?: number | null };
+export type ScreenerPayload = { profile?: string; analysis?: { top_10_stocks?: ScreenerRow[]; total_count?: number; locked_count?: number }; top_10_stocks?: ScreenerRow[]; availableSectors?: string[]; momentumScored?: boolean; _meta?: { freshness?: string; cachedAgeSec?: number } };
+export async function getScreener(params: URLSearchParams = new URLSearchParams(), baseUrl = API_BASE_URL) { return getCachedJson<ScreenerPayload>(`${baseUrl}/api/screener?${params.toString()}`, 30_000); }
 export async function requestFeature(path: string, init: RequestInit = {}, baseUrl = API_BASE_URL) {
   let token: string | null = null;
   try {
