@@ -85,10 +85,16 @@ export async function runBacktestSimulation(
     return { ok: false, status: 400, body: { error: 'Periode tidak valid' } };
   }
 
+  const rawSymbol = typeof body.symbol === 'string' ? body.symbol.trim().toUpperCase() : '';
+  if (rawSymbol && !/^[A-Z]{1,10}(?:\.JK)?$/.test(rawSymbol)) {
+    return { ok: false, status: 400, body: { error: 'Ticker backtest tidak valid' } };
+  }
+  const symbol = rawSymbol ? (rawSymbol.endsWith('.JK') ? rawSymbol : `${rawSymbol}.JK`) : undefined;
+
   const cache = await getCache(options.cachedBacktest);
   let result;
   try {
-    result = simulateBacktest(cache, { filters, modal, periodMonths: period });
+    result = simulateBacktest(cache, { filters, modal, periodMonths: period, symbols: symbol ? [symbol] : undefined });
   } catch (error) {
     if (error instanceof Error && error.message === 'BACKTEST_BENCHMARK_UNAVAILABLE') {
       return {

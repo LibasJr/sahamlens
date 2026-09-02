@@ -1,6 +1,6 @@
-import { CalendarDays, ChartNoAxesCombined, Crosshair, LayoutDashboard, Radar, ShieldCheck, Sparkles, Star, Wrench } from 'lucide-react';
+import { CalendarDays, ChartNoAxesCombined, Crosshair, LayoutDashboard, Radar, Settings, ShieldCheck, Sparkles, Star, Wrench } from 'lucide-react';
 
-export type Workspace = 'home' | 'market' | 'intelligence' | 'radar' | 'watchlist' | 'analysis' | 'tools' | 'calendar' | 'admin';
+export type Workspace = 'home' | 'market' | 'intelligence' | 'radar' | 'watchlist' | 'analysis' | 'tools' | 'calendar' | 'admin' | 'settings';
 
 const items: Array<{ id: Workspace; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'home', label: 'Beranda', icon: LayoutDashboard },
@@ -11,6 +11,7 @@ const items: Array<{ id: Workspace; label: string; icon: typeof LayoutDashboard 
   { id: 'analysis', label: 'Analisis Saham', icon: Crosshair },
   { id: 'tools', label: 'Tools', icon: Wrench },
   { id: 'calendar', label: 'Kalender & News', icon: CalendarDays },
+  { id: 'settings', label: 'Pengaturan Akun', icon: Settings },
 ];
 
 export function AppNavigation({ active, onChange, isAdmin = false }: { active: Workspace; onChange: (workspace: Workspace) => void; isAdmin?: boolean }) {
