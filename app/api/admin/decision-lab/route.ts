@@ -1,8 +1,7 @@
 import { guard } from '@/lib/sahamLensGuard';
 guard();
 
-import { cookies } from 'next/headers';
-import { isAdminFromRequestCookies } from '@/modules/user';
+import { requireAdminSession } from '@/shared/auth/admin-session';
 import {
   configurePaperAccount,
   decisionAgentActionSchema,
@@ -18,7 +17,7 @@ import {
   importStockbitCsv,
   runOfflinePolicyLearning,
 } from '@/modules/decision-agent';
-import { DataUnavailableError, ForbiddenError, ValidationError } from '@/shared/errors/app-error';
+import { DataUnavailableError, ValidationError } from '@/shared/errors/app-error';
 import { runController } from '@/shared/http/next-response.adapter';
 import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
 import { parseOrThrow } from '@/shared/validation/parse-or-throw';
@@ -27,7 +26,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
 async function assertAdmin(): Promise<void> {
-  if (!(await isAdminFromRequestCookies(await cookies()))) throw new ForbiddenError();
+  await requireAdminSession();
 }
 
 export async function GET(request: Request) {

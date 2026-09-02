@@ -53,7 +53,8 @@ describe('transparency public/admin split', () => {
   });
 
   it('diagnostik penuh tetap berada di endpoint admin yang diautentikasi dan tidak public-cache', () => {
-    expect(adminRoute).toMatch(/if\s*\(\s*!\s*await isAdminFromRequestCookies[\s\S]{0,80}?throw new ForbiddenError\(\)/);
+    expect(adminRoute).toContain('await requireAdminSession()');
+    expect(adminRoute).not.toContain('isAdminFromRequestCookies');
     expect(adminRoute).toContain('getTransparencyData');
     expect(adminRoute).not.toContain('publicCacheHeaders');
     expect(adminClient).toContain("apiRequest<TransparencyData>('/api/admin/transparency')");
