@@ -8,6 +8,7 @@ fn stronghold_key(password: &[u8]) -> Vec<u8> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_http::init())
+        .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(
             tauri_plugin_stronghold::Builder::new(|password| stronghold_key(password.as_ref()))
                 .build(),
