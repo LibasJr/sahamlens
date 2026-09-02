@@ -11,10 +11,11 @@ const header = read('desktop/src/components/GlobalHeader.tsx');
 const rust = read('desktop/src-tauri/src/lib.rs');
 
  describe('Desktop v0.1.2 contract', () => {
-  it('menjaga metadata versi desktop selaras', () => {
-    expect(JSON.parse(read('desktop/package.json')).version).toBe('0.1.2');
-    expect(JSON.parse(read('desktop/src-tauri/tauri.conf.json')).version).toBe('0.1.2');
-    expect(read('desktop/src-tauri/Cargo.toml')).toContain('version = "0.1.2"');
+  it('menjaga metadata versi desktop selaras dan tidak mundur dari v0.1.2', () => {
+    const version = JSON.parse(read('desktop/package.json')).version as string;
+    expect(version.localeCompare('0.1.2', undefined, { numeric: true })).toBeGreaterThanOrEqual(0);
+    expect(JSON.parse(read('desktop/src-tauri/tauri.conf.json')).version).toBe(version);
+    expect(read('desktop/src-tauri/Cargo.toml')).toContain(`version = "${version}"`);
   });
 
   it('memakai struktur navigasi tunggal tanpa menu Radar, Signal, Breadth, atau Watchlist ganda', () => {

@@ -36,6 +36,7 @@ import './calendar-workspace.css';
 import './radar.css';
 import './visual-polish.css';
 import './v012.css';
+import './v013.css';
 
 export type Ticker = { symbol: string; name: string; price: number | null; change: number | null };
 const analysisTabs = ['overview', 'technical', 'fundamental', 'dcf', 'earnings', 'ownership', 'backtest', 'compare'];
@@ -43,8 +44,9 @@ const toolTabs = ['compare', 'checklist', 'position-sizing', 'dividend', 'risk']
 const calendarTabs = ['calendar', 'news', 'macro'];
 const researchTabs = ['analysis', 'consensus', 'bandarmology', 'tools'];
 
-function featureFor(id: string) { return desktopFeatures.find((feature) => feature.id === id) ?? desktopFeatures[0]; }
-function featureLabel(id: string) { if (id === 'overview') return 'Overview'; if (id === 'checklist') return 'Checklist'; if (id === 'position-sizing') return 'Position Sizing'; return featureFor(id).label; }
+function featureFor(id: string) { const match = desktopFeatures.find((feature) => feature.id === id); if (!match) throw new Error(`Fitur desktop tidak terdaftar: ${id}`); return match; }
+const explicitTabLabels: Record<string, string> = { overview: 'Overview', checklist: 'Checklist', 'position-sizing': 'Position Sizing', analysis: 'Analisis Emiten', consensus: 'Consensus Agent AI', bandarmology: 'Bandarmology', tools: 'Research Tools' };
+function featureLabel(id: string) { return explicitTabLabels[id] ?? featureFor(id).label; }
 function WorkspaceTitle({ kicker, title, description }: { kicker: string; title: string; description: string }) { return <div className="workspace-title"><div><span className="section-kicker">{kicker}</span><h1>{title}</h1><p>{description}</p></div></div>; }
 function FeatureTabs({ ids, active, onChange }: { ids: string[]; active: string; onChange: (id: string) => void }) { return <nav className="workspace-tabs" aria-label="Tab workspace">{ids.map((id) => <button key={id} className={active === id ? 'active' : ''} onClick={() => onChange(id)}>{featureLabel(id)}</button>)}</nav>; }
 
