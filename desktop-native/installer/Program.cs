@@ -12,7 +12,7 @@ try
     await using (var target = File.Create(payloadPath)) await source.CopyToAsync(target);
     ZipFile.ExtractToDirectory(payloadPath, installDirectory, true);
     File.Delete(payloadPath);
-    var executable = Path.Combine(installDirectory, "SahamLens.WinUI.exe");
+    var executable = Path.Combine(installDirectory, "SahamLens.Wpf.exe");
     Process.Start(new ProcessStartInfo(executable) { WorkingDirectory = installDirectory, UseShellExecute = true });
 }
 catch (Exception error)
