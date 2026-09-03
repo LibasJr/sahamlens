@@ -23,6 +23,16 @@ export type HybridNextEvidence =
   | 'NEED_FUNDAMENTAL_DETAIL'
   | 'NEED_FLOW_DETAIL';
 
+export interface HybridReviewSnapshot {
+  verdict: HybridVerdict;
+  confidence: HybridConfidence;
+  evidenceRefs: string[];
+  concerns: HybridConcern[];
+  nextEvidence: HybridNextEvidence[];
+  model: string;
+  reviewedAt: string;
+}
+
 export interface HybridSignalReview {
   verdict: HybridVerdict;
   confidence: HybridConfidence;
@@ -31,6 +41,8 @@ export interface HybridSignalReview {
   nextEvidence: HybridNextEvidence[];
   model: string;
   reviewedAt: string;
+  stage?: 'PRIMARY' | 'SELECTIVE_JUDGE';
+  primaryReview?: HybridReviewSnapshot;
   debate?: {
     bullEvidenceRefs: string[];
     bearEvidenceRefs: string[];
@@ -54,6 +66,9 @@ export interface HybridRunMeta {
   inputTokens: number | null;
   outputTokens: number | null;
   errorCode: string | null;
+  primaryModel?: string | null;
+  judgeModel?: string | null;
+  escalatedCount?: number;
 }
 export type LiveReadiness =
   | 'BLOCKED_MODEL_UNVALIDATED'
