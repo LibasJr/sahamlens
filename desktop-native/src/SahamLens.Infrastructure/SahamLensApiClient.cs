@@ -27,11 +27,14 @@ public sealed class SahamLensApiClient(HttpClient http, ISessionStore sessions) 
         return await SendCoreAsync(path, module.Method, body, session.Token, cancellationToken);
     }
 
-    public async Task<JsonDocument> GetAsync(string path, AccessLevel access = AccessLevel.Public, CancellationToken cancellationToken = default)
+    public Task<JsonDocument> GetAsync(string path, AccessLevel access = AccessLevel.Public, CancellationToken cancellationToken = default) =>
+        SendPathAsync(path, "GET", null, access, cancellationToken);
+
+    public async Task<JsonDocument> SendPathAsync(string path, string method = "GET", object? body = null, AccessLevel access = AccessLevel.Public, CancellationToken cancellationToken = default)
     {
         var session = await sessions.LoadAsync(cancellationToken);
         if (!AccessPolicy.Allows(session, access)) throw new AccessDeniedException($"Endpoint memerlukan akses {access}.");
-        return await SendCoreAsync(path, "GET", null, session.Token, cancellationToken);
+        return await SendCoreAsync(path, method, body, session.Token, cancellationToken);
     }
 
     public async Task<Session> LoginAsync(string email, string password, CancellationToken cancellationToken = default)
