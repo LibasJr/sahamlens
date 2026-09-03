@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Net.Http;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -89,6 +90,6 @@ public sealed class SettingsView : UserControl
             new TextBlock { Text = title, FontSize = 18, FontWeight = FontWeights.SemiBold },
             new TextBlock { Text = description, TextWrapping = TextWrapping.Wrap, Opacity = .72 });
         if (action is not null) Layout.AddSpaced(panel, 8, action);
-        return new Border { Padding = new Thickness(16), CornerRadius = new CornerRadius(10), Background = (Brush)Application.Current.Resources["CardBrush"], Child = panel };
+        return new Border { Padding = new Thickness(16), CornerRadius = new CornerRadius(10), Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"], Child = panel };
     }
 }

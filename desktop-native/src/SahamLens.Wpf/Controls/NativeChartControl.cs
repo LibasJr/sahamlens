@@ -82,7 +82,7 @@ public sealed class NativeChartControl : UserControl
         Grid.SetRow(indicatorPanel, 1); Grid.SetRow(chartCanvas, 2); Grid.SetRow(bottomRow, 3);
         body.Children.Add(headerRow); body.Children.Add(indicatorPanel); body.Children.Add(chartCanvas); body.Children.Add(bottomRow);
 
-        Content = new Border { Background = (Brush)Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(12), Padding = new Thickness(14), Child = body };
+        Content = new Border { Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(12), Padding = new Thickness(14), Child = body };
     }
 
     public void SetData(string ticker, IReadOnlyList<Candle> history, bool replay = false)

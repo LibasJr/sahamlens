@@ -71,7 +71,7 @@ public sealed class MainWindow : Window
         var pane = new Border
         {
             Width = 245,
-            Background = (Brush)Application.Current.Resources["CardBrush"],
+            Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"],
             Padding = new Thickness(12),
             Child = Layout.VStack(4,
                 new TextBlock { Text = "SAHAMLENS", FontWeight = FontWeights.Bold, FontSize = 20 },
@@ -82,15 +82,16 @@ public sealed class MainWindow : Window
         tickerSearch.KeyDown += OnTickerKeyDown;
         var accountButton = new Button { Content = "Akun" };
         accountButton.Click += OnAccountClick;
-        var statusChip = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 6, 10, 6), Background = (Brush)Application.Current.Resources["AppBackgroundBrush"], Margin = new Thickness(14, 0, 14, 0) };
+        var statusChip = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 6, 10, 6), Background = (Brush)System.Windows.Application.Current.Resources["AppBackgroundBrush"], Margin = new Thickness(14, 0, 14, 0) };
         statusChip.Child = Layout.HStack(7, apiDot, apiStatus);
 
-        var header = new Grid { Padding = new Thickness(20, 12, 20, 12) };
+        var header = new Grid();
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         Grid.SetColumn(statusChip, 1); Grid.SetColumn(accountButton, 2);
         header.Children.Add(tickerSearch); header.Children.Add(statusChip); header.Children.Add(accountButton);
+        var headerBorder = new Border { Padding = new Thickness(20, 12, 20, 12), Child = header };
 
         var body = Layout.VStack(16, workspaceKicker, workspaceTitle, workspaceDescription, moduleBar, stateBar, loading, nativeContent);
         body.Margin = new Thickness(24);
@@ -100,7 +101,7 @@ public sealed class MainWindow : Window
         var contentArea = new Grid();
         contentArea.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         contentArea.RowDefinitions.Add(new RowDefinition());
-        contentArea.Children.Add(header);
+        contentArea.Children.Add(headerBorder);
         contentArea.Children.Add(scroll);
         Grid.SetColumn(contentArea, 1);
 

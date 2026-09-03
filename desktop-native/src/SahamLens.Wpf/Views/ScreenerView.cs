@@ -69,7 +69,7 @@ public sealed class ScreenerView : UserControl
             Grid.SetColumn(text, i);
             grid.Children.Add(text);
         }
-        return new Border { BorderBrush = (System.Windows.Media.Brush)Application.Current.Resources["AppBorderBrush"], BorderThickness = new Thickness(0, 0, 0, 1), Child = grid };
+        return new Border { BorderBrush = (System.Windows.Media.Brush)System.Windows.Application.Current.Resources["AppBorderBrush"], BorderThickness = new Thickness(0, 0, 0, 1), Child = grid };
     }
 
     private async Task LoadAsync()

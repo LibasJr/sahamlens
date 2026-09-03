@@ -91,7 +91,7 @@ public sealed class StructuredModuleView : UserControl
             foreach (var item in node.EnumerateArray().Take(100))
             {
                 var card = new StackPanel(); Render(item, card, depth + 1);
-                var border = new Border { Background = (Brush)Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(10), Padding = new Thickness(12), Child = card, Margin = new Thickness(0, 0, 0, 6) };
+                var border = new Border { Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(10), Padding = new Thickness(12), Child = card, Margin = new Thickness(0, 0, 0, 6) };
                 host.Children.Add(border);
                 count++;
             }

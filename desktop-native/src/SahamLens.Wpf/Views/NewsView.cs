@@ -50,6 +50,6 @@ public sealed class NewsView : UserControl
         var body = Layout.VStack(7, header,
             new TextBlock { Text = item.Title, FontSize = 16, FontWeight = FontWeights.SemiBold, TextWrapping = TextWrapping.Wrap },
             new TextBlock { Text = item.Summary ?? "Ringkasan belum tersedia.", Opacity = .72, TextWrapping = TextWrapping.Wrap, MaxHeight = 60 });
-        return new Border { Background = (Brush)Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(10), Padding = new Thickness(14), Child = body };
+        return new Border { Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(10), Padding = new Thickness(14), Child = body };
     }
 }

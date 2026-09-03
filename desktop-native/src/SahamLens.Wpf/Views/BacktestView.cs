@@ -59,7 +59,7 @@ public sealed class BacktestView : UserControl
     {
         Padding = new Thickness(12),
         CornerRadius = new CornerRadius(8),
-        Background = (Brush)Application.Current.Resources["CardBrush"],
+        Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"],
         Child = Layout.VStack(2,
             new TextBlock { Text = label, Opacity = .65 },
             new TextBlock { Text = value, FontSize = 18, FontWeight = FontWeights.SemiBold })
