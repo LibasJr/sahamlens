@@ -68,3 +68,12 @@ public static class TechnicalIndicators
         new("williams", "Williams %R", 14, "oscillator")
     ];
 }
+
+public static class BacktestFilterCatalog
+{
+    public static readonly IReadOnlyList<string> Names =
+    [
+        "EMA 20/50 Cross", "Volume vs Avg 20D", "RSI 14", "MACD", "Volatility (ATR 14)",
+        "MA Trend IDX (20,50,200)", "Support & Resistance", "Market Flow Index", "SMA Score (5,10,20)"
+    ];
+}
