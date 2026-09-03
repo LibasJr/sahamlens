@@ -21,8 +21,6 @@ public sealed partial class MainWindow : Window
         this.api = api;
         this.sessions = sessions;
         InitializeComponent();
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(null);
         Activated += async (_, _) => await InitializeAsync();
     }
 

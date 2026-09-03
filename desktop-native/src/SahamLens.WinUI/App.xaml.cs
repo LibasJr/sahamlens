@@ -12,6 +12,11 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     public App()
     {
+        UnhandledException += (_, args) =>
+        {
+            try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "SahamLens-Native-crash.txt"), args.Exception.ToString()); }
+            catch { }
+        };
         InitializeComponent();
         var services = new ServiceCollection();
         services.AddSingleton<ISessionStore, WindowsSessionStore>();

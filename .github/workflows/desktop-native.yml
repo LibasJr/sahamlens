@@ -57,6 +57,12 @@ jobs:
             } while ($process.MainWindowHandle -eq 0 -and (Get-Date) -lt $deadline)
             if ($process.MainWindowHandle -eq 0) { throw 'Native WinUI window did not become ready' }
           } finally {
+            if (Test-Path "$env:TEMP/SahamLens-Native-crash.txt") { Get-Content "$env:TEMP/SahamLens-Native-crash.txt" }
+            if ($process.HasExited) {
+              Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-3)} -ErrorAction SilentlyContinue |
+                Where-Object { $_.Message -match 'SahamLens|WinUI|Microsoft.ui.xaml' } |
+                Select-Object -First 10 TimeCreated, ProviderName, Id, LevelDisplayName, Message | Format-List
+            }
             if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
           }
       - name: Build self-extracting installer
