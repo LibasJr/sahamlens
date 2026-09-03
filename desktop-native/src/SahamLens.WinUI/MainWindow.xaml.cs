@@ -9,21 +9,73 @@ using SahamLens.WinUI.Views;
 
 namespace SahamLens.WinUI;
 
-public sealed partial class MainWindow : Window
+public sealed class MainWindow : Window
 {
     private readonly ISahamLensApi api;
     private readonly ISessionStore sessions;
     private WorkspaceId workspace = WorkspaceId.Market;
     private string ticker = "BBCA";
+    private readonly NavigationView Navigation = new();
+    private readonly AutoSuggestBox TickerSearch = new();
+    private readonly NavigationViewItem AdminItem = new();
+    private readonly Microsoft.UI.Xaml.Shapes.Ellipse ApiDot = new();
+    private readonly TextBlock ApiStatus = new();
+    private readonly TextBlock WorkspaceKicker = new();
+    private readonly TextBlock WorkspaceTitle = new();
+    private readonly TextBlock WorkspaceDescription = new();
+    private readonly CommandBar ModuleBar = new();
+    private readonly InfoBar StateBar = new();
+    private readonly ProgressRing Loading = new();
+    private readonly ContentControl NativeContent = new();
 
     public MainWindow(ISahamLensApi api, ISessionStore sessions)
     {
         this.api = api;
         this.sessions = sessions;
-        InitializeComponent();
-        ExtendsContentIntoTitleBar = true;
-        SetTitleBar(null);
+        BuildShell();
         Activated += async (_, _) => await InitializeAsync();
+    }
+
+    private void BuildShell()
+    {
+        Title = "SahamLens Native";
+        Navigation.IsBackButtonVisible = NavigationViewBackButtonVisible.Collapsed;
+        Navigation.IsSettingsVisible = true;
+        Navigation.PaneDisplayMode = NavigationViewPaneDisplayMode.Left;
+        Navigation.OpenPaneLength = 245;
+        Navigation.SelectionChanged += OnNavigationChanged;
+        foreach (var item in new[]
+        {
+            new NavigationViewItem { Content = "Pasar Hari Ini", Tag = "Market" },
+            new NavigationViewItem { Content = "Screener", Tag = "Screener" },
+            new NavigationViewItem { Content = "Analisis Emiten", Tag = "Analysis" },
+            new NavigationViewItem { Content = "Market Intelligence", Tag = "Intelligence" },
+            new NavigationViewItem { Content = "Riset Emiten", Tag = "Research" }
+        }) Navigation.MenuItems.Add(item);
+        AdminItem.Content = "Admin Panel"; AdminItem.Tag = "Admin"; AdminItem.Visibility = Visibility.Collapsed;
+        Navigation.MenuItems.Add(AdminItem);
+
+        var header = new Grid { Padding = new Thickness(20, 12, 20, 12) };
+        header.ColumnDefinitions.Add(new ColumnDefinition());
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        TickerSearch.Width = 280; TickerSearch.PlaceholderText = "Cari emiten (BBCA)"; TickerSearch.QuerySubmitted += OnTickerSubmitted;
+        ApiDot.Width = 8; ApiDot.Height = 8; ApiDot.Fill = new SolidColorBrush(Colors.Orange);
+        ApiStatus.Text = "Memeriksa API";
+        var status = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, Margin = new Thickness(14, 0, 14, 0) };
+        status.Children.Add(ApiDot); status.Children.Add(ApiStatus); Grid.SetColumn(status, 1);
+        var account = new Button { Content = "Akun" }; account.Click += OnAccountClick; Grid.SetColumn(account, 2);
+        header.Children.Add(TickerSearch); header.Children.Add(status); header.Children.Add(account);
+
+        WorkspaceKicker.Foreground = new SolidColorBrush(Colors.YellowGreen);
+        WorkspaceTitle.FontSize = 28; WorkspaceDescription.TextWrapping = TextWrapping.Wrap;
+        Loading.Width = 36; Loading.Height = 36; Loading.HorizontalAlignment = HorizontalAlignment.Left;
+        var body = new StackPanel { Padding = new Thickness(24), Spacing = 16 };
+        foreach (var control in new UIElement[] { WorkspaceKicker, WorkspaceTitle, WorkspaceDescription, ModuleBar, StateBar, Loading, NativeContent }) body.Children.Add(control);
+        var layout = new Grid(); layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto }); layout.RowDefinitions.Add(new RowDefinition());
+        var scroll = new ScrollViewer { Content = body }; Grid.SetRow(scroll, 1); layout.Children.Add(header); layout.Children.Add(scroll);
+        Navigation.Content = layout;
+        Content = Navigation;
     }
 
     private async Task InitializeAsync()

@@ -23,6 +23,8 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.1" />
   </ItemGroup>
   <ItemGroup>
+    <Page Remove="MainWindow.xaml" />
+    <None Include="MainWindow.xaml" />
     <ProjectReference Include="..\SahamLens.Domain\SahamLens.Domain.csproj" />
     <ProjectReference Include="..\SahamLens.Application\SahamLens.Application.csproj" />
     <ProjectReference Include="..\SahamLens.Infrastructure\SahamLens.Infrastructure.csproj" />
