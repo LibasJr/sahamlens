@@ -8,7 +8,7 @@ import { getIdxIcSectorMap, getOpenPaperPositionTickers, hasActivePilotProtocol,
 import { logger } from '@/shared/logger/logger';
 import { isTradingDay } from '@/shared/calendar/idx-trading-calendar';
 import { buildDecisionSignal } from './decision-engine';
-import { notifyDecisionSignalTransitions } from './decision-notification.service';
+
 import { applyHybridAnalysis } from './hybrid-analyst.service';
 import {
   DECISION_AGENT_VERSION,
@@ -106,14 +106,8 @@ export async function runDecisionAgentScan(options: DecisionScanOptions): Promis
     hybrid: run.hybrid,
     signals: run.signals,
   });
-  if (options.trigger === 'SCHEDULED') {
-    try {
-      await notifyDecisionSignalTransitions(persisted.id);
-    } catch (err) {
-      // Alert adalah side effect sekunder: kegagalannya tidak boleh membatalkan
-      // evidence run yang sudah tersimpan atau scan AI Pick utama.
-      logger.error('Pemeriksaan notifikasi decision agent gagal', { module: 'decision-agent', runId: persisted.id, err });
-    }
-  }
+  // Decision Lab hanya menyimpan evidence/kandidat. Telegram dimiliki HERMES sebagai
+  // final decision gate agar satu perubahan tidak menghasilkan dua notifikasi yang
+  // dapat saling bertentangan. Jangan mengirim transisi Decision Lab dari sini.
   return persisted;
 }
