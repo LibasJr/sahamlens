@@ -8,8 +8,8 @@ namespace SahamLens.Wpf;
 public sealed class LoginWindow : Window
 {
     private readonly ISahamLensApi api;
-    private readonly TextBox email = new();
-    private readonly PasswordBox password = new();
+    private readonly TextBox email = Theme.Field(new TextBox());
+    private readonly PasswordBox password = Theme.Field(new PasswordBox());
     private readonly InfoBar error = new() { IsOpen = false, Severity = InfoSeverity.Error, IsClosable = false };
     private readonly LoadingRing progress = new();
     private readonly Button primary = new() { Content = "Masuk" };
@@ -21,6 +21,10 @@ public sealed class LoginWindow : Window
         SizeToContent = SizeToContent.WidthAndHeight;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        Background = Theme.Background;
+        Foreground = Theme.Foreground;
+        FontFamily = new System.Windows.Media.FontFamily("Segoe UI");
+        FontSize = 14;
 
         var cancel = new Button { Content = "Batal" };
         cancel.Click += (_, _) => { DialogResult = false; Close(); };
