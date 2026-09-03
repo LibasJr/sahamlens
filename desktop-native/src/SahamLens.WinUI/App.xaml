@@ -4,18 +4,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.ThemeDictionaries>
-                <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="AppSurfaceBrush" Color="#101515" />
-                    <SolidColorBrush x:Key="CardBrush" Color="#192020" />
-                    <SolidColorBrush x:Key="AccentBrush" Color="#D5FF45" />
-                </ResourceDictionary>
-                <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="AppSurfaceBrush" Color="#F3F5F2" />
-                    <SolidColorBrush x:Key="CardBrush" Color="#FFFFFF" />
-                    <SolidColorBrush x:Key="AccentBrush" Color="#587400" />
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
+            <SolidColorBrush x:Key="AppSurfaceBrush" Color="#101515" />
+            <SolidColorBrush x:Key="CardBrush" Color="#192020" />
+            <SolidColorBrush x:Key="AccentBrush" Color="#D5FF45" />
             <Style TargetType="Button">
                 <Setter Property="CornerRadius" Value="8" />
                 <Setter Property="Padding" Value="14,9" />
