@@ -68,6 +68,7 @@ jobs:
       - name: Build self-extracting installer
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           Compress-Archive -Path 'desktop-native/artifacts/win-x64/*' -DestinationPath 'desktop-native/installer/payload.zip' -Force
           dotnet publish desktop-native/installer/SahamLens.Installer.csproj -c Release -r win-x64 --self-contained true -o desktop-native/artifacts/installer
           $built = Resolve-Path 'desktop-native/artifacts/installer/SahamLens-Native-Setup.exe'
