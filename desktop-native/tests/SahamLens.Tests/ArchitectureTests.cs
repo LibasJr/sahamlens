@@ -166,6 +166,47 @@ public sealed class ArchitectureTests
         Assert.Equal(9, BacktestFilterCatalog.Names.Count);
     }
 
+    [Fact]
+    public async Task Public_GET_falls_back_to_disk_cache_but_private_module_does_not_persist()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "sahamlens-cache-test-" + Guid.NewGuid());
+        try
+        {
+            var cache = new OfflineResponseCache(root);
+            var online = new SahamLensApiClient(new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"pulse\":\"bullish\"}", Encoding.UTF8, "application/json") })) { BaseAddress = new Uri("https://sahamlens.id") }, new MemorySessionStore(), cache);
+            using (var fresh = await online.SendAsync(ProductCatalog.Get("market-pulse"))) Assert.Equal("bullish", fresh.RootElement.GetProperty("pulse").GetString());
+            Assert.Equal(1, cache.Count);
+
+            var offline = new SahamLensApiClient(new HttpClient(new ThrowingHandler()) { BaseAddress = new Uri("https://sahamlens.id") }, new MemorySessionStore(), cache);
+            using (var cached = await offline.SendAsync(ProductCatalog.Get("market-pulse"))) Assert.Equal("bullish", cached.RootElement.GetProperty("pulse").GetString());
+
+            var store = new MemorySessionStore(); await store.SaveAsync(new Session("user@sahamlens.id", "user", false, "jwt"));
+            var privateApi = new SahamLensApiClient(new HttpClient(new StubHandler(_ => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"items\":[]}", Encoding.UTF8, "application/json") })) { BaseAddress = new Uri("https://sahamlens.id") }, store, cache);
+            using var _ = await privateApi.SendAsync(ProductCatalog.Get("watchlist"));
+            Assert.Equal(1, cache.Count);
+        }
+        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void Windows_workflow_smoke_tests_window_and_builds_installer()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var workflow = File.ReadAllText(Path.Combine(root, "../.github/workflows/desktop-native.yml"));
+        Assert.Contains("MainWindowHandle", workflow);
+        Assert.Contains("SahamLens.Installer.csproj", workflow);
+        Assert.Contains("SahamLens-Native-Setup.exe", workflow);
+        Assert.Contains("Get-FileHash", workflow);
+        var installer = File.ReadAllText(Path.Combine(root, "installer/SahamLens.Installer.csproj"));
+        Assert.Contains("PublishSingleFile", installer);
+        Assert.Contains("EmbeddedResource", installer);
+    }
+
+    private sealed class ThrowingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => throw new HttpRequestException("offline");
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(responder(request));
