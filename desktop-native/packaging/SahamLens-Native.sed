@@ -1,0 +1,30 @@
+[Version]
+Class=IEXPRESS
+SEDVersion=3
+[Options]
+PackagePurpose=InstallApp
+ShowInstallProgramWindow=0
+HideExtractAnimation=1
+UseLongFileName=1
+InsideCompressed=0
+CAB_FixedSize=0
+CAB_ResvCodeSigning=0
+RebootMode=N
+InstallPrompt=
+DisplayLicense=
+FinishMessage=SahamLens Native berhasil diekstrak dan akan dijalankan.
+TargetName=%TARGET_EXE%
+FriendlyName=SahamLens Native Installer
+AppLaunched=install.cmd
+PostInstallCmd=<None>
+AdminQuietInstCmd=install.cmd
+UserQuietInstCmd=install.cmd
+SourceFiles=SourceFiles
+[Strings]
+FILE0="payload.zip"
+FILE1="install.cmd"
+[SourceFiles]
+SourceFiles0=%SOURCE_DIR%
+[SourceFiles0]
+%FILE0%=
+%FILE1%=
