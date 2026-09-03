@@ -54,14 +54,12 @@ public sealed class ArchitectureTests
     }
 
     [Fact]
-    public void WinUI_app_qualifies_framework_application_to_avoid_domain_namespace_collision()
+    public void Wpf_app_declares_base_class_unambiguously()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-        var source = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/App.xaml.cs"));
-        Assert.Contains("Microsoft.UI.Xaml.Application", source);
-        Assert.DoesNotContain("class App : Application", source);
-        Assert.DoesNotContain("(Brush)Application.Current", source);
-        Assert.DoesNotContain("Windows.UI.Text.FontWeights", source);
+        var source = File.ReadAllText(Path.Combine(root, "src/SahamLens.Wpf/App.xaml.cs"));
+        Assert.Contains("System.Windows.Application", source);
+        Assert.DoesNotContain("using System.Windows.Forms", source);
     }
 
     [Fact]
@@ -72,15 +70,15 @@ public sealed class ArchitectureTests
         Assert.Contains(TechnicalIndicators.All, x => x.Id == "macd");
         Assert.Contains(TechnicalIndicators.All, x => x.Id == "williams");
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-        var native = Directory.GetFiles(Path.Combine(root, "src/SahamLens.WinUI"), "*.*", SearchOption.AllDirectories)
+        var native = Directory.GetFiles(Path.Combine(root, "src/SahamLens.Wpf"), "*.*", SearchOption.AllDirectories)
             .Where(path => path.EndsWith(".cs") || path.EndsWith(".xaml"))
             .Select(File.ReadAllText);
         var source = string.Join('\n', native);
         Assert.DoesNotContain("WebView2", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("Tauri", source, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("React", source, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("OhlcLabel", source);
-        Assert.Contains("ReplayProgress", source);
+        Assert.Contains("ohlcLabel", source);
+        Assert.Contains("replayProgress", source);
     }
 
     [Fact]
@@ -98,17 +96,17 @@ public sealed class ArchitectureTests
     public void Key_modules_have_dedicated_native_renderers()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.WinUI/Views/ScreenerView.xaml")));
-        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.WinUI/Views/NewsView.cs")));
-        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.WinUI/Controls/NativeChartControl.xaml")));
+        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.Wpf/Views/ScreenerView.cs")));
+        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.Wpf/Views/NewsView.cs")));
+        Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.Wpf/Controls/NativeChartControl.cs")));
     }
 
     [Fact]
     public void Analysis_and_research_modules_use_native_structured_renderer()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-        var rendererPath = Path.Combine(root, "src/SahamLens.WinUI/Views/StructuredModuleView.cs");
-        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/MainWindow.xaml.cs"));
+        var rendererPath = Path.Combine(root, "src/SahamLens.Wpf/Views/StructuredModuleView.cs");
+        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.Wpf/MainWindow.cs"));
         var renderer = File.ReadAllText(rendererPath);
         Assert.True(File.Exists(rendererPath));
         Assert.Contains("WorkspaceId.Analysis or WorkspaceId.Research", main);
@@ -138,11 +136,11 @@ public sealed class ArchitectureTests
     public void Market_intelligence_and_settings_have_native_renderers()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/MainWindow.xaml.cs"));
-        var settings = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/Views/SettingsView.cs"));
+        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.Wpf/MainWindow.cs"));
+        var settings = File.ReadAllText(Path.Combine(root, "src/SahamLens.Wpf/Views/SettingsView.cs"));
         Assert.Contains("WorkspaceId.Market or WorkspaceId.Intelligence", main);
         Assert.Contains("new SettingsView(api, sessions)", main);
-        Assert.Contains("Windows Password Vault", settings);
+        Assert.Contains("DPAPI", settings);
         Assert.Contains("/api/desktop/update?current=", settings);
         Assert.Contains("Uri.UriSchemeHttps", settings);
         Assert.Contains("sessions.ClearAsync", settings);
@@ -153,10 +151,9 @@ public sealed class ArchitectureTests
     public void Native_shell_has_no_raw_payload_fallback_and_backtest_uses_real_simulation()
     {
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
-        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/MainWindow.xaml.cs"));
-        var xaml = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/MainWindow.xaml"));
-        var backtest = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/Views/BacktestView.cs"));
-        Assert.DoesNotContain("DataPreview", main + xaml);
+        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.Wpf/MainWindow.cs"));
+        var backtest = File.ReadAllText(Path.Combine(root, "src/SahamLens.Wpf/Views/BacktestView.cs"));
+        Assert.DoesNotContain("DataPreview", main);
         Assert.DoesNotContain("JsonSerializer.Serialize(result.RootElement", main);
         Assert.Contains("new BacktestView(api, ticker)", main);
         Assert.Contains("filters = new[]", backtest);

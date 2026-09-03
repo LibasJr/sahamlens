@@ -1,11 +1,12 @@
 using System.Text.Json;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
+using System.Windows;
+using System.Windows.Controls;
+using System.Windows.Media;
 using SahamLens.Application;
 using SahamLens.Domain;
+using SahamLens.Wpf.Controls;
 
-namespace SahamLens.WinUI.Views;
+namespace SahamLens.Wpf.Views;
 
 /// Native renderer for strongly-routed analysis and research modules.
 /// Values are rendered as labelled native metrics instead of opaque payload text.
@@ -14,26 +15,26 @@ public sealed class StructuredModuleView : UserControl
     private readonly ISahamLensApi api;
     private readonly ProductModule module;
     private readonly string ticker;
-    private readonly StackPanel results = new() { Spacing = 9 };
-    private readonly ProgressRing loading = new() { HorizontalAlignment = HorizontalAlignment.Left };
+    private readonly StackPanel results = new();
+    private readonly LoadingRing loading = new();
     private readonly InfoBar state = new() { IsOpen = false, IsClosable = false };
-    private readonly NumberBox capital = new() { Header = "Modal (Rp)", Value = 100_000_000, Minimum = 1_000_000, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
-    private readonly NumberBox target = new() { Header = "Target bulanan / risiko (%)", Value = 1_000_000, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+    private readonly NumberBox capital = new() { Header = "Modal (Rp)", Value = 100_000_000, Minimum = 1_000_000, Width = 260 };
+    private readonly NumberBox target = new() { Header = "Target bulanan / risiko (%)", Value = 1_000_000, Minimum = 0, Width = 260 };
 
     public StructuredModuleView(ISahamLensApi api, ProductModule module, string ticker)
     {
         this.api = api; this.module = module; this.ticker = ticker;
-        var title = new TextBlock { Text = module.Label, FontSize = 24, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
+        var title = new TextBlock { Text = module.Label, FontSize = 24, FontWeight = FontWeights.SemiBold };
         var subtitle = new TextBlock { Text = $"{ticker} · data aktual dari {module.Endpoint}", Opacity = .68 };
         var refresh = new Button { Content = module.Method == "POST" ? "Hitung" : "Refresh", HorizontalAlignment = HorizontalAlignment.Left };
         refresh.Click += async (_, _) => await LoadAsync();
-        var root = new StackPanel { Spacing = 12, Children = { title, subtitle } };
+        var root = Layout.VStack(12, title, subtitle);
         if (module.Method == "POST" || module.Id == "dividend")
-        {
-            var inputs = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
-            capital.Width = 260; target.Width = 260; inputs.Children.Add(capital); inputs.Children.Add(target); root.Children.Add(inputs);
-        }
-        root.Children.Add(refresh); root.Children.Add(state); root.Children.Add(loading); root.Children.Add(results);
+            Layout.AddSpaced(root, 12, Layout.HStack(12, capital, target));
+        Layout.AddSpaced(root, 12, refresh);
+        Layout.AddSpaced(root, 12, state);
+        Layout.AddSpaced(root, 12, loading);
+        Layout.AddSpaced(root, 12, results);
         Content = new ScrollViewer { Content = root };
         Loaded += async (_, _) => await LoadAsync();
     }
@@ -56,11 +57,11 @@ public sealed class StructuredModuleView : UserControl
                 : await api.SendAsync(module, module.RequiresTicker ? ticker : null, RequestBody());
             var node = Unwrap(document.RootElement);
             Render(node, results, 0);
-            state.Severity = InfoBarSeverity.Success; state.Title = $"{module.Label} siap";
+            state.Severity = InfoSeverity.Success; state.Title = $"{module.Label} siap";
             state.Message = module.Id == "consensus" ? "Lens AI menampilkan nilai dan evidence aktual dari model SahamLens." : "Data berhasil dihitung dan dimuat.";
             state.IsOpen = true;
         }
-        catch (Exception error) { state.Severity = InfoBarSeverity.Error; state.Title = $"{module.Label} gagal"; state.Message = error.Message; state.IsOpen = true; }
+        catch (Exception error) { state.Severity = InfoSeverity.Error; state.Title = $"{module.Label} gagal"; state.Message = error.Message; state.IsOpen = true; }
         finally { loading.IsActive = false; }
     }
 
@@ -76,12 +77,12 @@ public sealed class StructuredModuleView : UserControl
                 if (property.NameEquals("meta") || property.NameEquals("_meta")) continue;
                 if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
                 {
-                    var nested = new StackPanel { Spacing = 7, Margin = new Thickness(8) };
+                    var nested = new StackPanel { Margin = new Thickness(8) };
                     Render(property.Value, nested, depth + 1);
-                    var section = new Expander { Header = Label(property.Name), IsExpanded = depth < 2, Content = nested };
+                    var section = new Expander { Header = Label(property.Name), IsExpanded = depth < 2, Content = nested, Margin = new Thickness(0, 0, 0, 7) };
                     host.Children.Add(section);
                 }
-                else host.Children.Add(Metric(Label(property.Name), Scalar(property.Value)));
+                else Layout.AddSpaced(host, 3, Metric(Label(property.Name), Scalar(property.Value)));
             }
         }
         else if (node.ValueKind == JsonValueKind.Array)
@@ -89,8 +90,9 @@ public sealed class StructuredModuleView : UserControl
             var count = 0;
             foreach (var item in node.EnumerateArray().Take(100))
             {
-                var card = new StackPanel { Spacing = 6 }; Render(item, card, depth + 1);
-                host.Children.Add(new Border { Background = (Brush)Microsoft.UI.Xaml.Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(10), Padding = new Thickness(12), Child = card });
+                var card = new StackPanel(); Render(item, card, depth + 1);
+                var border = new Border { Background = (Brush)Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(10), Padding = new Thickness(12), Child = card, Margin = new Thickness(0, 0, 0, 6) };
+                host.Children.Add(border);
                 count++;
             }
             if (count == 0) host.Children.Add(new TextBlock { Text = "Belum ada data untuk pilihan ini.", Opacity = .65 });
@@ -100,9 +102,11 @@ public sealed class StructuredModuleView : UserControl
 
     private static UIElement Metric(string label, string value)
     {
-        var grid = new Grid { ColumnDefinitions = { new ColumnDefinition(), new ColumnDefinition { Width = GridLength.Auto } }, Padding = new Thickness(10, 7, 10, 7) };
+        var grid = new Grid { Margin = new Thickness(10, 7, 10, 7) };
+        grid.ColumnDefinitions.Add(new ColumnDefinition());
+        grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         grid.Children.Add(new TextBlock { Text = label, Opacity = .7, TextWrapping = TextWrapping.Wrap });
-        var result = new TextBlock { Text = value, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold, MaxWidth = 720, TextWrapping = TextWrapping.Wrap };
+        var result = new TextBlock { Text = value, FontWeight = FontWeights.SemiBold, MaxWidth = 720, TextWrapping = TextWrapping.Wrap };
         Grid.SetColumn(result, 1); grid.Children.Add(result); return grid;
     }
 

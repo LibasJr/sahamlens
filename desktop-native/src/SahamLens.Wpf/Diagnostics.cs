@@ -1,15 +1,14 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace SahamLens.WinUI;
+namespace SahamLens.Wpf;
 
 /// <summary>
 /// Runs when the assembly loads, before the generated Main and before App's
-/// constructor. The previous crash handler (App.UnhandledException) only activates
-/// once InitializeComponent() has already succeeded and the WinUI message loop is
-/// pumping - a failure inside InitializeComponent itself, or anything before it,
-/// produced no window, no crash file, and no Event Viewer entry. This hooks the
-/// process-wide handlers early enough to catch that.
+/// constructor - the earliest point custom code can run. Carried over from the
+/// WinUI attempt: a naive class named "Program" collided with the framework's own
+/// generated entry point (CS0101), so this intentionally has no such name and never
+/// touches Main at all.
 /// </summary>
 internal static class StartupDiagnostics
 {
