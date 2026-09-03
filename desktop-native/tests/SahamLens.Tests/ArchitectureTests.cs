@@ -103,6 +103,37 @@ public sealed class ArchitectureTests
         Assert.True(File.Exists(Path.Combine(root, "src/SahamLens.WinUI/Controls/NativeChartControl.xaml")));
     }
 
+    [Fact]
+    public void Analysis_and_research_modules_use_native_structured_renderer()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var rendererPath = Path.Combine(root, "src/SahamLens.WinUI/Views/StructuredModuleView.cs");
+        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/MainWindow.xaml.cs"));
+        var renderer = File.ReadAllText(rendererPath);
+        Assert.True(File.Exists(rendererPath));
+        Assert.Contains("WorkspaceId.Analysis or WorkspaceId.Research", main);
+        Assert.Contains("new StructuredModuleView", main);
+        Assert.Contains("Lens AI menampilkan nilai dan evidence aktual", renderer);
+        Assert.Contains("SendPathAsync", renderer);
+        Assert.DoesNotContain("WebView", renderer, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal("GET", ProductCatalog.Get("dividend").Method);
+        Assert.Equal(14, ProductCatalog.Modules.Count(x => x.Workspace is WorkspaceId.Analysis or WorkspaceId.Research));
+    }
+
+    [Fact]
+    public async Task Explicit_path_client_preserves_bearer_for_native_calculators()
+    {
+        HttpRequestMessage? captured = null;
+        var handler = new StubHandler(request => { captured = request; return new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent("{\"quant\":{}}", Encoding.UTF8, "application/json") }; });
+        var store = new MemorySessionStore();
+        await store.SaveAsync(new Session("user@sahamlens.id", "user", false, "calculator-token"));
+        var api = new SahamLensApiClient(new HttpClient(handler) { BaseAddress = new Uri("https://sahamlens.id") }, store);
+        using var _ = await api.SendPathAsync("/api/dividend-plan?mode=ticker&ticker=BBCA", access: AccessLevel.Account);
+        Assert.Equal("Bearer", captured!.Headers.Authorization!.Scheme);
+        Assert.Equal("calculator-token", captured.Headers.Authorization.Parameter);
+        Assert.Contains("mode=ticker", captured.RequestUri!.Query);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(responder(request));
