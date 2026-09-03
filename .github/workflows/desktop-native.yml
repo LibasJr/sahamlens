@@ -27,7 +27,7 @@ jobs:
       - run: dotnet build desktop-native/tests/SahamLens.Tests/SahamLens.Tests.csproj -c Release --no-restore -p:BuildInParallel=false
       - run: dotnet test desktop-native/tests/SahamLens.Tests/SahamLens.Tests.csproj -c Release --no-build --maxcpucount:1
 
-  winui-x64:
+  wpf-x64:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -37,16 +37,16 @@ jobs:
           dotnet-version: '8.0.x'
           cache: true
           cache-dependency-path: desktop-native/**/*.csproj
-      - name: Restore WinUI
-        run: dotnet restore desktop-native/src/SahamLens.WinUI/SahamLens.WinUI.csproj -r win-x64
-      - name: Build WinUI
-        run: dotnet build desktop-native/src/SahamLens.WinUI/SahamLens.WinUI.csproj -c Release -r win-x64 --no-restore -p:Platform=x64
+      - name: Restore WPF
+        run: dotnet restore desktop-native/src/SahamLens.Wpf/SahamLens.Wpf.csproj -r win-x64
+      - name: Build WPF
+        run: dotnet build desktop-native/src/SahamLens.Wpf/SahamLens.Wpf.csproj -c Release -r win-x64 --no-restore -p:Platform=x64
       - name: Publish native x64
-        run: dotnet publish desktop-native/src/SahamLens.WinUI/SahamLens.WinUI.csproj -c Release -r win-x64 --self-contained true --no-restore -p:Platform=x64 -o desktop-native/artifacts/win-x64
+        run: dotnet publish desktop-native/src/SahamLens.Wpf/SahamLens.Wpf.csproj -c Release -r win-x64 --self-contained true --no-restore -p:Platform=x64 -o desktop-native/artifacts/win-x64
       - name: Smoke test native window
         shell: pwsh
         run: |
-          $exe = Resolve-Path 'desktop-native/artifacts/win-x64/SahamLens.WinUI.exe'
+          $exe = Resolve-Path 'desktop-native/artifacts/win-x64/SahamLens.Wpf.exe'
           $process = Start-Process $exe -WorkingDirectory (Split-Path $exe) -PassThru
           try {
             $deadline = (Get-Date).AddSeconds(20)
@@ -55,12 +55,12 @@ jobs:
               $process.Refresh()
               if ($process.HasExited) { throw "Native app exited early with code $($process.ExitCode)" }
             } while ($process.MainWindowHandle -eq 0 -and (Get-Date) -lt $deadline)
-            if ($process.MainWindowHandle -eq 0) { throw 'Native WinUI window did not become ready' }
+            if ($process.MainWindowHandle -eq 0) { throw 'Native WPF window did not become ready' }
           } finally {
             if (Test-Path "$env:TEMP/SahamLens-Native-crash.txt") { Get-Content "$env:TEMP/SahamLens-Native-crash.txt" }
             if ($process.HasExited) {
               Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-3)} -ErrorAction SilentlyContinue |
-                Where-Object { $_.Message -match 'SahamLens|WinUI|Microsoft.ui.xaml' } |
+                Where-Object { $_.Message -match 'SahamLens|PresentationFramework|PresentationCore|wpfgfx' } |
                 Select-Object -First 10 TimeCreated, ProviderName, Id, LevelDisplayName, Message | Format-List
             }
             if (!$process.HasExited) { Stop-Process -Id $process.Id -Force }
