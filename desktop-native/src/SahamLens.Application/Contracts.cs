@@ -22,6 +22,7 @@ public interface ISahamLensApi
     Task<JsonDocument> SendAsync(ProductModule module, string? ticker = null, object? body = null, CancellationToken cancellationToken = default);
     Task<Session> LoginAsync(string email, string password, CancellationToken cancellationToken = default);
     Task<JsonDocument> GetAsync(string path, AccessLevel access = AccessLevel.Public, CancellationToken cancellationToken = default);
+    Task<JsonDocument> SendPathAsync(string path, string method = "GET", object? body = null, AccessLevel access = AccessLevel.Public, CancellationToken cancellationToken = default);
     Task<T> SendAsync<T>(ProductModule module, string? ticker = null, object? body = null, CancellationToken cancellationToken = default);
 }
 

@@ -37,7 +37,7 @@ public static class ProductCatalog
         new("bandarmology", "Bandarmology", WorkspaceId.Research, "/api/ownership-flow/{ticker}", AccessLevel.Account, RequiresTicker: true),
         new("checklist", "Checklist", WorkspaceId.Research, "/api/fundamental/{ticker}", RequiresTicker: true),
         new("position-sizing", "Position Sizing", WorkspaceId.Research, "/api/risk-analysis", AccessLevel.Account, "POST", true),
-        new("dividend", "Dividend", WorkspaceId.Research, "/api/dividend-plan", AccessLevel.Account, "POST", true),
+        new("dividend", "Dividend", WorkspaceId.Research, "/api/dividend-plan", AccessLevel.Account, "GET", true),
         new("risk", "Risk", WorkspaceId.Research, "/api/risk-analysis", AccessLevel.Account, "POST", true),
         new("admin-overview", "Status Platform", WorkspaceId.Admin, "/api/admin/desktop-overview", AccessLevel.Admin),
         new("decision-lab", "Decision Lab", WorkspaceId.Admin, "/api/admin/decision-lab", AccessLevel.Admin),
