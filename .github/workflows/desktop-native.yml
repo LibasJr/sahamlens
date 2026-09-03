@@ -47,7 +47,7 @@ jobs:
         shell: pwsh
         run: |
           $exe = Resolve-Path 'desktop-native/artifacts/win-x64/SahamLens.WinUI.exe'
-          $process = Start-Process $exe -PassThru
+          $process = Start-Process $exe -WorkingDirectory (Split-Path $exe) -PassThru
           try {
             $deadline = (Get-Date).AddSeconds(20)
             do {
