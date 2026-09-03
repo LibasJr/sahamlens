@@ -6,9 +6,10 @@ using SahamLens.Domain;
 
 namespace SahamLens.Infrastructure;
 
-public sealed class SahamLensApiClient(HttpClient http, ISessionStore sessions) : ISahamLensApi
+public sealed class SahamLensApiClient(HttpClient http, ISessionStore sessions, OfflineResponseCache? responseCache = null) : ISahamLensApi
 {
     private static readonly JsonSerializerOptions Json = new() { PropertyNameCaseInsensitive = true };
+    private readonly OfflineResponseCache offline = responseCache ?? new();
 
     public async Task<T> SendAsync<T>(ProductModule module, string? ticker = null, object? body = null, CancellationToken cancellationToken = default)
     {
@@ -24,6 +25,8 @@ public sealed class SahamLensApiClient(HttpClient http, ISessionStore sessions) 
         AccessPolicy.Demand(session, module);
         if (module.RequiresTicker && string.IsNullOrWhiteSpace(ticker)) throw new ArgumentException($"{module.Label} memerlukan ticker.", nameof(ticker));
         var path = module.Endpoint.Replace("{ticker}", Uri.EscapeDataString((ticker ?? string.Empty).Replace(".JK", string.Empty, StringComparison.OrdinalIgnoreCase)));
+        if (module.Access == AccessLevel.Public && module.Method == "GET")
+            return await SendPublicCachedAsync(path, module.CacheDuration ?? TimeSpan.FromMinutes(5), cancellationToken);
         return await SendCoreAsync(path, module.Method, body, session.Token, cancellationToken);
     }
 
@@ -64,6 +67,39 @@ public sealed class SahamLensApiClient(HttpClient http, ISessionStore sessions) 
         }
         return await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
     }
+
+    private async Task<JsonDocument> SendPublicCachedAsync(string path, TimeSpan ttl, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var fresh = await SendCoreAsync(path, "GET", null, null, cancellationToken);
+            var envelope = new CachedEnvelope(DateTimeOffset.UtcNow, ttl.TotalSeconds, fresh.RootElement.Clone());
+            await offline.SaveAsync(path, JsonSerializer.Serialize(envelope, Json), cancellationToken);
+            return fresh;
+        }
+        catch (HttpRequestException)
+        {
+            var cached = await ReadOfflineAsync(path, cancellationToken);
+            if (cached is null) throw;
+            return cached;
+        }
+        catch (TaskCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            var cached = await ReadOfflineAsync(path, cancellationToken);
+            if (cached is null) throw;
+            return cached;
+        }
+    }
+
+    private async Task<JsonDocument?> ReadOfflineAsync(string path, CancellationToken cancellationToken)
+    {
+        var cached = await offline.ReadAsync(path, cancellationToken);
+        if (cached is null) return null;
+        var envelope = JsonSerializer.Deserialize<CachedEnvelope>(cached, Json);
+        return envelope is null ? null : JsonDocument.Parse(envelope.Payload.GetRawText());
+    }
+
+    private sealed record CachedEnvelope(DateTimeOffset StoredAt, double TtlSeconds, JsonElement Payload);
 
     private static string? FindString(JsonElement node, string name) => node.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String ? value.GetString() : null;
     private static bool FindBoolean(JsonElement node, string name) => node.TryGetProperty(name, out var value) && value.ValueKind is JsonValueKind.True or JsonValueKind.False && value.GetBoolean();
