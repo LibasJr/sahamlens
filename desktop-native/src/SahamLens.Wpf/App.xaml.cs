@@ -1,11 +1,12 @@
+using System.Windows;
+using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.UI.Xaml;
 using SahamLens.Application;
 using SahamLens.Infrastructure;
 
-namespace SahamLens.WinUI;
+namespace SahamLens.Wpf;
 
-public partial class App : Microsoft.UI.Xaml.Application
+public partial class App : System.Windows.Application
 {
     private Window? window;
     public IServiceProvider Services { get; }
@@ -13,11 +14,13 @@ public partial class App : Microsoft.UI.Xaml.Application
     public App()
     {
         CrashLog.Write("App() constructor entered", null);
-        UnhandledException += (_, args) => CrashLog.Write("Application.UnhandledException", args.Exception);
+        DispatcherUnhandledException += (_, args) =>
+            CrashLog.Write("Application.DispatcherUnhandledException", args.Exception);
         InitializeComponent();
         CrashLog.Write("App() InitializeComponent completed", null);
+
         var services = new ServiceCollection();
-        services.AddSingleton<ISessionStore, WindowsSessionStore>();
+        services.AddSingleton<ISessionStore, SecureSessionStore>();
         services.AddHttpClient<ISahamLensApi, SahamLensApiClient>(client =>
         {
             client.BaseAddress = new Uri("https://sahamlens.id");
@@ -27,12 +30,13 @@ public partial class App : Microsoft.UI.Xaml.Application
         Services = services.BuildServiceProvider();
     }
 
-    protected override void OnLaunched(LaunchActivatedEventArgs args)
+    protected override void OnStartup(StartupEventArgs e)
     {
-        CrashLog.Write("OnLaunched entered", null);
+        base.OnStartup(e);
+        CrashLog.Write("OnStartup entered", null);
         window = Services.GetRequiredService<MainWindow>();
         CrashLog.Write("MainWindow constructed", null);
-        window.Activate();
-        CrashLog.Write("MainWindow.Activate() returned", null);
+        window.Show();
+        CrashLog.Write("MainWindow.Show() returned", null);
     }
 }
