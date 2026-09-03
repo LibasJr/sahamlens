@@ -1,18 +1,22 @@
+using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace SahamLens.WinUI;
 
 /// <summary>
-/// Manual entry point (GenerateProgramFile=false in the csproj) so startup failures —
-/// including ones inside App's constructor / InitializeComponent, before the WinUI
-/// message loop exists — get logged. The previous auto-generated Main gave no signal
-/// at all when startup failed early: no window, no crash file, nothing in Event Viewer.
+/// Runs when the assembly loads, before the generated Main and before App's
+/// constructor. The previous crash handler (App.UnhandledException) only activates
+/// once InitializeComponent() has already succeeded and the WinUI message loop is
+/// pumping - a failure inside InitializeComponent itself, or anything before it,
+/// produced no window, no crash file, and no Event Viewer entry. This hooks the
+/// process-wide handlers early enough to catch that.
 /// </summary>
-public static class Program
+internal static class StartupDiagnostics
 {
-    [STAThread]
-    private static void Main()
+    [ModuleInitializer]
+    internal static void Init()
     {
+        CrashLog.Write("Module initializer ran (assembly loaded)", null);
         AppDomain.CurrentDomain.UnhandledException += (_, e) =>
             CrashLog.Write("AppDomain.UnhandledException", e.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, e) =>
@@ -20,25 +24,6 @@ public static class Program
             CrashLog.Write("TaskScheduler.UnobservedTaskException", e.Exception);
             e.SetObserved();
         };
-
-        CrashLog.Write("Main() entered", null);
-
-        try
-        {
-            WinRT.ComWrappersSupport.InitializeComWrappers();
-            Microsoft.UI.Xaml.Application.Start(_ =>
-            {
-                var context = new Microsoft.UI.Dispatching.DispatcherQueueSynchronizationContext(
-                    Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread());
-                SynchronizationContext.SetSynchronizationContext(context);
-                _ = new App();
-            });
-        }
-        catch (Exception ex)
-        {
-            CrashLog.Write("Main() Application.Start threw", ex);
-            throw;
-        }
     }
 }
 
