@@ -30,11 +30,13 @@ function exitReviewCandidate() {
 describe('hybrid analyst evidence gate', () => {
   const originalModels = process.env.NINEROUTER_MODELS;
   const originalDecisionModel = process.env.DECISION_AGENT_LLM_MODEL;
+  const originalJudgeModels = process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS;
   const originalReviewLimit = process.env.DECISION_AGENT_REVIEW_LIMIT;
   const originalMinLensScore = process.env.DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW;
   beforeEach(() => {
     process.env.NINEROUTER_MODELS = 'cc/claude-sonnet-5';
     delete process.env.DECISION_AGENT_LLM_MODEL;
+    delete process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS;
     delete process.env.DECISION_AGENT_REVIEW_LIMIT;
     delete process.env.DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW;
   });
@@ -43,6 +45,8 @@ describe('hybrid analyst evidence gate', () => {
     else process.env.NINEROUTER_MODELS = originalModels;
     if (originalDecisionModel === undefined) delete process.env.DECISION_AGENT_LLM_MODEL;
     else process.env.DECISION_AGENT_LLM_MODEL = originalDecisionModel;
+    if (originalJudgeModels === undefined) delete process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS;
+    else process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS = originalJudgeModels;
     if (originalReviewLimit === undefined) delete process.env.DECISION_AGENT_REVIEW_LIMIT;
     else process.env.DECISION_AGENT_REVIEW_LIMIT = originalReviewLimit;
     if (originalMinLensScore === undefined) delete process.env.DECISION_AGENT_MIN_LENS_SCORE_FOR_REVIEW;
@@ -63,6 +67,59 @@ describe('hybrid analyst evidence gate', () => {
     expect(result.meta.status).toBe('COMPLETED');
     expect(result.signals[0].hybridStatus).toBe('CONFIRMED');
     expect(result.signals[0].hybridReview?.evidenceRefs).toEqual(refs);
+  });
+
+  it('mengeskalasi CONFIRM primary ke selective judge dan menyimpan kedua review', async () => {
+    process.env.DECISION_AGENT_LLM_MODEL = 'ag/gemini-3.8-flash-high';
+    process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS = 'cx/gpt-5.6-sol,cx/gpt-5.6-terra';
+    const refs = ['ruleAction', 'lensScore', 'coveragePct', 'riskReward', 'modelValidated'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async ({ model }: { model: string }) => ({
+      output: { reviews: [{ ticker: 'BBCA', verdict: model.startsWith('ag/') ? 'CONFIRM' : 'CHALLENGE', confidence: 'MEDIUM', evidenceRefs: refs, concerns: ['MODEL_UNVALIDATED'], nextEvidence: ['NEED_POINT_IN_TIME_VALIDATION'] }] },
+      inputTokens: 100, outputTokens: 20,
+    }));
+    const result = await applyHybridAnalysis({ signals: [candidate()], runner: runner as any });
+    expect(runner.mock.calls.map((call) => call[0].model)).toEqual(['ag/gemini-3.8-flash-high', 'cx/gpt-5.6-sol']);
+    expect(result.signals[0].hybridStatus).toBe('CHALLENGED');
+    expect(result.signals[0].hybridReview).toMatchObject({ model: 'cx/gpt-5.6-sol', stage: 'SELECTIVE_JUDGE', primaryReview: { model: 'ag/gemini-3.8-flash-high', verdict: 'CONFIRM' } });
+    expect(result.meta).toMatchObject({ primaryModel: 'ag/gemini-3.8-flash-high', judgeModel: 'cx/gpt-5.6-sol', escalatedCount: 1 });
+  });
+
+  it('tidak memanggil selective judge untuk CHALLENGE primary confidence MEDIUM tanpa trigger', async () => {
+    process.env.DECISION_AGENT_LLM_MODEL = 'ag/gemini-3.8-flash-high';
+    process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS = 'cx/gpt-5.6-sol,cx/gpt-5.6-terra';
+    const runner = vi.fn(async () => ({ output: { reviews: [{ ticker: 'BBCA', verdict: 'CHALLENGE', confidence: 'MEDIUM', evidenceRefs: ['E:BBCA:ruleAction'], concerns: [], nextEvidence: [] }] }, inputTokens: 100, outputTokens: 20 }));
+    const result = await applyHybridAnalysis({ signals: [candidate()], runner: runner as any });
+    expect(runner).toHaveBeenCalledTimes(1);
+    expect(result.signals[0].hybridReview).toMatchObject({ model: 'ag/gemini-3.8-flash-high', stage: 'PRIMARY' });
+    expect(result.meta).toMatchObject({ judgeModel: null, escalatedCount: 0 });
+  });
+
+  it('mencoba Terra bila selective judge Sol gagal', async () => {
+    process.env.DECISION_AGENT_LLM_MODEL = 'ag/gemini-3.8-flash-high';
+    process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS = 'cx/gpt-5.6-sol,cx/gpt-5.6-terra';
+    const refs = ['ruleAction', 'lensScore', 'coveragePct', 'riskReward'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async ({ model }: { model: string }) => {
+      if (model === 'cx/gpt-5.6-sol') throw new Error('rate_limit');
+      return { output: { reviews: [{ ticker: 'BBCA', verdict: model.startsWith('ag/') ? 'CONFIRM' : 'CHALLENGE', confidence: 'MEDIUM', evidenceRefs: refs, concerns: [], nextEvidence: [] }] }, inputTokens: 100, outputTokens: 20 };
+    });
+    const result = await applyHybridAnalysis({ signals: [candidate()], runner: runner as any });
+    expect(runner.mock.calls.map((call) => call[0].model)).toEqual(['ag/gemini-3.8-flash-high', 'cx/gpt-5.6-sol', 'cx/gpt-5.6-terra']);
+    expect(result.signals[0].hybridReview?.model).toBe('cx/gpt-5.6-terra');
+    expect(result.meta.judgeModel).toBe('cx/gpt-5.6-terra');
+  });
+
+  it('fail closed bila review wajib dieskalasi tetapi semua selective judge gagal', async () => {
+    process.env.DECISION_AGENT_LLM_MODEL = 'ag/gemini-3.8-flash-high';
+    process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS = 'cx/gpt-5.6-sol,cx/gpt-5.6-terra';
+    const refs = ['ruleAction', 'lensScore', 'coveragePct', 'riskReward'].map((field) => `E:BBCA:${field}`);
+    const runner = vi.fn(async ({ model }: { model: string }) => {
+      if (model.startsWith('cx/')) throw new Error('provider_failed');
+      return { output: { reviews: [{ ticker: 'BBCA', verdict: 'CONFIRM', confidence: 'MEDIUM', evidenceRefs: refs, concerns: [], nextEvidence: [] }] }, inputTokens: 100, outputTokens: 20 };
+    });
+    const result = await applyHybridAnalysis({ signals: [candidate()], runner: runner as any });
+    expect(result.signals[0].hybridStatus).toBe('INSUFFICIENT');
+    expect(result.signals[0].hybridReview).toMatchObject({ model: 'ag/gemini-3.8-flash-high', stage: 'PRIMARY', verdict: 'INSUFFICIENT_EVIDENCE', confidence: 'LOW' });
+    expect(result.meta).toMatchObject({ judgeModel: null, escalatedCount: 1 });
   });
 
   it('hanya mengirim BUY_CANDIDATE PAPER_READY ke hybrid analyst, bukan EXIT_REVIEW held', async () => {

@@ -121,6 +121,21 @@ export function resolveHybridModels(): string[] {
   return fallback;
 }
 
+/** Models tried only for reviews that cross the selective-judge escalation gate. */
+export function resolveSelectiveJudgeModels(): string[] {
+  return (process.env.DECISION_AGENT_SELECTIVE_JUDGE_MODELS ?? '')
+    .split(',').map((item) => item.trim()).filter(Boolean);
+}
+
+function requiresSelectiveJudge(review: HybridOutput['reviews'][number]): boolean {
+  return review.verdict === 'CONFIRM'
+    || review.confidence === 'LOW'
+    || review.concerns.includes('CONFLICTING_SIGNALS')
+    || review.concerns.includes('NEGATIVE_NEWS_DOMINANCE')
+    || review.concerns.includes('NEWS_UNAVAILABLE')
+    || review.concerns.includes('MODEL_UNVALIDATED');
+}
+
 /** @deprecated Pakai resolveHybridModels() - fungsi ini hanya mengembalikan kandidat pertama. */
 export function resolveHybridModel(): string | null {
   return resolveHybridModels()[0] ?? null;
@@ -370,8 +385,54 @@ export async function applyHybridAnalysis(args: {
         lastFailure = { model, status: 'INVALID_OUTPUT', errorCode };
         continue;
       }
+      const primaryReviewedAt = (args.now ?? new Date()).toISOString();
+      const primaryByTicker = new Map(parsed.data.reviews.map((review) => [review.ticker, review]));
+      const judgeModels = resolveSelectiveJudgeModels();
+      const escalatedTickers = judgeModels.length > 0
+        ? tickers.filter((ticker) => requiresSelectiveJudge(primaryByTicker.get(ticker)!))
+        : [];
+      let finalReviews = parsed.data.reviews;
+      let judgeModel: string | null = null;
+      let judgeInputTokens = 0;
+      let judgeOutputTokens = 0;
+
+      if (escalatedTickers.length > 0) {
+        const judgeEvidence = evidence.filter(({ ticker }) => escalatedTickers.includes(ticker));
+        const judgeDebate = debate?.filter(({ ticker }) => escalatedTickers.includes(ticker));
+        const judgeAllowedRefs = new Map(judgeEvidence.map(({ ticker, items }) => [ticker, new Set(items.map((item) => item.id))]));
+        for (const candidateJudge of judgeModels) {
+          try {
+            const judged = await (args.runner ?? callHybridAgent)({ model: candidateJudge, evidence: judgeEvidence, phase: 'RISK_JUDGE', debate: judgeDebate });
+            const judgeParsed = hybridOutputSchema.safeParse(normalizeHybridOutput(judged.output));
+            if (!judgeParsed.success) continue;
+            const returnedJudgeTickers = judgeParsed.data.reviews.map((review) => review.ticker);
+            const exactJudgeTickers = returnedJudgeTickers.length === escalatedTickers.length
+              && new Set(returnedJudgeTickers).size === returnedJudgeTickers.length
+              && escalatedTickers.every((ticker) => returnedJudgeTickers.includes(ticker));
+            const judgeRefsValid = judgeParsed.data.reviews.every((review) => review.evidenceRefs.every((ref) => judgeAllowedRefs.get(review.ticker)?.has(ref)));
+            const judgeGrounded = judgeParsed.data.reviews.every((review) => {
+              const signal = candidateByTicker.get(review.ticker);
+              return signal ? isGroundedReview(review, signal) : false;
+            });
+            if (!exactJudgeTickers || !judgeRefsValid || !judgeGrounded) continue;
+            const judgedByTicker = new Map(judgeParsed.data.reviews.map((review) => [review.ticker, review]));
+            finalReviews = parsed.data.reviews.map((review) => judgedByTicker.get(review.ticker) ?? review);
+            judgeModel = candidateJudge;
+            judgeInputTokens = judged.inputTokens ?? 0;
+            judgeOutputTokens = judged.outputTokens ?? 0;
+            break;
+          } catch (err) {
+            logger.warn('Selective judge gagal; mencoba judge fallback berikutnya', { module: 'decision-agent', model: candidateJudge, err });
+          }
+        }
+      }
+      if (escalatedTickers.length > 0 && !judgeModel) {
+        finalReviews = parsed.data.reviews.map((review) => escalatedTickers.includes(review.ticker)
+          ? { ...review, verdict: 'INSUFFICIENT_EVIDENCE' as const, confidence: 'LOW' as const }
+          : review);
+      }
       const reviewedAt = (args.now ?? new Date()).toISOString();
-      const byTicker = new Map(parsed.data.reviews.map((review) => [review.ticker, review]));
+      const byTicker = new Map(finalReviews.map((review) => [review.ticker, review]));
       const signals = args.signals.map((signal): DecisionAgentSignal => {
         const review = byTicker.get(signal.ticker);
         if (!review) return signal;
@@ -384,6 +445,15 @@ export async function applyHybridAnalysis(args: {
           nextEvidence: review.nextEvidence as HybridNextEvidence[],
           model,
           reviewedAt,
+          stage: judgeModel && escalatedTickers.includes(signal.ticker) ? 'SELECTIVE_JUDGE' : 'PRIMARY',
+          ...(judgeModel && escalatedTickers.includes(signal.ticker) ? {
+            model: judgeModel,
+            primaryReview: {
+              ...primaryByTicker.get(signal.ticker)!,
+              model,
+              reviewedAt: primaryReviewedAt,
+            },
+          } : {}),
           ...(transcript ? {
             debate: {
               bullEvidenceRefs: transcript.bull.evidenceRefs,
@@ -404,9 +474,12 @@ export async function applyHybridAnalysis(args: {
         signals,
         meta: {
           status: 'COMPLETED', model, reviewedCount: parsed.data.reviews.length,
-          inputTokens: generated.inputTokens === null ? null : generated.inputTokens + debateTokens.input,
-          outputTokens: generated.outputTokens === null ? null : generated.outputTokens + debateTokens.output,
+          inputTokens: generated.inputTokens === null ? null : generated.inputTokens + debateTokens.input + judgeInputTokens,
+          outputTokens: generated.outputTokens === null ? null : generated.outputTokens + debateTokens.output + judgeOutputTokens,
           errorCode: null,
+          primaryModel: model,
+          judgeModel,
+          escalatedCount: escalatedTickers.length,
         },
       };
     } catch (err) {
