@@ -12,12 +12,10 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     public App()
     {
-        UnhandledException += (_, args) =>
-        {
-            try { File.WriteAllText(Path.Combine(Path.GetTempPath(), "SahamLens-Native-crash.txt"), args.Exception.ToString()); }
-            catch { }
-        };
+        CrashLog.Write("App() constructor entered", null);
+        UnhandledException += (_, args) => CrashLog.Write("Application.UnhandledException", args.Exception);
         InitializeComponent();
+        CrashLog.Write("App() InitializeComponent completed", null);
         var services = new ServiceCollection();
         services.AddSingleton<ISessionStore, WindowsSessionStore>();
         services.AddHttpClient<ISahamLensApi, SahamLensApiClient>(client =>
@@ -31,7 +29,10 @@ public partial class App : Microsoft.UI.Xaml.Application
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
+        CrashLog.Write("OnLaunched entered", null);
         window = Services.GetRequiredService<MainWindow>();
+        CrashLog.Write("MainWindow constructed", null);
         window.Activate();
+        CrashLog.Write("MainWindow.Activate() returned", null);
     }
 }
