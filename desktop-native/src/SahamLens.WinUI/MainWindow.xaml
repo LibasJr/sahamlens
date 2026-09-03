@@ -41,10 +41,7 @@
                             <InfoBar x:Name="StateBar" IsOpen="False" IsClosable="False" />
                             <ProgressRing x:Name="Loading" IsActive="False" Width="36" Height="36" HorizontalAlignment="Left" />
                             <ContentControl x:Name="NativeContent" />
-                            <ItemsControl x:Name="DataCards">
-                                <ItemsControl.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid MaximumRowsOrColumns="3" Orientation="Horizontal" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-                            </ItemsControl>
-                            <TextBox x:Name="DataPreview" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="320" FontFamily="Consolas" />
+
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
