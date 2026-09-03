@@ -84,6 +84,7 @@ public sealed partial class MainWindow : Window
             ModuleBar.PrimaryCommands.Add(button);
         }
         NativeContent.Content = selected == WorkspaceId.Screener ? new ScreenerView(api) : null;
+        if (selected == WorkspaceId.Settings) NativeContent.Content = new SettingsView(api, sessions);
         DataPreview.Visibility = selected == WorkspaceId.Screener ? Visibility.Collapsed : Visibility.Visible;
         DataPreview.Text = "Pilih modul untuk memuat data native SahamLens.";
         StateBar.IsOpen = false;
@@ -103,6 +104,8 @@ public sealed partial class MainWindow : Window
                 var chart = new NativeChartControl(); chart.SetData(ticker, result.History, module.Id == "backtest"); NativeContent.Content = chart;
             }
             else if (module.Workspace is WorkspaceId.Analysis or WorkspaceId.Research)
+                NativeContent.Content = new StructuredModuleView(api, module, ticker);
+            else if (module.Workspace is WorkspaceId.Market or WorkspaceId.Intelligence)
                 NativeContent.Content = new StructuredModuleView(api, module, ticker);
             else
             {
