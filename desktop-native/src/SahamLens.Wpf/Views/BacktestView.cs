@@ -11,9 +11,9 @@ public sealed class BacktestView : UserControl
 {
     private readonly ISahamLensApi api;
     private readonly string ticker;
-    private readonly ComboBox filter = new() { Width = 260 };
+    private readonly ComboBox filter = Theme.Field(new ComboBox { Width = 260 });
     private readonly NumberBox capital = new() { Header = "Modal awal (Rp)", Value = 100_000_000, Minimum = 1_000_000, Width = 220 };
-    private readonly ComboBox period = new() { Width = 140 };
+    private readonly ComboBox period = Theme.Field(new ComboBox { Width = 140 });
     private readonly StackPanel metrics = new() { Orientation = Orientation.Horizontal };
     private readonly ContentControl chartHost = new();
     private readonly LoadingRing loading = new();
@@ -59,7 +59,7 @@ public sealed class BacktestView : UserControl
     {
         Padding = new Thickness(12),
         CornerRadius = new CornerRadius(8),
-        Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"],
+        Background = Theme.Card,
         Child = Layout.VStack(2,
             new TextBlock { Text = label, Opacity = .65 },
             new TextBlock { Text = value, FontSize = 18, FontWeight = FontWeights.SemiBold })

@@ -32,7 +32,7 @@ public sealed class InfoBar : UserControl
         grid.Children.Add(accent);
         grid.Children.Add(text);
         grid.Children.Add(closeButton);
-        Content = new Border { Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(8), Child = grid };
+        Content = new Border { Background = Theme.Card, CornerRadius = new CornerRadius(8), Child = grid };
         Update();
     }
 

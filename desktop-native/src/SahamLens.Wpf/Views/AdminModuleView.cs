@@ -69,7 +69,7 @@ public sealed class AdminModuleView : UserControl
                 if (item.ValueKind == JsonValueKind.Object)
                 {
                     var card = new StackPanel(); Render(item, card, depth + 1);
-                    var border = new Border { Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"], CornerRadius = new CornerRadius(9), Padding = new Thickness(12), Child = card, Margin = new Thickness(0, 0, 0, 6) };
+                    var border = new Border { Background = Theme.Card, CornerRadius = new CornerRadius(9), Padding = new Thickness(12), Child = card, Margin = new Thickness(0, 0, 0, 6) };
                     host.Children.Add(border);
                 }
                 else Layout.AddSpaced(host, 3, Metric($"Item {++index}", Scalar(item)));
