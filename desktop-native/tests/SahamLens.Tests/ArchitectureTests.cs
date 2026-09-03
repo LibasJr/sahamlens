@@ -149,6 +149,23 @@ public sealed class ArchitectureTests
         Assert.DoesNotContain("WebView", settings, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void Native_shell_has_no_raw_payload_fallback_and_backtest_uses_real_simulation()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/MainWindow.xaml.cs"));
+        var xaml = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/MainWindow.xaml"));
+        var backtest = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/Views/BacktestView.cs"));
+        Assert.DoesNotContain("DataPreview", main + xaml);
+        Assert.DoesNotContain("JsonSerializer.Serialize(result.RootElement", main);
+        Assert.Contains("new BacktestView(api, ticker)", main);
+        Assert.Contains("filters = new[]", backtest);
+        Assert.Contains("modal = capital.Value", backtest);
+        Assert.Contains("symbol = ticker", backtest);
+        Assert.Contains("Simulasi point-in-time", backtest);
+        Assert.Equal(9, BacktestFilterCatalog.Names.Count);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(responder(request));

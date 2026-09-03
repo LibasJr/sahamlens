@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -85,34 +84,29 @@ public sealed partial class MainWindow : Window
         }
         NativeContent.Content = selected == WorkspaceId.Screener ? new ScreenerView(api) : null;
         if (selected == WorkspaceId.Settings) NativeContent.Content = new SettingsView(api, sessions);
-        DataPreview.Visibility = selected == WorkspaceId.Screener ? Visibility.Collapsed : Visibility.Visible;
-        DataPreview.Text = "Pilih modul untuk memuat data native SahamLens.";
         StateBar.IsOpen = false;
     }
 
     private async Task LoadModuleAsync(ProductModule module)
     {
-        Loading.IsActive = true; StateBar.IsOpen = false; DataPreview.Text = string.Empty; NativeContent.Content = null; DataPreview.Visibility = Visibility.Collapsed;
+        Loading.IsActive = true; StateBar.IsOpen = false; NativeContent.Content = null;
         try
         {
             if (module.Workspace == WorkspaceId.Admin) NativeContent.Content = new AdminModuleView(api, module);
             else if (module.Id == "news") NativeContent.Content = new NewsView(api);
-            else if (module.Id is "technical" or "backtest")
+            else if (module.Id == "backtest") NativeContent.Content = new BacktestView(api, ticker);
+            else if (module.Id == "technical")
             {
                 var chartModule = ProductCatalog.Get("technical");
                 var result = await api.SendAsync<ChartResult>(chartModule, ticker);
-                var chart = new NativeChartControl(); chart.SetData(ticker, result.History, module.Id == "backtest"); NativeContent.Content = chart;
+                var chart = new NativeChartControl(); chart.SetData(ticker, result.History, false); NativeContent.Content = chart;
             }
             else if (module.Workspace is WorkspaceId.Analysis or WorkspaceId.Research)
                 NativeContent.Content = new StructuredModuleView(api, module, ticker);
             else if (module.Workspace is WorkspaceId.Market or WorkspaceId.Intelligence)
                 NativeContent.Content = new StructuredModuleView(api, module, ticker);
-            else
-            {
-                using var result = await api.SendAsync(module, module.RequiresTicker ? ticker : null);
-                DataPreview.Visibility = Visibility.Visible;
-                DataPreview.Text = JsonSerializer.Serialize(result.RootElement, new JsonSerializerOptions { WriteIndented = true });
-            }
+            else if (module.Workspace == WorkspaceId.Settings) NativeContent.Content = new SettingsView(api, sessions);
+            else throw new InvalidOperationException($"Renderer native {module.Id} belum terdaftar.");
             StateBar.Severity = InfoBarSeverity.Success; StateBar.Title = module.Label; StateBar.Message = "Data API berhasil dimuat."; StateBar.IsOpen = true;
         }
         catch (AccessDeniedException error)
