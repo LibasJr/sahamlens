@@ -102,6 +102,8 @@ public sealed partial class MainWindow : Window
                 var result = await api.SendAsync<ChartResult>(chartModule, ticker);
                 var chart = new NativeChartControl(); chart.SetData(ticker, result.History, module.Id == "backtest"); NativeContent.Content = chart;
             }
+            else if (module.Workspace is WorkspaceId.Analysis or WorkspaceId.Research)
+                NativeContent.Content = new StructuredModuleView(api, module, ticker);
             else
             {
                 using var result = await api.SendAsync(module, module.RequiresTicker ? ticker : null);
