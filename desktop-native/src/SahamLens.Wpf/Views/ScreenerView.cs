@@ -9,8 +9,8 @@ namespace SahamLens.Wpf.Views;
 public sealed class ScreenerView : UserControl
 {
     private readonly ISahamLensApi api;
-    private readonly ComboBox profile = new() { Width = 220 };
-    private readonly ComboBox sector = new() { Width = 220 };
+    private readonly ComboBox profile = Theme.Field(new ComboBox { Width = 220 });
+    private readonly ComboBox sector = Theme.Field(new ComboBox { Width = 220 });
     private readonly TextBlock summary = new() { VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(0, 0, 0, 10), Opacity = 0.7 };
     private readonly InfoBar guestWarning = new() { Severity = InfoSeverity.Warning, IsClosable = false, IsOpen = false, Title = "Sesi guest terdeteksi", Message = "Masuk dengan akun Anda untuk membuka hasil penuh." };
     private readonly LoadingRing loadingRing = new();
@@ -69,7 +69,7 @@ public sealed class ScreenerView : UserControl
             Grid.SetColumn(text, i);
             grid.Children.Add(text);
         }
-        return new Border { BorderBrush = (System.Windows.Media.Brush)System.Windows.Application.Current.Resources["AppBorderBrush"], BorderThickness = new Thickness(0, 0, 0, 1), Child = grid };
+        return new Border { BorderBrush = Theme.Border, BorderThickness = new Thickness(0, 0, 0, 1), Child = grid };
     }
 
     private async Task LoadAsync()

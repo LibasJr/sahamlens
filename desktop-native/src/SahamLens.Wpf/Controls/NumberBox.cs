@@ -14,6 +14,10 @@ public sealed class NumberBox : UserControl
     public NumberBox()
     {
         input.Text = "0";
+        input.Background = Theme.FieldBackground;
+        input.Foreground = Theme.Foreground;
+        input.BorderBrush = Theme.Border;
+        input.Padding = new Thickness(8, 6, 8, 6);
         input.LostFocus += (_, _) => Value = ParsedValue();
         Content = Layout.VStack(4, headerText, input);
     }

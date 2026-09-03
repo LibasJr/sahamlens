@@ -19,7 +19,7 @@ public sealed class MainWindow : Window
 
     private readonly StackPanel navPanel = new();
     private readonly Dictionary<WorkspaceId, Button> navButtons = new();
-    private readonly TextBox tickerSearch = new() { Width = 280 };
+    private readonly TextBox tickerSearch = new() { Width = 280, Background = Theme.FieldBackground, Foreground = Theme.Foreground, BorderBrush = Theme.Border, Padding = new Thickness(8, 6, 8, 6) };
     private readonly Ellipse apiDot = new() { Width = 8, Height = 8, Fill = System.Windows.Media.Brushes.Orange };
     private readonly TextBlock apiStatus = new() { Text = "Memeriksa API" };
     private readonly TextBlock workspaceKicker = new() { Foreground = new SolidColorBrush(Colors.YellowGreen), FontWeight = FontWeights.SemiBold };
@@ -38,6 +38,10 @@ public sealed class MainWindow : Window
         Width = 1280;
         Height = 800;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
+        Background = Theme.Background;
+        Foreground = Theme.Foreground;
+        FontFamily = new System.Windows.Media.FontFamily("Segoe UI");
+        FontSize = 14;
         BuildShell();
         ContentRendered += OnFirstRender;
     }
@@ -71,7 +75,7 @@ public sealed class MainWindow : Window
         var pane = new Border
         {
             Width = 245,
-            Background = (Brush)System.Windows.Application.Current.Resources["CardBrush"],
+            Background = Theme.Card,
             Padding = new Thickness(12),
             Child = Layout.VStack(4,
                 new TextBlock { Text = "SAHAMLENS", FontWeight = FontWeights.Bold, FontSize = 20 },
@@ -82,7 +86,7 @@ public sealed class MainWindow : Window
         tickerSearch.KeyDown += OnTickerKeyDown;
         var accountButton = new Button { Content = "Akun" };
         accountButton.Click += OnAccountClick;
-        var statusChip = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 6, 10, 6), Background = (Brush)System.Windows.Application.Current.Resources["AppBackgroundBrush"], Margin = new Thickness(14, 0, 14, 0) };
+        var statusChip = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 6, 10, 6), Background = Theme.Background, Margin = new Thickness(14, 0, 14, 0) };
         statusChip.Child = Layout.HStack(7, apiDot, apiStatus);
 
         var header = new Grid();
@@ -105,7 +109,7 @@ public sealed class MainWindow : Window
         contentArea.Children.Add(scroll);
         Grid.SetColumn(contentArea, 1);
 
-        var root = new Grid();
+        var root = new Grid { Background = Theme.Background };
         root.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         root.ColumnDefinitions.Add(new ColumnDefinition());
         root.Children.Add(pane);
