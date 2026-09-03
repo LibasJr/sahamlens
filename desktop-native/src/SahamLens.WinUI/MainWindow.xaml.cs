@@ -33,7 +33,13 @@ public sealed class MainWindow : Window
         this.api = api;
         this.sessions = sessions;
         BuildShell();
-        Activated += async (_, _) => await InitializeAsync();
+        Activated += OnActivated;
+    }
+
+    private async void OnActivated(object sender, WindowActivatedEventArgs args)
+    {
+        Activated -= OnActivated;
+        await InitializeAsync();
     }
 
     private void BuildShell()
@@ -80,7 +86,6 @@ public sealed class MainWindow : Window
 
     private async Task InitializeAsync()
     {
-        Activated -= async (_, _) => await InitializeAsync();
         await RefreshSessionAsync();
         await CheckHealthAsync();
         SelectWorkspace(WorkspaceId.Market);
