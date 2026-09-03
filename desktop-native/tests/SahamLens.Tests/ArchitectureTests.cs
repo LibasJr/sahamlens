@@ -134,6 +134,21 @@ public sealed class ArchitectureTests
         Assert.Contains("mode=ticker", captured.RequestUri!.Query);
     }
 
+    [Fact]
+    public void Market_intelligence_and_settings_have_native_renderers()
+    {
+        var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
+        var main = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/MainWindow.xaml.cs"));
+        var settings = File.ReadAllText(Path.Combine(root, "src/SahamLens.WinUI/Views/SettingsView.cs"));
+        Assert.Contains("WorkspaceId.Market or WorkspaceId.Intelligence", main);
+        Assert.Contains("new SettingsView(api, sessions)", main);
+        Assert.Contains("Windows Password Vault", settings);
+        Assert.Contains("/api/desktop/update?current=", settings);
+        Assert.Contains("Uri.UriSchemeHttps", settings);
+        Assert.Contains("sessions.ClearAsync", settings);
+        Assert.DoesNotContain("WebView", settings, StringComparison.OrdinalIgnoreCase);
+    }
+
     private sealed class StubHandler(Func<HttpRequestMessage, HttpResponseMessage> responder) : HttpMessageHandler
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) => Task.FromResult(responder(request));
