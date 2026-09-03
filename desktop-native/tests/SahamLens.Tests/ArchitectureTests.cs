@@ -194,9 +194,12 @@ public sealed class ArchitectureTests
         var root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "../../../../.."));
         var workflow = File.ReadAllText(Path.Combine(root, "../.github/workflows/desktop-native.yml"));
         Assert.Contains("MainWindowHandle", workflow);
-        Assert.Contains("iexpress.exe", workflow);
+        Assert.Contains("SahamLens.Installer.csproj", workflow);
         Assert.Contains("SahamLens-Native-Setup.exe", workflow);
         Assert.Contains("Get-FileHash", workflow);
+        var installer = File.ReadAllText(Path.Combine(root, "installer/SahamLens.Installer.csproj"));
+        Assert.Contains("PublishSingleFile", installer);
+        Assert.Contains("EmbeddedResource", installer);
     }
 
     private sealed class ThrowingHandler : HttpMessageHandler

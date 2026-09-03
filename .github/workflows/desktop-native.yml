@@ -68,13 +68,11 @@ jobs:
       - name: Build self-extracting installer
         shell: pwsh
         run: |
-          Compress-Archive -Path 'desktop-native/artifacts/win-x64/*' -DestinationPath 'desktop-native/packaging/payload.zip' -Force
-          $source = (Resolve-Path 'desktop-native/packaging').Path + '\'
+          Compress-Archive -Path 'desktop-native/artifacts/win-x64/*' -DestinationPath 'desktop-native/installer/payload.zip' -Force
+          dotnet publish desktop-native/installer/SahamLens.Installer.csproj -c Release -r win-x64 --self-contained true -o desktop-native/artifacts/installer
+          $built = Resolve-Path 'desktop-native/artifacts/installer/SahamLens-Native-Setup.exe'
           $target = (Resolve-Path 'desktop-native/artifacts').Path + '\SahamLens-Native-Setup.exe'
-          $sed = Get-Content 'desktop-native/packaging/SahamLens-Native.sed' -Raw
-          $sed = $sed.Replace('%SOURCE_DIR%', $source).Replace('%TARGET_EXE%', $target)
-          Set-Content 'desktop-native/packaging/build.sed' $sed -Encoding ASCII
-          & "$env:SystemRoot\System32\iexpress.exe" /N /Q 'desktop-native/packaging/build.sed'
+          Copy-Item $built $target -Force
           if (!(Test-Path $target)) { throw 'Installer EXE was not generated' }
           Get-FileHash $target -Algorithm SHA256 | Format-List
       - uses: actions/upload-artifact@v4
