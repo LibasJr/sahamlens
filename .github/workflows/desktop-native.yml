@@ -70,6 +70,7 @@ jobs:
         run: |
           $ErrorActionPreference = 'Stop'
           Compress-Archive -Path 'desktop-native/artifacts/win-x64/*' -DestinationPath 'desktop-native/installer/payload.zip' -Force
+          Compress-Archive -Path 'desktop-native/artifacts/win-x64/*' -DestinationPath 'desktop-native/artifacts/SahamLens-Native-Portable-win-x64.zip' -Force
           dotnet publish desktop-native/installer/SahamLens.Installer.csproj -c Release -r win-x64 --self-contained true -o desktop-native/artifacts/installer
           $built = Resolve-Path 'desktop-native/artifacts/installer/SahamLens-Native-Setup.exe'
           $target = (Resolve-Path 'desktop-native/artifacts').Path + '\SahamLens-Native-Setup.exe'
@@ -80,6 +81,6 @@ jobs:
         with:
           name: SahamLens-Native-win-x64
           path: |
-            desktop-native/artifacts/win-x64/**
             desktop-native/artifacts/SahamLens-Native-Setup.exe
+            desktop-native/artifacts/SahamLens-Native-Portable-win-x64.zip
           if-no-files-found: error
