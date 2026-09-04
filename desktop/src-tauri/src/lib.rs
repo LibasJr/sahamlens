@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
@@ -7,6 +8,66 @@ use tauri::{
 #[tauri::command]
 fn get_platform_info() -> String {
     format!("SahamLens Pro Native ({})", std::env::consts::OS)
+}
+
+#[derive(serde::Serialize)]
+struct NativeResponse {
+    status: u16,
+    body: String,
+    ok: bool,
+}
+
+#[tauri::command]
+async fn native_api_request(
+    endpoint: String,
+    method: String,
+    body: Option<String>,
+    token: Option<String>,
+    headers: Option<HashMap<String, String>>,
+) -> Result<NativeResponse, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(25))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let url = if endpoint.starts_with("http") {
+        endpoint
+    } else {
+        format!("https://sahamlens.id{}", endpoint)
+    };
+
+    let mut req = match method.to_uppercase().as_str() {
+        "POST" => client.post(&url),
+        "DELETE" => client.delete(&url),
+        _ => client.get(&url),
+    };
+
+    if let Some(tok) = token {
+        if !tok.is_empty() {
+            req = req.header("Authorization", format!("Bearer {}", tok));
+        }
+    }
+
+    if let Some(hdrs) = headers {
+        for (k, v) in hdrs {
+            req = req.header(&k, &v);
+        }
+    }
+
+    if let Some(b) = body {
+        req = req.header("Content-Type", "application/json").body(b);
+    }
+
+    let resp = req.send().await.map_err(|e| e.to_string())?;
+    let status = resp.status().as_u16();
+    let ok = resp.status().is_success();
+    let text = resp.text().await.map_err(|e| e.to_string())?;
+
+    Ok(NativeResponse {
+        status,
+        body: text,
+        ok,
+    })
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -53,7 +114,7 @@ pub fn run() {
 
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_platform_info])
+        .invoke_handler(tauri::generate_handler![get_platform_info, native_api_request])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
