@@ -28,3 +28,11 @@ export {
   type AraCandidateDataGateResult,
   type AraDataGateFailure,
 } from './service/ara-data-gate.service';
+export {
+  buildAraObservation,
+  idxTickSize,
+  researchAraLimit,
+  type AraMarketBar,
+  type AraObservation,
+  type AraObservationInput,
+} from './service/ara-observation-pipeline.service';
