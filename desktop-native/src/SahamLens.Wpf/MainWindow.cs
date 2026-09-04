@@ -18,30 +18,33 @@ public sealed class MainWindow : Window
     private string ticker = "BBCA";
 
     private readonly StackPanel navPanel = new();
-    private readonly Dictionary<WorkspaceId, Button> navButtons = new();
-    private readonly TextBox tickerSearch = new() { Width = 280, Background = Theme.FieldBackground, Foreground = Theme.Foreground, BorderBrush = Theme.Border, Padding = new Thickness(8, 6, 8, 6) };
-    private readonly Ellipse apiDot = new() { Width = 8, Height = 8, Fill = System.Windows.Media.Brushes.Orange };
-    private readonly TextBlock apiStatus = new() { Text = "Memeriksa API" };
-    private readonly TextBlock workspaceKicker = new() { Foreground = new SolidColorBrush(Colors.YellowGreen), FontWeight = FontWeights.SemiBold };
-    private readonly TextBlock workspaceTitle = new() { FontSize = 28, FontWeight = FontWeights.SemiBold };
-    private readonly TextBlock workspaceDescription = new() { MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, Opacity = 0.7 };
+    private readonly Dictionary<WorkspaceId, Border> navButtons = new();
+    private readonly TextBox tickerSearch = Theme.Field(new TextBox { Width = 260, Height = 36, VerticalContentAlignment = VerticalAlignment.Center });
+    private readonly Ellipse apiDot = new() { Width = 8, Height = 8, Fill = Theme.Warning };
+    private readonly TextBlock apiStatus = new() { Text = "Memeriksa API", FontSize = 12, Foreground = Theme.SecondaryForeground };
+    private readonly TextBlock workspaceKicker = new() { Foreground = Theme.Accent, FontWeight = FontWeights.Bold, FontSize = 11 };
+    private readonly TextBlock workspaceTitle = new() { FontSize = 26, FontWeight = FontWeights.Bold, Foreground = Theme.Foreground };
+    private readonly TextBlock workspaceDescription = new() { MaxWidth = 960, HorizontalAlignment = HorizontalAlignment.Left, TextWrapping = TextWrapping.Wrap, Foreground = Theme.SecondaryForeground, FontSize = 13, LineHeight = 20 };
     private readonly WrapPanel moduleBar = new();
     private readonly InfoBar stateBar = new() { IsOpen = false, IsClosable = false };
     private readonly LoadingRing loading = new();
     private readonly ContentControl nativeContent = new();
+    private readonly TextBlock accountEmailText = new() { Text = "Masuk", FontSize = 12, FontWeight = FontWeights.SemiBold, Foreground = Theme.Foreground };
 
     public MainWindow(ISahamLensApi api, ISessionStore sessions)
     {
         this.api = api;
         this.sessions = sessions;
-        Title = "SahamLens Native";
-        Width = 1280;
-        Height = 800;
+        Title = "SahamLens Native Terminal";
+        Width = 1360;
+        Height = 860;
+        MinWidth = 1080;
+        MinHeight = 700;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         Background = Theme.Background;
         Foreground = Theme.Foreground;
-        FontFamily = new System.Windows.Media.FontFamily("Segoe UI");
-        FontSize = 14;
+        FontFamily = Theme.PrimaryFont;
+        FontSize = 13;
         BuildShell();
         ContentRendered += OnFirstRender;
     }
@@ -54,52 +57,166 @@ public sealed class MainWindow : Window
 
     private void BuildShell()
     {
-        foreach (var (id, label) in new[]
+        // Sidebar Branding
+        var logoSymbol = new Border
         {
-            (WorkspaceId.Market, "Pasar Hari Ini"),
-            (WorkspaceId.Screener, "Screener"),
-            (WorkspaceId.Analysis, "Analisis Emiten"),
-            (WorkspaceId.Intelligence, "Market Intelligence"),
-            (WorkspaceId.Research, "Riset Emiten"),
-            (WorkspaceId.Admin, "Admin Panel"),
-            (WorkspaceId.Settings, "Pengaturan"),
-        })
-        {
-            var button = new Button { Content = label, HorizontalContentAlignment = HorizontalAlignment.Left, Margin = new Thickness(0, 0, 0, 4) };
-            var capturedId = id;
-            button.Click += (_, _) => SelectWorkspace(capturedId);
-            if (id == WorkspaceId.Admin) button.Visibility = Visibility.Collapsed;
-            navButtons[id] = button;
-            navPanel.Children.Add(button);
-        }
-        var pane = new Border
-        {
-            Width = 245,
-            Background = Theme.Card,
-            Padding = new Thickness(12),
-            Child = Layout.VStack(4,
-                new TextBlock { Text = "SAHAMLENS", FontWeight = FontWeights.Bold, FontSize = 20 },
-                new TextBlock { Text = "Native Research Terminal", Opacity = 0.65, FontSize = 11, Margin = new Thickness(0, 0, 0, 16) },
-                navPanel),
+            Width = 32,
+            Height = 32,
+            CornerRadius = new CornerRadius(8),
+            Background = Theme.Accent,
+            Child = new TextBlock
+            {
+                Text = "S",
+                FontWeight = FontWeights.ExtraBold,
+                FontSize = 18,
+                Foreground = Theme.AccentForeground,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center
+            }
         };
 
+        var logoText = Layout.VStack(2,
+            new TextBlock { Text = "SAHAMLENS", FontWeight = FontWeights.Bold, FontSize = 16, Foreground = Theme.Foreground },
+            new TextBlock { Text = "Native Terminal", FontSize = 11, Foreground = Theme.SubtleForeground });
+
+        var brandHeader = Layout.HStack(12, logoSymbol, logoText);
+        brandHeader.Margin = new Thickness(6, 4, 6, 20);
+
+        // Sidebar Menu Items
+        var menuItems = new[]
+        {
+            (WorkspaceId.Market, "Pasar Hari Ini", "📊"),
+            (WorkspaceId.Screener, "Screener", "🔍"),
+            (WorkspaceId.Analysis, "Analisis Emiten", "📈"),
+            (WorkspaceId.Intelligence, "Market Intelligence", "🧠"),
+            (WorkspaceId.Research, "Riset Emiten", "🔬"),
+            (WorkspaceId.Admin, "Admin Panel", "🛡️"),
+            (WorkspaceId.Settings, "Pengaturan", "⚙️"),
+        };
+
+        foreach (var (id, label, icon) in menuItems)
+        {
+            var itemGrid = new Grid();
+            itemGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+            itemGrid.ColumnDefinitions.Add(new ColumnDefinition());
+
+            var iconText = new TextBlock { Text = icon, FontSize = 14, VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+            var labelText = new TextBlock { Text = label, FontSize = 13, FontWeight = FontWeights.Normal, Foreground = Theme.SecondaryForeground, VerticalAlignment = VerticalAlignment.Center };
+
+            Grid.SetColumn(iconText, 0);
+            Grid.SetColumn(labelText, 1);
+            itemGrid.Children.Add(iconText);
+            itemGrid.Children.Add(labelText);
+
+            var itemBorder = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10, 8, 10, 8),
+                Margin = new Thickness(0, 0, 0, 4),
+                Background = Brushes.Transparent,
+                Cursor = Cursors.Hand,
+                Child = itemGrid
+            };
+
+            var capturedId = id;
+            itemBorder.MouseEnter += (_, _) =>
+            {
+                if (workspace != capturedId)
+                    itemBorder.Background = Theme.Solid(0x18, 0x22, 0x26);
+            };
+            itemBorder.MouseLeave += (_, _) =>
+            {
+                if (workspace != capturedId)
+                    itemBorder.Background = Brushes.Transparent;
+            };
+            itemBorder.MouseDown += (_, _) => SelectWorkspace(capturedId);
+
+            if (id == WorkspaceId.Admin) itemBorder.Visibility = Visibility.Collapsed;
+            navButtons[id] = itemBorder;
+            navPanel.Children.Add(itemBorder);
+        }
+
+        var pane = new Border
+        {
+            Width = 240,
+            Background = Theme.SidebarBackground,
+            BorderBrush = Theme.Border,
+            BorderThickness = new Thickness(0, 0, 1, 0),
+            Padding = new Thickness(16, 20, 16, 20),
+            Child = Layout.VStack(8, brandHeader, navPanel)
+        };
+
+        // Top Header
         tickerSearch.KeyDown += OnTickerKeyDown;
-        var accountButton = new Button { Content = "Akun" };
-        accountButton.Click += OnAccountClick;
-        var statusChip = new Border { CornerRadius = new CornerRadius(12), Padding = new Thickness(10, 6, 10, 6), Background = Theme.Background, Margin = new Thickness(14, 0, 14, 0) };
-        statusChip.Child = Layout.HStack(7, apiDot, apiStatus);
+
+        var searchBoxContainer = new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            Child = tickerSearch
+        };
+
+        var statusChip = new Border
+        {
+            CornerRadius = new CornerRadius(999),
+            Padding = new Thickness(12, 6, 12, 6),
+            Background = Theme.Solid(0x13, 0x1A, 0x1D),
+            BorderBrush = Theme.Border,
+            BorderThickness = new Thickness(1),
+            Margin = new Thickness(14, 0, 14, 0),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        statusChip.Child = Layout.HStack(8, apiDot, apiStatus);
+
+        var accountBtnContainer = new Border
+        {
+            CornerRadius = new CornerRadius(8),
+            Background = Theme.ButtonBackground,
+            BorderBrush = Theme.Border,
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(12, 6, 14, 6),
+            Cursor = Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        accountBtnContainer.MouseEnter += (_, _) => accountBtnContainer.Background = Theme.ButtonHoverBackground;
+        accountBtnContainer.MouseLeave += (_, _) => accountBtnContainer.Background = Theme.ButtonBackground;
+        accountBtnContainer.MouseDown += OnAccountClick;
+        accountBtnContainer.Child = Layout.HStack(8,
+            new TextBlock { Text = "👤", FontSize = 12, VerticalAlignment = VerticalAlignment.Center },
+            accountEmailText);
 
         var header = new Grid();
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        Grid.SetColumn(statusChip, 1); Grid.SetColumn(accountButton, 2);
-        header.Children.Add(tickerSearch); header.Children.Add(statusChip); header.Children.Add(accountButton);
-        var headerBorder = new Border { Padding = new Thickness(20, 12, 20, 12), Child = header };
 
-        var body = Layout.VStack(16, workspaceKicker, workspaceTitle, workspaceDescription, moduleBar, stateBar, loading, nativeContent);
-        body.Margin = new Thickness(24);
-        var scroll = new ScrollViewer { Content = body };
+        Grid.SetColumn(searchBoxContainer, 0);
+        Grid.SetColumn(statusChip, 2);
+        Grid.SetColumn(accountBtnContainer, 3);
+        header.Children.Add(searchBoxContainer);
+        header.Children.Add(statusChip);
+        header.Children.Add(accountBtnContainer);
+
+        var headerBorder = new Border
+        {
+            Padding = new Thickness(24, 14, 24, 14),
+            Background = Theme.HeaderBackground,
+            BorderBrush = Theme.Border,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = header
+        };
+
+        // Main Body Content
+        var titleCard = Layout.VStack(6, workspaceKicker, workspaceTitle, workspaceDescription);
+        var body = Layout.VStack(16, titleCard, moduleBar, stateBar, loading, nativeContent);
+        body.Margin = new Thickness(28);
+
+        var scroll = new ScrollViewer
+        {
+            Content = body,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
         Grid.SetRow(scroll, 1);
 
         var contentArea = new Grid();
@@ -130,12 +247,12 @@ public sealed class MainWindow : Window
         {
             using var _ = await api.GetAsync("/api/health");
             apiStatus.Text = "API tersambung";
-            apiDot.Fill = System.Windows.Media.Brushes.LimeGreen;
+            apiDot.Fill = Theme.Positive;
         }
         catch
         {
             apiStatus.Text = "API offline";
-            apiDot.Fill = System.Windows.Media.Brushes.OrangeRed;
+            apiDot.Fill = Theme.Negative;
         }
     }
 
@@ -143,32 +260,48 @@ public sealed class MainWindow : Window
     {
         var session = await sessions.LoadAsync();
         navButtons[WorkspaceId.Admin].Visibility = session.IsAdmin ? Visibility.Visible : Visibility.Collapsed;
+        accountEmailText.Text = string.IsNullOrWhiteSpace(session.Email) ? "Masuk" : session.Email;
     }
 
     private void SelectWorkspace(WorkspaceId selected)
     {
         workspace = selected;
-        foreach (var (id, button) in navButtons)
-            button.FontWeight = id == selected ? FontWeights.Bold : FontWeights.Normal;
+        foreach (var (id, border) in navButtons)
+        {
+            var isSelected = id == selected;
+            border.Background = isSelected ? Theme.ActiveTabBackground : Brushes.Transparent;
+            if (border.Child is Grid grid && grid.Children.Count > 1 && grid.Children[1] is TextBlock labelText)
+            {
+                labelText.FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal;
+                labelText.Foreground = isSelected ? Theme.Foreground : Theme.SecondaryForeground;
+            }
+        }
 
         var titles = new Dictionary<WorkspaceId, (string Kicker, string Title, string Description)>
         {
-            [WorkspaceId.Market] = ("PASAR HARI INI", "Kondisi pasar dalam satu halaman", "IHSG, breadth, sektor, movers, sentimen, dan daftar pantau."),
-            [WorkspaceId.Screener] = ("SCREENER", "Saring kandidat riset", "Hasil penuh mengikuti akun dan role native yang sedang aktif."),
-            [WorkspaceId.Analysis] = ("ANALISIS EMITEN", ticker, "Chart, fundamental, valuasi, earnings, ownership, backtest, dan compare."),
-            [WorkspaceId.Intelligence] = ("MARKET INTELLIGENCE", "Konteks pasar terbaru", "News, pulse, makro, kalender, dan breakout radar."),
-            [WorkspaceId.Research] = ("RISET EMITEN", ticker, "Consensus Lens AI, bandarmology, checklist, position sizing, dividend, dan risk."),
-            [WorkspaceId.Admin] = ("ADMIN CONSOLE", "Operasional platform", "Seluruh modul admin native dengan role gate server dan client."),
-            [WorkspaceId.Settings] = ("PENGATURAN", "Akun & aplikasi", "Sesi aman Windows, cache, dan pembaruan aplikasi."),
+            [WorkspaceId.Market] = ("PASAR HARI INI", "Kondisi Pasar Saham Indonesia", "Monitoring IHSG, breadth pasar, sektor penggerak, top movers, sentimen makro, dan daftar pantau real-time."),
+            [WorkspaceId.Screener] = ("SCREENER", "Saring Kandidat Saham Terbaik", "Filter emiten berdasarkan profil risiko, rasio fundamental PER/PBV, dan sinyal teknikal objektif."),
+            [WorkspaceId.Analysis] = ("ANALISIS EMITEN", ticker, "Chart interaktif candlestick, analisis fundamental terstruktur, valuasi DCF, riwayat laba, dan flow kepemilikan."),
+            [WorkspaceId.Intelligence] = ("MARKET INTELLIGENCE", "Konteks & Sinyal Pasar", "News feed terverifikasi, market pulse sentiment, kalender aksi korporasi, dan breakout radar."),
+            [WorkspaceId.Research] = ("RISET EMITEN", ticker, "AI Consensus Agent SahamLens, analisis bandarmology, checklist investasi, position sizing, dan dividen plan."),
+            [WorkspaceId.Admin] = ("ADMIN CONSOLE", "Operasional & Health Platform", "Panel kontrol teknis, validasi TP/CL, background sync jobs, dan telemetry performa."),
+            [WorkspaceId.Settings] = ("PENGATURAN", "Akun & Preferensi Aplikasi", "Manajemen sesi aman Windows (DPAPI), manajemen cache lokal, dan pemeriksaan update otomatis."),
         };
-        var text = titles[selected]; workspaceKicker.Text = text.Kicker; workspaceTitle.Text = text.Title; workspaceDescription.Text = text.Description;
+
+        var text = titles[selected];
+        workspaceKicker.Text = text.Kicker;
+        workspaceTitle.Text = text.Title;
+        workspaceDescription.Text = text.Description;
+
         moduleBar.Children.Clear();
         foreach (var module in ProductCatalog.For(selected))
         {
-            var button = new Button { Content = module.Label, Margin = new Thickness(0, 0, 8, 8) };
-            button.Click += async (_, _) => await LoadModuleAsync(module);
-            moduleBar.Children.Add(button);
+            var tabButton = Theme.SecondaryButton(module.Label);
+            tabButton.Margin = new Thickness(0, 0, 8, 8);
+            tabButton.Click += async (_, _) => await LoadModuleAsync(module);
+            moduleBar.Children.Add(tabButton);
         }
+
         nativeContent.Content = selected == WorkspaceId.Screener ? new ScreenerView(api) : null;
         if (selected == WorkspaceId.Settings) nativeContent.Content = new SettingsView(api, sessions);
         stateBar.IsOpen = false;
@@ -176,7 +309,9 @@ public sealed class MainWindow : Window
 
     private async Task LoadModuleAsync(ProductModule module)
     {
-        loading.IsActive = true; stateBar.IsOpen = false; nativeContent.Content = null;
+        loading.IsActive = true;
+        stateBar.IsOpen = false;
+        nativeContent.Content = null;
         try
         {
             if (module.Workspace == WorkspaceId.Admin) nativeContent.Content = new AdminModuleView(api, module);
@@ -186,7 +321,9 @@ public sealed class MainWindow : Window
             {
                 var chartModule = ProductCatalog.Get("technical");
                 var result = await api.SendAsync<ChartResult>(chartModule, ticker);
-                var chart = new NativeChartControl(); chart.SetData(ticker, result.History, false); nativeContent.Content = chart;
+                var chart = new NativeChartControl();
+                chart.SetData(ticker, result.History, false);
+                nativeContent.Content = chart;
             }
             else if (module.Workspace is WorkspaceId.Analysis or WorkspaceId.Research)
                 nativeContent.Content = new StructuredModuleView(api, module, ticker);
@@ -194,17 +331,30 @@ public sealed class MainWindow : Window
                 nativeContent.Content = new StructuredModuleView(api, module, ticker);
             else if (module.Workspace == WorkspaceId.Settings) nativeContent.Content = new SettingsView(api, sessions);
             else throw new InvalidOperationException($"Renderer native {module.Id} belum terdaftar.");
-            stateBar.Severity = InfoSeverity.Success; stateBar.Title = module.Label; stateBar.Message = "Data API berhasil dimuat."; stateBar.IsOpen = true;
+
+            stateBar.Severity = InfoSeverity.Success;
+            stateBar.Title = module.Label;
+            stateBar.Message = "Data API berhasil dimuat.";
+            stateBar.IsOpen = true;
         }
         catch (AccessDeniedException error)
         {
-            stateBar.Severity = InfoSeverity.Warning; stateBar.Title = "Akses akun diperlukan"; stateBar.Message = error.Message; stateBar.IsOpen = true;
+            stateBar.Severity = InfoSeverity.Warning;
+            stateBar.Title = "Akses akun diperlukan";
+            stateBar.Message = error.Message;
+            stateBar.IsOpen = true;
         }
         catch (Exception error)
         {
-            stateBar.Severity = InfoSeverity.Error; stateBar.Title = $"{module.Label} gagal dimuat"; stateBar.Message = error.Message; stateBar.IsOpen = true;
+            stateBar.Severity = InfoSeverity.Error;
+            stateBar.Title = $"{module.Label} gagal dimuat";
+            stateBar.Message = error.Message;
+            stateBar.IsOpen = true;
         }
-        finally { loading.IsActive = false; }
+        finally
+        {
+            loading.IsActive = false;
+        }
     }
 
     private void OnTickerKeyDown(object sender, KeyEventArgs e)
@@ -216,7 +366,7 @@ public sealed class MainWindow : Window
         if (workspace is WorkspaceId.Analysis or WorkspaceId.Research) SelectWorkspace(workspace);
     }
 
-    private async void OnAccountClick(object sender, RoutedEventArgs e)
+    private async void OnAccountClick(object? sender, RoutedEventArgs e)
     {
         var dialog = new LoginWindow(api) { Owner = this };
         if (dialog.ShowDialog() == true) await RefreshSessionAsync();

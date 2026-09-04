@@ -19,16 +19,23 @@ public sealed class AdminModuleView : UserControl
     public AdminModuleView(ISahamLensApi api, ProductModule module)
     {
         this.api = api; this.module = module;
-        var refresh = new Button { Content = "Refresh data", HorizontalAlignment = HorizontalAlignment.Right };
+        var refresh = Theme.PrimaryButton("Refresh Data Admin");
+        refresh.Height = 36;
+        refresh.HorizontalAlignment = HorizontalAlignment.Right;
         refresh.Click += async (_, _) => await LoadAsync();
+
         var header = new Grid();
         header.ColumnDefinitions.Add(new ColumnDefinition());
         header.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        header.Children.Add(Layout.VStack(2,
-            new TextBlock { Text = module.Label, FontSize = 22, FontWeight = FontWeights.SemiBold },
-            new TextBlock { Text = "Modul operator native · role admin diverifikasi server", Opacity = .65 }));
-        Grid.SetColumn(refresh, 1); header.Children.Add(refresh);
-        Content = Layout.VStack(12, header, state, loading, body);
+        header.Children.Add(Layout.VStack(4,
+            new TextBlock { Text = module.Label, FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Theme.Foreground },
+            new TextBlock { Text = "Modul Operasional & Pemeliharaan Native  •  Role Admin Terverifikasi", Foreground = Theme.SecondaryForeground, FontSize = 12 }));
+        Grid.SetColumn(refresh, 1);
+        header.Children.Add(refresh);
+
+        var headerCard = Theme.CardContainer(header, new Thickness(18, 14, 18, 14));
+
+        Content = Layout.VStack(14, headerCard, state, loading, body);
         Loaded += async (_, _) => await LoadAsync();
     }
 
@@ -50,15 +57,36 @@ public sealed class AdminModuleView : UserControl
         if (depth > 4) return;
         if (node.ValueKind == JsonValueKind.Object)
         {
+            var cardChildren = new StackPanel();
             foreach (var property in node.EnumerateObject())
             {
                 if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
                 {
-                    var nested = new StackPanel { Margin = new Thickness(8) }; Render(property.Value, nested, depth + 1);
-                    var section = new Expander { Header = Humanize(property.Name), IsExpanded = depth < 1, Content = nested, Margin = new Thickness(0, 0, 0, 7) };
-                    host.Children.Add(section);
+                    var nested = new StackPanel { Margin = new Thickness(10) };
+                    Render(property.Value, nested, depth + 1);
+                    var section = new Expander
+                    {
+                        Header = Humanize(property.Name),
+                        IsExpanded = depth < 1,
+                        Content = nested,
+                        Margin = new Thickness(0, 0, 0, 8),
+                        Foreground = Theme.Foreground,
+                        FontWeight = FontWeights.SemiBold,
+                        FontSize = 13
+                    };
+                    cardChildren.Children.Add(section);
                 }
-                else Layout.AddSpaced(host, 3, Metric(Humanize(property.Name), Scalar(property.Value)));
+                else Layout.AddSpaced(cardChildren, 4, Metric(Humanize(property.Name), Scalar(property.Value)));
+            }
+
+            if (depth == 0)
+            {
+                var card = Theme.CardContainer(cardChildren, new Thickness(18, 14, 18, 14));
+                host.Children.Add(card);
+            }
+            else
+            {
+                host.Children.Add(cardChildren);
             }
         }
         else if (node.ValueKind == JsonValueKind.Array)
@@ -68,23 +96,42 @@ public sealed class AdminModuleView : UserControl
             {
                 if (item.ValueKind == JsonValueKind.Object)
                 {
-                    var card = new StackPanel(); Render(item, card, depth + 1);
-                    var border = new Border { Background = Theme.Card, CornerRadius = new CornerRadius(9), Padding = new Thickness(12), Child = card, Margin = new Thickness(0, 0, 0, 6) };
+                    var card = new StackPanel();
+                    Render(item, card, depth + 1);
+                    var border = Theme.CardContainer(card, new Thickness(14));
+                    border.Margin = new Thickness(0, 0, 0, 8);
                     host.Children.Add(border);
                 }
-                else Layout.AddSpaced(host, 3, Metric($"Item {++index}", Scalar(item)));
+                else Layout.AddSpaced(host, 4, Metric($"Item {++index}", Scalar(item)));
             }
         }
     }
 
     private static UIElement Metric(string label, string value)
     {
-        var grid = new Grid { Margin = new Thickness(10, 7, 10, 7) };
+        var grid = new Grid { Margin = new Thickness(10, 8, 10, 8) };
         grid.ColumnDefinitions.Add(new ColumnDefinition());
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.Children.Add(new TextBlock { Text = label, Opacity = .7 });
-        var text = new TextBlock { Text = value, FontWeight = FontWeights.SemiBold, MaxWidth = 650, TextWrapping = TextWrapping.Wrap };
-        Grid.SetColumn(text, 1); grid.Children.Add(text); return grid;
+        grid.Children.Add(new TextBlock { Text = label, Foreground = Theme.SecondaryForeground, FontSize = 13 });
+        var text = new TextBlock
+        {
+            Text = value,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Theme.Foreground,
+            FontSize = 13,
+            MaxWidth = 650,
+            TextWrapping = TextWrapping.Wrap
+        };
+        Grid.SetColumn(text, 1);
+        grid.Children.Add(text);
+
+        var border = new Border
+        {
+            BorderBrush = Theme.Border,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = grid
+        };
+        return border;
     }
     private static string Scalar(JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString() ?? "—" : value.GetRawText();
     private static string Humanize(string text) => string.Concat(text.Select((ch, i) => i > 0 && char.IsUpper(ch) ? " " + ch : ch.ToString())).Replace('_', ' ');
