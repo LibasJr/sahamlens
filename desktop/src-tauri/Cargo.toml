@@ -1,0 +1,20 @@
+[package]
+name = "sahamlens-desktop-pro"
+version = "1.0.0"
+description = "SahamLens Pro Native Terminal"
+authors = ["SahamLens Team"]
+edition = "2021"
+
+[lib]
+name = "sahamlens_desktop_pro_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-shell = "2"
+tauri-plugin-notification = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
