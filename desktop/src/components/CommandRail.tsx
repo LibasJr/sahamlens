@@ -9,14 +9,15 @@ import {
   Filter,
   CircleDollarSign,
   History,
-  ShieldAlert,
   Newspaper,
-  CalendarDays,
   Settings,
   Star,
   ChevronLeft,
   ChevronRight,
+  ShieldCheck,
+  CalendarDays,
 } from 'lucide-react';
+import { type UserSession } from '../api';
 
 export type ActiveModule =
   | 'overview'
@@ -30,6 +31,9 @@ export type ActiveModule =
   | 'valuation'
   | 'backtest'
   | 'news'
+  | 'calendar'
+  | 'macro'
+  | 'admin-stats'
   | 'settings';
 
 interface CommandRailProps {
@@ -38,6 +42,7 @@ interface CommandRailProps {
   collapsed: boolean;
   onToggleCollapse: () => void;
   selectedTicker: string;
+  userSession: UserSession;
 }
 
 export const CommandRail: React.FC<CommandRailProps> = ({
@@ -46,6 +51,7 @@ export const CommandRail: React.FC<CommandRailProps> = ({
   collapsed,
   onToggleCollapse,
   selectedTicker,
+  userSession,
 }) => {
   const groups = [
     {
@@ -55,7 +61,7 @@ export const CommandRail: React.FC<CommandRailProps> = ({
         { id: 'overview', label: 'Terminal Pasar', icon: LayoutDashboard },
         { id: 'market-pulse', label: 'LensMarket', icon: Activity, badge: 'Live' },
         { id: 'radar', label: 'Breakout Radar', icon: Radar, badge: 'Hot' },
-        { id: 'watchlist', label: 'Daftar Pantau', icon: Star },
+        { id: 'watchlist', label: 'Daftar Pantau', icon: Star, protected: true },
       ],
     },
     {
@@ -73,14 +79,19 @@ export const CommandRail: React.FC<CommandRailProps> = ({
       items: [
         { id: 'screener', label: 'LensScanner Pro', icon: Filter },
         { id: 'valuation', label: 'DCF Valuation', icon: CircleDollarSign },
-        { id: 'backtest', label: 'Backtest Strategi', icon: History },
+        { id: 'backtest', label: `Backtest (${selectedTicker})`, icon: History },
       ],
     },
     {
       id: 'info',
-      title: 'Konteks',
+      title: 'Konteks & Intelijen',
       items: [
         { id: 'news', label: 'News & Sentimen', icon: Newspaper },
+        { id: 'calendar', label: 'Kalender Korporasi', icon: CalendarDays },
+        { id: 'macro', label: 'Makro & Komoditas', icon: Activity },
+        ...(userSession.role === 'admin'
+          ? [{ id: 'admin-stats', label: 'Admin Console', icon: ShieldCheck, badge: 'Admin' }]
+          : []),
         { id: 'settings', label: 'Pengaturan', icon: Settings },
       ],
     },
@@ -122,7 +133,9 @@ export const CommandRail: React.FC<CommandRailProps> = ({
                         {item.badge && (
                           <span
                             className={`text-[9px] font-mono font-bold px-1.5 py-0.2 rounded ${
-                              item.badge === 'Live'
+                              item.badge === 'Admin'
+                                ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                                : item.badge === 'Live'
                                 ? 'bg-pro-profitBg text-pro-profit border border-pro-profit/30'
                                 : 'bg-pro-accentMuted text-pro-accent border border-pro-accent/30'
                             }`}
@@ -145,7 +158,7 @@ export const CommandRail: React.FC<CommandRailProps> = ({
         {!collapsed && (
           <div className="flex items-center gap-2 px-2 text-[11px] text-pro-textSubtle">
             <span className="w-1.5 h-1.5 rounded-full bg-pro-profit animate-pulse" />
-            <span>Terminal Connected</span>
+            <span>{userSession.role.toUpperCase()} Session</span>
           </div>
         )}
         <button
