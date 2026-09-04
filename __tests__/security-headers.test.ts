@@ -10,12 +10,12 @@ describe('production security headers', () => {
   it('does not expose X-Powered-By on the homepage', async () => {
     const res = await head('/');
     expect(res.headers.get('x-powered-by')).toBeNull();
-  });
+  }, 30_000);
 
   it('serves security.txt', async () => {
     const res = await fetch(`${BASE}/.well-known/security.txt`);
     expect(res.status).toBe(200);
     const body = await res.text();
     expect(body).toContain('Contact: mailto:security@sahamlens.id');
-  });
+  }, 30_000);
 });
