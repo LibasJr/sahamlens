@@ -62,11 +62,21 @@ describe('ARA scanner readiness gate', () => {
     });
   });
 
-  it('mencatat policy dan formula positif LensSpeed v0.3', () => {
+  it('mencatat kontrak bukti SahamLens dan formula positif ACS v0.3', () => {
     const totalWeight = ARA_SCANNER_POLICY.formula.components.reduce((sum, component) => sum + component.weight, 0);
 
     expect(totalWeight).toBeCloseTo(1, 10);
     expect(ARA_SCANNER_POLICY.formula.status).toBe('CONFIRMED');
+    expect(ARA_SCANNER_POLICY.ownership).toMatchObject({
+      evidenceEngine: 'SAHAMLENS',
+      decisionOrchestrator: 'HERMES_AGENT_SPEED',
+      humanFinalAuthority: true,
+    });
+    expect(ARA_SCANNER_POLICY.downstreamDecisionContract).toMatchObject({
+      owner: 'HERMES_AGENT_SPEED',
+      independentReviewRequired: true,
+      evidenceIsNonBinding: true,
+    });
     expect(ARA_SCANNER_POLICY.maxCandidates).toBe(5);
     expect(ARA_SCANNER_POLICY.autoBuyAllowed).toBe(false);
     expect(ARA_SCANNER_POLICY.dataGate.failure).toEqual({ acs: null, action: 'NO_ACTION' });

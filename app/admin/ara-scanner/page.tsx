@@ -87,7 +87,7 @@ export default async function AdminAraScannerPage() {
           </div>
 
           <div className="mt-5 rounded-xl border border-tv-border bg-tv-bg p-4">
-            <div className="text-xs font-bold uppercase tracking-wider text-tv-muted">Formula yang diterima dari LensSpeed</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-tv-muted">Formula mesin bukti SahamLens</div>
             <code className="mt-2 block overflow-x-auto whitespace-nowrap font-number text-sm text-tv-text">
               {ARA_SCANNER_POLICY.formula.expressionAsProvided}
             </code>
@@ -111,7 +111,7 @@ export default async function AdminAraScannerPage() {
               <h3 className="font-heading font-bold">Gerbang data v0.3</h3>
               <ul className="mt-3 space-y-2 text-sm text-tv-muted">
                 <li>Timestamp valid, tidak stale, dan maksimal {ARA_SCANNER_POLICY.dataGate.maxFutureSkewMinutes} menit di masa depan.</li>
-                <li>Minimal {Math.round(ARA_SCANNER_POLICY.dataGate.minimumAvailableWeight * 100)}% bobot komponen tersedia; bobot yang ada dinormalisasi ulang dan komponen hilang tetap dilaporkan.</li>
+                <li>Minimal {Math.round(ARA_SCANNER_POLICY.dataGate.minimumAvailableWeight * 100)}% bobot komponen tersedia; komponen hilang bernilai nol dan tetap dilaporkan, tanpa menaikkan skor lewat normalisasi ulang.</li>
                 <li>Harga sudah disesuaikan terhadap aksi korporasi.</li>
                 <li>Saham dapat diperdagangkan dan tidak terkena suspensi/kendala.</li>
                 <li>Sumber dan waktu data dapat ditelusuri.</li>
@@ -166,11 +166,12 @@ export default async function AdminAraScannerPage() {
 
         <div className="mt-4 grid gap-4 lg:grid-cols-2">
           <Card as="section" className="border-tv-border" padding="lg" radius="xl" elevation="none" highlight={false}>
-            <h2 className="font-heading text-lg font-bold">Urutan keputusan Agent Speed</h2>
+            <h2 className="font-heading text-lg font-bold">Kontrak ke Agent Speed</h2>
+            <p className="mt-2 text-sm text-tv-yellow">SahamLens hanya mengirim bukti non-binding. Agent Speed wajib menilai independen.</p>
             <ol className="mt-3 space-y-2 text-sm text-tv-muted">
-              {ARA_SCANNER_POLICY.decisionGates.map((gate, index) => <li key={gate}>{index + 1}. {gate}</li>)}
+              {ARA_SCANNER_POLICY.downstreamDecisionContract.gates.map((gate, index) => <li key={gate}>{index + 1}. {gate}</li>)}
             </ol>
-            <p className="mt-4 text-sm text-tv-yellow">Bear/Risk Reviewer dapat memveto kandidat kapan saja.</p>
+            <p className="mt-4 text-sm text-tv-yellow">Bear/Risk Reviewer dapat memveto kandidat kapan saja; manusia tetap otoritas final.</p>
           </Card>
           <Card as="section" className="border-tv-border" padding="lg" radius="xl" elevation="none" highlight={false}>
             <h2 className="font-heading text-lg font-bold">Larangan tetap</h2>
