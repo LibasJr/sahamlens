@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Sparkles, Send, Bot, User, ArrowRight, ShieldCheck, Cpu } from 'lucide-react';
-import { API_BASE } from '../api';
+import { Sparkles, Send, Bot, User } from 'lucide-react';
+import { askLensAI } from '../api';
 
 interface LensAIDrawerProps {
   isOpen: boolean;
@@ -24,7 +24,7 @@ export const LensAIDrawer: React.FC<LensAIDrawerProps> = ({
   const [messages, setMessages] = useState<Message[]>([
     {
       role: 'assistant',
-      content: `Halo! Saya Lens AI Copilot. Saya siap membantu menganalisis emiten **${selectedTicker}**, mengecek flow bandarmology, valuasi DCF, atau membaca sentimen pasar.`,
+      content: `Halo! Saya LensAI Research Copilot. Saya siap membantu menganalisis emiten **${selectedTicker}**, mengecek flow bandarmology, valuasi DCF, atau membaca sentimen pasar secara objektif.`,
       time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
     },
   ]);
@@ -44,20 +44,8 @@ export const LensAIDrawer: React.FC<LensAIDrawerProps> = ({
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message: query,
-          ticker: selectedTicker,
-          mode: 'consensus',
-        }),
-      });
-
-      if (!res.ok) throw new Error('Respon AI gagal');
-
-      const data = await res.json();
-      const reply = data?.reply || data?.answer || data?.message || 'Maaf, analisa saat ini sedang dihitung ulang oleh model.';
+      const historyPayload = messages.slice(-4).map((m) => ({ role: m.role, content: m.content }));
+      const reply = await askLensAI(query, selectedTicker, historyPayload);
 
       setMessages((prev) => [
         ...prev,
@@ -72,7 +60,7 @@ export const LensAIDrawer: React.FC<LensAIDrawerProps> = ({
         ...prev,
         {
           role: 'assistant',
-          content: `Data analisis realtime untuk **${selectedTicker}**: Struktur fundamental stabil dengan tren teknikal konsisten. Rekomendasi: Perhatikan support kunci dan akumulasi flow asing.`,
+          content: 'Terjadi gangguan jaringan saat menghubungi model LensAI. Silakan coba lagi.',
           time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
         },
       ]);
@@ -84,7 +72,7 @@ export const LensAIDrawer: React.FC<LensAIDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <aside className="w-80 h-[calc(100vh-2.5rem)] bg-pro-surface border-l border-pro-border flex flex-col justify-between select-text shadow-2xl z-40 transition-all">
+    <aside className="w-84 h-[calc(100vh-2.5rem)] bg-pro-surface border-l border-pro-border flex flex-col justify-between select-text shadow-2xl z-40 transition-all">
       {/* Header */}
       <div className="p-3.5 border-b border-pro-border flex items-center justify-between bg-pro-bg/50">
         <div className="flex items-center gap-2">
@@ -120,7 +108,7 @@ export const LensAIDrawer: React.FC<LensAIDrawerProps> = ({
               <span>{m.time}</span>
             </div>
             <div
-              className={`p-2.5 rounded-xl max-w-[90%] leading-relaxed ${
+              className={`p-2.5 rounded-xl max-w-[92%] leading-relaxed whitespace-pre-wrap ${
                 m.role === 'user'
                   ? 'bg-pro-card text-pro-text border border-pro-borderStrong'
                   : 'bg-pro-card/90 text-pro-text border border-pro-border'
@@ -134,7 +122,7 @@ export const LensAIDrawer: React.FC<LensAIDrawerProps> = ({
         {loading && (
           <div className="flex items-center gap-2 text-pro-purple p-2 text-xs font-mono">
             <div className="w-3.5 h-3.5 rounded-full border-2 border-pro-purple border-t-transparent animate-spin" />
-            <span>Menganalisis data emiten {selectedTicker}...</span>
+            <span>LensAI sedang menyusun analisa...</span>
           </div>
         )}
       </div>
@@ -145,7 +133,7 @@ export const LensAIDrawer: React.FC<LensAIDrawerProps> = ({
           Pertanyaan Cepat:
         </div>
         <div className="flex flex-wrap gap-1">
-          {[`Valuasi wajar ${selectedTicker}?`, `Sinyal teknikal ${selectedTicker}`, 'Peta bandarmology'].map((prompt) => (
+          {[`Valuasi wajar ${selectedTicker}?`, `Sinyal teknikal ${selectedTicker}`, `Peta akumulasi bandar`].map((prompt) => (
             <button
               key={prompt}
               onClick={() => handleSend(prompt)}
