@@ -50,8 +50,9 @@ export function classifyAraCompositeScore(acs: number): AraAcsBand {
 /**
  * Pure ACS v0.3 calculation. This function does not fetch data, rank candidates,
  * or authorize execution. Callers must pass the readiness/data gate first.
- * Missing components are reported and the available weights are normalized only
- * after the 75% coverage gate passes. They are never filled with a neutral value.
+ * Missing components are reported and contribute zero after the 75% coverage
+ * gate passes. They are never filled with a neutral value and the remaining
+ * weights are not renormalized, preserving parity with the Hermes engine.
  */
 export function calculateAraCompositeScore(input: {
   components: AraAcsComponents;
@@ -87,7 +88,7 @@ export function calculateAraCompositeScore(input: {
     totalPenalty += value;
   }
 
-  const baseAcs = roundScore(100 * (weightedUnitScore / availableComponentWeight));
+  const baseAcs = roundScore(100 * weightedUnitScore);
   const acs = roundScore(Math.max(0, Math.min(100, baseAcs - totalPenalty)));
 
   return {

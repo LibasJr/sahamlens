@@ -30,14 +30,14 @@ describe('ACS Agent Speed v0.3', () => {
     expect(result).toMatchObject({ acs: 40, baseAcs: 50, totalPenalty: 10, band: 'LOW' });
   });
 
-  it('menormalisasi bobot tersedia tanpa mengisi komponen hilang sebagai netral', () => {
+  it('komponen hilang bernilai nol tanpa dinormalisasi menjadi skor sempurna', () => {
     const result = calculateAraCompositeScore({
       components: { V: 1, C: 1, B: 1, R: 1, T: 1, RS: 1, S: 1 } as AraAcsComponents,
       penalties: ZERO_PENALTIES,
     });
 
     expect(result).toMatchObject({
-      acs: 100,
+      acs: 85,
       availableComponentWeight: 0.85,
       missingComponents: ['K'],
     });
