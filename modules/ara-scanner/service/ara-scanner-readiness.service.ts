@@ -117,7 +117,7 @@ export function evaluateAraScannerReadiness(
       status: 'POLICY_CAPTURED',
       referenceVersion: 'Agent Speed v0.3',
       checkedAt: generatedAt,
-      detail: 'Policy dan formula LensSpeed/Hermes v0.3 sudah dicatat. Parity hasil masih menunggu fixture keluaran pembanding dari Hermes.',
+      detail: 'Kontrak bukti SahamLens dan formula ACS v0.3 sudah dicatat. Hermes/Agent Speed tetap mesin keputusan independen; parity teknis menunggu fixture pembanding.',
     },
     gateVersion: ARA_SCANNER_GATE_VERSION,
     reason: executionAllowed
