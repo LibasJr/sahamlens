@@ -23,7 +23,7 @@ public sealed class SettingsView : UserControl
     public SettingsView(ISahamLensApi api, ISessionStore sessions)
     {
         this.api = api; this.sessions = sessions;
-        Content = new ScrollViewer { Content = body };
+        Content = new ScrollViewer { Content = body, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         Loaded += async (_, _) => await BuildAsync();
     }
 
@@ -31,26 +31,41 @@ public sealed class SettingsView : UserControl
     {
         body.Children.Clear();
         var session = await sessions.LoadAsync();
-        Layout.AddSpaced(body, 12, new TextBlock { Text = "Pengaturan", FontSize = 26, FontWeight = FontWeights.SemiBold });
-        Layout.AddSpaced(body, 12, new TextBlock { Text = "Akun, tampilan, cache offline, dan pembaruan aplikasi native.", Opacity = .68 });
+        Layout.AddSpaced(body, 6, new TextBlock { Text = "Pengaturan & Preferensi Sistem", FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Theme.Foreground });
+        Layout.AddSpaced(body, 14, new TextBlock { Text = "Manajemen akun, konfigurasi tampilan, cache offline, serta pembaruan aplikasi native.", Foreground = Theme.SecondaryForeground, FontSize = 13 });
         Layout.AddSpaced(body, 12, state);
-        Layout.AddSpaced(body, 12, Section("Akun", $"{session.Email ?? "Belum masuk"}\nRole: {session.Role} · Pro: {(session.IsPro ? "Aktif" : "Tidak")}", Button("Keluar dari akun", async () => { await sessions.ClearAsync(); await BuildAsync(); })));
 
+        // Akun Section
+        var accountInfo = $"{session.Email ?? "Belum masuk ke akun SahamLens"}\nStatus Role: {session.Role.ToUpperInvariant()}  •  Status Pro: {(session.IsPro ? "Aktif" : "Non-Aktif")}";
+        var logoutBtn = Theme.SecondaryButton("Keluar dari Akun");
+        logoutBtn.Click += async (_, _) => { await sessions.ClearAsync(); await BuildAsync(); };
+        Layout.AddSpaced(body, 12, Section("Akun & Autentikasi", accountInfo, logoutBtn));
+
+        // Tema Section
         var themeButtons = Layout.HStack(8,
-            Button("Ikuti Windows", () => { ApplyTheme(null); return Task.CompletedTask; }),
-            Button("Terang", () => { ApplyTheme(false); return Task.CompletedTask; }),
-            Button("Gelap", () => { ApplyTheme(true); return Task.CompletedTask; }));
-        Layout.AddSpaced(body, 12, Section("Tema", "Aplikasi ini memakai tema gelap tetap saat ini.", themeButtons));
+            Theme.SecondaryButton("Ikuti Windows"),
+            Theme.SecondaryButton("Terang"),
+            Theme.PrimaryButton("Gelap (Aktif)"));
+        Layout.AddSpaced(body, 12, Section("Tampilan & Tema", "Aplikasi terminal ini berjalan dengan palet tema gelap kontras tinggi yang dioptimalkan untuk analisis intensif.", themeButtons));
 
+        // Cache Section
         Directory.CreateDirectory(LocalDataFolder);
         var fileCount = Directory.GetFiles(LocalDataFolder).Length;
-        Layout.AddSpaced(body, 12, Section("Cache lokal", $"{fileCount} berkas aplikasi lokal.", Button("Bersihkan cache", async () =>
+        var clearCacheBtn = Theme.SecondaryButton("Bersihkan Cache");
+        clearCacheBtn.Click += async (_, _) =>
         {
             foreach (var file in Directory.GetFiles(LocalDataFolder)) { try { File.Delete(file); } catch { } }
             await BuildAsync();
-        })));
-        Layout.AddSpaced(body, 12, Section("Pembaruan", $"Versi native {CurrentVersion}", Button("Periksa pembaruan", CheckUpdateAsync)));
-        Layout.AddSpaced(body, 12, Section("Privasi", "Token disimpan terenkripsi oleh Windows (DPAPI). Token tidak ditulis ke log atau cache data."));
+        };
+        Layout.AddSpaced(body, 12, Section("Penyimpanan Cache Offline", $"{fileCount} berkas data lokal tersimpan di disk pengguna untuk fallback offline.", clearCacheBtn));
+
+        // Update Section
+        var updateBtn = Theme.PrimaryButton("Periksa Pembaruan");
+        updateBtn.Click += async (_, _) => await CheckUpdateAsync();
+        Layout.AddSpaced(body, 12, Section("Pembaruan Aplikasi", $"Versi Native saat ini: v{CurrentVersion} (WPF x64)", updateBtn));
+
+        // Privasi Section
+        Layout.AddSpaced(body, 12, Section("Keamanan & Privasi Data", "Kredensial dan sesi akun dienkripsi secara lokal oleh Windows Data Protection API (DPAPI). Tidak ada token yang ditulis ke log sistem atau cache tidak aman."));
     }
 
     private static void ApplyTheme(bool? dark)
@@ -65,7 +80,7 @@ public sealed class SettingsView : UserControl
             using var document = await api.GetAsync($"/api/desktop/update?current={CurrentVersion}");
             var root = document.RootElement;
             var available = root.TryGetProperty("available", out var node) && node.GetBoolean();
-            if (!available) { Show("Aplikasi terbaru", "Tidak ada pembaruan baru.", InfoSeverity.Success); return; }
+            if (!available) { Show("Aplikasi terbaru", "Aplikasi SahamLens Native sudah versi terbaru.", InfoSeverity.Success); return; }
             var url = root.GetProperty("downloadUrl").GetString();
             if (!Uri.TryCreate(url, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps) throw new InvalidOperationException("URL pembaruan tidak valid.");
             var version = root.GetProperty("version").GetString();
@@ -83,13 +98,13 @@ public sealed class SettingsView : UserControl
     }
 
     private void Show(string title, string message, InfoSeverity severity) { state.Title = title; state.Message = message; state.Severity = severity; state.IsOpen = true; }
-    private static Button Button(string text, Func<Task> action) { var button = new Button { Content = text }; button.Click += async (_, _) => await action(); return button; }
+
     private static Border Section(string title, string description, UIElement? action = null)
     {
         var panel = Layout.VStack(8,
-            new TextBlock { Text = title, FontSize = 18, FontWeight = FontWeights.SemiBold },
-            new TextBlock { Text = description, TextWrapping = TextWrapping.Wrap, Opacity = .72 });
-        if (action is not null) Layout.AddSpaced(panel, 8, action);
-        return new Border { Padding = new Thickness(16), CornerRadius = new CornerRadius(10), Background = Theme.Card, Child = panel };
+            new TextBlock { Text = title, FontSize = 16, FontWeight = FontWeights.Bold, Foreground = Theme.Foreground },
+            new TextBlock { Text = description, TextWrapping = TextWrapping.Wrap, Foreground = Theme.SecondaryForeground, FontSize = 13, LineHeight = 19 });
+        if (action is not null) Layout.AddSpaced(panel, 10, action);
+        return Theme.CardContainer(panel, new Thickness(18, 14, 18, 14));
     }
 }
