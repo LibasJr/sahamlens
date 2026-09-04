@@ -4,10 +4,15 @@ using System.Windows.Controls;
 
 namespace SahamLens.Wpf.Controls;
 
-/// <summary>Stand-in for WinUI's NumberBox - a labeled numeric text field, no spin buttons.</summary>
+/// <summary>Stand-in for WinUI's NumberBox - a labeled numeric text field, styled cleanly.</summary>
 public sealed class NumberBox : UserControl
 {
-    private readonly TextBlock headerText = new() { Opacity = 0.7, FontSize = 12 };
+    private readonly TextBlock headerText = new()
+    {
+        Foreground = Theme.SecondaryForeground,
+        FontSize = 11,
+        FontWeight = FontWeights.SemiBold
+    };
     private readonly TextBox input = new();
     private double minimum;
 
@@ -17,12 +22,14 @@ public sealed class NumberBox : UserControl
         input.Background = Theme.FieldBackground;
         input.Foreground = Theme.Foreground;
         input.BorderBrush = Theme.Border;
-        input.Padding = new Thickness(8, 6, 8, 6);
+        input.BorderThickness = new Thickness(1);
+        input.Padding = new Thickness(10, 7, 10, 7);
+        input.FontSize = 13;
         input.LostFocus += (_, _) => Value = ParsedValue();
-        Content = Layout.VStack(4, headerText, input);
+        Content = Layout.VStack(6, headerText, input);
     }
 
-    public string Header { get => headerText.Text; set => headerText.Text = value; }
+    public string Header { get => headerText.Text; set => headerText.Text = value.ToUpperInvariant(); }
     public double Minimum { get => minimum; set { minimum = value; if (Value < minimum) Value = minimum; } }
 
     public double Value

@@ -8,8 +8,10 @@ using SahamLens.Wpf.Controls;
 
 namespace SahamLens.Wpf.Views;
 
+/// <summary>
 /// Native renderer for strongly-routed analysis and research modules.
 /// Values are rendered as labelled native metrics instead of opaque payload text.
+/// </summary>
 public sealed class StructuredModuleView : UserControl
 {
     private readonly ISahamLensApi api;
@@ -18,24 +20,32 @@ public sealed class StructuredModuleView : UserControl
     private readonly StackPanel results = new();
     private readonly LoadingRing loading = new();
     private readonly InfoBar state = new() { IsOpen = false, IsClosable = false };
-    private readonly NumberBox capital = new() { Header = "Modal (Rp)", Value = 100_000_000, Minimum = 1_000_000, Width = 260 };
-    private readonly NumberBox target = new() { Header = "Target bulanan / risiko (%)", Value = 1_000_000, Minimum = 0, Width = 260 };
+    private readonly NumberBox capital = new() { Header = "Modal Investasi (Rp)", Value = 100_000_000, Minimum = 1_000_000, Width = 260 };
+    private readonly NumberBox target = new() { Header = "Target Bulanan / Toleransi Risiko (%)", Value = 1_000_000, Minimum = 0, Width = 260 };
 
     public StructuredModuleView(ISahamLensApi api, ProductModule module, string ticker)
     {
         this.api = api; this.module = module; this.ticker = ticker;
-        var title = new TextBlock { Text = module.Label, FontSize = 24, FontWeight = FontWeights.SemiBold };
-        var subtitle = new TextBlock { Text = $"{ticker} · data aktual dari {module.Endpoint}", Opacity = .68 };
-        var refresh = new Button { Content = module.Method == "POST" ? "Hitung" : "Refresh", HorizontalAlignment = HorizontalAlignment.Left };
+        var title = new TextBlock { Text = module.Label, FontSize = 22, FontWeight = FontWeights.Bold, Foreground = Theme.Foreground };
+        var subtitle = new TextBlock { Text = $"{ticker}  •  Data aktual via endpoint {module.Endpoint}", Foreground = Theme.SecondaryForeground, FontSize = 12 };
+        var refresh = Theme.PrimaryButton(module.Method == "POST" ? "Hitung Kalkulasi" : "Refresh Data");
+        refresh.Height = 36;
         refresh.Click += async (_, _) => await LoadAsync();
-        var root = Layout.VStack(12, title, subtitle);
-        if (module.Method == "POST" || module.Id == "dividend")
-            Layout.AddSpaced(root, 12, Layout.HStack(12, capital, target));
-        Layout.AddSpaced(root, 12, refresh);
-        Layout.AddSpaced(root, 12, state);
-        Layout.AddSpaced(root, 12, loading);
-        Layout.AddSpaced(root, 12, results);
-        Content = new ScrollViewer { Content = root };
+
+        var headerCard = Theme.CardContainer(Layout.VStack(8,
+            title,
+            subtitle,
+            (module.Method == "POST" || module.Id == "dividend") ? Layout.HStack(14, capital, target) : new StackPanel(),
+            refresh),
+            new Thickness(18, 14, 18, 14));
+
+        var root = Layout.VStack(14,
+            headerCard,
+            state,
+            loading,
+            results);
+
+        Content = new ScrollViewer { Content = root, VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
         Loaded += async (_, _) => await LoadAsync();
     }
 
@@ -72,17 +82,37 @@ public sealed class StructuredModuleView : UserControl
         if (depth > 5) return;
         if (node.ValueKind == JsonValueKind.Object)
         {
+            var cardChildren = new StackPanel();
             foreach (var property in node.EnumerateObject())
             {
                 if (property.NameEquals("meta") || property.NameEquals("_meta")) continue;
                 if (property.Value.ValueKind is JsonValueKind.Object or JsonValueKind.Array)
                 {
-                    var nested = new StackPanel { Margin = new Thickness(8) };
+                    var nested = new StackPanel { Margin = new Thickness(10) };
                     Render(property.Value, nested, depth + 1);
-                    var section = new Expander { Header = Label(property.Name), IsExpanded = depth < 2, Content = nested, Margin = new Thickness(0, 0, 0, 7) };
-                    host.Children.Add(section);
+                    var section = new Expander
+                    {
+                        Header = Label(property.Name),
+                        IsExpanded = depth < 2,
+                        Content = nested,
+                        Margin = new Thickness(0, 0, 0, 8),
+                        Foreground = Theme.Foreground,
+                        FontWeight = FontWeights.SemiBold,
+                        FontSize = 13
+                    };
+                    cardChildren.Children.Add(section);
                 }
-                else Layout.AddSpaced(host, 3, Metric(Label(property.Name), Scalar(property.Value)));
+                else Layout.AddSpaced(cardChildren, 4, Metric(Label(property.Name), Scalar(property.Value)));
+            }
+
+            if (depth == 0)
+            {
+                var card = Theme.CardContainer(cardChildren, new Thickness(18, 14, 18, 14));
+                host.Children.Add(card);
+            }
+            else
+            {
+                host.Children.Add(cardChildren);
             }
         }
         else if (node.ValueKind == JsonValueKind.Array)
@@ -90,24 +120,43 @@ public sealed class StructuredModuleView : UserControl
             var count = 0;
             foreach (var item in node.EnumerateArray().Take(100))
             {
-                var card = new StackPanel(); Render(item, card, depth + 1);
-                var border = new Border { Background = Theme.Card, CornerRadius = new CornerRadius(10), Padding = new Thickness(12), Child = card, Margin = new Thickness(0, 0, 0, 6) };
+                var card = new StackPanel();
+                Render(item, card, depth + 1);
+                var border = Theme.CardContainer(card, new Thickness(14));
+                border.Margin = new Thickness(0, 0, 0, 8);
                 host.Children.Add(border);
                 count++;
             }
-            if (count == 0) host.Children.Add(new TextBlock { Text = "Belum ada data untuk pilihan ini.", Opacity = .65 });
+            if (count == 0) host.Children.Add(new TextBlock { Text = "Belum ada data untuk pilihan ini.", Foreground = Theme.SecondaryForeground, FontSize = 13 });
         }
         else host.Children.Add(Metric("Nilai", Scalar(node)));
     }
 
     private static UIElement Metric(string label, string value)
     {
-        var grid = new Grid { Margin = new Thickness(10, 7, 10, 7) };
+        var grid = new Grid { Margin = new Thickness(10, 8, 10, 8) };
         grid.ColumnDefinitions.Add(new ColumnDefinition());
         grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        grid.Children.Add(new TextBlock { Text = label, Opacity = .7, TextWrapping = TextWrapping.Wrap });
-        var result = new TextBlock { Text = value, FontWeight = FontWeights.SemiBold, MaxWidth = 720, TextWrapping = TextWrapping.Wrap };
-        Grid.SetColumn(result, 1); grid.Children.Add(result); return grid;
+        grid.Children.Add(new TextBlock { Text = label, Foreground = Theme.SecondaryForeground, FontSize = 13, TextWrapping = TextWrapping.Wrap });
+        var result = new TextBlock
+        {
+            Text = value,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = Theme.Foreground,
+            FontSize = 13,
+            MaxWidth = 720,
+            TextWrapping = TextWrapping.Wrap
+        };
+        Grid.SetColumn(result, 1);
+        grid.Children.Add(result);
+
+        var border = new Border
+        {
+            BorderBrush = Theme.Border,
+            BorderThickness = new Thickness(0, 0, 0, 1),
+            Child = grid
+        };
+        return border;
     }
 
     private static string Scalar(JsonElement value) => value.ValueKind switch { JsonValueKind.String => value.GetString() ?? "—", JsonValueKind.True => "Ya", JsonValueKind.False => "Tidak", JsonValueKind.Null => "—", _ => value.GetRawText() };

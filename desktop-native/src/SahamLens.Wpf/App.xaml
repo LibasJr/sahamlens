@@ -3,18 +3,23 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <Application.Resources>
         <ResourceDictionary>
-            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#101515" />
-            <SolidColorBrush x:Key="AppBorderBrush" Color="#283131" />
-            <SolidColorBrush x:Key="CardBrush" Color="#192020" />
+            <!-- Primary Palette -->
+            <SolidColorBrush x:Key="AppBackgroundBrush" Color="#0C1012" />
+            <SolidColorBrush x:Key="AppSidebarBrush" Color="#080C0E" />
+            <SolidColorBrush x:Key="AppBorderBrush" Color="#232F34" />
+            <SolidColorBrush x:Key="AppBorderStrongBrush" Color="#35464E" />
+            <SolidColorBrush x:Key="CardBrush" Color="#131A1D" />
+            <SolidColorBrush x:Key="CardHoverBrush" Color="#1A2327" />
             <SolidColorBrush x:Key="AccentBrush" Color="#D5FF45" />
-            <SolidColorBrush x:Key="AppForegroundBrush" Color="#E5E7EB" />
-            <SolidColorBrush x:Key="AppSubtleForegroundBrush" Color="#9CA3AF" />
+            <SolidColorBrush x:Key="AppForegroundBrush" Color="#F3F4F6" />
+            <SolidColorBrush x:Key="AppSecondaryForegroundBrush" Color="#94A3B8" />
+            <SolidColorBrush x:Key="AppSubtleForegroundBrush" Color="#64748B" />
 
             <Style TargetType="Window">
                 <Setter Property="Background" Value="{StaticResource AppBackgroundBrush}" />
                 <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}" />
-                <Setter Property="FontFamily" Value="Segoe UI" />
-                <Setter Property="FontSize" Value="14" />
+                <Setter Property="FontFamily" Value="Segoe UI, Inter, Arial" />
+                <Setter Property="FontSize" Value="13" />
             </Style>
 
             <Style TargetType="TextBlock">
@@ -22,28 +27,36 @@
             </Style>
 
             <Style TargetType="Button">
-                <Setter Property="Background" Value="#222B2B" />
+                <Setter Property="Background" Value="#1E282D" />
                 <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}" />
                 <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Padding" Value="14,8" />
+                <Setter Property="Padding" Value="14,7" />
+                <Setter Property="FontSize" Value="13" />
                 <Setter Property="Cursor" Value="Hand" />
                 <Setter Property="Template">
                     <Setter.Value>
                         <ControlTemplate TargetType="Button">
-                            <Border Background="{TemplateBinding Background}"
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}"
-                                    CornerRadius="8">
-                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                   Margin="{TemplateBinding Padding}" />
+                                    CornerRadius="8"
+                                    SnapsToDevicePixels="True">
+                                <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center"
+                                                  Margin="{TemplateBinding Padding}" />
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter Property="Background" Value="#2C3737" />
+                                    <Setter Property="Background" Value="#28363C" />
+                                    <Setter Property="BorderBrush" Value="{StaticResource AppBorderStrongBrush}" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter Property="Background" Value="#172125" />
                                 </Trigger>
                                 <Trigger Property="IsEnabled" Value="False">
-                                    <Setter Property="Opacity" Value="0.5" />
+                                    <Setter Property="Opacity" Value="0.45" />
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
@@ -52,32 +65,76 @@
             </Style>
 
             <Style TargetType="TextBox">
-                <Setter Property="Background" Value="#192020" />
+                <Setter Property="Background" Value="#141C20" />
                 <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}" />
                 <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Padding" Value="8,6" />
-                <Setter Property="CaretBrush" Value="{StaticResource AppForegroundBrush}" />
+                <Setter Property="Padding" Value="10,7" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="CaretBrush" Value="{StaticResource AccentBrush}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="TextBox">
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    SnapsToDevicePixels="True">
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Margin="{TemplateBinding Padding}" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsFocused" Value="True">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style TargetType="PasswordBox">
-                <Setter Property="Background" Value="#192020" />
+                <Setter Property="Background" Value="#141C20" />
                 <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}" />
                 <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
-                <Setter Property="Padding" Value="8,6" />
-                <Setter Property="CaretBrush" Value="{StaticResource AppForegroundBrush}" />
+                <Setter Property="Padding" Value="10,7" />
+                <Setter Property="FontSize" Value="13" />
+                <Setter Property="CaretBrush" Value="{StaticResource AccentBrush}" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="PasswordBox">
+                            <Border x:Name="border"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    CornerRadius="8"
+                                    SnapsToDevicePixels="True">
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="False" Margin="{TemplateBinding Padding}" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsFocused" Value="True">
+                                    <Setter TargetName="border" Property="BorderBrush" Value="{StaticResource AccentBrush}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
 
             <Style TargetType="ComboBox">
-                <Setter Property="Background" Value="#192020" />
+                <Setter Property="Background" Value="#141C20" />
                 <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}" />
                 <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}" />
-                <Setter Property="Padding" Value="8,6" />
+                <Setter Property="BorderThickness" Value="1" />
+                <Setter Property="Padding" Value="10,7" />
+                <Setter Property="FontSize" Value="13" />
             </Style>
 
             <Style TargetType="CheckBox">
                 <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}" />
+                <Setter Property="FontSize" Value="12" />
+                <Setter Property="Cursor" Value="Hand" />
             </Style>
 
             <Style TargetType="ListView">
@@ -94,12 +151,39 @@
             <Style TargetType="Expander">
                 <Setter Property="Foreground" Value="{StaticResource AppForegroundBrush}" />
                 <Setter Property="Background" Value="{StaticResource CardBrush}" />
+                <Setter Property="BorderBrush" Value="{StaticResource AppBorderBrush}" />
+                <Setter Property="BorderThickness" Value="1" />
             </Style>
 
             <Style TargetType="ProgressBar">
                 <Setter Property="Foreground" Value="{StaticResource AccentBrush}" />
                 <Setter Property="Background" Value="{StaticResource AppBorderBrush}" />
                 <Setter Property="Height" Value="4" />
+            </Style>
+
+            <!-- Custom ScrollBar Styling for Terminal Cleanliness -->
+            <Style TargetType="ScrollBar">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="Width" Value="8" />
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="ScrollBar">
+                            <Grid x:Name="Bg" SnapsToDevicePixels="true">
+                                <Track x:Name="PART_Track" IsDirectionReversed="true">
+                                    <Track.Thumb>
+                                        <Thumb>
+                                            <Thumb.Template>
+                                                <ControlTemplate TargetType="Thumb">
+                                                    <Border Background="#2B3940" CornerRadius="4" Margin="1" />
+                                                </ControlTemplate>
+                                            </Thumb.Template>
+                                        </Thumb>
+                                    </Track.Thumb>
+                                </Track>
+                            </Grid>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
             </Style>
         </ResourceDictionary>
     </Application.Resources>

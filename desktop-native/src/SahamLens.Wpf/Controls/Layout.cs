@@ -1,12 +1,9 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 
 namespace SahamLens.Wpf.Controls;
 
-/// <summary>
-/// WPF's StackPanel has no Spacing property (unlike WinUI's) - this fills the gap via
-/// margins instead of an API this port can't compile-verify locally.
-/// </summary>
 public static class Layout
 {
     public static StackPanel VStack(double spacing, params UIElement[] children) => Stack(Orientation.Vertical, spacing, children);
@@ -25,9 +22,34 @@ public static class Layout
 
     public static StackPanel Labeled(string header, UIElement control, double width = double.NaN)
     {
-        var panel = VStack(4, new TextBlock { Text = header, Opacity = 0.7, FontSize = 12 }, control);
+        var label = new TextBlock
+        {
+            Text = header.ToUpperInvariant(),
+            Foreground = Theme.SecondaryForeground,
+            FontSize = 11,
+            FontWeight = FontWeights.SemiBold
+        };
+        var panel = VStack(6, label, control);
         if (!double.IsNaN(width)) panel.Width = width;
         return panel;
+    }
+
+    public static Border PillBadge(string text, SolidColorBrush bg, SolidColorBrush fg)
+    {
+        return new Border
+        {
+            CornerRadius = new CornerRadius(999),
+            Padding = new Thickness(10, 4, 10, 4),
+            Background = bg,
+            Child = new TextBlock
+            {
+                Text = text,
+                Foreground = fg,
+                FontSize = 11,
+                FontWeight = FontWeights.SemiBold,
+                HorizontalAlignment = HorizontalAlignment.Center
+            }
+        };
     }
 
     private static StackPanel Stack(Orientation orientation, double spacing, UIElement[] children)
