@@ -8,39 +8,51 @@ namespace SahamLens.Wpf;
 public sealed class LoginWindow : Window
 {
     private readonly ISahamLensApi api;
-    private readonly TextBox email = Theme.Field(new TextBox());
-    private readonly PasswordBox password = Theme.Field(new PasswordBox());
+    private readonly TextBox email = Theme.Field(new TextBox { Height = 36, VerticalContentAlignment = VerticalAlignment.Center });
+    private readonly PasswordBox password = Theme.Field(new PasswordBox { Height = 36, VerticalContentAlignment = VerticalAlignment.Center });
     private readonly InfoBar error = new() { IsOpen = false, Severity = InfoSeverity.Error, IsClosable = false };
     private readonly LoadingRing progress = new();
-    private readonly Button primary = new() { Content = "Masuk" };
+    private readonly Button primary;
 
     public LoginWindow(ISahamLensApi api)
     {
         this.api = api;
-        Title = "Masuk ke SahamLens";
+        Title = "Masuk ke Akun SahamLens";
         SizeToContent = SizeToContent.WidthAndHeight;
         ResizeMode = ResizeMode.NoResize;
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         Background = Theme.Background;
         Foreground = Theme.Foreground;
-        FontFamily = new System.Windows.Media.FontFamily("Segoe UI");
-        FontSize = 14;
+        FontFamily = Theme.PrimaryFont;
+        FontSize = 13;
 
-        var cancel = new Button { Content = "Batal" };
-        cancel.Click += (_, _) => { DialogResult = false; Close(); };
+        primary = Theme.PrimaryButton("Masuk");
+        primary.Height = 36;
         primary.Click += async (_, _) => await OnLoginAsync();
 
-        var buttons = Layout.HStack(8, primary, cancel);
+        var cancel = Theme.SecondaryButton("Batal");
+        cancel.Height = 36;
+        cancel.Click += (_, _) => { DialogResult = false; Close(); };
+
+        var buttons = Layout.HStack(10, cancel, primary);
         buttons.HorizontalAlignment = HorizontalAlignment.Right;
 
-        var body = Layout.VStack(12,
-            new TextBlock { Text = "Sesi disimpan terenkripsi oleh Windows (DPAPI).", TextWrapping = TextWrapping.Wrap, Opacity = 0.7 },
-            Layout.Labeled("Email", email),
+        var header = Layout.VStack(4,
+            new TextBlock { Text = "Autentikasi SahamLens", FontSize = 18, FontWeight = FontWeights.Bold, Foreground = Theme.Foreground },
+            new TextBlock { Text = "Sesi akun Anda disimpan secara aman menggunakan enkripsi Windows DPAPI.", TextWrapping = TextWrapping.Wrap, Foreground = Theme.SecondaryForeground, FontSize = 12 });
+
+        var cardBody = Layout.VStack(14,
+            header,
+            Layout.Labeled("Email Akun", email),
             Layout.Labeled("Password", password),
-            progress, error, buttons);
-        body.Width = 380;
-        body.Margin = new Thickness(24);
-        Content = body;
+            progress,
+            error,
+            buttons);
+
+        var card = Theme.CardContainer(cardBody, new Thickness(24));
+        card.Width = 420;
+        card.Margin = new Thickness(20);
+        Content = card;
     }
 
     private async Task OnLoginAsync()
