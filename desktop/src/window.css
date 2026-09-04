@@ -1,9 +1,0 @@
-.desktop-app{position:relative}
-.desktop-app>.titlebar{position:absolute;top:0;right:0;z-index:5;width:116px;height:54px;padding:0 10px;border:0;border-left:1px solid var(--border);border-bottom:1px solid var(--border);background:var(--surface)}
-.desktop-app>.titlebar .titlebar-brand,.desktop-app>.titlebar .titlebar-drag-space{display:none}
-.desktop-app>.titlebar .window-actions{margin-left:auto}
-.desktop-app>.global-header{padding-right:128px}
-.breadth-strip{display:grid;grid-template-columns:2fr repeat(3,1fr);gap:1px;margin-top:18px;border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;background:var(--border)}
-.breadth-strip>div{display:grid;gap:4px;padding:12px;background:var(--surface-sunken)}
-.breadth-strip span,.breadth-strip small{color:var(--text-tertiary);font-size:9px;letter-spacing:.07em}
-.breadth-strip strong{font-size:16px}
