@@ -20,6 +20,7 @@ export default [
       'dist/**',
       'node_modules/**',
       'coverage/**',
+      'desktop/**',
       '**/*.d.ts',
       'next-env.d.ts',
     ],
