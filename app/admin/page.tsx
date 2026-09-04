@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Activity, ArrowLeft, BarChart3, Bot, Building2, FileSpreadsheet, MessageSquare, RefreshCw, ShieldCheck, Sparkles, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, Bot, Building2, FileSpreadsheet, MessageSquare, Radar, RefreshCw, ShieldCheck, Sparkles, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -14,6 +14,7 @@ import CreateTestUserForm from './CreateTestUserForm';
 import ChangeSecretForm from './ChangeSecretForm';
 import { listRecentPaymentOrders } from '@/modules/payment/repository/payment-order.repository';
 import { formatRupiah } from '@/shared/config/pricing';
+import { getAraScannerReadiness } from '@/modules/ara-scanner';
 
 // Root layout menyetel robots index:true untuk seluruh situs. Halaman admin ikut
 // mewarisinya - meski pengunjung non-admin dialihkan, tidak ada alasan rute ini
@@ -75,13 +76,14 @@ export default async function AdminPage() {
   // Order dan Kesehatan Operasional yang tidak ada hubungannya. Terjadi 20 Agustus 2026:
   // product_journey_events sampai ke produksi lewat deploy otomatis sebelum migrasi 010
   // dijalankan, dan /admin ikut hilang seluruhnya justru saat dibutuhkan untuk diagnosa.
-  const [activeUsersPanel, activityPanel, authEventsPanel, funnelPanel, journeyPanel, paymentsPanel] = await Promise.all([
+  const [activeUsersPanel, activityPanel, authEventsPanel, funnelPanel, journeyPanel, paymentsPanel, araScannerPanel] = await Promise.all([
     loadPanel('Aktivitas Pengguna', () => getActiveUsers()),
     loadPanel('Aktivitas Pengguna', () => getAdminUserActivityReport()),
     loadPanel('Jejak autentikasi terbaru', () => getRecentAuthEvents()),
     loadPanel('Funnel pendaftaran', () => getProductFunnelSummary()),
     loadPanel('Perjalanan riset (beta)', () => getResearchJourneySummary()),
     loadPanel('Payment Order Terbaru', () => listRecentPaymentOrders(20)),
+    loadPanel('Kesiapan Scanner ARA', async () => getAraScannerReadiness()),
   ]);
 
   // Nilai cadangan hanya untuk panel yang bentuk kosongnya memang punya arti ("belum ada
@@ -94,6 +96,7 @@ export default async function AdminPage() {
   });
   const recentAuthEvents = panelValueOr(authEventsPanel, [] as Awaited<ReturnType<typeof getRecentAuthEvents>>);
   const recentPayments = panelValueOr(paymentsPanel, [] as Awaited<ReturnType<typeof listRecentPaymentOrders>>);
+  const araScannerReadiness = araScannerPanel.ok ? araScannerPanel.value : null;
   const snapshotAt = new Date().toISOString();
 
   // Rekap peran: 12 baris tabel tidak langsung memberi tahu komposisinya, dan itu
@@ -198,6 +201,24 @@ export default async function AdminPage() {
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">Simulasi Keputusan AI</h2>
             <p className="mt-1 text-sm text-tv-muted">Uji sinyal, ukuran posisi, dan paper order internal dengan konfirmasi manusia.</p>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/ara-scanner"
+          className="flex items-start gap-3 rounded-xl border border-tv-red/30 bg-tv-card p-5 transition-colors hover:border-tv-red/60 hover:bg-tv-hover"
+        >
+          <div className="rounded-lg bg-tv-red/10 p-2 text-tv-red"><Radar className="h-5 w-5" /></div>
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-heading text-lg font-bold text-tv-text">Kesiapan Scanner ARA</h2>
+              <span className="rounded-full border border-tv-red/30 bg-tv-red/10 px-2 py-0.5 text-[10px] font-bold text-tv-red">{araScannerReadiness?.status ?? 'UNAVAILABLE'}</span>
+            </div>
+            {!araScannerPanel.ok ? (
+              <p className="mt-1 text-sm text-tv-yellow">{araScannerPanel.message}</p>
+            ) : (
+              <p className="mt-1 text-sm text-tv-muted">Audit {araScannerPanel.value.blockerCount} input real-time yang masih memblokir sinyal ARA untuk Agent Speed.</p>
+            )}
           </div>
         </Link>
 
