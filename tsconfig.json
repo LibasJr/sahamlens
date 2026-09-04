@@ -37,8 +37,7 @@
   ],
   "exclude": [
     "node_modules",
-    "backend",
-    "mobile",
-    "desktop"
+    "strix_runs",
+    "research"
   ]
 }

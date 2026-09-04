@@ -45,7 +45,6 @@ tsconfig.tsbuildinfo
 *.user
 *.suo
 .vs/
-desktop-native/artifacts/
 
 # Data files berisi PII (email, password hash) & data transaksi user - jangan pernah
 # ter-commit. File-file ini tetap dipakai di local dev (lib/dbLocal.ts / lib/supabase.ts
