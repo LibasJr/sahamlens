@@ -18,6 +18,7 @@
 import path from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { pathToFileURL } from 'node:url';
 import { discoverArchiveEntries } from './backfill-ownership-flow-ksei-auto.mjs';
 
 const execFileAsync = promisify(execFile);
@@ -39,21 +40,33 @@ function mergeNodeOptions(existing = '') {
   return tokens.join(' ');
 }
 
-function normalizeDatabaseUrl(raw) {
-  return String(raw).replace(
-    /([?&])sslmode=(?:prefer|require|verify-ca)(?=(&|$))/i,
-    '$1sslmode=verify-full'
-  );
+function isLoopbackDatabase(databaseUrl) {
+  const databaseHost = new URL(databaseUrl).hostname;
+  return databaseHost === '127.0.0.1' || databaseHost === 'localhost'
+    || databaseHost === '::1' || databaseHost === '[::1]';
 }
 
-function resolveDatabaseSsl(databaseUrl) {
-  const databaseHost = new URL(databaseUrl).hostname;
-  const isLoopbackDatabase =
-    databaseHost === '127.0.0.1' ||
-    databaseHost === 'localhost' ||
-    databaseHost === '::1';
+export function normalizeDatabaseUrl(raw) {
+  const url = new URL(String(raw));
 
-  return isLoopbackDatabase ? false : { rejectUnauthorized: true };
+  // PostgreSQL lokal VPS memang tidak menyediakan TLS. Mengirim ssl:false ke satu
+  // Client saja tidak cukup: URL asli diteruskan ke proses backfill anak, dan pg
+  // membaca sslmode=require/prefer dari URL lalu mencoba TLS lagi. Hapus parameter
+  // itu dari URL loopback supaya SEMUA konsumen turunannya mendapat kontrak sama.
+  if (isLoopbackDatabase(url.toString())) {
+    url.searchParams.delete('sslmode');
+    return url.toString();
+  }
+
+  // Database remote tetap wajib TLS dengan verifikasi sertifikat/hostname ketat.
+  if (['prefer', 'require', 'verify-ca'].includes(url.searchParams.get('sslmode') ?? '')) {
+    url.searchParams.set('sslmode', 'verify-full');
+  }
+  return url.toString();
+}
+
+export function resolveDatabaseSsl(databaseUrl) {
+  return isLoopbackDatabase(databaseUrl) ? false : { rejectUnauthorized: true };
 }
 
 function sleep(ms) {
@@ -113,6 +126,10 @@ async function runAutoBackfill(from, to) {
   const script = path.resolve(cwd, 'scripts/backfill-ownership-flow-ksei-auto.mjs');
   const env = {
     ...process.env,
+    // Wajib teruskan URL yang SUDAH dinormalisasi. Bug produksi 2-4 Sep 2026:
+    // koneksi induk sukses dengan ssl:false, tetapi proses anak menerima URL asli
+    // ber-sslmode=require lalu gagal "server does not support SSL connections".
+    DATABASE_URL: normalizeDatabaseUrl(process.env.DATABASE_URL),
     NODE_OPTIONS: mergeNodeOptions(process.env.NODE_OPTIONS),
   };
 
@@ -286,7 +303,9 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(`OWNERSHIP FLOW KSEI SYNC GAGAL: ${error instanceof Error ? error.message : String(error)}`);
-  process.exitCode = 1;
-});
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error(`OWNERSHIP FLOW KSEI SYNC GAGAL: ${error instanceof Error ? error.message : String(error)}`);
+    process.exitCode = 1;
+  });
+}
