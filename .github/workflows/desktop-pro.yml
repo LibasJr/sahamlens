@@ -72,6 +72,36 @@ jobs:
           releaseDraft: false
           prerelease: false
 
+      - name: Smoke-test NSIS install lifecycle
+        if: ${{ !startsWith(github.ref, 'refs/tags/desktop-v') }}
+        shell: pwsh
+        run: |
+          $installer = Get-ChildItem "src-tauri/target/release/bundle/nsis/*-setup.exe" | Select-Object -First 1
+          if (-not $installer) { throw "NSIS installer not found" }
+          $install = Start-Process -FilePath $installer.FullName -ArgumentList '/S' -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "NSIS install failed: $($install.ExitCode)" }
+          $installRoot = Join-Path $env:LOCALAPPDATA 'SahamLens Desktop'
+          $uninstaller = Get-Item (Join-Path $installRoot 'Uninstall.exe') -ErrorAction SilentlyContinue
+          if (-not $uninstaller -or -not (Test-Path $uninstaller.FullName)) { throw "Installed uninstaller not found" }
+          $app = Get-ChildItem $installRoot -Filter '*.exe' |
+            Where-Object Name -NE 'Uninstall.exe' | Select-Object -First 1
+          if (-not $app -or -not (Test-Path $app.FullName)) { throw "Installed executable not found" }
+          $process = Start-Process -FilePath $app.FullName -PassThru
+          try { $null = $process.WaitForInputIdle(30000) } catch { }
+          if ($process.HasExited) { throw "Installed executable exited during launch smoke test" }
+          $null = $process.CloseMainWindow()
+          if (-not $process.WaitForExit(15000)) { Stop-Process -Id $process.Id -Force }
+
+      - name: Cleanup NSIS smoke install
+        if: ${{ always() }}
+        shell: pwsh
+        run: |
+          $uninstaller = Get-Item (Join-Path $env:LOCALAPPDATA 'SahamLens Desktop/Uninstall.exe') -ErrorAction SilentlyContinue
+          if ($uninstaller -and (Test-Path $uninstaller.FullName)) {
+            $uninstall = Start-Process -FilePath $uninstaller.FullName -ArgumentList '/S' -Wait -PassThru
+            if ($uninstall.ExitCode -ne 0) { throw "NSIS uninstall failed: $($uninstall.ExitCode)" }
+          }
+
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
