@@ -239,6 +239,7 @@ export default function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { loading: authLoading, user, resolved: authResolved, effectiveRole } = useAuthUser();
   const [hasAdminAccess, setHasAdminAccess] = useState(false);
+  const [isNativeDesktop, setIsNativeDesktop] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [hoveredNav, setHoveredNav] = useState<{ label: string; top: number; locked: boolean } | null>(null);
   // Kosong = pengguna BELUM memilih apa pun untuk grup itu. Dibedakan dari `false`
@@ -252,6 +253,11 @@ export default function Sidebar() {
     apiRequest<any>('/api/admin-status')
       .then((d) => setHasAdminAccess(Boolean(d.isAdmin)))
       .catch(() => setHasAdminAccess(false));
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsNativeDesktop('__TAURI_INTERNALS__' in window), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -305,7 +311,12 @@ export default function Sidebar() {
     };
   }, [isOpen]);
 
-  const role: 'guest' | 'trial' | 'admin' = hasAdminAccess ? 'admin' : effectiveRole;
+  // Panel operator/admin masih server-rendered dan sengaja tidak dibundel ke installer.
+  // Akun admin tetap mendapat hak API pengguna, tetapi kontrol operasional dibuka lewat web.
+  const desktopRole = effectiveRole === 'admin' ? 'trial' : effectiveRole;
+  const role: 'guest' | 'trial' | 'admin' = isNativeDesktop
+    ? desktopRole
+    : hasAdminAccess ? 'admin' : effectiveRole;
   const visibleGroups = useMemo(() => visibleGroupsFor(role), [role]);
 
   const { t } = useLanguage();
@@ -567,7 +578,7 @@ export default function Sidebar() {
 
         <div className="border-t border-tv-border p-3">
           <LanguageSwitcher variant="sidebar" className={`mb-2.5 ${isCollapsed ? 'md:hidden' : ''}`} />
-          {hasAdminAccess && (
+          {hasAdminAccess && !isNativeDesktop && (
             <Link
               href="/admin/infographic-studio"
               className={`mb-2.5 flex items-center gap-2 rounded-xl border border-tv-blue/30 bg-tv-blue/10 p-2 text-xs font-bold text-tv-blue hover:bg-tv-blue/20 transition-all ${

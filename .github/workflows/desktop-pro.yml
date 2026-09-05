@@ -4,13 +4,29 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
+    tags: ['desktop-v*']
     paths:
       - 'desktop/**'
+      - 'desktop-web/**'
+      - 'app/**'
+      - 'components/**'
+      - 'shared/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/desktop-pro.yml'
   pull_request:
     paths:
       - 'desktop/**'
+      - 'desktop-web/**'
+      - 'app/**'
+      - 'components/**'
+      - 'shared/**'
+      - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/desktop-pro.yml'
+
+permissions:
+  contents: write
 
 jobs:
   build-windows:
@@ -24,20 +40,37 @@ jobs:
         with:
           node-version: 22
           cache: 'npm'
-          cache-dependency-path: desktop/package-lock.json
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
       - uses: dtolnay/rust-toolchain@stable
       - uses: swatinem/rust-cache@v2
         with:
           workspaces: 'desktop/src-tauri -> target'
 
-      - name: Install dependencies
+      - name: Install web dependencies
+        working-directory: .
         run: npm ci
 
-      - name: Build Web Frontend
-        run: npm run build
+      - name: Install desktop dependencies
+        run: npm ci
 
       - name: Build Tauri Desktop (.exe / .msi)
+        if: ${{ !startsWith(github.ref, 'refs/tags/desktop-v') }}
         run: npx @tauri-apps/cli build
+
+      - name: Build and publish desktop release
+        if: ${{ startsWith(github.ref, 'refs/tags/desktop-v') }}
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          tagName: desktop-v__VERSION__
+          releaseName: 'SahamLens Pro Desktop v__VERSION__'
+          releaseBody: 'Frontend SahamLens dibundel langsung di aplikasi desktop. Data dan login tetap terhubung aman ke API SahamLens.'
+          releaseDraft: false
+          prerelease: false
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
