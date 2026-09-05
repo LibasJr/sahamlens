@@ -17,6 +17,7 @@
     "audit:menus": "node scripts/audit-navigation-routes.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:desktop-threat-model": "vitest run __tests__/desktop-threat-model.test.ts __tests__/desktop-native-lockdown.test.ts __tests__/desktop-credential-boundary.test.ts __tests__/desktop-navigation-boundary.test.ts __tests__/desktop-export-boundary.test.ts __tests__/desktop-diagnostics-boundary.test.ts",
     "backfill:lens-history": "node scripts/backfill-lens-history.mjs",
     "calibrate:intraday-v02": "node scripts/calibrate-intraday-v02-components.mjs",
     "validate:premarkup": "node scripts/backfill-premarkup-history.mjs",
