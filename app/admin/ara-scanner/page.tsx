@@ -51,6 +51,7 @@ export default async function AdminAraScannerPage() {
               <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-xs text-tv-muted">
                 <span>Input terblokir: <b className="text-tv-text">{readiness.blockerCount}/{readiness.inputs.length}</b></span>
                 <span>Di luar cakupan: <b className="text-tv-text">{readiness.outOfScopeInputs.length}</b></span>
+                <span>Siap: <b className="text-tv-text">{readiness.inputs.filter((i) => i.status === 'READY').length}/{readiness.inputs.length}</b></span>
                 <span>Sinyal dibuat: <b className="text-tv-text">{readiness.signalCount}</b></span>
                 <span>Versi gate: <b className="font-number text-tv-text">{readiness.gateVersion}</b></span>
               </div>
