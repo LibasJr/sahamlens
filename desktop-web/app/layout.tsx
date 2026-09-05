@@ -4,6 +4,7 @@ import React from 'react';
 import AppShell from '@/components/AppShell';
 import NativeFetchBridge from './native-fetch-bridge';
 import NativeNavigationBridge from './native-navigation-bridge';
+import DesktopChrome from './desktop-chrome';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 const jetbrainsMono = JetBrains_Mono({
@@ -21,7 +22,9 @@ export default function DesktopRootLayout({ children }: { children: React.ReactN
       <body className={`${inter.className} bg-tv-bg text-tv-text antialiased min-h-screen relative selection:bg-tv-blue/25`}>
         <NativeFetchBridge />
         <NativeNavigationBridge />
-        <AppShell>{children}</AppShell>
+        <DesktopChrome>
+          <AppShell>{children}</AppShell>
+        </DesktopChrome>
       </body>
     </html>
   );
