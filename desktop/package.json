@@ -13,10 +13,8 @@
   },
   "dependencies": {
     "@tauri-apps/api": "^2.2.0",
-    "@tauri-apps/plugin-shell": "^2.2.0",
-    "@tauri-apps/plugin-notification": "^2.2.1",
-    "lucide-react": "^1.16.0",
     "clsx": "^2.1.1",
+    "lucide-react": "^1.16.0",
     "tailwind-merge": "^3.0.0"
   },
   "devDependencies": {
