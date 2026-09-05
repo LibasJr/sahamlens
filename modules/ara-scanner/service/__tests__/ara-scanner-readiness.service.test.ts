@@ -18,8 +18,11 @@ describe('ARA scanner readiness gate', () => {
     expect(readiness.algorithmReady).toBe(true);
     expect(readiness.failClosed).toBe(true);
     expect(readiness.signalCount).toBe(0);
+    // ORDER_BOOK bukan blocker: di luar cakupan SahamLens secara desain.
     expect(readiness.blockerCount).toBe(8);
-    expect(readiness.inputs).toHaveLength(8);
+    expect(readiness.inputs).toHaveLength(9);
+    expect(readiness.outOfScopeInputs).toEqual(['ORDER_BOOK']);
+    expect(readiness.blockers).not.toContain('ORDER_BOOK');
     expect(readiness.inputs.every((input) => input.status !== 'READY')).toBe(true);
     expect(readiness.engineParity).toMatchObject({
       target: 'HERMES',
@@ -28,13 +31,12 @@ describe('ARA scanner readiness gate', () => {
     });
   });
 
-  it('READY jika delapan input unik siap dan formula telah dikonfirmasi', () => {
-    const complete = CURRENT_ARA_INPUT_READINESS.map((input) => ({
-      ...input,
-      status: 'READY' as const,
-      source: 'provider-terverifikasi',
-      observedAt: FIXED_NOW,
-    }));
+  it('READY jika seluruh input milik SahamLens siap dan formula telah dikonfirmasi', () => {
+    const complete = CURRENT_ARA_INPUT_READINESS.map((input) => (
+      input.status === 'OUT_OF_SCOPE'
+        ? { ...input }
+        : { ...input, status: 'READY' as const, source: 'provider-terverifikasi', observedAt: FIXED_NOW }
+    ));
 
     const readiness = evaluateAraScannerReadiness(complete, FIXED_NOW);
 
@@ -44,15 +46,16 @@ describe('ARA scanner readiness gate', () => {
     expect(readiness.algorithmReady).toBe(true);
     expect(readiness.blockerCount).toBe(0);
     expect(readiness.blockers).toEqual([]);
+    // Tetap READY tanpa pernah mengklaim order book.
+    expect(readiness.outOfScopeInputs).toEqual(['ORDER_BOOK']);
   });
 
   it('tetap NOT_RUN jika formula sengaja diblokir meskipun data lengkap', () => {
-    const complete = CURRENT_ARA_INPUT_READINESS.map((input) => ({
-      ...input,
-      status: 'READY' as const,
-      source: 'provider-terverifikasi',
-      observedAt: FIXED_NOW,
-    }));
+    const complete = CURRENT_ARA_INPUT_READINESS.map((input) => (
+      input.status === 'OUT_OF_SCOPE'
+        ? { ...input }
+        : { ...input, status: 'READY' as const, source: 'provider-terverifikasi', observedAt: FIXED_NOW }
+    ));
 
     expect(evaluateAraScannerReadiness(complete, FIXED_NOW, false)).toMatchObject({
       status: 'NOT_RUN',
@@ -83,25 +86,43 @@ describe('ARA scanner readiness gate', () => {
   });
 
   it('fail-closed jika satu input stale atau satu key terduplikasi', () => {
-    const ready = CURRENT_ARA_INPUT_READINESS.map((input) => ({
-      ...input,
-      status: 'READY' as const,
-      observedAt: FIXED_NOW,
-    }));
-    const withStaleOrderBook = ready.map((input) => input.key === 'ORDER_BOOK'
+    const ready = CURRENT_ARA_INPUT_READINESS.map((input) => (
+      input.status === 'OUT_OF_SCOPE'
+        ? { ...input }
+        : { ...input, status: 'READY' as const, observedAt: FIXED_NOW }
+    ));
+    const withStaleLiquidity = ready.map((input) => input.key === 'LIQUIDITY_PROXY'
       ? { ...input, status: 'STALE' as const }
       : input);
     const withDuplicatePrice = [...ready, ready.find((input) => input.key === 'PRICE_CROSS_CHECK')!];
 
-    expect(evaluateAraScannerReadiness(withStaleOrderBook, FIXED_NOW)).toMatchObject({
+    expect(evaluateAraScannerReadiness(withStaleLiquidity, FIXED_NOW)).toMatchObject({
       status: 'NOT_RUN',
       executionAllowed: false,
-      blockers: ['ORDER_BOOK'],
+      blockers: ['LIQUIDITY_PROXY'],
     });
     expect(evaluateAraScannerReadiness(withDuplicatePrice, FIXED_NOW)).toMatchObject({
       status: 'NOT_RUN',
       executionAllowed: false,
       blockers: ['PRICE_CROSS_CHECK'],
     });
+  });
+
+  it('order book tetap di luar cakupan dan tidak boleh diklaim SahamLens', () => {
+    const orderBook = CURRENT_ARA_INPUT_READINESS.find((input) => input.key === 'ORDER_BOOK')!;
+
+    expect(orderBook).toMatchObject({
+      status: 'OUT_OF_SCOPE',
+      required: false,
+      ownedBy: 'EXECUTION_LAYER',
+      source: null,
+    });
+    expect(ARA_SCANNER_POLICY.investabilityChecks.executionLayer).toEqual(
+      expect.arrayContaining(['Spread', 'Kedalaman bid-offer', 'Slippage']),
+    );
+    expect(ARA_SCANNER_POLICY.investabilityChecks.analysisLayer).not.toContain('Spread');
+    expect(ARA_SCANNER_POLICY.prohibitions).toContain(
+      'Mengklaim spread, kedalaman bid-offer, atau slippage dari sisi SahamLens',
+    );
   });
 });
