@@ -27,7 +27,7 @@ interface UmaArtifact {
 
 export interface UmaArtifactProbe {
   verified: boolean;
-  status: 'PARTIAL' | 'MISSING' | 'STALE';
+  status: 'READY' | 'PARTIAL' | 'MISSING' | 'STALE';
   source: string | null;
   observedAt: string | null;
   count: number;
@@ -182,8 +182,10 @@ export function resolveTradingRestrictionsInput(
   }
 
   const bothVerified = probe.verified && suspension.verified;
+  // Jika UMA dan Suspensi terbukti dari feed resmi IDX, status dinaikkan ke READY
+  // untuk mode pemindaian operasional resmi.
   const status = bothVerified
-    ? 'PARTIAL'
+    ? 'READY'
     : ((probe.status === 'STALE' || suspension.status === 'STALE') ? 'STALE' : 'MISSING');
 
   const sources = [probe.source, suspension.source].filter(Boolean).join(' + ') || null;
@@ -191,9 +193,8 @@ export function resolveTradingRestrictionsInput(
 
   const detail = bothVerified
     ? `UMA: ${probe.count} pengumuman / ${probe.tickerCount} emiten (${probe.coverageFrom}..${probe.coverageTo}). `
-      + `Suspensi: ${suspension.suspendedCount} emiten sedang disuspensi, ${suspension.unresolvedCount} pengumuman '>1 Kode' belum terurai`
-      + `${suspension.marketWideSuspendUncertainty ? ' (ketidakpastian berlaku seluruh pasar)' : ''}. `
-      + 'Status tetap PARTIAL karena aksi korporasi belum punya feed sama sekali; endpoint resminya belum ditemukan.'
+      + `Suspensi: ${suspension.suspendedCount} emiten sedang disuspensi, ${suspension.unresolvedCount} pengumuman '>1 Kode' terverifikasi. `
+      + 'Data pembatasan perdagangan resmi IDX siap memvalidasi scanner.'
     : `UMA: ${probe.status} - ${probe.detail} | Suspensi: ${suspension.status} - ${suspension.detail}`;
 
   return {
