@@ -7,7 +7,7 @@ use tauri::{
 
 #[tauri::command]
 fn get_platform_info() -> String {
-    format!("SahamLens Pro Native ({})", std::env::consts::OS)
+    format!("SahamLens Desktop Native ({})", std::env::consts::OS)
 }
 
 #[derive(serde::Serialize)]
@@ -133,13 +133,13 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Build Tray Menu
-            let show_i = MenuItem::with_id(app, "show", "Buka SahamLens Pro", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "Buka SahamLens Desktop", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Keluar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
             let _tray = TrayIconBuilder::new()
                 .menu(&menu)
-                .tooltip("SahamLens Pro Terminal")
+                .tooltip("SahamLens Desktop Terminal")
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
