@@ -1,5 +1,6 @@
 mod api_policy;
 mod credentials;
+mod diagnostics;
 mod export;
 mod navigation;
 
@@ -185,6 +186,11 @@ fn native_save_binary_export(
     export::save_export(&app, &filename, &bytes)
 }
 
+#[tauri::command]
+fn native_build_diagnostic(input: diagnostics::DiagnosticInput) -> diagnostics::DiagnosticEnvelope {
+    diagnostics::build_diagnostic_envelope(env!("CARGO_PKG_VERSION"), std::env::consts::OS, input)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -239,7 +245,8 @@ pub fn run() {
             native_open_external,
             native_resolve_deep_link,
             native_save_text_export,
-            native_save_binary_export
+            native_save_binary_export,
+            native_build_diagnostic
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
