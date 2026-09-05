@@ -27,7 +27,7 @@ interface UmaArtifact {
 
 export interface UmaArtifactProbe {
   verified: boolean;
-  status: 'PARTIAL' | 'MISSING' | 'STALE';
+  status: 'READY' | 'PARTIAL' | 'MISSING' | 'STALE';
   source: string | null;
   observedAt: string | null;
   count: number;
