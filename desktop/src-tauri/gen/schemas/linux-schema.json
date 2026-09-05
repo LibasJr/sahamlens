@@ -2403,6 +2403,252 @@
           "markdownDescription": "Denies the unminimize command without any pre-configured scope."
         },
         {
+          "description": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-passwords`\n- `allow-set-passwords`\n- `allow-delete-passwords`\n- `allow-password-exists`\n- `allow-export-passwords-plain`\n- `allow-import-passwords-plain`\n- `allow-export-passwords-encrypted`\n- `allow-import-passwords-encrypted`\n- `allow-ping`\n- `allow-initialize`\n- `allow-destroy`\n- `allow-save`\n- `allow-create-client`\n- `allow-load-client`\n- `allow-get-store-record`\n- `allow-save-store-record`\n- `allow-remove-store-record`\n- `allow-save-secret`\n- `allow-remove-secret`\n- `allow-execute-procedure`",
+          "type": "string",
+          "const": "keyring-store:default",
+          "markdownDescription": "Default permissions for the plugin\n#### This default permission set includes:\n\n- `allow-get-passwords`\n- `allow-set-passwords`\n- `allow-delete-passwords`\n- `allow-password-exists`\n- `allow-export-passwords-plain`\n- `allow-import-passwords-plain`\n- `allow-export-passwords-encrypted`\n- `allow-import-passwords-encrypted`\n- `allow-ping`\n- `allow-initialize`\n- `allow-destroy`\n- `allow-save`\n- `allow-create-client`\n- `allow-load-client`\n- `allow-get-store-record`\n- `allow-save-store-record`\n- `allow-remove-store-record`\n- `allow-save-secret`\n- `allow-remove-secret`\n- `allow-execute-procedure`"
+        },
+        {
+          "description": "Enables the create_client command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-create-client",
+          "markdownDescription": "Enables the create_client command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the delete_passwords command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-delete-passwords",
+          "markdownDescription": "Enables the delete_passwords command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the destroy command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-destroy",
+          "markdownDescription": "Enables the destroy command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the execute_procedure command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-execute-procedure",
+          "markdownDescription": "Enables the execute_procedure command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the export_passwords_encrypted command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-export-passwords-encrypted",
+          "markdownDescription": "Enables the export_passwords_encrypted command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the export_passwords_plain command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-export-passwords-plain",
+          "markdownDescription": "Enables the export_passwords_plain command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_passwords command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-get-passwords",
+          "markdownDescription": "Enables the get_passwords command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the get_store_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-get-store-record",
+          "markdownDescription": "Enables the get_store_record command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the import_passwords_encrypted command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-import-passwords-encrypted",
+          "markdownDescription": "Enables the import_passwords_encrypted command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the import_passwords_plain command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-import-passwords-plain",
+          "markdownDescription": "Enables the import_passwords_plain command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the initialize command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-initialize",
+          "markdownDescription": "Enables the initialize command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the load_client command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-load-client",
+          "markdownDescription": "Enables the load_client command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the password_exists command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-password-exists",
+          "markdownDescription": "Enables the password_exists command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the ping command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-ping",
+          "markdownDescription": "Enables the ping command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the remove_secret command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-remove-secret",
+          "markdownDescription": "Enables the remove_secret command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the remove_store_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-remove-store-record",
+          "markdownDescription": "Enables the remove_store_record command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the save command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-save",
+          "markdownDescription": "Enables the save command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the save_secret command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-save-secret",
+          "markdownDescription": "Enables the save_secret command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the save_store_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-save-store-record",
+          "markdownDescription": "Enables the save_store_record command without any pre-configured scope."
+        },
+        {
+          "description": "Enables the set_passwords command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:allow-set-passwords",
+          "markdownDescription": "Enables the set_passwords command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the create_client command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-create-client",
+          "markdownDescription": "Denies the create_client command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the delete_passwords command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-delete-passwords",
+          "markdownDescription": "Denies the delete_passwords command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the destroy command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-destroy",
+          "markdownDescription": "Denies the destroy command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the execute_procedure command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-execute-procedure",
+          "markdownDescription": "Denies the execute_procedure command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the export_passwords_encrypted command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-export-passwords-encrypted",
+          "markdownDescription": "Denies the export_passwords_encrypted command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the export_passwords_plain command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-export-passwords-plain",
+          "markdownDescription": "Denies the export_passwords_plain command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_passwords command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-get-passwords",
+          "markdownDescription": "Denies the get_passwords command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the get_store_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-get-store-record",
+          "markdownDescription": "Denies the get_store_record command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the import_passwords_encrypted command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-import-passwords-encrypted",
+          "markdownDescription": "Denies the import_passwords_encrypted command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the import_passwords_plain command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-import-passwords-plain",
+          "markdownDescription": "Denies the import_passwords_plain command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the initialize command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-initialize",
+          "markdownDescription": "Denies the initialize command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the load_client command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-load-client",
+          "markdownDescription": "Denies the load_client command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the password_exists command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-password-exists",
+          "markdownDescription": "Denies the password_exists command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the ping command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-ping",
+          "markdownDescription": "Denies the ping command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the remove_secret command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-remove-secret",
+          "markdownDescription": "Denies the remove_secret command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the remove_store_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-remove-store-record",
+          "markdownDescription": "Denies the remove_store_record command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the save command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-save",
+          "markdownDescription": "Denies the save command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the save_secret command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-save-secret",
+          "markdownDescription": "Denies the save_secret command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the save_store_record command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-save-store-record",
+          "markdownDescription": "Denies the save_store_record command without any pre-configured scope."
+        },
+        {
+          "description": "Denies the set_passwords command without any pre-configured scope.",
+          "type": "string",
+          "const": "keyring-store:deny-set-passwords",
+          "markdownDescription": "Denies the set_passwords command without any pre-configured scope."
+        },
+        {
           "description": "This permission set configures which\nnotification features are by default exposed.\n\n#### Granted Permissions\n\nIt allows all notification related features.\n\n\n#### This default permission set includes:\n\n- `allow-is-permission-granted`\n- `allow-request-permission`\n- `allow-notify`\n- `allow-register-action-types`\n- `allow-register-listener`\n- `allow-cancel`\n- `allow-get-pending`\n- `allow-remove-active`\n- `allow-get-active`\n- `allow-check-permissions`\n- `allow-show`\n- `allow-batch`\n- `allow-list-channels`\n- `allow-delete-channel`\n- `allow-create-channel`\n- `allow-permission-state`",
           "type": "string",
           "const": "notification:default",

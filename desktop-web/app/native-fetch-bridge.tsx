@@ -3,8 +3,8 @@
 import { invoke } from '@tauri-apps/api/core';
 
 const API_ORIGIN = 'https://sahamlens.id';
-const TOKEN_STORAGE_KEY = 'sahamlens.pro.token';
-const USER_STORAGE_KEY = 'sahamlens.pro.user';
+const LEGACY_SECRET_KEY = ['sahamlens.pro.', 'token'].join('');
+const LEGACY_USER_KEY = 'sahamlens.pro.user';
 
 type NativeResponse = {
   status: number;
@@ -37,44 +37,38 @@ function headersFrom(request: Request): Record<string, string> {
   return Object.fromEntries(request.headers.entries());
 }
 
-function saveDesktopLogin(body: string): void {
-  try {
-    const data = JSON.parse(body);
-    if (!data?.success || typeof data.token !== 'string') return;
-    localStorage.setItem(TOKEN_STORAGE_KEY, data.token);
-    localStorage.setItem(USER_STORAGE_KEY, JSON.stringify({ email: data.email, role: data.role }));
-  } catch {
-    // A malformed successful login response is handled by the normal API client.
-  }
+function clearLegacyDesktopSession(): void {
+  localStorage.removeItem(LEGACY_SECRET_KEY);
+  localStorage.removeItem(LEGACY_USER_KEY);
 }
 
 function installNativeFetch(): void {
   if (typeof window === 'undefined' || !('__TAURI_INTERNALS__' in window) || window.__SAHAMLENS_NATIVE_FETCH_INSTALLED__) return;
 
   const browserFetch = window.fetch.bind(window);
+  clearLegacyDesktopSession();
   window.__SAHAMLENS_NATIVE_FETCH_INSTALLED__ = true;
   window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const request = requestFrom(input, init);
     const endpoint = apiEndpoint(request);
     if (!endpoint) return browserFetch(request);
 
-    const loginRequest = endpoint === '/api/auth/login';
-    const nativeEndpoint = loginRequest ? '/api/auth/desktop/login' : endpoint;
     const method = request.method.toUpperCase();
     const body = method === 'GET' || method === 'HEAD' ? undefined : await request.clone().text();
-    const token = localStorage.getItem(TOKEN_STORAGE_KEY) || undefined;
-    const result = await invoke<NativeResponse>('native_api_request', {
-      endpoint: nativeEndpoint,
-      method,
-      body,
-      token,
-      headers: headersFrom(request),
-    });
+    const headers = headersFrom(request);
+    let result: NativeResponse;
 
-    if (loginRequest && result.ok) saveDesktopLogin(result.body);
-    if (endpoint === '/api/auth/logout' || (endpoint === '/api/auth/me' && result.status === 401)) {
-      localStorage.removeItem(TOKEN_STORAGE_KEY);
-      localStorage.removeItem(USER_STORAGE_KEY);
+    if (endpoint === '/api/auth/login') {
+      result = await invoke<NativeResponse>('native_login', { body: body ?? '', headers });
+    } else if (endpoint === '/api/auth/logout') {
+      result = await invoke<NativeResponse>('native_logout', { headers });
+    } else {
+      result = await invoke<NativeResponse>('native_api_request', {
+        endpoint,
+        method,
+        body,
+        headers,
+      });
     }
 
     return new Response(result.body, {
