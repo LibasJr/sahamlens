@@ -111,10 +111,15 @@ const metrics = {
   },
   inlineStyleAttributes: {
     label: 'atribut style inline (migrasi style-src-attr CSP)',
-    value: tsxFiles.reduce(
-      (sum, file) => sum + (stripComments(fs.readFileSync(file, 'utf8')).match(/\bstyle=\{\{/g) || []).length,
-      0,
-    ),
+    // Kanvas ekspor berukuran tetap sengaja memakai style inline agar html-to-image
+    // menangkap warna dan geometri deterministik. Ia bukan UI interaktif yang tunduk
+    // pada migrasi CSP style-src-attr; samakan pengecualian ini dengan raw-card audit.
+    value: tsxFiles
+      .filter((file) => !file.includes(`${path.sep}components${path.sep}export${path.sep}`))
+      .reduce(
+        (sum, file) => sum + (stripComments(fs.readFileSync(file, 'utf8')).match(/\bstyle=\{\{/g) || []).length,
+        0,
+      ),
   },
   routesWithoutRunController: {
     label: 'route API tanpa response adapter',
