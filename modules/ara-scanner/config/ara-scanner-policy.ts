@@ -67,6 +67,17 @@ export const ARA_SCANNER_POLICY = {
     ],
     exhaustionActions: ['WAIT', 'AVOID_CHASING', 'NO_ACTION'] as const,
   },
+  /**
+   * Ambang likuiditas lapisan analisa. Bukan jaminan eksekusi: ini hanya
+   * menyaring saham yang terlalu tipis untuk dianalisis serius. Spread, depth,
+   * dan slippage tetap milik lapisan eksekusi.
+   */
+  liquidityProxy: {
+    minAvgDailyTurnoverIdr: 5_000_000_000,
+    minAvgDailyVolume: 1_000_000,
+    maxZeroVolumeDaysIn20: 2,
+    note: 'Lolos ambang ini berarti layak dianalisis, BUKAN berarti order berukuran tertentu bisa terisi.',
+  },
   investabilityOrder: ['Kualitas continuation', 'Investability', 'ACS'] as const,
   /**
    * Investability dibagi menurut pemilik data. SahamLens hanya boleh mengklaim
