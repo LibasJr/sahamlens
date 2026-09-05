@@ -313,7 +313,7 @@ export async function askLensAI(prompt: string, symbol: string, history: Array<{
     body: {
       prompt,
       symbol: clean,
-      context: `Pengguna sedang membuka emiten ${clean} di aplikasi SahamLens Pro Native Terminal.`,
+      context: `Pengguna sedang membuka emiten ${clean} di aplikasi SahamLens Desktop.`,
       history,
     },
   });

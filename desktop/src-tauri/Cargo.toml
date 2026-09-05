@@ -1,12 +1,12 @@
 [package]
-name = "sahamlens-desktop-pro"
+name = "sahamlens-desktop"
 version = "1.1.0"
-description = "SahamLens Pro Native Terminal"
+description = "SahamLens Desktop"
 authors = ["SahamLens Team"]
 edition = "2021"
 
 [lib]
-name = "sahamlens_desktop_pro_lib"
+name = "sahamlens_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
