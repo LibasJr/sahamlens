@@ -50,13 +50,18 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <X size={16} />
         </button>
 
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-pro-accentMuted border border-pro-accent/40 flex items-center justify-center text-pro-accent font-bold">
-            <LogIn size={20} />
-          </div>
+        <div className="flex items-center gap-3.5 mb-5">
+          <img
+            src="/logo.png"
+            alt="SahamLens"
+            className="w-10 h-10 rounded-xl object-contain border border-pro-border shadow-sm bg-pro-surface"
+          />
           <div>
-            <h2 className="text-base font-bold text-pro-text">Masuk ke SahamLens Desktop</h2>
-            <p className="text-xs text-pro-textMuted">Gunakan akun terdaftar Anda untuk akses penuh.</p>
+            <h2 className="text-base font-bold text-pro-text flex items-center gap-1.5">
+              <span>Masuk ke SahamLens</span>
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.2 rounded bg-pro-accent/15 text-pro-accent border border-pro-accent/30">PRO</span>
+            </h2>
+            <p className="text-xs text-pro-textMuted">Gunakan akun terdaftar Anda untuk akses penuh terminal desktop.</p>
           </div>
         </div>
 
