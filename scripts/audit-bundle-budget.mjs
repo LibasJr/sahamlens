@@ -38,7 +38,11 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // login sukses (sebelumnya user harus reload manual, lihat riwayat commit). Terukur
 // 6.049 KB tepat sesudah perubahan - satu impor hook yang sudah dipakai luas di app ini,
 // bukan pustaka baru, jadi tidak ada yang bisa dipangkas lebih lanjut di sini.
-const TOTAL_BUDGET_KB = 6_050;
+// Dinaikkan 6.050 -> 6.070 KB pada 2026-09-05 untuk satu kanvas ekspor admin baru,
+// Investment Snapshot 360°. Pertumbuhan terukur 12 KB adalah kode route admin yang
+// hanya dimuat saat Studio Infografis dibuka; tidak ada dependensi baru dan muatan awal
+// halaman publik tidak berubah. Batas diberi kepala ruang 8 KB agar tetap menjadi ratchet.
+const TOTAL_BUDGET_KB = 6_070;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
