@@ -1,3 +1,5 @@
+import { csvCell } from '@/shared/format/csv-cell';
+
 export interface CompareExportRow {
   label: string;
   a: unknown;
@@ -14,11 +16,6 @@ export interface CompareExportInput {
   rows: CompareExportRow[];
   conclusion?: string | null;
   generatedAt?: Date;
-}
-
-function csvCell(value: unknown): string {
-  const text = value == null ? '' : String(value);
-  return `"${text.replace(/"/g, '""')}"`;
 }
 
 function displayTicker(symbol: string): string {
