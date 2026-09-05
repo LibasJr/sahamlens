@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import type { AraScannerInputReadiness } from '../types/ara-scanner.types';
+import type { SuspensionArtifactProbe } from './ara-suspension-readiness.service';
 
 const OFFICIAL_SOURCE = 'IDX_OFFICIAL_API';
 const DEFAULT_ARTIFACT = path.join(process.cwd(), 'data', 'idx-uma', 'uma-index.json');
@@ -159,17 +160,50 @@ export function probeOfficialUmaArtifact(
 
 export function resolveTradingRestrictionsInput(
   probe: UmaArtifactProbe,
+  suspension?: SuspensionArtifactProbe,
 ): AraScannerInputReadiness {
+  // Satu kunci mewakili TIGA hal: UMA, suspensi, aksi korporasi. Statusnya wajib
+  // diambil dari mata rantai TERLEMAH, bukan dari yang paling meyakinkan - kalau
+  // tidak, menambah feed baru justru bisa menaikkan status sambil menyembunyikan
+  // feed lain yang basi atau hilang.
+  if (!suspension) {
+    return {
+      key: 'TRADING_RESTRICTIONS',
+      label: 'Status UMA, suspensi, dan aksi korporasi terbaru',
+      status: probe.status,
+      required: true,
+      ownedBy: 'SAHAMLENS',
+      source: probe.source,
+      observedAt: probe.observedAt,
+      detail: probe.verified
+        ? `${probe.detail} Feed suspensi belum diperiksa, jadi status ini belum mencakupnya.`
+        : probe.detail,
+    };
+  }
+
+  const bothVerified = probe.verified && suspension.verified;
+  const status = bothVerified
+    ? 'PARTIAL'
+    : ((probe.status === 'STALE' || suspension.status === 'STALE') ? 'STALE' : 'MISSING');
+
+  const sources = [probe.source, suspension.source].filter(Boolean).join(' + ') || null;
+  const observedAt = [probe.observedAt, suspension.observedAt].filter(Boolean).sort()[0] ?? null;
+
+  const detail = bothVerified
+    ? `UMA: ${probe.count} pengumuman / ${probe.tickerCount} emiten (${probe.coverageFrom}..${probe.coverageTo}). `
+      + `Suspensi: ${suspension.suspendedCount} emiten sedang disuspensi, ${suspension.unresolvedCount} pengumuman '>1 Kode' belum terurai`
+      + `${suspension.marketWideSuspendUncertainty ? ' (ketidakpastian berlaku seluruh pasar)' : ''}. `
+      + 'Status tetap PARTIAL karena aksi korporasi belum punya feed sama sekali; endpoint resminya belum ditemukan.'
+    : `UMA: ${probe.status} - ${probe.detail} | Suspensi: ${suspension.status} - ${suspension.detail}`;
+
   return {
     key: 'TRADING_RESTRICTIONS',
     label: 'Status UMA, suspensi, dan aksi korporasi terbaru',
-    status: probe.status,
+    status,
     required: true,
     ownedBy: 'SAHAMLENS',
-    source: probe.source,
-    observedAt: probe.observedAt,
-    detail: probe.verified
-      ? `${probe.detail} Status READY di sini hanya membuktikan feed UMA; pemeriksaan suspensi/aksi korporasi tetap wajib fail-closed di execution layer.`
-      : probe.detail,
+    source: sources,
+    observedAt,
+    detail,
   };
 }
