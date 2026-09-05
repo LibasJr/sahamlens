@@ -8,6 +8,7 @@ import { Input, Button, Toast, PasswordToggle } from '@/components/ui';
 import { LOGIN_REQUIRED_NOTICE } from '@/shared/constants/access';
 import { safeInternalPath } from '@/shared/navigation/safe-internal-path';
 import { apiErrorMessage, apiRequest } from '@/shared/http/api-client';
+import { useAuthUser } from '@/lib/hooks/useAuthUser';
 
 function LoginForm() {
   const [email, setEmail] = useState('');
@@ -18,6 +19,7 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { refresh: refreshAuthUser } = useAuthUser();
   // `next` datang dari URL browser. Jangan pass mentah ke router.push(): `//host`
   // adalah URL protocol-relative dan dapat mengarahkan user keluar situs setelah login.
   const next = safeInternalPath(searchParams.get('next'), '/');
@@ -46,6 +48,10 @@ function LoginForm() {
       });
       if (rememberMe) localStorage.setItem('saham_remember_email', email);
       else localStorage.removeItem('saham_remember_email');
+      // AuthUserProvider hanya fetch /api/auth/me sekali saat mount (root layout
+      // tidak remount saat router.push) - tanpa refresh() manual di sini, sidebar
+      // dkk tetap menampilkan state guest sampai user reload penuh browser-nya.
+      await refreshAuthUser();
       router.push(next);
       router.refresh();
     } catch (err: any) {
