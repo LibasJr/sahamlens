@@ -95,6 +95,9 @@ data/news-articles/
 # (scripts/sync-idx-foreign-flow.py, disegarkan app/api/cron/idx-flow-sync).
 # Data runtime yang diregenerasi tiap hari bursa dan besar: ~30MB untuk ~960 emiten.
 data/foreign-flow/
+# Pengumuman UMA resmi BEI (scripts/sync-idx-uma.py). Artefak runtime yang ditulis
+# ulang tiap sync; isinya cerminan pengumuman publik BEI, bukan sumber kebenaran repo.
+data/idx-uma/
 # Penutupan harian IHSG dari Index Summary resmi BEI
 # (scripts/sync-idx-ihsg-eod.py). Jendela bergulir pendek, ditulis ulang tiap sync.
 data/idx-index/
