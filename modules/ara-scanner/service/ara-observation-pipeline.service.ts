@@ -23,6 +23,10 @@ export interface AraObservation {
   components: { V: number | null; C: number | null; B: number | null; R: number | null; T: number | null; RS: number | null; S: null; K: null };
   diagnostics: { persistenceBars: number; volumeRatio: number | null; upperWickRatio: number | null; exhaustion: boolean; availableWeight: number };
   blockers: string[];
+  /** Bukan blocker: di luar cakupan SahamLens secara desain. */
+  outOfScope: string[];
+  /** Wajib dinilai Agent Speed + manusia di platform broker sebelum eksekusi. */
+  executionLayerChecksRequired: readonly string[];
 }
 
 function finitePositive(v: unknown): v is number { return typeof v === 'number' && Number.isFinite(v) && v > 0 }
@@ -91,5 +95,8 @@ export function buildAraObservation(input: AraObservationInput): AraObservation 
   return {ticker:input.ticker,status:'OBSERVATION_ONLY',action:'NO_ACTION',source:input.source,observedAt:latest.time,
     previousClose:prev,lastPrice:latest.close,araLimit:limit,distanceToAraPct:(limit/latest.close-1)*100,nearAra:latest.close>=limit*0.95,
     components,diagnostics:{persistenceBars,volumeRatio,upperWickRatio,exhaustion,availableWeight:Math.round(availableWeight*100)/100},
-    blockers:['ORDER_BOOK_NOT_AVAILABLE','OFFICIAL_TRADING_RESTRICTIONS_NOT_AVAILABLE','PRICE_CROSS_CHECK_NOT_AVAILABLE','CATALYST_NOT_VERIFIED']};
+    blockers:['OFFICIAL_TRADING_RESTRICTIONS_NOT_AVAILABLE','PRICE_CROSS_CHECK_NOT_AVAILABLE','CATALYST_NOT_VERIFIED'],
+    // Bukan blocker: SahamLens adalah lapisan analisa, bukan venue eksekusi.
+    outOfScope:['ORDER_BOOK_DEPTH','SPREAD','SLIPPAGE'],
+    executionLayerChecksRequired:ARA_SCANNER_POLICY.investabilityChecks.executionLayer};
 }

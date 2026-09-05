@@ -16,8 +16,10 @@ describe('ARA observation pipeline',()=>{
   const r=buildAraObservation({ticker:'TEST.JK',daily,intraday:intra,benchmarkDaily:daily,source:'Yahoo chart',fetchedAt:'2026-08-24T02:16:00Z'});
   expect(r).toMatchObject({status:'OBSERVATION_ONLY',action:'NO_ACTION',previousClose:119,lastPrice:126,nearAra:false});
   expect(r.diagnostics.availableWeight).toBe(0.8);
-  expect(r.blockers).toContain('ORDER_BOOK_NOT_AVAILABLE');
   expect(r.blockers).toContain('OFFICIAL_TRADING_RESTRICTIONS_NOT_AVAILABLE');
+  expect(r.blockers).not.toContain('ORDER_BOOK_NOT_AVAILABLE');
+  expect(r.outOfScope).toEqual(['ORDER_BOOK_DEPTH','SPREAD','SLIPPAGE']);
+  expect(r.executionLayerChecksRequired).toContain('Spread');
  });
  it('menolak bar tidak valid dan histori kurang',()=>{
   expect(()=>buildAraObservation({ticker:'X.JK',daily:daily.slice(0,3),intraday:intra,source:'x',fetchedAt:'2026-08-24T02:16:00Z'})).toThrow('21 bar');
