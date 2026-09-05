@@ -21,13 +21,35 @@ async function expectDocumentSecurity(page: Page, path: string) {
   await expect(page.locator('main#lens-content')).toBeVisible();
 }
 
+/**
+ * Menunggu elemen yang hanya ada SETELAH hydration klien selesai.
+ *
+ * Komponen seperti AIChat sengaja dimuat `dynamic(..., { ssr: false })`, jadi ia
+ * TIDAK pernah ada di HTML awal - baru muncul setelah bundle klien diunduh,
+ * dieksekusi, dan chunk dinamisnya selesai. `waitUntil: 'domcontentloaded'`
+ * selesai jauh sebelum itu.
+ *
+ * Ditambah lagi webServer di sini menjalankan `npm run dev`: Turbopack meng-
+ * kompilasi rute saat pertama diakses, dan kompilasi itu gampang melewati
+ * timeout bawaan 5 detik pada runner CI yang sedang terbebani.
+ *
+ * Gagalnya menyesatkan - terbaca "tombol tidak ada" (seolah UI hilang), padahal
+ * yang terjadi "tombol belum sempat muncul". Karena itu tunggu kondisinya secara
+ * eksplisit, JANGAN melonggarkan apa yang diperiksa.
+ */
+async function expectClientOnlyElement(page: Page, selector: string) {
+  // Tunggu bundle klien benar-benar hidup dulu, bukan sekadar DOM terpasang.
+  await page.waitForLoadState('networkidle');
+  await expect(page.locator(selector)).toHaveCount(1, { timeout: 30_000 });
+}
+
 test.beforeEach(async ({ page }) => {
   await stubBrowserApis(page);
 });
 
 test('guest landing membuka shell publik dan panel LensAI', async ({ page }) => {
   await expectDocumentSecurity(page, '/');
-  await expect(page.locator('button[aria-label="Ask LensAI"]')).toHaveCount(1);
+  await expectClientOnlyElement(page, 'button[aria-label="Ask LensAI"]');
   await page.evaluate(() => window.dispatchEvent(new Event('open-ai-chat')));
   await expect(page.getByRole('dialog', { name: 'LensAI Research' })).toBeVisible();
   await expect(page.getByLabel('Tanya LensAI tentang saham atau fitur SahamLens')).toBeVisible();
@@ -55,6 +77,9 @@ test('portfolio dan watchlist menolak guest melalui redirect session boundary', 
 
 test('admin tanpa cookie terverifikasi berhenti di admin login', async ({ page }) => {
   await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-  await expect(page).toHaveURL(/\/admin-login/);
+  // Kompilasi rute pertama di dev-server bisa menahan redirect lebih lama dari
+  // batas bawaan 5 detik. Yang diperiksa tetap sama: guest WAJIB mendarat di
+  // admin-login, bukan di /admin.
+  await expect(page).toHaveURL(/\/admin-login/, { timeout: 30_000 });
   await expect(page.getByRole('heading', { name: 'Admin Login' })).toBeVisible();
 });
