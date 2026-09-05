@@ -23,6 +23,7 @@ import {
 import type { ScreenerStock } from '@/modules/market/service/screener.service';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
+import { technicalResearchPath } from '@/shared/navigation/technical-route';
 
 // Konstanta modul, bukan `|| []` inline: literal baru tiap render mengubah identitas
 // dependensi useMemo di bawah, jadi memo-nya tidak pernah benar-benar memo (dan eslint
@@ -238,7 +239,7 @@ export default function ScreenerPage() {
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <Header
         currentTicker=""
-        onTickerChange={(t) => router.push(`/technical/${t.replace('.JK', '')}.JK`)}
+        onTickerChange={(t) => router.push(technicalResearchPath(`${t.replace('.JK', '')}.JK`))}
         moduleTitle="LensScanner — Filter Saham Multi-Faktor"
         moduleBank="LENSSCANNER"
       />

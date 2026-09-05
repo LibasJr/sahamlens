@@ -24,6 +24,7 @@ import { AI_PICK_UNIVERSE, ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/mark
 import { StockSignalRunningText, TickerTape } from '@/components/dashboard/DashboardMarketStrips';
 import DashboardFeatureGrid from '@/components/dashboard/DashboardFeatureGrid';
 import { useDashboardMarketData, type DashboardMarketDataOptions } from '@/components/dashboard/useDashboardMarketData';
+import { technicalResearchPath } from '@/shared/navigation/technical-route';
 const CommandPalette = dynamic(() => import('@/components/CommandPalette'), { ssr: false });
 const ACTIVE_UNIVERSE_COUNT = AI_PICK_UNIVERSE.length;
 type DashboardProps = DashboardMarketDataOptions;
@@ -38,7 +39,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
   const handleQuickSearch = (event: React.FormEvent) => {
     event.preventDefault();
     const clean = quickSearch.trim().toUpperCase().replace('.JK', '');
-    if (clean) router.push(`/technical/${clean}.JK`);
+    if (clean) router.push(technicalResearchPath(`${clean}.JK`));
   };
 
   const {
@@ -190,7 +191,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   <SymbolAutocomplete
                     value={quickSearch}
                     onChange={setQuickSearch}
-                    onSelect={(symbol) => router.push(`/technical/${symbol}`)}
+                    onSelect={(symbol) => router.push(technicalResearchPath(symbol))}
                     placeholder={t('common.searchPlaceholder')}
                     showSearchIcon
                     maxSuggestions={5}

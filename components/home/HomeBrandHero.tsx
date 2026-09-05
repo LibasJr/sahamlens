@@ -7,6 +7,7 @@ import { ArrowRight, ArrowUpRight, ArrowDownRight, Search, ShieldCheck } from 'l
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import { Button, Card, Skeleton } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
+import { technicalResearchPath } from '@/shared/navigation/technical-route';
 
 interface HomeBrandHeroProps {
   ihsg: { price: number; changePct: number } | null;
@@ -23,7 +24,7 @@ export default function HomeBrandHero({ ihsg, loadingMarket, marketError }: Home
 
   const openSymbol = (symbol: string) => {
     const clean = symbol.trim().toUpperCase().replace(/\.JK$/i, '');
-    if (clean) router.push(`/technical/${clean}.JK`);
+    if (clean) router.push(technicalResearchPath(`${clean}.JK`));
   };
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {

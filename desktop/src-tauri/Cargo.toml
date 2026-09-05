@@ -1,6 +1,6 @@
 [package]
 name = "sahamlens-desktop-pro"
-version = "1.0.0"
+version = "1.1.0"
 description = "SahamLens Pro Native Terminal"
 authors = ["SahamLens Team"]
 edition = "2021"

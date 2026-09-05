@@ -7,6 +7,7 @@ import { Search, X, TrendingUp, TrendingDown, Loader2 } from 'lucide-react';
 import { getMarketAwareTtlMs } from '@/shared/cache/ttl-policy';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
 import { apiRequest } from '@/shared/http/api-client';
+import { technicalResearchPath } from '@/shared/navigation/technical-route';
 
 type Emiten = { symbol: string; name: string; board: string };
 type Preview = { closes: number[]; price: number; changePct: number } | null;
@@ -175,7 +176,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       onSelect(emiten.symbol, emiten.name);
     } else {
       const routeSymbol = emiten.symbol.startsWith('^') ? 'IHSG' : `${emiten.symbol}.JK`;
-      router.push(`/technical/${encodeURIComponent(routeSymbol)}`);
+      router.push(technicalResearchPath(routeSymbol));
     }
   };
 

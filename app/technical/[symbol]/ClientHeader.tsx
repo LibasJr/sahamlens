@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
+import { technicalResearchPath } from '@/shared/navigation/technical-route';
 
 export default function ClientHeader({ symbol }: { symbol: string }) {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function ClientHeader({ symbol }: { symbol: string }) {
       window.localStorage.setItem('last_searched_ticker', formattedTicker);
     }
     const routeSymbol = formattedTicker.startsWith('^') ? 'IHSG' : formattedTicker;
-    router.push(`/technical/${encodeURIComponent(routeSymbol)}`);
+    router.push(technicalResearchPath(routeSymbol));
   };
 
   return (

@@ -1,11 +1,13 @@
 {
   "name": "sahamlens-desktop-pro",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
+    "dev": "npm --prefix .. run dev:desktop-web",
+    "dev:native": "vite",
+    "build": "npm --prefix .. run build:desktop-web",
+    "build:native": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri"
   },
