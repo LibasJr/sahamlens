@@ -13,6 +13,7 @@ import {
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TechnicalResearchCard from '@/components/export/TechnicalResearchCard';
 import FundamentalResearchCard from '@/components/export/FundamentalResearchCard';
+import InvestmentSnapshot360Card from '@/components/export/InvestmentSnapshot360Card';
 import {
   Card3DTheme,
   CARD_3D_THEMES,
@@ -28,7 +29,7 @@ import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { TICKERS } from '@/lib/tickers';
 import { apiRequest } from '@/shared/http/api-client';
 
-type StudioCardMode = 'technical' | 'fundamental_moat_earnings';
+type StudioCardMode = 'snapshot_360' | 'technical' | 'fundamental_moat_earnings';
 
 const POPULAR_TICKERS = ['BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'ITMG', 'BREN', 'UNVR', 'ICBP'];
 
@@ -36,7 +37,7 @@ export default function InfographicStudioClient() {
   const { effectiveRole, loading: authLoading } = useAuthUser();
   const [tickerInput, setTickerInput] = useState('BBCA');
   const [activeTicker, setActiveTicker] = useState('BBCA');
-  const [cardMode, setCardMode] = useState<StudioCardMode>('technical');
+  const [cardMode, setCardMode] = useState<StudioCardMode>('snapshot_360');
   const [selectedThemeId, setSelectedThemeId] = useState<string>('auto'); // 'auto' | themeId
   const [zoomScale, setZoomScale] = useState<number>(0.75);
   const [loading, setLoading] = useState(false);
@@ -293,11 +294,15 @@ export default function InfographicStudioClient() {
       const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(canvasRef.current, { pixelRatio: 2, cacheBust: true });
       const link = document.createElement('a');
-      const typeLabel = cardMode === 'technical' ? 'Technical-3D' : 'Fundamental-Moat-Earnings-3D';
+      const typeLabel = cardMode === 'snapshot_360'
+        ? 'Investment-Snapshot-360'
+        : cardMode === 'technical'
+          ? 'Technical-Research'
+          : 'Fundamental-Research';
       link.download = `SahamLens-${typeLabel}-${activeTicker}-${new Date().toISOString().slice(0, 10)}.png`;
       link.href = dataUrl;
       link.click();
-      showToast(`Infografis 3D ${cardMode === 'technical' ? 'Teknikal' : 'Fundamental+Moat'} berhasil diekspor (HD PNG)!`, 'success');
+      showToast(`Infografis ${typeLabel.replaceAll('-', ' ')} berhasil diekspor (HD PNG)!`, 'success');
     } catch (error) {
       console.error('Export error:', error);
       showToast('Gagal mengekspor infografis. Silakan coba lagi.', 'error');
@@ -357,10 +362,12 @@ export default function InfographicStudioClient() {
               <Download className="w-4 h-4" />
               <span>
                 {exporting
-                  ? 'Merender Gambar HD 3D...'
-                  : cardMode === 'technical'
-                  ? 'Download PNG 3D (Teknikal)'
-                  : 'Download PNG 3D (Fundamental + Moat)'}
+                  ? 'Merender Gambar HD...'
+                  : cardMode === 'snapshot_360'
+                    ? 'Download Snapshot 360°'
+                    : cardMode === 'technical'
+                      ? 'Download Catatan Teknikal'
+                      : 'Download Catatan Fundamental'}
               </span>
             </Button>
           </div>
@@ -369,11 +376,11 @@ export default function InfographicStudioClient() {
         {/* Title & Description */}
         <div className="mb-6">
           <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-2.5">
-            <Sparkles className={`w-7 h-7 ${active3DTheme.accentText}`} />
-            Pembuat Infografis 360° (Tema Sektor 3D)
+            <Sparkles className="w-7 h-7 text-[#828fff]" />
+            Studio Investment Snapshot 360°
           </h1>
           <p className="mt-1 text-sm text-tv-muted max-w-3xl">
-            Generator Infografis Finansial 3D dengan <b>Pewarnaan &amp; Pencahayaan Otomatis Sesuai Sektor Emiten</b> (Perbankan: Biru Safir, Tambang/Energi: Emas Solar, Teknologi: Violet Cyber, FMCG: Mawar Sampanye, dsb).
+            Satu lembar institutional terminal yang merangkum teknikal, fundamental, valuasi, earnings, kepemilikan, kualitas bukti, dan struktur keputusan. Catatan riset terpisah tetap tersedia.
           </p>
         </div>
 
@@ -472,6 +479,19 @@ export default function InfographicStudioClient() {
             <div className="flex items-center gap-2 p-1 bg-[#030612] rounded-xl border border-slate-800 w-full lg:w-auto">
               <Button variant="bare" size="none"
                 type="button"
+                onClick={() => setCardMode('snapshot_360')}
+                className={`flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-heading text-xs font-bold transition-all ${
+                  cardMode === 'snapshot_360'
+                    ? 'bg-[#5e6ad2] text-white shadow-[0_0_0_1px_rgba(130,143,255,.35)]'
+                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                <span>Snapshot 360°</span>
+              </Button>
+
+              <Button variant="bare" size="none"
+                type="button"
                 onClick={() => setCardMode('technical')}
                 className={`flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-heading text-xs font-bold transition-all ${
                   cardMode === 'technical'
@@ -559,9 +579,11 @@ export default function InfographicStudioClient() {
             <div className="flex items-center gap-2">
               <ImageIcon className={`w-5 h-5 ${active3DTheme.accentText}`} />
               <span className="font-heading text-sm font-bold text-white">
-                Pratinjau: {cardMode === 'technical'
-                  ? 'Catatan Teknikal & Smart Money'
-                  : 'Catatan Fundamental, Moat & Earnings'}
+                Pratinjau: {cardMode === 'snapshot_360'
+                  ? 'Investment Snapshot 360°'
+                  : cardMode === 'technical'
+                    ? 'Catatan Teknikal & Smart Money'
+                    : 'Catatan Fundamental, Moat & Earnings'}
               </span>
               <span className="hidden md:inline text-[11px] font-mono text-slate-400">
                 • Tema Sektor: <b className={active3DTheme.accentText}>{active3DTheme.name}</b> (dipakai sebagai warna aksen)
@@ -587,7 +609,31 @@ export default function InfographicStudioClient() {
             >
               <div ref={canvasRef} className="w-[1080px]">
                 {data ? (
-                  cardMode === 'technical' ? (
+                  cardMode === 'snapshot_360' ? (
+                    <InvestmentSnapshot360Card
+                      symbol={data.symbol}
+                      stockName={data.stock.name}
+                      currentPrice={data.stock.current_price}
+                      changePct={data.stock.change_pct}
+                      volume={data.stock.volume}
+                      dataTimestamp={data.dataTimestamp}
+                      consensusLabel={data.technical.consensusLabel}
+                      consensusTone={data.technical.consensusTone}
+                      score={data.technical.score}
+                      scoreBreakdown={data.technical.breakdown}
+                      range52w={data.technical.range52w}
+                      trends={data.technical.trends}
+                      tradingPlan={data.technical.tradingPlan}
+                      flowDetails={data.technical.flowDetails}
+                      fundamentals={data.fundamental.fundamentals}
+                      profile={data.fundamental.profile}
+                      moat={data.fundamental.moat}
+                      valuation={data.fundamental.valuation}
+                      latestEarningsQuarter={data.fundamental.latestEarningsQuarter}
+                      ownership={data.fundamental.ownership}
+                      exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
+                    />
+                  ) : cardMode === 'technical' ? (
                     <TechnicalResearchCard
                       symbol={data.symbol}
                       stockName={data.stock.name}
