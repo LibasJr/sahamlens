@@ -51,15 +51,18 @@ export const BASELINE_POLICY: OfflinePolicy = {
   minFlowScore: 0,
 };
 
-const MIN_TOTAL_SAMPLES = 60;
-const MIN_VALIDATION_SAMPLES = 20;
-const MIN_SELECTED_VALIDATION = 10;
+const MIN_TOTAL_SAMPLES = 50;
+const MIN_VALIDATION_SAMPLES = 15;
+const MIN_SELECTED_VALIDATION = 5;
 
 export function rewardOf(row: LearningObservation): number {
-  // Reward menitikberatkan outcome lebih panjang, tetapi menghukum downside T+5
-  // agar policy tidak mengejar return T+20 dengan drawdown awal berlebihan.
+  // Reward untuk horizon T+5 dengan penalti downside awal.
+  // Jika T+20 belum matang (bernilai sama dengan T+5), fokuskan reward ke return T+5 dan hit rate.
   const downsidePenalty = Math.max(0, -row.t5ReturnPct) * 0.5;
-  return row.t20ReturnPct * 0.7 + row.t5ReturnPct * 0.3 - downsidePenalty;
+  if (row.t20ReturnPct !== row.t5ReturnPct) {
+    return row.t20ReturnPct * 0.7 + row.t5ReturnPct * 0.3 - downsidePenalty;
+  }
+  return row.t5ReturnPct - downsidePenalty;
 }
 
 export function policySelects(policy: OfflinePolicy, row: LearningObservation): boolean {
