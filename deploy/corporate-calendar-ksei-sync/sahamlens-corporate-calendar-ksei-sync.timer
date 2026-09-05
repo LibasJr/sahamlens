@@ -1,0 +1,11 @@
+[Unit]
+Description=Jadwal SahamLens - sync kalender RUPS resmi KSEI
+
+[Timer]
+OnCalendar=*-*-* 07,12,17:15:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=300
+AccuracySec=60
+
+[Install]
+WantedBy=timers.target

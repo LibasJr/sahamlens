@@ -98,6 +98,9 @@ data/foreign-flow/
 # Pengumuman UMA resmi BEI (scripts/sync-idx-uma.py). Artefak runtime yang ditulis
 # ulang tiap sync; isinya cerminan pengumuman publik BEI, bukan sumber kebenaran repo.
 data/idx-uma/
+# Jadwal RUPS/RUPSLB resmi KSEI. Artifact runtime dengan provenance dan coverage;
+# sinkronisasi gagal tidak boleh menimpa snapshot terakhir yang valid.
+data/corporate-calendar/
 # Pengumuman suspensi/pembukaan resmi BEI (scripts/sync-idx-suspension.py). Artefak
 # runtime yang ditulis ulang tiap sync, sama seperti data/idx-uma/.
 data/idx-suspension/
