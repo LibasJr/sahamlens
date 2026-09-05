@@ -32,7 +32,7 @@ export const ARA_SCANNER_POLICY = {
       { key: 'R', label: 'Range expansion', weight: 0.10, detail: 'Ekspansi rentang harga yang mendukung pergerakan.' },
       { key: 'T', label: 'Turnover expansion', weight: 0.05, detail: 'Perubahan nilai transaksi relatif; bobot dibatasi karena berkorelasi dengan volume.' },
       { key: 'RS', label: 'Relative strength', weight: 0.10, detail: 'Kinerja saham dibandingkan IHSG atau benchmark relevan.' },
-      { key: 'S', label: 'Supply condition', weight: 0.05, detail: 'Kualitas kondisi supply; rejection dan distribusi diterapkan sebagai penalti terpisah.' },
+      { key: 'S', label: 'Supply condition', weight: 0.05, detail: 'Kualitas kondisi supply. SahamLens tidak memiliki order book, sehingga komponen ini permanen null di lapisan analisa; rejection dan distribusi tetap diterapkan sebagai penalti terpisah dari data harga.', ownedBy: 'EXECUTION_LAYER' },
       { key: 'K', label: 'Verified catalyst', weight: 0.15, detail: 'Kualitas katalis terverifikasi, bukan rumor.' },
     ] as const,
     penalties: [
@@ -68,17 +68,28 @@ export const ARA_SCANNER_POLICY = {
     exhaustionActions: ['WAIT', 'AVOID_CHASING', 'NO_ACTION'] as const,
   },
   investabilityOrder: ['Kualitas continuation', 'Investability', 'ACS'] as const,
-  investabilityChecks: [
-    'Likuiditas',
-    'Spread',
-    'Kedalaman bid-offer',
-    'Slippage',
-    'Status suspensi/UMA',
-    'Free float',
-    'Aksi korporasi',
-    'Risiko governance',
-    'Kelayakan entry dan exit',
-  ] as const,
+  /**
+   * Investability dibagi menurut pemilik data. SahamLens hanya boleh mengklaim
+   * yang ada di analysisLayer; sisanya wajib dinilai di titik eksekusi.
+   */
+  investabilityChecks: {
+    analysisLayer: [
+      'Likuiditas via proksi nilai transaksi dan volume rata-rata',
+      'Frekuensi transaksi',
+      'Status suspensi/UMA',
+      'Free float',
+      'Aksi korporasi',
+      'Risiko governance',
+    ],
+    executionLayer: [
+      'Spread',
+      'Kedalaman bid-offer',
+      'Slippage',
+      'Kelayakan entry dan exit pada harga nyata',
+    ],
+    executionLayerOwner: 'HERMES_AGENT_SPEED_DAN_MANUSIA',
+    executionLayerNote: 'SahamLens tidak memiliki order book dan tidak boleh mengklaim spread, depth, atau slippage. Pemeriksaan ini dilakukan Agent Speed bersama manusia di platform broker sebelum eksekusi.',
+  } as const,
   downstreamDecisionContract: {
     owner: 'HERMES_AGENT_SPEED',
     independentReviewRequired: true,
@@ -99,6 +110,8 @@ export const ARA_SCANNER_POLICY = {
     'Menghasilkan BUY otomatis',
     'Mengejar saham yang sudah ARA',
     'Mengarang order book, volume, katalis, atau harga',
+    'Mengklaim spread, kedalaman bid-offer, atau slippage dari sisi SahamLens',
+    'Menaikkan ORDER_BOOK dari OUT_OF_SCOPE menjadi READY di dalam SahamLens',
     'Menggunakan data stale sebagai kondisi live',
     'Menganggap input yang tidak tersedia sebagai netral',
     'Mengubah sinyal SahamLens menjadi keputusan tanpa evaluasi independen',

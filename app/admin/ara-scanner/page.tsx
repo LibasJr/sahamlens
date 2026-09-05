@@ -14,6 +14,7 @@ const INPUT_STATUS: Record<AraScannerInputStatus, { label: string; tone: string 
   MISSING: { label: 'Belum ada', tone: 'border-tv-red/30 bg-tv-red/10 text-tv-red' },
   STALE: { label: 'Kedaluwarsa', tone: 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow' },
   ERROR: { label: 'Error', tone: 'border-tv-red/30 bg-tv-red/10 text-tv-red' },
+  OUT_OF_SCOPE: { label: 'Di luar cakupan', tone: 'border-tv-border bg-tv-bg text-tv-muted' },
 };
 
 export default async function AdminAraScannerPage() {
@@ -49,6 +50,7 @@ export default async function AdminAraScannerPage() {
               <p className="mt-1 text-sm text-tv-muted">{readiness.reason}</p>
               <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-xs text-tv-muted">
                 <span>Input terblokir: <b className="text-tv-text">{readiness.blockerCount}/{readiness.inputs.length}</b></span>
+                <span>Di luar cakupan: <b className="text-tv-text">{readiness.outOfScopeInputs.length}</b></span>
                 <span>Sinyal dibuat: <b className="text-tv-text">{readiness.signalCount}</b></span>
                 <span>Versi gate: <b className="font-number text-tv-text">{readiness.gateVersion}</b></span>
               </div>
