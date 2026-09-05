@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Download } from 'lucide-react';
 import Toast from '@/components/ui/Toast';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { saveBinaryExport } from '@/shared/browser/save-binary-export';
 
 interface ExportImageButtonProps {
   targetRef: React.RefObject<HTMLElement>;
@@ -27,10 +28,7 @@ export default function ExportImageButton({ targetRef, fileName, label = 'Export
     try {
       const { toPng } = await import('html-to-image');
       const dataUrl = await toPng(targetRef.current, { pixelRatio: 2, cacheBust: true });
-      const link = document.createElement('a');
-      link.download = fileName;
-      link.href = dataUrl;
-      link.click();
+      await saveBinaryExport(fileName, dataUrl);
     } catch (error) {
       console.error('Export image error:', error);
       setErrorMessage('Gagal mengekspor gambar. Coba lagi.');

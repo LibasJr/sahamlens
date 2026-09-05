@@ -1,5 +1,6 @@
 mod api_policy;
 mod credentials;
+mod export;
 mod navigation;
 
 use std::collections::HashMap;
@@ -166,9 +167,28 @@ fn native_resolve_deep_link(url: String) -> Result<String, String> {
     )?))
 }
 
+#[tauri::command]
+fn native_save_text_export(
+    app: tauri::AppHandle,
+    filename: String,
+    contents: String,
+) -> Result<bool, String> {
+    export::save_export(&app, &filename, contents.as_bytes())
+}
+
+#[tauri::command]
+fn native_save_binary_export(
+    app: tauri::AppHandle,
+    filename: String,
+    bytes: Vec<u8>,
+) -> Result<bool, String> {
+    export::save_export(&app, &filename, &bytes)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_keyring_store::init())
         .setup(|app| {
@@ -217,7 +237,9 @@ pub fn run() {
             native_login,
             native_logout,
             native_open_external,
-            native_resolve_deep_link
+            native_resolve_deep_link,
+            native_save_text_export,
+            native_save_binary_export
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
