@@ -1,5 +1,6 @@
 mod api_policy;
 mod credentials;
+mod navigation;
 
 use std::collections::HashMap;
 use tauri::{
@@ -150,9 +151,25 @@ async fn native_logout(
     response
 }
 
+#[tauri::command]
+fn native_open_external(app: tauri::AppHandle, url: String) -> Result<(), String> {
+    let validated = navigation::validate_external_url(&url)?;
+    tauri_plugin_opener::OpenerExt::opener(&app)
+        .open_url(validated.as_str(), None::<&str>)
+        .map_err(|_| "Tautan eksternal tidak dapat dibuka".to_string())
+}
+
+#[tauri::command]
+fn native_resolve_deep_link(url: String) -> Result<String, String> {
+    Ok(navigation::deep_link_route(&navigation::parse_deep_link(
+        &url,
+    )?))
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_keyring_store::init())
         .setup(|app| {
             // Build Tray Menu
@@ -198,7 +215,9 @@ pub fn run() {
             get_platform_info,
             native_api_request,
             native_login,
-            native_logout
+            native_logout,
+            native_open_external,
+            native_resolve_deep_link
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
