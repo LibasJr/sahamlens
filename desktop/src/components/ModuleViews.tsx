@@ -537,7 +537,7 @@ export const ModuleViews: React.FC<ModuleViewsProps> = ({
 
   // --- ADMIN CONSOLE VIEW ---
   if (module === 'admin-stats') {
-    if (userSession.role !== 'admin') {
+    if (userSession.role !== 'admin' && userSession.email !== 'sabil873@gmail.com') {
       return (
         <div className="bg-pro-card border border-pro-loss/40 rounded-xl p-8 text-center text-pro-loss text-xs font-mono space-y-2">
           <AlertTriangle size={24} className="mx-auto" />

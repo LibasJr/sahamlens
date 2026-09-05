@@ -126,7 +126,7 @@ export async function apiRequest<T = any>(
 }
 
 // 1. LOGIN RESMI DESKTOP
-export async function loginDesktop(email: string, password: string): Promise<{ ok: boolean; role?: string; email?: string; error?: string }> {
+export async function loginDesktop(email: string, password: string): Promise<{ ok: boolean; role?: string; email?: string; token?: string; error?: string }> {
   const res = await apiRequest<{ success: boolean; token: string; role: string; email: string }>('/api/auth/desktop/login', {
     method: 'POST',
     body: { email, password },
@@ -142,7 +142,7 @@ export async function loginDesktop(email: string, password: string): Promise<{ o
     token: res.data.token,
   });
 
-  return { ok: true, role: res.data.role, email: res.data.email };
+  return { ok: true, role: res.data.role, email: res.data.email, token: res.data.token };
 }
 
 // 2. LIVE MARKET PULSE & SUMMARY
