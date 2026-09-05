@@ -23,9 +23,9 @@ export async function GET(request: Request) {
         meta: {
           sources: ['KSEI_OFFICIAL', 'YAHOO_FINANCE'],
           refreshedAt: new Date().toISOString(),
-          warning: calendar.coverage.ksei.status === 'COMPLETE'
+          warning: calendar?.coverage?.ksei?.status === 'COMPLETE'
             ? null
-            : `Cakupan RUPS KSEI ${calendar.coverage.ksei.status}; tanggal kosong bukan bukti tidak ada agenda.`,
+            : `Cakupan RUPS KSEI ${calendar?.coverage?.ksei?.status ?? 'TIDAK_TERSEDIA'}; tanggal kosong bukan bukti tidak ada agenda.`,
         },
       },
       headers: publicCacheHeaders(CACHE_TTL_SEC.CORPORATE_CALENDAR),

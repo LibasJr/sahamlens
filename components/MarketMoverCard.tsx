@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/motion';
+import { useLanguage } from '@/lib/i18n';
 
 export type CardItem = { code: string; change: string; value: string; dir: 'up' | 'down' | 'neutral'; href: string };
 export type CardDef = { id: string; title: string; sub: string; accent: string; Icon: any; key: string; listPath: string };
@@ -47,6 +48,7 @@ export function formatCardItems(id: string, arr: any[]): CardItem[] {
 }
 
 export function MarketMoverCard({ card, lastUpdated, loaded }: { card: MoverCard; lastUpdated: string | null; loaded: boolean }) {
+  const { t } = useLanguage();
   const accent = ACCENT_MAP[card.accent] || ACCENT_MAP.slate;
   return (
     <motion.div variants={fadeUp} className="group relative rounded-lg border border-tv-border bg-tv-card p-5 shadow-1 hover:shadow-2 hover:-translate-y-0.5 transition-all">
@@ -65,7 +67,7 @@ export function MarketMoverCard({ card, lastUpdated, loaded }: { card: MoverCard
       <div className="mt-4 divide-y divide-tv-border/60 rounded-lg border border-tv-border/60 overflow-hidden">
         {card.items.length === 0 && (
           <div className="bg-tv-card px-3 py-6 text-center text-[11px] text-tv-muted">
-            {loaded ? 'Belum ada data untuk kategori ini' : 'Memuat data...'}
+            {loaded ? t('common.noData') : t('common.loading')}
           </div>
         )}
         {card.items.map((it, idx) => (
@@ -87,7 +89,7 @@ export function MarketMoverCard({ card, lastUpdated, loaded }: { card: MoverCard
       <div className="mt-3 flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">Data sesi {lastUpdated || 'tidak tersedia'} • IDX</span>
         <Link href={card.listPath} className="inline-flex items-center gap-1 text-[11px] font-bold text-tv-blue hover:text-tv-text transition">
-          Lihat semua <ChevronRight className="h-3 w-3" />
+          {t('common.viewAll')} <ChevronRight className="h-3 w-3" />
         </Link>
       </div>
     </motion.div>

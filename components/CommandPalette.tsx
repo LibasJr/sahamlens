@@ -8,6 +8,7 @@ import { getMarketAwareTtlMs } from '@/shared/cache/ttl-policy';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
 import { apiRequest } from '@/shared/http/api-client';
 import { technicalResearchPath } from '@/shared/navigation/technical-route';
+import { useLanguage } from '@/lib/i18n';
 
 type Emiten = { symbol: string; name: string; board: string };
 type Preview = { closes: number[]; price: number; changePct: number } | null;
@@ -40,6 +41,7 @@ interface CommandPaletteProps {
 
 export default function CommandPalette({ onSelect, enableShortcut = true }: CommandPaletteProps = {}) {
   const router = useRouter();
+  const { t, language } = useLanguage();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [emiten, setEmiten] = useState<Emiten[]>([]);
@@ -227,8 +229,8 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Cari IHSG, kode saham, atau perusahaan (mis. IHSG atau BBCA)"
-                aria-label="Cari saham atau indeks"
+                placeholder={t('common.searchModalPlaceholder')}
+                aria-label={t('common.searchModalAria')}
                 className="flex-1 rounded-md bg-transparent text-[14px] text-tv-text placeholder:text-tv-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
               />
               {/* Tombol berisi ikon saja WAJIB punya nama aksesibel - tanpa aria-label
@@ -236,7 +238,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                   44x44; sebelumnya hanya sebesar ikonnya. */}
               <PrimitiveButton variant="bare" size="none"
                 onClick={() => setOpen(false)}
-                aria-label="Tutup pencarian"
+                aria-label={t('common.closeSearchAria')}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-tv-muted transition-colors hover:text-tv-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
               >
                 <X className="h-4 w-4" aria-hidden="true" />
@@ -247,11 +249,11 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
               <div className="flex-1 overflow-y-auto py-1.5 max-w-[60%]">
                 {!loaded && (
                   <div className="px-4 py-8 text-center text-[12px] text-tv-muted flex items-center justify-center gap-2">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Memuat daftar emiten...
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('common.loadingEmiten')}
                   </div>
                 )}
                 {loaded && results.length === 0 && (
-                  <div className="px-4 py-8 text-center text-[12px] text-tv-muted">Tidak ada saham yang cocok.</div>
+                  <div className="px-4 py-8 text-center text-[12px] text-tv-muted">{t('common.noMatchingStocks')}</div>
                 )}
                 {results.map((r, idx) => (
                   <PrimitiveButton variant="bare" size="none"
@@ -272,7 +274,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
               {/* Mini chart preview */}
               <div className="hidden sm:flex flex-col flex-1 border-l border-tv-border p-4 bg-tv-cardAlt">
                 {!active ? (
-                  <div className="m-auto text-[11px] text-tv-muted text-center">Arahkan kursor ke saham untuk melihat preview chart</div>
+                  <div className="m-auto text-[11px] text-tv-muted text-center">{t('common.hoverChartPreview')}</div>
                 ) : (
                   <>
                     <div className="text-[13px] font-bold text-tv-text font-mono">{active.symbol.replace(/\.JK$/i, '')}</div>
@@ -282,17 +284,17 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                     ) : preview ? (
                       <>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="font-number text-[16px] font-bold text-tv-text">Rp {Math.round(preview.price).toLocaleString('id-ID')}</span>
+                          <span className="font-number text-[16px] font-bold text-tv-text">Rp {Math.round(preview.price).toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
                           <span className={`font-number inline-flex items-center gap-0.5 text-[11px] font-semibold ${preview.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                             {preview.changePct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                             {preview.changePct >= 0 ? '+' : ''}{preview.changePct.toFixed(2)}%
                           </span>
                         </div>
                         <Sparkline closes={preview.closes} />
-                        <div className="text-[10px] text-tv-muted mt-2">1 bulan terakhir</div>
+                        <div className="text-[10px] text-tv-muted mt-2">{t('common.lastMonth')}</div>
                       </>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center text-[11px] text-tv-muted">Data chart tidak tersedia</div>
+                      <div className="flex-1 flex items-center justify-center text-[11px] text-tv-muted">{t('common.chartDataUnavailable')}</div>
                     )}
                   </>
                 )}
@@ -300,8 +302,8 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
             </div>
 
             <div className="px-4 py-2 border-t border-tv-border flex items-center justify-between text-[10px] text-tv-muted">
-              <span>↑↓ navigasi • {onSelect ? 'Enter tampilkan di chart' : 'Enter buka analisis'}</span>
-              {!onSelect && <span>Grafik & indikator gratis • LensConsensus penuh perlu akun</span>}
+              <span>↑↓ {t('common.navHintNavigation')} • {onSelect ? t('common.navHintEnterChart') : t('common.navHintEnterAnalysis')}</span>
+              {!onSelect && <span>{t('common.freeFeaturesNote')}</span>}
             </div>
           </div>
         </div>
