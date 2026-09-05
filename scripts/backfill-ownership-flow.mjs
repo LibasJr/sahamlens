@@ -563,13 +563,21 @@ async function main() {
   }
 
   const { Pool } = await import('pg');
-  const databaseUrl = process.env.DATABASE_URL.replace(
-    /([?&])sslmode=(?:prefer|require|verify-ca)(?=(&|$))/i,
-    '$1sslmode=verify-full'
-  );
+  const parsedDatabaseUrl = new URL(process.env.DATABASE_URL);
+  const isLoopback = ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(parsedDatabaseUrl.hostname);
+  if (isLoopback) {
+    // PostgreSQL VPS lokal tidak menyediakan TLS. Bug produksi 2-4 Sep 2026:
+    // konfigurasi ini sebelumnya selalu memaksa ssl:true, sehingga backfill baru
+    // pasti gagal meski probe induknya berhasil. Hapus pula sslmode supaya driver
+    // tidak menyalakannya kembali dari connection string.
+    parsedDatabaseUrl.searchParams.delete('sslmode');
+  } else if (['prefer', 'require', 'verify-ca'].includes(parsedDatabaseUrl.searchParams.get('sslmode') ?? '')) {
+    parsedDatabaseUrl.searchParams.set('sslmode', 'verify-full');
+  }
+  const databaseUrl = parsedDatabaseUrl.toString();
   const pool = new Pool({
     connectionString: databaseUrl,
-    ssl: { rejectUnauthorized: true },
+    ssl: isLoopback ? false : { rejectUnauthorized: true },
     max: 3,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 15_000,
