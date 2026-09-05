@@ -154,8 +154,6 @@ async fn native_logout(
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_keyring_store::init())
-        .plugin(tauri_plugin_shell::init())
-        .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Build Tray Menu
             let show_i =
