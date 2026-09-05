@@ -1,4 +1,4 @@
-# SahamLens Pro Native Desktop
+# SahamLens Desktop
 
 Workstation & Financial Terminal untuk pasar modal Indonesia (BEI / IDX).
 

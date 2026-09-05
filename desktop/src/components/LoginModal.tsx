@@ -55,7 +55,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             <LogIn size={20} />
           </div>
           <div>
-            <h2 className="text-base font-bold text-pro-text">Masuk ke SahamLens Pro</h2>
+            <h2 className="text-base font-bold text-pro-text">Masuk ke SahamLens Desktop</h2>
             <p className="text-xs text-pro-textMuted">Gunakan akun terdaftar Anda untuk akses penuh.</p>
           </div>
         </div>
