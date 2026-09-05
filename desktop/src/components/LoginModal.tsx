@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LogIn, Lock, Mail, AlertCircle, CheckCircle2, X } from 'lucide-react';
-import { loginDesktop } from '../api';
+import { loginDesktop, saveSession } from '../api';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -33,6 +33,12 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     setLoading(false);
 
     if (res.ok && res.role) {
+      // Simpan session langsung dan update state
+      saveSession({
+        email: res.email || email,
+        role: res.role,
+        token: res.token || '',
+      });
       onLoginSuccess({ email: res.email || email, role: res.role });
       onClose();
     } else {
