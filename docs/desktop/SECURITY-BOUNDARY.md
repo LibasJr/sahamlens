@@ -19,17 +19,19 @@ Resolved on `main`:
 - route, method, header, body-size, timeout, and redirect policy enforced in `desktop/src-tauri/src/api_policy.rs`, failing closed on unknown input (#354);
 - CSP is non-null in `desktop/src-tauri/tauri.conf.json` (#358);
 - capabilities bind to the `main` window only (#358);
-- `shell:default` and `notification:default` removed together with their unused plugins (#358).
+- `shell:default` and `notification:default` removed together with their unused plugins (#358);
+- external URLs and the closed deep-link action schema are validated natively (#361);
+- CSV/PNG exports use a native-owned save dialog, bounded payloads, sanitized filenames, and centralized clipboard/CSV handling (#362);
+- diagnostics expose only a native-built privacy-safe envelope and no upload path (#363);
+- the aggregate desktop threat-model gate covers every native command, and API responses are streamed under a 5 MB ceiling (#365).
 
 Still open before closed beta:
 
-- safe external navigation and deep-link validation;
-- file dialog, export sanitization, and clipboard rules;
-- privacy-safe diagnostics envelope;
-- signed installers and update metadata verification;
-- full threat-model test pass with recorded artifact identifiers.
+- Windows code-signing certificate and signed installer verification;
+- Tauri updater signing keys and signed update metadata verification;
+- clean-machine install/relaunch/logout/uninstall verification on Windows 11.
 
-Each resolved item is covered by a regression audit in `__tests__/desktop-credential-boundary.test.ts`, `__tests__/desktop-native-lockdown.test.ts`, and the Rust policy tests.
+The resolved boundaries are guarded by `npm run test:desktop-threat-model`, its six source/config audit suites, and the Rust policy tests. Windows artifact run `33981710726` produced the internal unsigned installer from commit `367c5741`; unsigned artifacts remain development-only evidence, not a completed beta release.
 
 ## Credential rules
 
