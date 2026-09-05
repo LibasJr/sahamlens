@@ -26,15 +26,15 @@ export async function loadLearningObservations(): Promise<LearningObservation[]>
       CROSS JOIN LATERAL (
         SELECT observed.price,ROW_NUMBER() OVER (ORDER BY observed.date)::int AS horizon_offset
         FROM (
-          SELECT history.date,COALESCE(history.adjusted_close_price,history.raw_close_price,history.close_price)::numeric AS price
-          FROM lens_radar_history history
-          WHERE history.ticker=signal.ticker AND history.date>signal.signal_date
-          ORDER BY history.date LIMIT 20
-        ) observed
-      ) calendar
-      GROUP BY signal.id,signal.ticker,signal.data_as_of,signal.lens_score,signal.coverage_pct,signal.payload,signal.signal_date
-    )
-    SELECT * FROM prices WHERE entry_price>0 AND t5_price IS NOT NULL AND t20_price IS NOT NULL ORDER BY data_as_of,id
+      SELECT history.date,COALESCE(history.adjusted_close_price,history.raw_close_price,history.close_price)::numeric AS price
+      FROM lens_radar_history history
+      WHERE (history.ticker=signal.ticker OR history.ticker=signal.ticker || '.JK') AND history.date>signal.signal_date
+      ORDER BY history.date LIMIT 20
+    ) observed
+  ) calendar
+  GROUP BY signal.id,signal.ticker,signal.data_as_of,signal.lens_score,signal.coverage_pct,signal.payload,signal.signal_date
+)
+SELECT * FROM prices WHERE entry_price>0 AND t5_price IS NOT NULL ORDER BY data_as_of,id
   `);
   return result.rows.map((row) => {
     const payload = row.payload as Record<string, unknown>;
@@ -47,7 +47,7 @@ export async function loadLearningObservations(): Promise<LearningObservation[]>
       riskReward: number(risk.riskReward ?? 0), technicalScore: number(breakdown.technical ?? 0),
       fundamentalScore: number(breakdown.fundamental ?? 0), flowScore: number(breakdown.flow ?? 0),
       t5ReturnPct: (number(row.t5_price) / entry - 1) * 100,
-      t20ReturnPct: (number(row.t20_price) / entry - 1) * 100,
+      t20ReturnPct: row.t20_price ? (number(row.t20_price) / entry - 1) * 100 : (number(row.t5_price) / entry - 1) * 100,
     };
   });
 }
