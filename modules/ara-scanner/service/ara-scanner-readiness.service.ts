@@ -35,11 +35,22 @@ export const CURRENT_ARA_INPUT_READINESS: readonly AraScannerInputReadiness[] = 
   {
     key: 'ORDER_BOOK',
     label: 'Antrean bid-offer dan ketebalan order book',
-    status: 'MISSING',
-    required: true,
+    status: 'OUT_OF_SCOPE',
+    required: false,
+    ownedBy: 'EXECUTION_LAYER',
     source: null,
     observedAt: null,
-    detail: 'Belum ada provider order book real-time yang terhubung dan diaudit.',
+    detail: 'Di luar cakupan SahamLens secara desain: SahamLens adalah lapisan analisa, bukan venue eksekusi. Spread, kedalaman bid-offer, antrean, dan slippage hanya valid di platform broker pada saat eksekusi, sehingga menjadi tanggung jawab Agent Speed dan manusia. Likuiditas dinilai lewat proksi nilai transaksi, frekuensi, dan volume rata-rata.',
+  },
+  {
+    key: 'LIQUIDITY_PROXY',
+    label: 'Proksi likuiditas: nilai transaksi, frekuensi, volume rata-rata',
+    status: 'PARTIAL',
+    required: true,
+    ownedBy: 'SAHAMLENS',
+    source: 'Ringkasan perdagangan harian dan OHLCV',
+    observedAt: null,
+    detail: 'Nilai transaksi dan volume tersedia, tetapi baseline likuiditas per saham belum dikontrakkan khusus untuk gerbang ARA. Ini pengganti order book yang sah untuk lapisan analisa, bukan substitusi kedalaman pasar.',
   },
   {
     key: 'BREAKOUT_PERSISTENCE',
@@ -93,9 +104,18 @@ export function evaluateAraScannerReadiness(
   generatedAt = new Date().toISOString(),
   algorithmReady = ARA_SCANNER_POLICY.formula.status === 'CONFIRMED',
 ): AraScannerReadiness {
+  const outOfScopeInputs = ARA_SCANNER_INPUT_KEYS.filter((key) => {
+    const matchingInputs = inputs.filter((input) => input.key === key);
+    return matchingInputs.length === 1 && matchingInputs[0]?.status === 'OUT_OF_SCOPE';
+  });
+
+  // A key is a blocker unless it is declared exactly once and is either READY or
+  // deliberately out of SahamLens scope. Duplicated or absent keys stay blockers.
   const blockers = ARA_SCANNER_INPUT_KEYS.filter((key) => {
     const matchingInputs = inputs.filter((input) => input.key === key);
-    return matchingInputs.length !== 1 || matchingInputs[0]?.status !== 'READY';
+    if (matchingInputs.length !== 1) return true;
+    const status = matchingInputs[0]?.status;
+    return status !== 'READY' && status !== 'OUT_OF_SCOPE';
   });
   const dataInputsReady = blockers.length === 0;
   const executionAllowed = dataInputsReady && algorithmReady;
@@ -111,6 +131,7 @@ export function evaluateAraScannerReadiness(
     lastRunAt: null,
     blockerCount: blockers.length,
     blockers,
+    outOfScopeInputs,
     inputs: inputs.map((input) => ({ ...input })),
     engineParity: {
       target: 'HERMES',
