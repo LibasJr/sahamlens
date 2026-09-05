@@ -13,6 +13,10 @@ import {
   resolveTradingRestrictionsInput,
   type UmaArtifactProbe,
 } from './ara-uma-readiness.service';
+import {
+  probeOfficialSuspensionArtifact,
+  type SuspensionArtifactProbe,
+} from './ara-suspension-readiness.service';
 
 /**
  * Kemampuan hitung milik SahamLens diturunkan dari probe pipeline (lihat
@@ -111,6 +115,7 @@ export function buildCurrentAraInputReadiness(
   probe: readonly AraProbeOutcome[] = probeAraPipelineCapabilities(),
   crossCheck: EodCrossCheckResult | null = null,
   umaProbe: UmaArtifactProbe = probeOfficialUmaArtifact(),
+  suspensionProbe: SuspensionArtifactProbe = probeOfficialSuspensionArtifact(),
 ): readonly AraScannerInputReadiness[] {
   const fromProbe: AraScannerInputReadiness[] = probe
     // Probe hanya membuktikan kemampuan hitung. Kalau ia mengaku bisa menaikkan
@@ -135,7 +140,7 @@ export function buildCurrentAraInputReadiness(
   // Plafonnya tetap PARTIAL, jadi ini tidak pernah bisa membuka eksekusi sendiri.
   const gated = EXTERNALLY_GATED_INPUTS.map((input) => {
     if (input.key === 'TRADING_RESTRICTIONS') {
-      return resolveTradingRestrictionsInput(umaProbe);
+      return resolveTradingRestrictionsInput(umaProbe, suspensionProbe);
     }
     if (input.key === 'PRICE_CROSS_CHECK' && crossCheck !== null) {
       return resolvePriceCrossCheckInput(crossCheck);
