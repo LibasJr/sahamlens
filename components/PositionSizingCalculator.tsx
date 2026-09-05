@@ -5,6 +5,7 @@ import { calculatePositionSize } from '@/lib/utils/position-sizer';
 import { formatRupiah } from '@/shared/config/pricing';
 import { Button as PrimitiveButton } from '@/components/ui/Button';
 import { copyText } from '@/shared/browser/copy-text';
+import { useLanguage } from '@/lib/i18n';
 
 interface PositionSizingCalculatorProps {
   entryPrice: number;
@@ -23,6 +24,7 @@ export function PositionSizingCalculator({
   takeProfit2Price,
   ticker,
 }: PositionSizingCalculatorProps) {
+  const { t } = useLanguage();
   const [capital, setCapital] = useState<number>(10_000_000);
   const [riskPct, setRiskPct] = useState<number>(1.0);
   const [copyState, setCopyState] = useState<'idle' | 'copied' | 'error'>('idle');
@@ -90,7 +92,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
           }`}
         >
           {copyState === 'copied' ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : copyState === 'error' ? <X className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-          <span>{copyState === 'copied' ? 'Tersalin!' : copyState === 'error' ? 'Gagal menyalin' : 'Salin Trading Plan'}</span>
+          <span>{copyState === 'copied' ? t('common.copied') : copyState === 'error' ? 'Gagal menyalin' : t('common.copyPlan')}</span>
         </PrimitiveButton>
       </CardHeader>
 
@@ -166,15 +168,15 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
           {/* Current Setup Snapshot */}
           <div className="p-3 rounded-xl bg-tv-hover/30 border border-tv-border space-y-1.5 text-xs font-number">
             <div className="flex justify-between text-tv-muted">
-              <span>Harga Entry:</span>
+              <span>{t('common.entryPriceLabel')}</span>
               <strong className="text-tv-text">Rp {entryPrice.toLocaleString('id-ID')}</strong>
             </div>
             <div className="flex justify-between text-tv-muted">
-              <span>Batas Cut Loss:</span>
+              <span>{t('common.cutLossLimitLabel')}</span>
               <strong className="text-tv-red">Rp {cutLossPrice.toLocaleString('id-ID')} (-{(((entryPrice - cutLossPrice) / entryPrice) * 100).toFixed(1)}%)</strong>
             </div>
             <div className="flex justify-between text-tv-muted">
-              <span>Risiko per Lembar:</span>
+              <span>{t('common.riskPerShareLabel')}</span>
               <strong className="text-tv-text">Rp {result.riskPerShareIdr.toLocaleString('id-ID')}</strong>
             </div>
           </div>
@@ -185,7 +187,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
           {/* Main Execution Recommendation Box */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-tv-green/15 via-tv-green/5 to-transparent border border-tv-green/30 shadow-lg">
             <div className="text-[11px] font-bold text-tv-green uppercase tracking-wider mb-1">
-              Rekomendasi Ukuran Posisi Maksimal
+              {t('common.maxPositionRec')}
             </div>
             <div className="flex items-baseline gap-3 flex-wrap">
               <span className="font-heading text-3xl font-extrabold text-tv-text font-number">
