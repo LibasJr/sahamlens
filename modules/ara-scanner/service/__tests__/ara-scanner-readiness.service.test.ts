@@ -7,6 +7,7 @@ import {
 } from '../../index';
 import { buildCurrentAraInputReadiness } from '../ara-scanner-readiness.service';
 import type { UmaArtifactProbe } from '../ara-uma-readiness.service';
+import type { SuspensionArtifactProbe } from '../ara-suspension-readiness.service';
 
 const FIXED_NOW = '2026-09-05T00:00:00.000Z';
 
@@ -35,29 +36,57 @@ describe('ARA scanner readiness gate', () => {
     });
   });
 
-  it('memasukkan bukti UMA resmi tetapi tidak mengklaim suspensi/aksi korporasi READY', () => {
-    const uma: UmaArtifactProbe = {
-      verified: true,
-      status: 'PARTIAL',
-      source: 'IDX_OFFICIAL_API GetUMA via data/idx-uma',
-      observedAt: '2026-09-05T04:00:00.000Z',
-      count: 136,
-      tickerCount: 127,
-      coverageFrom: '2026-05-08',
-      coverageTo: '2026-09-03',
-      detail: 'Feed UMA resmi terverifikasi; suspensi dan aksi korporasi belum tercakup.',
-    };
+  const uma: UmaArtifactProbe = {
+    verified: true,
+    status: 'PARTIAL',
+    source: 'IDX_OFFICIAL_API GetUMA via data/idx-uma',
+    observedAt: '2026-09-05T04:00:00.000Z',
+    count: 136,
+    tickerCount: 127,
+    coverageFrom: '2026-05-08',
+    coverageTo: '2026-09-03',
+    detail: 'Feed UMA resmi terverifikasi; suspensi dan aksi korporasi belum tercakup.',
+  };
+
+  it('UMA saja tidak cukup: tanpa bukti suspensi, gerbang turun ke MISSING', () => {
+    // Perilaku yang disengaja. TRADING_RESTRICTIONS mewakili tiga hal sekaligus,
+    // jadi statusnya mengikuti mata rantai terlemah. Sebelum feed suspensi ada,
+    // test ini menegaskan PARTIAL - dan itu keliru: UMA hijau menutupi suspensi
+    // yang belum diperiksa sama sekali.
     const inputs = buildCurrentAraInputReadiness(undefined, null, uma);
     const restrictions = inputs.find((input) => input.key === 'TRADING_RESTRICTIONS');
 
-    expect(restrictions).toMatchObject({
-      status: 'PARTIAL',
-      source: 'IDX_OFFICIAL_API GetUMA via data/idx-uma',
-      observedAt: '2026-09-05T04:00:00.000Z',
-    });
-    expect(restrictions?.detail).toContain('suspensi/aksi korporasi tetap wajib fail-closed');
+    expect(restrictions?.status).toBe('MISSING');
+    expect(restrictions?.detail).toContain('Suspensi');
     expect(evaluateAraScannerReadiness(inputs, FIXED_NOW)).toMatchObject({
       status: 'NOT_RUN',
+      executionAllowed: false,
+      blockers: ['TRADING_RESTRICTIONS', 'PRICE_CROSS_CHECK'],
+    });
+  });
+
+  it('menggabungkan UMA dan suspensi tanpa menaikkan status melampaui PARTIAL', () => {
+    const suspensi: SuspensionArtifactProbe = {
+      verified: true,
+      status: 'PARTIAL',
+      source: 'IDX_OFFICIAL_API GetSuspension via data/idx-suspension',
+      observedAt: '2026-09-05T04:30:00.000Z',
+      coverageFrom: '2026-05-12',
+      coverageTo: '2026-09-03',
+      tickerCount: 54,
+      suspendedCount: 17,
+      unresolvedCount: 7,
+      marketWideSuspendUncertainty: true,
+      detail: 'Feed suspensi resmi terverifikasi.',
+    };
+    const inputs = buildCurrentAraInputReadiness(undefined, null, uma, suspensi);
+    const restrictions = inputs.find((input) => input.key === 'TRADING_RESTRICTIONS');
+
+    expect(restrictions?.status).toBe('PARTIAL');
+    expect(restrictions?.source).toContain('GetSuspension');
+    expect(restrictions?.detail).toContain('aksi korporasi');
+    // Dua feed terbukti pun tidak boleh membuka eksekusi.
+    expect(evaluateAraScannerReadiness(inputs, FIXED_NOW)).toMatchObject({
       executionAllowed: false,
       blockers: ['TRADING_RESTRICTIONS', 'PRICE_CROSS_CHECK'],
     });
