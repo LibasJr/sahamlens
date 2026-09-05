@@ -97,8 +97,10 @@ describe('cross-check EOD memvalidasi baseline', () => {
 
   it('scanner menjadi READY saat seluruh input dan baseline EOD lolos', () => {
     const r = crossCheckDailyClosesAgainstIdx('AAAA', bars([100, 101, 102, 103, 104, 105, 106]), { dataDir: dir, now: NOW });
+    const umaReady = { verified: true, status: 'READY' as const, source: 'GetUMA', observedAt: NOW.toISOString(), count: 1, tickerCount: 1, coverageFrom: '2026-08-01', coverageTo: '2026-09-01', detail: 'ok' };
+    const suspReady = { verified: true, status: 'READY' as const, source: 'GetSuspension', observedAt: NOW.toISOString(), coverageFrom: '2026-08-01', coverageTo: '2026-09-01', tickerCount: 1, suspendedCount: 0, unresolvedCount: 0, marketWideSuspendUncertainty: false, detail: 'ok' };
     const readiness = evaluateAraScannerReadiness(
-      buildCurrentAraInputReadiness(probeAraPipelineCapabilities(), r),
+      buildCurrentAraInputReadiness(probeAraPipelineCapabilities(), r, umaReady, suspReady),
       NOW.toISOString(),
     );
 
