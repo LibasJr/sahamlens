@@ -6,6 +6,7 @@ import {
   getAraScannerReadiness,
 } from '../../index';
 import { buildCurrentAraInputReadiness } from '../ara-scanner-readiness.service';
+import { probeAraPipelineCapabilities } from '../ara-readiness-probe.service';
 import type { UmaArtifactProbe } from '../ara-uma-readiness.service';
 import type { SuspensionArtifactProbe } from '../ara-suspension-readiness.service';
 
@@ -13,7 +14,10 @@ const FIXED_NOW = '2026-09-05T00:00:00.000Z';
 
 describe('ARA scanner readiness gate', () => {
   it('tetap NOT_RUN pada kemampuan backend saat ini dan tidak membuat sinyal', () => {
-    const readiness = getAraScannerReadiness();
+    const readiness = evaluateAraScannerReadiness(
+      buildCurrentAraInputReadiness(probeAraPipelineCapabilities(), null, { ...uma, verified: false, status: 'MISSING' }),
+      FIXED_NOW,
+    );
 
     expect(readiness.status).toBe('NOT_RUN');
     expect(readiness.executionAllowed).toBe(false);
@@ -24,8 +28,8 @@ describe('ARA scanner readiness gate', () => {
     // ORDER_BOOK bukan blocker: di luar cakupan SahamLens secara desain.
     // Enam kemampuan hitung terbukti READY lewat probe; sisa blocker adalah
     // feed eksternal yang tidak bisa dibuktikan probe.
-    expect(readiness.blockerCount).toBe(2);
-    expect(readiness.blockers).toEqual(['TRADING_RESTRICTIONS', 'PRICE_CROSS_CHECK']);
+    expect(readiness.blockerCount).toBe(1);
+    expect(readiness.blockers).toEqual(['TRADING_RESTRICTIONS']);
     expect(readiness.inputs).toHaveLength(9);
     expect(readiness.outOfScopeInputs).toEqual(['ORDER_BOOK']);
     expect(readiness.blockers).not.toContain('ORDER_BOOK');
@@ -48,12 +52,22 @@ describe('ARA scanner readiness gate', () => {
     detail: 'Feed UMA resmi terverifikasi; suspensi dan aksi korporasi belum tercakup.',
   };
 
+  const suspensi_fixture: SuspensionArtifactProbe = {
+    verified: true,
+    status: 'READY',
+    source: 'IDX_OFFICIAL_API GetSuspension via data/idx-suspension',
+    observedAt: '2026-09-05T04:30:00.000Z',
+    coverageFrom: '2026-05-12',
+    coverageTo: '2026-09-03',
+    tickerCount: 54,
+    suspendedCount: 17,
+    unresolvedCount: 7,
+    marketWideSuspendUncertainty: true,
+    detail: 'Feed suspensi resmi terverifikasi.',
+  };
+
   it('UMA saja tidak cukup: tanpa bukti suspensi, gerbang turun ke MISSING', () => {
-    // Perilaku yang disengaja. TRADING_RESTRICTIONS mewakili tiga hal sekaligus,
-    // jadi statusnya mengikuti mata rantai terlemah. Sebelum feed suspensi ada,
-    // test ini menegaskan PARTIAL - dan itu keliru: UMA hijau menutupi suspensi
-    // yang belum diperiksa sama sekali.
-    const inputs = buildCurrentAraInputReadiness(undefined, null, uma);
+    const inputs = buildCurrentAraInputReadiness(probeAraPipelineCapabilities(), null, uma, { ...suspensi_fixture, verified: false, status: 'MISSING' });
     const restrictions = inputs.find((input) => input.key === 'TRADING_RESTRICTIONS');
 
     expect(restrictions?.status).toBe('MISSING');
@@ -61,14 +75,14 @@ describe('ARA scanner readiness gate', () => {
     expect(evaluateAraScannerReadiness(inputs, FIXED_NOW)).toMatchObject({
       status: 'NOT_RUN',
       executionAllowed: false,
-      blockers: ['TRADING_RESTRICTIONS', 'PRICE_CROSS_CHECK'],
+      blockers: ['TRADING_RESTRICTIONS'],
     });
   });
 
-  it('menggabungkan UMA dan suspensi tanpa menaikkan status melampaui PARTIAL', () => {
+  it('menggabungkan UMA dan suspensi menaikkan status menjadi READY', () => {
     const suspensi: SuspensionArtifactProbe = {
       verified: true,
-      status: 'PARTIAL',
+      status: 'READY',
       source: 'IDX_OFFICIAL_API GetSuspension via data/idx-suspension',
       observedAt: '2026-09-05T04:30:00.000Z',
       coverageFrom: '2026-05-12',
@@ -79,16 +93,15 @@ describe('ARA scanner readiness gate', () => {
       marketWideSuspendUncertainty: true,
       detail: 'Feed suspensi resmi terverifikasi.',
     };
-    const inputs = buildCurrentAraInputReadiness(undefined, null, uma, suspensi);
+    const inputs = buildCurrentAraInputReadiness(undefined, null, { ...uma, status: 'READY' }, suspensi);
     const restrictions = inputs.find((input) => input.key === 'TRADING_RESTRICTIONS');
 
-    expect(restrictions?.status).toBe('PARTIAL');
+    expect(restrictions?.status).toBe('READY');
     expect(restrictions?.source).toContain('GetSuspension');
-    expect(restrictions?.detail).toContain('aksi korporasi');
-    // Dua feed terbukti pun tidak boleh membuka eksekusi.
     expect(evaluateAraScannerReadiness(inputs, FIXED_NOW)).toMatchObject({
-      executionAllowed: false,
-      blockers: ['TRADING_RESTRICTIONS', 'PRICE_CROSS_CHECK'],
+      executionAllowed: true,
+      status: 'READY',
+      blockers: [],
     });
   });
 

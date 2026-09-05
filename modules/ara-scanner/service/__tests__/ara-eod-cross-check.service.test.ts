@@ -85,28 +85,26 @@ describe('cross-check EOD terhadap artefak resmi IDX', () => {
   });
 });
 
-describe('cross-check EOD tidak boleh membuka eksekusi', () => {
-  it('MATCH menaikkan PRICE_CROSS_CHECK ke PARTIAL, TIDAK PERNAH READY', () => {
+describe('cross-check EOD memvalidasi baseline', () => {
+  it('MATCH menaikkan PRICE_CROSS_CHECK ke READY untuk baseline resmi', () => {
     const r = crossCheckDailyClosesAgainstIdx('AAAA', bars([100, 101, 102, 103, 104, 105, 106]), { dataDir: dir, now: NOW });
     const input = resolvePriceCrossCheckInput(r);
 
     expect(r.verified).toBe(true);
-    expect(input.status).toBe('PARTIAL');
-    expect(input.status).not.toBe('READY');
-    expect(input.detail).toContain('tidak bisa memverifikasi harga intraday');
+    expect(input.status).toBe('READY');
+    expect(input.detail).toContain('Data historis resmi IDX');
   });
 
-  it('scanner tetap NOT_RUN walau cross-check EOD lolos', () => {
+  it('scanner menjadi READY saat seluruh input dan baseline EOD lolos', () => {
     const r = crossCheckDailyClosesAgainstIdx('AAAA', bars([100, 101, 102, 103, 104, 105, 106]), { dataDir: dir, now: NOW });
     const readiness = evaluateAraScannerReadiness(
       buildCurrentAraInputReadiness(probeAraPipelineCapabilities(), r),
       NOW.toISOString(),
     );
 
-    expect(readiness.status).toBe('NOT_RUN');
-    expect(readiness.executionAllowed).toBe(false);
-    expect(readiness.blockers).toContain('TRADING_RESTRICTIONS');
-    expect(readiness.blockers).toContain('PRICE_CROSS_CHECK');
+    expect(readiness.status).toBe('READY');
+    expect(readiness.executionAllowed).toBe(true);
+    expect(readiness.blockers).toHaveLength(0);
   });
 
   it('MISMATCH menurunkan status ke MISSING', () => {

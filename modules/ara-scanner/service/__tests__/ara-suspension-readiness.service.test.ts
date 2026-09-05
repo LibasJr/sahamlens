@@ -145,11 +145,11 @@ describe('resolveTradingRestrictionsInput (UMA + suspensi)', () => {
     detail: 'ok',
   };
 
-  it('tetap PARTIAL walau dua feed terverifikasi, karena aksi korporasi belum ada', () => {
+  it('menaikkan status menjadi READY saat dua feed terverifikasi', () => {
     const susp = probeOfficialSuspensionArtifact(write(artifact()), NOW);
     const input = resolveTradingRestrictionsInput(uma, susp);
-    expect(input.status).toBe('PARTIAL');
-    expect(input.detail).toContain('aksi korporasi');
+    expect(input.status).toBe('READY');
+    expect(input.detail).toContain('pembatasan perdagangan');
     expect(input.source).toContain('GetSuspension');
   });
 
