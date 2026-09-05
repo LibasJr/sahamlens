@@ -8,6 +8,11 @@ import {
 import { ARA_SCANNER_POLICY } from '../config/ara-scanner-policy';
 import { probeAraPipelineCapabilities, type AraProbeOutcome } from './ara-readiness-probe.service';
 import type { EodCrossCheckResult } from './ara-eod-cross-check.service';
+import {
+  probeOfficialUmaArtifact,
+  resolveTradingRestrictionsInput,
+  type UmaArtifactProbe,
+} from './ara-uma-readiness.service';
 
 /**
  * Kemampuan hitung milik SahamLens diturunkan dari probe pipeline (lihat
@@ -105,6 +110,7 @@ const EXTERNALLY_GATED_KEYS = new Set<AraScannerInputKey>(
 export function buildCurrentAraInputReadiness(
   probe: readonly AraProbeOutcome[] = probeAraPipelineCapabilities(),
   crossCheck: EodCrossCheckResult | null = null,
+  umaProbe: UmaArtifactProbe = probeOfficialUmaArtifact(),
 ): readonly AraScannerInputReadiness[] {
   const fromProbe: AraScannerInputReadiness[] = probe
     // Probe hanya membuktikan kemampuan hitung. Kalau ia mengaku bisa menaikkan
@@ -127,11 +133,15 @@ export function buildCurrentAraInputReadiness(
   const order = new Map(ARA_SCANNER_INPUT_KEYS.map((key, index) => [key, index]));
   // Hasil cross-check nyata menggantikan deklarasi statis PRICE_CROSS_CHECK.
   // Plafonnya tetap PARTIAL, jadi ini tidak pernah bisa membuka eksekusi sendiri.
-  const gated = EXTERNALLY_GATED_INPUTS.map((input) => (
-    input.key === 'PRICE_CROSS_CHECK' && crossCheck !== null
-      ? resolvePriceCrossCheckInput(crossCheck)
-      : input
-  ));
+  const gated = EXTERNALLY_GATED_INPUTS.map((input) => {
+    if (input.key === 'TRADING_RESTRICTIONS') {
+      return resolveTradingRestrictionsInput(umaProbe);
+    }
+    if (input.key === 'PRICE_CROSS_CHECK' && crossCheck !== null) {
+      return resolvePriceCrossCheckInput(crossCheck);
+    }
+    return input;
+  });
   return [...fromProbe, ...gated]
     .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
 }
