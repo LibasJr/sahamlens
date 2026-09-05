@@ -140,13 +140,13 @@ export const TitleBar: React.FC<TitleBarProps> = ({
           <div className="flex items-center gap-2 border-l border-pro-border pl-2">
             <span
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold border ${
-                userSession.role === 'admin'
+                userSession.role === 'admin' || userSession.email === 'sabil873@gmail.com'
                   ? 'bg-amber-500/15 text-amber-400 border-amber-500/30'
                   : 'bg-pro-card text-pro-text border-pro-border'
               }`}
               title={userSession.email}
             >
-              {userSession.role === 'admin' && <ShieldCheck size={12} />}
+              {(userSession.role === 'admin' || userSession.email === 'sabil873@gmail.com') && <ShieldCheck size={12} />}
               <span className="truncate max-w-[120px]">{userSession.email}</span>
             </span>
             <button

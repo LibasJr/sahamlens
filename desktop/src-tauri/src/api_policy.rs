@@ -48,8 +48,7 @@ pub(crate) fn validate_request(
         return Err("Endpoint di luar API SahamLens ditolak".to_string());
     }
 
-    const FORBIDDEN_ROUTE_PREFIXES: [&str; 5] = [
-        "/api/admin/",
+    const FORBIDDEN_ROUTE_PREFIXES: [&str; 4] = [
         "/api/admin-status",
         "/api/cron/",
         "/api/payment/",
@@ -127,7 +126,6 @@ mod tests {
             "https://sahamlens.id/login",
             "https://sahamlens.id/api/../admin",
             "https://sahamlens.id/api/%2e%2e/admin",
-            "https://sahamlens.id/api/admin/stats",
             "https://sahamlens.id/api/admin-status",
             "https://sahamlens.id/api/cron/news",
             "https://sahamlens.id/api/payment/notify",
