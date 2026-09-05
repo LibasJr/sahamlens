@@ -11,14 +11,23 @@ const CACHE_KEY = COMPUTED_CACHE_KEY.CORPORATE_CALENDAR;
 
 export async function GET(request: Request) {
   return runController(async () => {
-    const events = await getOrCompute(
+    const calendar = await getOrCompute(
       CACHE_KEY,
       CACHE_TTL_SEC.CORPORATE_CALENDAR,
       fetchCorporateCalendar,
     );
     return {
       status: 200,
-      body: { events },
+      body: {
+        ...calendar,
+        meta: {
+          sources: ['KSEI_OFFICIAL', 'YAHOO_FINANCE'],
+          refreshedAt: new Date().toISOString(),
+          warning: calendar.coverage.ksei.status === 'COMPLETE'
+            ? null
+            : `Cakupan RUPS KSEI ${calendar.coverage.ksei.status}; tanggal kosong bukan bukti tidak ada agenda.`,
+        },
+      },
       headers: publicCacheHeaders(CACHE_TTL_SEC.CORPORATE_CALENDAR),
     };
   }, request);

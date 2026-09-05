@@ -17,9 +17,13 @@ export const maxDuration = 120;
 // menanggung fetchCorporateCalendar() live. GET + CRON_SECRET (pola systemd, QStash
 // sudah penuh 10/10) - lihat instruksi timer di docs/operations/DEPLOYMENT.md.
 async function runScan() {
-  const events = await fetchCorporateCalendar();
-  await cacheSet(COMPUTED_CACHE_KEY.CORPORATE_CALENDAR, events, TTL.CORPORATE_CALENDAR);
-  return { count: events.length };
+  const calendar = await fetchCorporateCalendar();
+  await cacheSet(COMPUTED_CACHE_KEY.CORPORATE_CALENDAR, calendar, TTL.CORPORATE_CALENDAR);
+  return {
+    count: Object.values(calendar.events).reduce((total, events) => total + events.length, 0),
+    kseiStatus: calendar.coverage.ksei.status,
+    kseiRejected: calendar.coverage.ksei.documentsRejected,
+  };
 }
 
 async function handleGET(req: NextRequest) {
