@@ -227,6 +227,11 @@ export default function InfographicStudioClient() {
             },
           },
           fundamentals: fundRes?.fundamentals || {},
+          // Metrik bank (NIM/NPL/CASA/LDR/CAR) sudah dihitung service fundamental dan
+          // sudah tampil di menu Fundamental, tapi kartu ekspor tidak pernah menerimanya.
+          // Untuk emiten perbankan, gross margin dan current ratio bukan metrik yang
+          // relevan - Yahoo bahkan mengirim 0 untuk keduanya.
+          bankFundamentals: fundRes?.bankFundamentals || null,
           profile: fundRes?.profile || {
             sector: stockRes?.scoring?.sector?.yahooSector ?? null,
             industry: stockRes?.scoring?.sector?.yahooIndustry ?? null,
@@ -621,15 +626,24 @@ export default function InfographicStudioClient() {
                       consensusTone={data.technical.consensusTone}
                       score={data.technical.score}
                       scoreBreakdown={data.technical.breakdown}
+                      bullPct={data.technical.bullPct}
+                      bearPct={data.technical.bearPct}
+                      neutralPct={data.technical.neutralPct}
                       range52w={data.technical.range52w}
+                      pivots={data.technical.pivots}
                       trends={data.technical.trends}
+                      patterns={data.technical.patterns}
+                      patternAsOf={data.technical.patternAsOf}
                       tradingPlan={data.technical.tradingPlan}
                       flowDetails={data.technical.flowDetails}
                       fundamentals={data.fundamental.fundamentals}
+                      bankFundamentals={data.fundamental.bankFundamentals}
                       profile={data.fundamental.profile}
                       moat={data.fundamental.moat}
+                      durability={data.fundamental.durability}
                       valuation={data.fundamental.valuation}
                       latestEarningsQuarter={data.fundamental.latestEarningsQuarter}
+                      upcomingEarnings={data.fundamental.upcomingEarnings}
                       ownership={data.fundamental.ownership}
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
