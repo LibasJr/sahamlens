@@ -27,8 +27,10 @@ import { Lock } from 'lucide-react';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import { percentageWidthClass } from '@/shared/presentation/percentage-width';
 import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
+import { useLanguage } from '@/lib/i18n';
 
 export default function MarketPulse() {
+  const { t } = useLanguage();
   const [data, setData] = useState<any>(null);
   const [breakoutData, setBreakoutData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,8 +180,8 @@ export default function MarketPulse() {
                   satu-satunya halaman yang sama sekali tidak punya h1 - headingnya
                   langsung mulai dari h2. Pembaca layar kehilangan judul halamannya
                   (WCAG 1.3.1 & 2.4.6). */}
-              <h1 className="lens-page-title truncate">Kondisi Pasar</h1>
-              <p className="text-xs text-tv-muted truncate">Quant regime, IHSG, sector, dan breadth</p>
+              <h1 className="lens-page-title truncate">{t('nav.marketPulse')}</h1>
+              <p className="text-xs text-tv-muted truncate">{t('nav.marketPulseSub')}</p>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 text-xs flex-wrap">
@@ -190,7 +192,7 @@ export default function MarketPulse() {
             {/* dihapus - "Yahoo Finance" tidak perlu terekspos ke publik/SEO, freshness
                 data sudah terwakili badge "Update: [jam]" di sebelah kanan. */}
             <div className="bg-tv-hover border border-tv-border px-3 py-1.5 rounded-full text-tv-muted whitespace-nowrap">
-              Data sesi: {isClient && lastUpdate ? formatTime(lastUpdate) : 'Loading...'}
+              {t('common.sessionData', { time: isClient && lastUpdate ? formatTime(lastUpdate) : t('common.loading') })}
             </div>
             <Button variant="bare" size="none"
               onClick={fetchData}
@@ -198,7 +200,7 @@ export default function MarketPulse() {
               className="bg-tv-hover border border-tv-border hover:bg-tv-borderLight px-3 py-1.5 rounded-full text-tv-text flex items-center gap-2 transition-colors disabled:opacity-50 whitespace-nowrap"
             >
               <RefreshCw className={`w-3 h-3 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
+              {t('common.refreshing').replace('...', '')}
             </Button>
           </div>
         </div>

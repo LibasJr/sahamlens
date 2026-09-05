@@ -313,16 +313,16 @@ export default function HomeWorkspace() {
           terus-menerus di TopMarketBar global sejak Phase 1). */}
       <motion.section initial="hidden" animate="show" variants={fadeUp} className="space-y-4">
         <SectionHeader
-          eyebrow="Pasar"
-          title="Kondisi Pasar"
-          action={<Link href="/market-pulse" className="lens-label text-tv-blue hover:underline">Lihat semua</Link>}
+          eyebrow={t('common.market')}
+          title={t('nav.marketPulse')}
+          action={<Link href="/market-pulse" className="lens-label text-tv-blue hover:underline">{t('common.viewAll')}</Link>}
         />
           {marketPulseLoginRequired ? (
-            <EmptyState title="Login untuk melihat kondisi pasar" description="Sector & breadth butuh akun." />
+            <EmptyState title={t('common.loginRequired')} description={t('nav.marketPulseSub')} />
           ) : marketPulseNeedPro ? (
-            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat sector strength & market breadth." />
+            <EmptyState title="Pro Feature" description={t('nav.marketPulseSub')} />
           ) : marketPulseError ? (
-            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
+            <EmptyState title={t('common.noData')} action={{ label: t('common.refreshing').replace('...', ''), onClick: fetchMarketPulse }} />
           ) : loadingMarketPulse ? (
             <div className="space-y-3">
               <Skeleton className="h-14 w-full" />
@@ -332,13 +332,13 @@ export default function HomeWorkspace() {
               <LoadingFact />
             </div>
           ) : !marketPulse ? (
-            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchMarketPulse }} />
+            <EmptyState title={t('common.noData')} action={{ label: t('common.refreshing').replace('...', ''), onClick: fetchMarketPulse }} />
           ) : (
             <div className="space-y-3">
               <MarketBreadthBar breadth={marketPulse.breadth} />
               <SectorHeatmap sectors={marketPulse.sectorHeatmap} />
               <p className="lens-meta leading-relaxed text-tv-muted/80">
-                Heatmap menampilkan 11 sektor IDX berbasis sampel saham representatif per sektor, bukan seluruh emiten.
+                {t('homePage.heatmapDisclaimer')}
               </p>
             </div>
           )}
