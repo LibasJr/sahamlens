@@ -1,6 +1,21 @@
 import { ARA_SCANNER_POLICY } from '../config/ara-scanner-policy';
 
 export interface AraMarketBar { time: string; open: number; high: number; low: number; close: number; volume: number }
+export interface AraLiquidityProxy {
+  /** Rata-rata nilai transaksi harian 20 hari (proksi close x volume). */
+  avgDailyTurnover: number | null;
+  /** Nilai transaksi berjalan hari ini. */
+  todayTurnover: number | null;
+  /** Rata-rata volume harian 20 hari. */
+  avgDailyVolume: number | null;
+  /** Hari dengan volume nol dalam 20 hari terakhir; tinggi = tidak likuid. */
+  zeroVolumeDays: number;
+  /** Lulus ambang batas minimum lapisan analisa. */
+  meetsMinimum: boolean;
+  /** Alasan gagal, kosong jika lolos. */
+  failures: string[];
+}
+
 export interface AraObservationInput {
   ticker: string;
   daily: AraMarketBar[];
@@ -22,6 +37,12 @@ export interface AraObservation {
   nearAra: boolean;
   components: { V: number | null; C: number | null; B: number | null; R: number | null; T: number | null; RS: number | null; S: null; K: null };
   diagnostics: { persistenceBars: number; volumeRatio: number | null; upperWickRatio: number | null; exhaustion: boolean; availableWeight: number };
+  /**
+   * Likuiditas versi lapisan analisa. Ini BUKAN pengganti kedalaman pasar:
+   * ia tidak mengukur spread, antrean, atau slippage, dan tidak boleh dipakai
+   * untuk menyimpulkan sebuah order berukuran tertentu bisa terisi.
+   */
+  liquidity: AraLiquidityProxy;
   blockers: string[];
   /** Bukan blocker: di luar cakupan SahamLens secara desain. */
   outOfScope: string[];
@@ -65,6 +86,27 @@ function returnPct(bars: AraMarketBar[], periods: number): number | null {
   return finitePositive(a)&&finitePositive(z) ? (z/a-1)*100 : null;
 }
 
+function computeLiquidityProxy(daily: AraMarketBar[], intra: AraMarketBar[]): AraLiquidityProxy {
+  const window = daily.slice(-21, -1);
+  const th = ARA_SCANNER_POLICY.liquidityProxy;
+  const failures: string[] = [];
+  if (window.length < 20) {
+    return { avgDailyTurnover: null, todayTurnover: null, avgDailyVolume: null, zeroVolumeDays: 0,
+      meetsMinimum: false, failures: ['HISTORI_LIKUIDITAS_KURANG_DARI_20_HARI'] };
+  }
+  const avgDailyTurnover = window.reduce((s, b) => s + b.close * b.volume, 0) / window.length;
+  const avgDailyVolume = window.reduce((s, b) => s + b.volume, 0) / window.length;
+  const zeroVolumeDays = window.filter((b) => b.volume <= 0).length;
+  const todayTurnover = intra.reduce((s, b) => s + b.close * b.volume, 0);
+
+  if (avgDailyTurnover < th.minAvgDailyTurnoverIdr) failures.push('NILAI_TRANSAKSI_HARIAN_DI_BAWAH_AMBANG');
+  if (avgDailyVolume < th.minAvgDailyVolume) failures.push('VOLUME_HARIAN_DI_BAWAH_AMBANG');
+  if (zeroVolumeDays > th.maxZeroVolumeDaysIn20) failures.push('TERLALU_BANYAK_HARI_TANPA_TRANSAKSI');
+
+  return { avgDailyTurnover, todayTurnover, avgDailyVolume, zeroVolumeDays,
+    meetsMinimum: failures.length === 0, failures };
+}
+
 export function buildAraObservation(input: AraObservationInput): AraObservation {
   if (!input.daily.every(validBar) || !input.intraday.every(validBar)) throw new RangeError('Bar pasar tidak valid');
   if (input.daily.length < 21 || input.intraday.length < 2) throw new RangeError('Butuh minimal 21 bar harian dan 2 bar intraday');
@@ -92,9 +134,11 @@ export function buildAraObservation(input: AraObservationInput): AraObservation 
   const weights=Object.fromEntries(ARA_SCANNER_POLICY.formula.components.map(x=>[x.key,x.weight]));
   const availableWeight=Object.entries(components).reduce((s,[k,v])=>s+(v==null?0:Number(weights[k]??0)),0);
   const exhaustion=(upperWickRatio??0)>=0.35 || (persistenceBars===0&&latest.high>=threshold);
+  const liquidity=computeLiquidityProxy(daily,intra);
   return {ticker:input.ticker,status:'OBSERVATION_ONLY',action:'NO_ACTION',source:input.source,observedAt:latest.time,
     previousClose:prev,lastPrice:latest.close,araLimit:limit,distanceToAraPct:(limit/latest.close-1)*100,nearAra:latest.close>=limit*0.95,
     components,diagnostics:{persistenceBars,volumeRatio,upperWickRatio,exhaustion,availableWeight:Math.round(availableWeight*100)/100},
+    liquidity,
     blockers:['OFFICIAL_TRADING_RESTRICTIONS_NOT_AVAILABLE','PRICE_CROSS_CHECK_NOT_AVAILABLE','CATALYST_NOT_VERIFIED'],
     // Bukan blocker: SahamLens adalah lapisan analisa, bukan venue eksekusi.
     outOfScope:['ORDER_BOOK_DEPTH','SPREAD','SLIPPAGE'],

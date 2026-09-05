@@ -1,37 +1,26 @@
 import {
   ARA_SCANNER_INPUT_KEYS,
   ARA_SCANNER_GATE_VERSION,
+  type AraScannerInputKey,
   type AraScannerInputReadiness,
   type AraScannerReadiness,
 } from '../types/ara-scanner.types';
 import { ARA_SCANNER_POLICY } from '../config/ara-scanner-policy';
+import { probeAraPipelineCapabilities, type AraProbeOutcome } from './ara-readiness-probe.service';
 
 /**
- * Capability audit for the current SahamLens backend.
+ * Kemampuan hitung milik SahamLens diturunkan dari probe pipeline (lihat
+ * ara-readiness-probe.service.ts), sehingga tidak bisa basi terhadap kode.
  *
- * PARTIAL means that a related dataset exists, but it does not satisfy the ARA
- * scanner contract. It must never be promoted to READY merely because a nearby
- * feature can provide one of the required fields.
+ * Yang TIDAK bisa dibuktikan probe tetap dideklarasikan manual di sini: feed
+ * resmi, cross-check harga lintas sumber, dan katalis terverifikasi. Probe tidak
+ * boleh menaikkan ketiganya, berapa kali pun ia berhasil.
+ *
+ * PARTIAL berarti dataset terkait ada tetapi belum memenuhi kontrak scanner. Ia
+ * tidak boleh dipromosikan ke READY hanya karena fitur di dekatnya bisa memasok
+ * salah satu field yang dibutuhkan.
  */
-export const CURRENT_ARA_INPUT_READINESS: readonly AraScannerInputReadiness[] = [
-  {
-    key: 'ARA_CANDIDATES',
-    label: 'Kandidat mendekati/menyentuh ARA',
-    status: 'PARTIAL',
-    required: true,
-    source: 'LensScanner dan data harga intraday terpisah',
-    observedAt: null,
-    detail: 'Belum ada adaptor yang membentuk universe kandidat near-ARA dari harga pasar aktual.',
-  },
-  {
-    key: 'ARA_LIMIT',
-    label: 'Batas ARA sesuai aturan dan fraksi harga BEI',
-    status: 'PARTIAL',
-    required: true,
-    source: 'Utilitas fraksi harga internal',
-    observedAt: null,
-    detail: 'Fraksi harga tersedia, tetapi aturan ARA aktif belum menjadi sumber terverifikasi dalam pipeline scanner.',
-  },
+const EXTERNALLY_GATED_INPUTS: readonly AraScannerInputReadiness[] = [
   {
     key: 'ORDER_BOOK',
     label: 'Antrean bid-offer dan ketebalan order book',
@@ -43,61 +32,67 @@ export const CURRENT_ARA_INPUT_READINESS: readonly AraScannerInputReadiness[] = 
     detail: 'Di luar cakupan SahamLens secara desain: SahamLens adalah lapisan analisa, bukan venue eksekusi. Spread, kedalaman bid-offer, antrean, dan slippage hanya valid di platform broker pada saat eksekusi, sehingga menjadi tanggung jawab Agent Speed dan manusia. Likuiditas dinilai lewat proksi nilai transaksi, frekuensi, dan volume rata-rata.',
   },
   {
-    key: 'LIQUIDITY_PROXY',
-    label: 'Proksi likuiditas: nilai transaksi, frekuensi, volume rata-rata',
-    status: 'PARTIAL',
-    required: true,
-    ownedBy: 'SAHAMLENS',
-    source: 'Ringkasan perdagangan harian dan OHLCV',
-    observedAt: null,
-    detail: 'Nilai transaksi dan volume tersedia, tetapi baseline likuiditas per saham belum dikontrakkan khusus untuk gerbang ARA. Ini pengganti order book yang sah untuk lapisan analisa, bukan substitusi kedalaman pasar.',
-  },
-  {
-    key: 'BREAKOUT_PERSISTENCE',
-    label: 'Persistensi breakout intraday',
-    status: 'PARTIAL',
-    required: true,
-    source: 'Bar intraday 5 menit Yahoo',
-    observedAt: null,
-    detail: 'Bar historis intraday tersedia, tetapi belum ada state real-time untuk mengukur persistensi breakout ARA.',
-  },
-  {
-    key: 'RELATIVE_TRADING_ACTIVITY',
-    label: 'Volume dan nilai transaksi relatif real-time',
-    status: 'PARTIAL',
-    required: true,
-    source: 'OHLCV dan ringkasan transaksi terpisah',
-    observedAt: null,
-    detail: 'Belum ada normalisasi volume dan nilai berjalan terhadap baseline pada timestamp yang sama.',
-  },
-  {
-    key: 'MOMENTUM_EXHAUSTION',
-    label: 'Deteksi rejection dan kelelahan momentum',
-    status: 'PARTIAL',
-    required: true,
-    source: 'Analyzer teknikal umum',
-    observedAt: null,
-    detail: 'Analyzer momentum tersedia, tetapi belum menghasilkan kontrak rejection/exhaustion khusus ARA.',
-  },
-  {
     key: 'TRADING_RESTRICTIONS',
     label: 'Status UMA, suspensi, dan aksi korporasi terbaru',
     status: 'MISSING',
     required: true,
+    ownedBy: 'SAHAMLENS',
     source: null,
     observedAt: null,
-    detail: 'Belum ada feed resmi terintegrasi yang memverifikasi seluruh pembatas dan aksi korporasi sebelum scan.',
+    detail: 'Belum ada feed resmi terintegrasi yang memverifikasi seluruh pembatas dan aksi korporasi sebelum scan. Tidak bisa dibuktikan probe.',
   },
   {
     key: 'PRICE_CROSS_CHECK',
     label: 'Timestamp dan pemeriksaan silang harga',
     status: 'PARTIAL',
     required: true,
+    ownedBy: 'SAHAMLENS',
     source: 'Rekonsiliasi harga penutupan IDX vs Yahoo',
     observedAt: null,
-    detail: 'Cross-check EOD tersedia, tetapi belum ada verifikasi harga intraday lintas sumber pada timestamp scan.',
+    detail: 'Cross-check EOD tersedia, tetapi belum ada verifikasi harga intraday lintas sumber pada timestamp scan. Tidak bisa dibuktikan probe satu sumber.',
   },
 ];
+
+const PROBE_INPUT_LABELS: Record<string, { label: string; source: string }> = {
+  ARA_CANDIDATES: { label: 'Kandidat mendekati/menyentuh ARA', source: 'Pipeline observasi ARA (bar harian + intraday)' },
+  ARA_LIMIT: { label: 'Batas ARA sesuai aturan dan fraksi harga BEI', source: 'researchAraLimit + fraksi harga IDX' },
+  LIQUIDITY_PROXY: { label: 'Proksi likuiditas: nilai transaksi, frekuensi, volume rata-rata', source: 'Baseline turnover dan volume 20 hari' },
+  BREAKOUT_PERSISTENCE: { label: 'Persistensi breakout intraday', source: 'Bar intraday berurutan terhadap threshold' },
+  RELATIVE_TRADING_ACTIVITY: { label: 'Volume dan nilai transaksi relatif real-time', source: 'Normalisasi terhadap baseline 20 hari' },
+  MOMENTUM_EXHAUSTION: { label: 'Deteksi rejection dan kelelahan momentum', source: 'Rasio upper wick dan kegagalan breakout' },
+};
+
+const EXTERNALLY_GATED_KEYS = new Set<AraScannerInputKey>(
+  EXTERNALLY_GATED_INPUTS.map((input) => input.key),
+);
+
+export function buildCurrentAraInputReadiness(
+  probe: readonly AraProbeOutcome[] = probeAraPipelineCapabilities(),
+): readonly AraScannerInputReadiness[] {
+  const fromProbe: AraScannerInputReadiness[] = probe
+    // Probe hanya membuktikan kemampuan hitung. Kalau ia mengaku bisa menaikkan
+    // feed resmi atau cross-check lintas sumber, hasilnya dibuang, bukan dipakai.
+    .filter((outcome) => !EXTERNALLY_GATED_KEYS.has(outcome.key))
+    .map((outcome) => {
+    const meta = PROBE_INPUT_LABELS[outcome.key];
+    return {
+      key: outcome.key,
+      label: meta?.label ?? outcome.key,
+      status: outcome.status,
+      required: true,
+      ownedBy: 'SAHAMLENS' as const,
+      source: outcome.status === 'READY' ? (meta?.source ?? null) : null,
+      observedAt: null,
+      detail: outcome.detail,
+    };
+  });
+
+  const order = new Map(ARA_SCANNER_INPUT_KEYS.map((key, index) => [key, index]));
+  return [...fromProbe, ...EXTERNALLY_GATED_INPUTS]
+    .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
+}
+
+export const CURRENT_ARA_INPUT_READINESS: readonly AraScannerInputReadiness[] = buildCurrentAraInputReadiness();
 
 export function evaluateAraScannerReadiness(
   inputs: readonly AraScannerInputReadiness[],

@@ -19,11 +19,13 @@ describe('ARA scanner readiness gate', () => {
     expect(readiness.failClosed).toBe(true);
     expect(readiness.signalCount).toBe(0);
     // ORDER_BOOK bukan blocker: di luar cakupan SahamLens secara desain.
-    expect(readiness.blockerCount).toBe(8);
+    // Enam kemampuan hitung terbukti READY lewat probe; sisa blocker adalah
+    // feed eksternal yang tidak bisa dibuktikan probe.
+    expect(readiness.blockerCount).toBe(2);
+    expect(readiness.blockers).toEqual(['TRADING_RESTRICTIONS', 'PRICE_CROSS_CHECK']);
     expect(readiness.inputs).toHaveLength(9);
     expect(readiness.outOfScopeInputs).toEqual(['ORDER_BOOK']);
     expect(readiness.blockers).not.toContain('ORDER_BOOK');
-    expect(readiness.inputs.every((input) => input.status !== 'READY')).toBe(true);
     expect(readiness.engineParity).toMatchObject({
       target: 'HERMES',
       status: 'POLICY_CAPTURED',
