@@ -24,6 +24,8 @@ import type { ScreenerStock } from '@/modules/market/service/screener.service';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import { technicalResearchPath } from '@/shared/navigation/technical-route';
+import { csvCell } from '@/shared/format/csv-cell';
+import { saveTextExport } from '@/shared/browser/save-text-export';
 
 // Konstanta modul, bukan `|| []` inline: literal baru tiap render mengubah identitas
 // dependensi useMemo di bawah, jadi memo-nya tidak pernah benar-benar memo (dan eslint
@@ -174,28 +176,18 @@ export default function ScreenerPage() {
   // Murni client-side dari data yang SUDAH dimuat (bukan panggilan API baru) - kolom
   // & urutannya SAMA PERSIS dengan SORTABLE_COLUMNS, jadi CSV yang diunduh cocok satu
   // per satu dengan yang terlihat di layar, termasuk urutan sortir yang sedang aktif.
-  const exportCsv = useCallback(() => {
+  const exportCsv = useCallback(async () => {
     if (sortedRows.length === 0) return;
-    const escapeCsv = (value: unknown): string => {
-      const s = value == null ? '' : String(value);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const header = SORTABLE_COLUMNS.map((c) => c.label).join(',');
+    const header = SORTABLE_COLUMNS.map((column) => csvCell(column.label)).join(',');
     const rows = sortedRows.map((item) =>
-      SORTABLE_COLUMNS.map((c) => escapeCsv(c.getValue(item))).join(',')
+      SORTABLE_COLUMNS.map((column) => csvCell(column.getValue(item))).join(',')
     );
-    // ﻿ (UTF-8 BOM) - tanpa ini Excel di Windows salah menebak encoding dan
-    // merender karakter non-ASCII (mis. tanda panah/persen dari data terformat) rusak.
-    const csv = '﻿' + [header, ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sahamlens-screener-${riskProfile.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // BOM membuat Excel Windows mengenali UTF-8.
+    const csv = '\uFEFF' + [header, ...rows].join('\r\n');
+    await saveTextExport(
+      `sahamlens-screener-${riskProfile.toLowerCase()}-${new Date().toISOString().slice(0, 10)}.csv`,
+      csv,
+    );
   }, [sortedRows, riskProfile]);
 
   const saveCurrentAsTemplate = useCallback(() => {

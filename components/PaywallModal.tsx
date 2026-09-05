@@ -12,6 +12,7 @@ import { PRICING_PLANS, FULL_FEATURE_LIST, formatRupiah, type PricingPlan } from
 import { Card } from '@/components/ui/Card';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 import { PRO_UI_ENABLED } from '@/shared/constants/access';
+import { copyText } from '@/shared/browser/copy-text';
 
 
 function createPaymentReference(): string {
@@ -52,14 +53,9 @@ function CopyRow({ label, value, name }: { label: string; value: string; name: s
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(value);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard API tidak tersedia (non-HTTPS/no permission) - biarkan diam,
-      // user masih bisa select-and-copy manual dari teks yang tampil.
-    }
+    if (!await copyText(value)) return;
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   return (

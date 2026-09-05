@@ -16,6 +16,8 @@ import { useLanguage } from '@/lib/i18n';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import { buildCompareCsv } from '@/shared/format/compare-export';
+import { copyText } from '@/shared/browser/copy-text';
+import { saveTextExport } from '@/shared/browser/save-text-export';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -188,19 +190,6 @@ function CompareContent() {
     shareStatusTimerRef.current = setTimeout(() => setShareStatus('idle'), 2600);
   };
 
-  const copyWithFallback = (text: string): boolean => {
-    const textarea = document.createElement('textarea');
-    textarea.value = text;
-    textarea.setAttribute('readonly', '');
-    textarea.style.position = 'fixed';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.select();
-    const copied = document.execCommand('copy');
-    textarea.remove();
-    return copied;
-  };
-
   const shareCompare = async () => {
     if (!data || typeof window === 'undefined') return;
     const shareUrl = new URL('/compare', window.location.origin);
@@ -215,23 +204,14 @@ function CompareContent() {
         showShareStatus('shared');
         return;
       }
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(shareUrl.toString());
-        showShareStatus('copied');
-        return;
-      }
-      showShareStatus(copyWithFallback(shareUrl.toString()) ? 'copied' : 'error');
+      showShareStatus(await copyText(shareUrl.toString()) ? 'copied' : 'error');
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      try {
-        showShareStatus(copyWithFallback(shareUrl.toString()) ? 'copied' : 'error');
-      } catch {
-        showShareStatus('error');
-      }
+      showShareStatus(await copyText(shareUrl.toString()) ? 'copied' : 'error');
     }
   };
 
-  const downloadSummary = () => {
+  const downloadSummary = async () => {
     if (!data || typeof window === 'undefined') return;
     const csv = buildCompareCsv({
       symbol1: data.data1.symbol,
@@ -241,15 +221,10 @@ function CompareContent() {
       rows: visibleRows,
       conclusion: data.conclusion ?? null,
     });
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `sahamlens-compare-${displayTicker(data.data1.symbol)}-${displayTicker(data.data2.symbol)}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    await saveTextExport(
+      `sahamlens-compare-${displayTicker(data.data1.symbol)}-${displayTicker(data.data2.symbol)}.csv`,
+      csv,
+    );
   };
 
   useEffect(() => {
