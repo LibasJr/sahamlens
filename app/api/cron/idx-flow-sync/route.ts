@@ -11,8 +11,9 @@ import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 // Sinkronisasi harian data resmi BEI - menggantikan langkah manual:
 //   1. scripts/sync-idx-foreign-flow.py    -> data/foreign-flow/{TICKER}.json
 //   2. scripts/sync-idx-ihsg-eod.py         -> data/idx-index/ihsg.json
-//   3. scripts/sync-idx-broker-summary.py  -> data/broker-summary/broker_{tanggal}.csv
-//   4. scripts/import-broker-market-daily.mjs --confirm -> tabel broker_market_daily
+//   3. scripts/sync-idx-uma.py              -> data/idx-uma/uma-index.json
+//   4. scripts/sync-idx-broker-summary.py   -> data/broker-summary/broker_{tanggal}.csv
+//   5. scripts/import-broker-market-daily.mjs --confirm -> tabel broker_market_daily
 //
 // Kenapa lewat Python, bukan fetch() di route ini: idx.co.id ada di belakang Cloudflare
 // yang menolak klien tanpa fingerprint TLS browser (403). curl_cffi dengan
@@ -27,6 +28,7 @@ const execFileAsync = promisify(execFile);
 
 const FOREIGN_FLOW_SCRIPT = 'scripts/sync-idx-foreign-flow.py';
 const IHSG_EOD_SCRIPT = 'scripts/sync-idx-ihsg-eod.py';
+const UMA_SCRIPT = 'scripts/sync-idx-uma.py';
 const BROKER_SUMMARY_SCRIPT = 'scripts/sync-idx-broker-summary.py';
 const BROKER_IMPORT_SCRIPT = 'scripts/import-broker-market-daily.mjs';
 
@@ -99,6 +101,14 @@ async function runSync(): Promise<SyncResult> {
     5 * 60 * 1000
   );
   steps.push({ step: ihsgEod.step, ok: ihsgEod.ok, detail: ihsgEod.detail });
+
+  const uma = await runStep(
+    'idx-uma',
+    PYTHON_BIN,
+    [path.resolve(root, UMA_SCRIPT), '--lookback-days', '120'],
+    5 * 60 * 1000
+  );
+  steps.push({ step: uma.step, ok: uma.ok, detail: uma.detail });
 
   const brokerSummary = await runStep(
     'broker-summary-csv',
