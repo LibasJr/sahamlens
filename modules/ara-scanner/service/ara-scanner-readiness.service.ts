@@ -7,6 +7,7 @@ import {
 } from '../types/ara-scanner.types';
 import { ARA_SCANNER_POLICY } from '../config/ara-scanner-policy';
 import { probeAraPipelineCapabilities, type AraProbeOutcome } from './ara-readiness-probe.service';
+import type { EodCrossCheckResult } from './ara-eod-cross-check.service';
 
 /**
  * Kemampuan hitung milik SahamLens diturunkan dari probe pipeline (lihat
@@ -53,6 +54,41 @@ const EXTERNALLY_GATED_INPUTS: readonly AraScannerInputReadiness[] = [
   },
 ];
 
+/**
+ * PRICE_CROSS_CHECK dinaikkan dari deklarasi statis menjadi hasil pemeriksaan
+ * nyata terhadap artefak resmi IDX. Plafonnya PARTIAL, bukan READY: artefaknya
+ * EOD, sehingga tidak pernah bisa membuktikan harga pada detik ARA tersentuh.
+ */
+export function resolvePriceCrossCheckInput(
+  result: EodCrossCheckResult | null,
+): AraScannerInputReadiness {
+  const base = {
+    key: 'PRICE_CROSS_CHECK' as const,
+    label: 'Timestamp dan pemeriksaan silang harga',
+    required: true as const,
+    ownedBy: 'SAHAMLENS' as const,
+    observedAt: null,
+  };
+
+  if (!result || !result.verified) {
+    return {
+      ...base,
+      status: 'MISSING',
+      source: null,
+      detail: result
+        ? `Pemeriksaan silang EOD terhadap IDX tidak lolos (${result.verdict}): ${result.detail}`
+        : 'Pemeriksaan silang harga belum dijalankan terhadap artefak resmi IDX.',
+    };
+  }
+
+  return {
+    ...base,
+    status: 'PARTIAL',
+    source: `${result.officialSource} EOD via data/foreign-flow`,
+    detail: `Baseline harian terverifikasi silang terhadap penutupan resmi IDX (${result.comparedDays} hari, deviasi terbesar ${result.maxDeviationPct}%). Tetap PARTIAL: artefak EOD tidak bisa memverifikasi harga intraday pada saat ARA tersentuh.`,
+  };
+}
+
 const PROBE_INPUT_LABELS: Record<string, { label: string; source: string }> = {
   ARA_CANDIDATES: { label: 'Kandidat mendekati/menyentuh ARA', source: 'Pipeline observasi ARA (bar harian + intraday)' },
   ARA_LIMIT: { label: 'Batas ARA sesuai aturan dan fraksi harga BEI', source: 'researchAraLimit + fraksi harga IDX' },
@@ -68,6 +104,7 @@ const EXTERNALLY_GATED_KEYS = new Set<AraScannerInputKey>(
 
 export function buildCurrentAraInputReadiness(
   probe: readonly AraProbeOutcome[] = probeAraPipelineCapabilities(),
+  crossCheck: EodCrossCheckResult | null = null,
 ): readonly AraScannerInputReadiness[] {
   const fromProbe: AraScannerInputReadiness[] = probe
     // Probe hanya membuktikan kemampuan hitung. Kalau ia mengaku bisa menaikkan
@@ -88,7 +125,14 @@ export function buildCurrentAraInputReadiness(
   });
 
   const order = new Map(ARA_SCANNER_INPUT_KEYS.map((key, index) => [key, index]));
-  return [...fromProbe, ...EXTERNALLY_GATED_INPUTS]
+  // Hasil cross-check nyata menggantikan deklarasi statis PRICE_CROSS_CHECK.
+  // Plafonnya tetap PARTIAL, jadi ini tidak pernah bisa membuka eksekusi sendiri.
+  const gated = EXTERNALLY_GATED_INPUTS.map((input) => (
+    input.key === 'PRICE_CROSS_CHECK' && crossCheck !== null
+      ? resolvePriceCrossCheckInput(crossCheck)
+      : input
+  ));
+  return [...fromProbe, ...gated]
     .sort((a, b) => (order.get(a.key) ?? 0) - (order.get(b.key) ?? 0));
 }
 
