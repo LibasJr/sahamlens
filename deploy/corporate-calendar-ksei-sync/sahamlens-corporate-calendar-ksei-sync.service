@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens - sync kalender RUPS resmi KSEI
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+WorkingDirectory=/opt/sahamlens/app
+ExecStart=/usr/bin/python3 /opt/sahamlens/app/scripts/sync-ksei-corporate-calendar.py
+TimeoutStartSec=1800
