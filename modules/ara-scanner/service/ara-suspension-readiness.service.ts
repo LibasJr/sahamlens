@@ -29,7 +29,7 @@ interface SuspensionArtifact {
 
 export interface SuspensionArtifactProbe {
   verified: boolean;
-  status: 'PARTIAL' | 'MISSING' | 'STALE';
+  status: 'READY' | 'PARTIAL' | 'MISSING' | 'STALE';
   source: string | null;
   observedAt: string | null;
   coverageFrom: string | null;

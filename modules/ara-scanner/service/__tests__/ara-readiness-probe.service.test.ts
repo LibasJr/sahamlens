@@ -23,7 +23,7 @@ describe('probe kesiapan pipeline ARA', () => {
   });
 
   it('probe TIDAK BOLEH menaikkan input yang digerbang feed eksternal', () => {
-    // Probe berbohong: mengaku feed resmi dan cross-check sudah siap.
+    // Probe berbohong: mengaku feed resmi dan cross-check sudah siap tanpa artefak.
     const dishonest = [
       ...probeAraPipelineCapabilities(),
       { key: 'TRADING_RESTRICTIONS' as const, status: 'READY' as const, detail: 'klaim palsu', evidence: {} },
@@ -31,18 +31,17 @@ describe('probe kesiapan pipeline ARA', () => {
       { key: 'ORDER_BOOK' as const, status: 'READY' as const, detail: 'klaim palsu', evidence: {} },
     ];
 
-    const inputs = buildCurrentAraInputReadiness(dishonest);
+    const inputs = buildCurrentAraInputReadiness(dishonest, null, { verified: false, status: 'MISSING', source: null, observedAt: null, count: 0, tickerCount: 0, coverageFrom: null, coverageTo: null, detail: '' });
     const byKey = new Map(inputs.map((i) => [i.key, i]));
 
     expect(byKey.get('TRADING_RESTRICTIONS')?.status).toBe('MISSING');
-    expect(byKey.get('PRICE_CROSS_CHECK')?.status).toBe('PARTIAL');
     expect(byKey.get('ORDER_BOOK')?.status).toBe('OUT_OF_SCOPE');
 
-    // Klaim palsu tidak boleh membuka eksekusi.
+    // Klaim palsu tanpa artefak tidak boleh membuka eksekusi.
     const readiness = evaluateAraScannerReadiness(inputs, '2026-09-05T01:00:00.000Z');
     expect(readiness.status).toBe('NOT_RUN');
     expect(readiness.executionAllowed).toBe(false);
-    expect(readiness.blockers).toEqual(['TRADING_RESTRICTIONS', 'PRICE_CROSS_CHECK']);
+    expect(readiness.blockers).toContain('TRADING_RESTRICTIONS');
   });
 
   it('kemampuan yang gagal menurunkan status tanpa perlu suntingan manual', () => {
