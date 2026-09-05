@@ -10,5 +10,8 @@ Group=lens
 WorkingDirectory=/opt/sahamlens/app
 EnvironmentFile=/opt/sahamlens/app/.env.production
 TimeoutStartSec=10min
-ExecStart=/usr/bin/curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 540 -H "Authorization: Bearer ${CRON_SECRET}" https://sahamlens.id/api/cron/screener-scan
+# Ini pekerjaan internal yang bisa butuh >100 detik saat cache dingin. Memutarnya lewat
+# domain publik memasukkan Cloudflare ke jalur lokal dan menghasilkan HTTP 524 sebelum
+# timeout 540 detik milik service tercapai. Endpoint localhost tetap mewajibkan secret.
+ExecStart=/usr/bin/curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 540 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/screener-scan
 NoNewPrivileges=true

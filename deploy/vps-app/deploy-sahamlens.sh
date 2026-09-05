@@ -136,6 +136,16 @@ if ! "$NODE_BIN" --env-file=.env.production scripts/migrate-database.mjs --confi
   exit 1
 fi
 
+echo "Installing Screener systemd units..."
+# Unit ini dulu hanya tersimpan di repo tanpa installer/hook deploy. Akibatnya perubahan
+# seperti perpindahan dari Cloudflare ke localhost tidak pernah bisa mendarat ke /etc.
+$SUDO /usr/bin/install -m 0644 deploy/screener-scan/sahamlens-screener-scan.service \
+  /etc/systemd/system/sahamlens-screener-scan.service
+$SUDO /usr/bin/install -m 0644 deploy/screener-scan/sahamlens-screener-scan.timer \
+  /etc/systemd/system/sahamlens-screener-scan.timer
+$SUDO /usr/bin/systemctl daemon-reload
+$SUDO /usr/bin/systemctl enable sahamlens-screener-scan.timer
+
 echo "Restarting SahamLens..."
 $SUDO /usr/bin/systemctl restart sahamlens
 
