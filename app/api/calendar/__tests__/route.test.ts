@@ -19,13 +19,26 @@ function makeRequest(): Request {
 describe('GET /api/calendar', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('public-read: guest tanpa session tetap menerima corporate calendar', async () => {
-    vi.mocked(getOrCompute).mockResolvedValue({ '2026-08-10': [{ symbol: 'BBCA', type: 'DIVIDEND' }] } as any);
+  it('public-read: guest menerima event beserta coverage dan provenance', async () => {
+    vi.mocked(getOrCompute).mockResolvedValue({
+      events: { '2026-09-28': [{ symbol: 'DGWG', type: 'RUPSLB', source: 'KSEI_OFFICIAL' }] },
+      coverage: {
+        ksei: { status: 'COMPLETE', generatedAt: '2026-09-05T05:00:00Z', years: [2026], documentsDiscovered: 1, eventsVerified: 1, documentsRejected: 0 },
+        yahoo: { status: 'PARTIAL_UNIVERSE', symbolsRequested: 50, symbolsFailed: 0 },
+      },
+    } as any);
 
     const res = await GET(makeRequest());
     const json = await res.json();
 
     expect(res.status).toBe(200);
-    expect(json.events).toEqual({ '2026-08-10': [{ symbol: 'BBCA', type: 'DIVIDEND' }] });
+    expect(json).toEqual({
+      events: { '2026-09-28': [{ symbol: 'DGWG', type: 'RUPSLB', source: 'KSEI_OFFICIAL' }] },
+      coverage: {
+        ksei: { status: 'COMPLETE', generatedAt: '2026-09-05T05:00:00Z', years: [2026], documentsDiscovered: 1, eventsVerified: 1, documentsRejected: 0 },
+        yahoo: { status: 'PARTIAL_UNIVERSE', symbolsRequested: 50, symbolsFailed: 0 },
+      },
+      meta: { sources: ['KSEI_OFFICIAL', 'YAHOO_FINANCE'], refreshedAt: expect.any(String), warning: null, requestId: expect.any(String) },
+    });
   });
 });

@@ -19,6 +19,8 @@ import MenuUsageGuide from '@/components/MenuUsageGuide';
 const TYPE_LABEL: Record<EventType, string> = {
   DIVIDEND: 'Dividen',
   EARNINGS: 'Earnings',
+  RUPS: 'RUPS',
+  RUPSLB: 'RUPSLB',
 };
 
 // Titik penanda di grid dulu SELALU kuning, apa pun jenis eventnya - dividen dan
@@ -26,24 +28,34 @@ const TYPE_LABEL: Record<EventType, string> = {
 const TYPE_DOT: Record<EventType, string> = {
   DIVIDEND: 'bg-tv-green',
   EARNINGS: 'bg-tv-blue',
+  RUPS: 'bg-tv-purple',
+  RUPSLB: 'bg-tv-yellow',
 };
 
 const TYPE_BADGE: Record<EventType, string> = {
   DIVIDEND: 'bg-tv-green/10 text-tv-green border-tv-green/25',
   EARNINGS: 'bg-tv-blue/10 text-tv-blue border-tv-blue/25',
+  RUPS: 'bg-tv-purple/10 text-tv-purple border-tv-purple/25',
+  RUPSLB: 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/25',
 };
 
-type EventType = 'DIVIDEND' | 'EARNINGS';
+type EventType = 'DIVIDEND' | 'EARNINGS' | 'RUPS' | 'RUPSLB';
 
 interface CalendarEvent {
   symbol: string;
   type: EventType;
   title: string;
   description: string;
+  timeWib?: string | null;
+  source: 'KSEI_OFFICIAL' | 'YAHOO_FINANCE';
+  sourceUrl?: string;
+  verification: 'VERIFIED_PRIMARY_SOURCE' | 'THIRD_PARTY_RECORDED' | 'THIRD_PARTY_ESTIMATE';
 }
+interface CalendarCoverage { ksei: { status: string; generatedAt: string | null; eventsVerified: number; documentsRejected: number } }
 
 const TABS = [
   { id: 'ALL', label: 'Semua', icon: CalendarIcon },
+  { id: 'RUPS', label: 'RUPS/RUPSLB', icon: CalendarIcon },
   { id: 'DIVIDEND', label: 'Dividen', icon: Coins },
   { id: 'EARNINGS', label: 'Earnings', icon: Briefcase },
 ];
@@ -54,6 +66,7 @@ export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date>(today);
   const [activeTab, setActiveTab] = useState('ALL');
   const [calendarData, setCalendarData] = useState<Record<string, CalendarEvent[]>>({});
+  const [coverage, setCoverage] = useState<CalendarCoverage | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -62,7 +75,10 @@ export default function CalendarPage() {
     setLoading(true);
     setError(null);
     apiRequest<any>('/api/calendar')
-      .then((data) => setCalendarData(data?.events || {}))
+      .then((data) => {
+        setCalendarData(data?.events || {});
+        setCoverage(data?.coverage || null);
+      })
       .catch(async (error) => {
         if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
           if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
@@ -110,7 +126,7 @@ export default function CalendarPage() {
     const data: Record<string, CalendarEvent[]> = {};
     Object.entries(calendarData).forEach(([dateStr, events]) => {
       const typedEvents = events as CalendarEvent[];
-      const filtered = typedEvents.filter(e => activeTab === 'ALL' || e.type === activeTab);
+      const filtered = typedEvents.filter(e => activeTab === 'ALL' || e.type === activeTab || (activeTab === 'RUPS' && e.type === 'RUPSLB'));
       if (filtered.length > 0) {
         data[dateStr] = filtered;
       }
@@ -205,7 +221,9 @@ export default function CalendarPage() {
     if (events.length === 0) return 'Tidak ada agenda pada bulan ini';
     const dividen = events.filter((e) => e.type === 'DIVIDEND').length;
     const earnings = events.filter((e) => e.type === 'EARNINGS').length;
+    const meetings = events.filter((e) => e.type === 'RUPS' || e.type === 'RUPSLB').length;
     const parts = [];
+    if (meetings > 0) parts.push(`${meetings} RUPS/RUPSLB`);
     if (dividen > 0) parts.push(`${dividen} dividen`);
     if (earnings > 0) parts.push(`${earnings} earnings`);
     return `${events.length} agenda bulan ini · ${parts.join(', ')}`;
@@ -220,7 +238,7 @@ export default function CalendarPage() {
           </div>
           <div>
             <h2 className="lens-page-title">Corporate Calendar</h2>
-            <p className="text-xs text-tv-muted">Jadwal Dividen & Rilis Laporan Keuangan (Yahoo Finance)</p>
+            <p className="text-xs text-tv-muted">RUPS resmi KSEI · Dividen & earnings pihak ketiga</p>
           </div>
         </div>
       </header>
@@ -237,14 +255,18 @@ export default function CalendarPage() {
         />
         {error && (
           <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-red/30 mb-6">
-            {/* Sebelumnya cuma satu baris teks merah tanpa tombol apa pun. */}
             <EmptyState
               illustration="empty"
               title="Kalender gagal dimuat"
-              description={`${error}. Kalender ini mengambil jadwal dari sumber harga yang sama dengan halaman lain - kegagalan di sini biasanya bersifat sementara.`}
+              description={`${error}. Kegagalan sumber tidak diubah menjadi kalender kosong.`}
               action={{ label: 'Coba lagi', onClick: loadCalendar }}
             />
           </Card>
+        )}
+        {coverage && coverage.ksei.status !== 'COMPLETE' && (
+          <div role="alert" className="mb-6 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 px-4 py-3 text-xs text-tv-text">
+            <strong>RUPS {coverage.ksei.status}</strong> — tanggal kosong bukan bukti tidak ada agenda. Sinkronisasi: {coverage.ksei.generatedAt ? new Date(coverage.ksei.generatedAt).toLocaleString('id-ID') : 'belum tersedia'}; ditolak: {coverage.ksei.documentsRejected}.
+          </div>
         )}
 
         {/* Tabs - `custom-scrollbar` dilepas: tidak ada blok <style> yang
@@ -318,9 +340,11 @@ export default function CalendarPage() {
                   {/* Legenda warna titik - tanpa ini, dua warna baru di grid tidak
                       punya keterangan apa pun. */}
                   <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-tv-border pt-3 text-[11px] text-tv-muted">
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-tv-purple" /> RUPS</span>
+                    <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-tv-yellow" /> RUPSLB</span>
                     <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-tv-green" /> Dividen</span>
                     <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-tv-blue" /> Earnings</span>
-                    <span className="ml-auto">Cakupan terbatas Dividen &amp; Earnings - RUPS dan stock split tidak tersedia di sumber data ini.</span>
+                    <span className="ml-auto">RUPS: KSEI resmi · Dividen/earnings: Yahoo Finance, cakupan saham likuid.</span>
                   </div>
                 </>
               )}
@@ -361,7 +385,11 @@ export default function CalendarPage() {
                         </span>
                       </div>
                       <h4 className="text-sm text-tv-text font-bold mb-1">{event.title}</h4>
-                      <p className="text-xs text-tv-muted">{event.description}</p>
+                      <p className="text-xs text-tv-muted">{event.description}{event.timeWib ? ` Pukul ${event.timeWib} WIB.` : ''}</p>
+                      <p className="mt-2 text-[10px] text-tv-muted">
+                        {event.source === 'KSEI_OFFICIAL' ? 'Sumber primer resmi KSEI' : 'Sumber pihak ketiga Yahoo Finance'} · {event.verification === 'VERIFIED_PRIMARY_SOURCE' ? 'Terverifikasi' : event.verification === 'THIRD_PARTY_ESTIMATE' ? 'Estimasi' : 'Tercatat pihak ketiga'}
+                        {event.sourceUrl && <> · <span className="underline">Dokumen sumber</span></>}
+                      </p>
                     </a>
                   ))
                 ) : (
