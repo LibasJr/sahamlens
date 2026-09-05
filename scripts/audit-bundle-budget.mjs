@@ -45,7 +45,9 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // Dinaikkan 6.070 -> 6.072 KB pada 2026-09-05 untuk provenance, coverage warning,
 // dan filter RUPS/RUPSLB pada Corporate Calendar. Build terukur 6.071 KB; tidak ada
 // dependensi baru, dan 1 KB pertumbuhan adalah kontrak data yang terlihat pengguna.
-const TOTAL_BUDGET_KB = 6_072;
+// Dinaikkan 6.072 -> 6.076 KB pada 2026-09-05 untuk pembersihan string hardcoded
+// dwibahasa (i18n) di pencarian, modal emiten, dan kartu pantauan pasar.
+const TOTAL_BUDGET_KB = 6_076;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
