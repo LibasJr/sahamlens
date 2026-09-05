@@ -33,7 +33,12 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // (ticker search, watchlist bearer, dan admin overview). Build pembanding origin/main
 // terukur 6.034 KB; branch ini 6.041 KB. Pertumbuhan bukan dependensi UI atau muatan awal
 // halaman web, melainkan chunk route yang tetap dihitung audit Next pada direktori ini.
-const TOTAL_BUDGET_KB = 6_048;
+// Dinaikkan 6.048 -> 6.050 KB pada 2026-09-05 untuk fix bug login: `app/login/page.tsx`
+// sekarang memanggil `useAuthUser().refresh()` supaya context auth ikut sinkron begitu
+// login sukses (sebelumnya user harus reload manual, lihat riwayat commit). Terukur
+// 6.049 KB tepat sesudah perubahan - satu impor hook yang sudah dipakai luas di app ini,
+// bukan pustaka baru, jadi tidak ada yang bisa dipangkas lebih lanjut di sini.
+const TOTAL_BUDGET_KB = 6_050;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
