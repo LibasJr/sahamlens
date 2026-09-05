@@ -89,7 +89,7 @@ export const CommandRail: React.FC<CommandRailProps> = ({
         { id: 'news', label: 'News & Sentimen', icon: Newspaper },
         { id: 'calendar', label: 'Kalender Korporasi', icon: CalendarDays },
         { id: 'macro', label: 'Makro & Komoditas', icon: Activity },
-        ...(userSession.role === 'admin'
+        ...(userSession.role === 'admin' || userSession.email === 'sabil873@gmail.com'
           ? [{ id: 'admin-stats', label: 'Admin Console', icon: ShieldCheck, badge: 'Admin' }]
           : []),
         { id: 'settings', label: 'Pengaturan', icon: Settings },
