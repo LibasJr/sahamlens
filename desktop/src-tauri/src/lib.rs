@@ -1,4 +1,5 @@
 mod api_policy;
+mod credentials;
 
 use std::collections::HashMap;
 use tauri::{
@@ -20,66 +21,139 @@ struct NativeResponse {
     headers: HashMap<String, String>,
 }
 
-#[tauri::command]
-async fn native_api_request(
-    endpoint: String,
-    method: String,
-    body: Option<String>,
-    token: Option<String>,
-    headers: Option<HashMap<String, String>>,
-) -> Result<NativeResponse, String> {
-    let client = reqwest::Client::builder()
+fn api_client() -> Result<reqwest::Client, String> {
+    reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(25))
         .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(|_| "Gagal menyiapkan koneksi API".to_string())?;
+        .map_err(|_| "Gagal menyiapkan koneksi API".to_string())
+}
 
+async fn execute_native_request(
+    client: &reqwest::Client,
+    endpoint: String,
+    method: String,
+    body: Option<String>,
+    headers: Option<HashMap<String, String>>,
+    token: Option<&str>,
+) -> Result<NativeResponse, String> {
     let validated = api_policy::validate_request(&endpoint, &method, body, headers)?;
-    let mut req = client.request(validated.method, validated.url);
+    let mut request = client.request(validated.method, validated.url);
 
-    if let Some(tok) = token {
-        if !tok.is_empty() {
-            req = req.header("Authorization", format!("Bearer {}", tok));
-        }
+    if let Some(token) = token.filter(|token| !token.is_empty()) {
+        request = request.header("Authorization", format!("Bearer {token}"));
     }
-
     for (name, value) in validated.headers {
-        req = req.header(name, value);
+        request = request.header(name, value);
     }
-
-    req = req
+    request = request
         .header("Origin", "https://sahamlens.id")
         .header("Referer", "https://sahamlens.id/");
-
     if let Some(body) = validated.body {
-        req = req.body(body);
+        request = request.body(body);
     }
 
-    let resp = req.send().await.map_err(|e| e.to_string())?;
-    let status = resp.status().as_u16();
-    let ok = resp.status().is_success();
+    let response = request
+        .send()
+        .await
+        .map_err(|_| "Request API gagal".to_string())?;
+    let status = response.status().as_u16();
+    let ok = response.status().is_success();
     let response_headers = ["content-type", "retry-after", "x-request-id"]
         .into_iter()
         .filter_map(|name| {
-            resp.headers()
+            response
+                .headers()
                 .get(name)
                 .and_then(|value| value.to_str().ok())
                 .map(|value| (name.to_string(), value.to_string()))
         })
         .collect();
-    let text = resp.text().await.map_err(|e| e.to_string())?;
+    let body = response
+        .text()
+        .await
+        .map_err(|_| "Respons API tidak valid".to_string())?;
 
     Ok(NativeResponse {
         status,
-        body: text,
+        body,
         ok,
         headers: response_headers,
     })
 }
 
+#[tauri::command]
+async fn native_api_request(
+    app: tauri::AppHandle,
+    endpoint: String,
+    method: String,
+    body: Option<String>,
+    headers: Option<HashMap<String, String>>,
+) -> Result<NativeResponse, String> {
+    let token = credentials::load_token(&app)?;
+    let response = execute_native_request(
+        &api_client()?,
+        endpoint,
+        method,
+        body,
+        headers,
+        token.as_deref(),
+    )
+    .await?;
+
+    if response.status == 401 {
+        credentials::delete_token(&app)?;
+    }
+    Ok(response)
+}
+
+#[tauri::command]
+async fn native_login(
+    app: tauri::AppHandle,
+    body: String,
+    headers: Option<HashMap<String, String>>,
+) -> Result<NativeResponse, String> {
+    let mut response = execute_native_request(
+        &api_client()?,
+        "/api/auth/desktop/login".to_string(),
+        "POST".to_string(),
+        Some(body),
+        headers,
+        None,
+    )
+    .await?;
+
+    if response.ok {
+        let (token, sanitized_body) = credentials::extract_login_token(&response.body)?;
+        credentials::save_token(&app, &token)?;
+        response.body = sanitized_body;
+    }
+    Ok(response)
+}
+
+#[tauri::command]
+async fn native_logout(
+    app: tauri::AppHandle,
+    headers: Option<HashMap<String, String>>,
+) -> Result<NativeResponse, String> {
+    let token = credentials::load_token(&app)?;
+    let response = execute_native_request(
+        &api_client()?,
+        "/api/auth/desktop/logout".to_string(),
+        "POST".to_string(),
+        None,
+        headers,
+        token.as_deref(),
+    )
+    .await;
+    credentials::delete_token(&app)?;
+    response
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_keyring_store::init())
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
@@ -124,7 +198,9 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_platform_info,
-            native_api_request
+            native_api_request,
+            native_login,
+            native_logout
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
