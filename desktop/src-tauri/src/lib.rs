@@ -1,3 +1,5 @@
+mod api_policy;
+
 use std::collections::HashMap;
 use tauri::{
     menu::{Menu, MenuItem},
@@ -18,24 +20,6 @@ struct NativeResponse {
     headers: HashMap<String, String>,
 }
 
-fn resolve_api_url(endpoint: &str) -> Result<reqwest::Url, String> {
-    let url = if endpoint.starts_with("http") {
-        reqwest::Url::parse(endpoint).map_err(|_| "Endpoint API tidak valid".to_string())?
-    } else {
-        reqwest::Url::parse(&format!("https://sahamlens.id{endpoint}"))
-            .map_err(|_| "Endpoint API tidak valid".to_string())?
-    };
-
-    if url.scheme() != "https"
-        || url.host_str() != Some("sahamlens.id")
-        || !url.path().starts_with("/api/")
-    {
-        return Err("Endpoint di luar API SahamLens ditolak".to_string());
-    }
-
-    Ok(url)
-}
-
 #[tauri::command]
 async fn native_api_request(
     endpoint: String,
@@ -46,18 +30,12 @@ async fn native_api_request(
 ) -> Result<NativeResponse, String> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(25))
+        .redirect(reqwest::redirect::Policy::none())
         .build()
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| "Gagal menyiapkan koneksi API".to_string())?;
 
-    let url = resolve_api_url(&endpoint)?;
-
-    let mut req = match method.to_uppercase().as_str() {
-        "POST" => client.post(url),
-        "DELETE" => client.delete(url),
-        "PUT" => client.put(url),
-        "PATCH" => client.patch(url),
-        _ => client.get(url),
-    };
+    let validated = api_policy::validate_request(&endpoint, &method, body, headers)?;
+    let mut req = client.request(validated.method, validated.url);
 
     if let Some(tok) = token {
         if !tok.is_empty() {
@@ -65,24 +43,16 @@ async fn native_api_request(
         }
     }
 
-    if let Some(hdrs) = headers {
-        for (k, v) in hdrs {
-            if matches!(
-                k.to_ascii_lowercase().as_str(),
-                "authorization" | "cookie" | "host" | "origin" | "referer" | "content-length"
-            ) {
-                continue;
-            }
-            req = req.header(&k, &v);
-        }
+    for (name, value) in validated.headers {
+        req = req.header(name, value);
     }
 
     req = req
         .header("Origin", "https://sahamlens.id")
         .header("Referer", "https://sahamlens.id/");
 
-    if let Some(b) = body {
-        req = req.body(b);
+    if let Some(body) = validated.body {
+        req = req.body(body);
     }
 
     let resp = req.send().await.map_err(|e| e.to_string())?;
@@ -107,25 +77,6 @@ async fn native_api_request(
     })
 }
 
-#[cfg(test)]
-mod tests {
-    use super::resolve_api_url;
-
-    #[test]
-    fn accepts_only_sahamlens_https_api_routes() {
-        assert_eq!(
-            resolve_api_url("/api/market-data?limit=5")
-                .expect("relative API URL")
-                .as_str(),
-            "https://sahamlens.id/api/market-data?limit=5"
-        );
-        assert!(resolve_api_url("https://sahamlens.id/api/auth/me").is_ok());
-        assert!(resolve_api_url("http://sahamlens.id/api/auth/me").is_err());
-        assert!(resolve_api_url("https://example.com/api/auth/me").is_err());
-        assert!(resolve_api_url("https://sahamlens.id/login").is_err());
-    }
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -133,7 +84,8 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .setup(|app| {
             // Build Tray Menu
-            let show_i = MenuItem::with_id(app, "show", "Buka SahamLens Desktop", true, None::<&str>)?;
+            let show_i =
+                MenuItem::with_id(app, "show", "Buka SahamLens Desktop", true, None::<&str>)?;
             let quit_i = MenuItem::with_id(app, "quit", "Keluar", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
