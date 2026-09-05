@@ -11,6 +11,8 @@ use tauri::{
     Manager,
 };
 
+const MAX_RESPONSE_BYTES: usize = 5 * 1024 * 1024;
+
 #[tauri::command]
 fn get_platform_info() -> String {
     format!("SahamLens Desktop Native ({})", std::env::consts::OS)
@@ -56,12 +58,18 @@ async fn execute_native_request(
         request = request.body(body);
     }
 
-    let response = request
+    let mut response = request
         .send()
         .await
         .map_err(|_| "Request API gagal".to_string())?;
     let status = response.status().as_u16();
     let ok = response.status().is_success();
+    if response
+        .content_length()
+        .is_some_and(|length| length > MAX_RESPONSE_BYTES as u64)
+    {
+        return Err("Respons API melebihi batas 5 MB".to_string());
+    }
     let response_headers = ["content-type", "retry-after", "x-request-id"]
         .into_iter()
         .filter_map(|name| {
@@ -72,10 +80,19 @@ async fn execute_native_request(
                 .map(|value| (name.to_string(), value.to_string()))
         })
         .collect();
-    let body = response
-        .text()
+    let mut response_bytes = Vec::new();
+    while let Some(chunk) = response
+        .chunk()
         .await
-        .map_err(|_| "Respons API tidak valid".to_string())?;
+        .map_err(|_| "Respons API tidak valid".to_string())?
+    {
+        if response_bytes.len() + chunk.len() > MAX_RESPONSE_BYTES {
+            return Err("Respons API melebihi batas 5 MB".to_string());
+        }
+        response_bytes.extend_from_slice(&chunk);
+    }
+    let body =
+        String::from_utf8(response_bytes).map_err(|_| "Respons API tidak valid".to_string())?;
 
     Ok(NativeResponse {
         status,
