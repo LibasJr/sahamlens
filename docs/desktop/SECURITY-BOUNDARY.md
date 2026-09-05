@@ -10,16 +10,26 @@
 
 Compromise of renderer JavaScript must not automatically expose credentials, arbitrary network access, shell execution, or unrestricted filesystem access.
 
-## Current blockers before closed beta
+## Baseline findings status
 
-- `desktop-web/app/native-fetch-bridge.tsx` stores the bearer token in `localStorage`.
-- `desktop/src-tauri/tauri.conf.json` sets CSP to `null`.
-- `desktop/src-tauri/capabilities/default.json` targets `*` windows.
-- `shell:default` grants broader shell capability than the current product requires.
-- `native_api_request` accepts any `/api/` path and treats unknown methods as GET.
-- Request body size and redirect behavior are not yet enforced by an explicit policy.
+Resolved on `main`:
 
-These are documented baseline findings, not accepted production behavior.
+- bearer token moved from `localStorage` into the OS credential vault through Rust (#356);
+- `native_api_request` no longer accepts a renderer-supplied token, and login/logout run as dedicated native commands (#356);
+- route, method, header, body-size, timeout, and redirect policy enforced in `desktop/src-tauri/src/api_policy.rs`, failing closed on unknown input (#354);
+- CSP is non-null in `desktop/src-tauri/tauri.conf.json` (#358);
+- capabilities bind to the `main` window only (#358);
+- `shell:default` and `notification:default` removed together with their unused plugins (#358).
+
+Still open before closed beta:
+
+- safe external navigation and deep-link validation;
+- file dialog, export sanitization, and clipboard rules;
+- privacy-safe diagnostics envelope;
+- signed installers and update metadata verification;
+- full threat-model test pass with recorded artifact identifiers.
+
+Each resolved item is covered by a regression audit in `__tests__/desktop-credential-boundary.test.ts`, `__tests__/desktop-native-lockdown.test.ts`, and the Rust policy tests.
 
 ## Credential rules
 
@@ -62,7 +72,7 @@ Response exposure is restricted to fields the renderer needs: status, body subje
 
 ## Content Security Policy
 
-CSP must be non-null before beta. It must be derived from actual static asset and connection needs, then tested against charts, fonts, images, and the native bridge. Avoid broad `*`, unsafe remote scripts, and unneeded origins.
+CSP is non-null on `main` and derived from actual static asset and connection needs: `default-src 'self'`, self-only scripts, inline styles for the design system, `data:` images, `ipc:`/`http://ipc.localhost` connections for the native bridge, and `object-src`/`frame-src` set to `'none'`. It is verified by `__tests__/desktop-native-lockdown.test.ts` and must stay free of broad `*` and remote script origins.
 
 CSP is defense in depth. Native commands still validate all inputs as if renderer code were hostile.
 
