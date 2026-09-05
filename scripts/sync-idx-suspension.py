@@ -57,7 +57,10 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 
@@ -69,6 +72,7 @@ except ImportError:  # pragma: no cover - dependency guard
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULT_OUT_DIR = os.path.join(REPO_ROOT, "data", "idx-suspension")
+EMITEN_CSV = os.path.join(REPO_ROOT, "idx_emiten_900.csv")
 
 IDX_ENDPOINT = "https://www.idx.co.id/primary/NewsAnnouncement/GetSuspension"
 SOURCE_LABEL = "IDX_OFFICIAL_API"
@@ -162,6 +166,111 @@ def normalize_rows(results: list[dict]) -> tuple[list[dict], list[dict]]:
         events.append(record)
 
     return events, unresolved
+
+
+def load_ticker_universe(csv_path: str = EMITEN_CSV) -> set[str]:
+    """Baca universe emiten SahamLens; cegah POJK/VIII dari regex PDF mentah."""
+    tickers: set[str] = set()
+    with open(csv_path, "r", encoding="utf-8") as handle:
+        for index, line in enumerate(handle):
+            if index == 0:
+                continue
+            parts = line.split(",")
+            if len(parts) >= 2:
+                code = parts[1].strip().upper()
+                if TICKER_RE.match(code):
+                    tickers.add(code)
+    if len(tickers) < 800:
+        raise RuntimeError(f"Universe emiten terlalu kecil ({len(tickers)}); PDF tidak boleh diparse.")
+    return tickers
+
+
+def extract_tickers_from_pdf(session, attachment: str, universe: set[str],
+                             retries: int, timeout: int) -> tuple[list[str], str | None]:
+    """Unduh PDF resmi dan iriskan token 4 huruf dengan universe emiten.
+
+    Tidak memakai allowlist pengecualian (POJK, VIII, dst.) karena daftar kata palsu
+    tidak pernah lengkap. Universe emiten adalah validasi positif. Bila PDF gagal,
+    terenkripsi, tak punya text layer, atau tidak menghasilkan ticker, pemanggil
+    harus mempertahankan baris sebagai unresolved.
+    """
+    if not attachment or not attachment.startswith("/StaticData/"):
+        return [], "lampiran PDF tidak sah"
+    pdftotext = shutil.which("pdftotext")
+    if not pdftotext:
+        return [], "pdftotext tidak terpasang"
+
+    url = f"https://www.idx.co.id{attachment}"
+    content = None
+    for attempt in range(1, retries + 1):
+        try:
+            response = session.get(url, timeout=timeout)
+            if response.status_code == 200 and response.content.startswith(b"%PDF"):
+                content = response.content
+                break
+        except Exception:
+            pass
+        time.sleep(attempt * 1.5)
+    if content is None:
+        return [], "gagal mengunduh PDF resmi"
+
+    with tempfile.TemporaryDirectory(prefix="idx-susp-") as temp:
+        pdf_path = os.path.join(temp, "announcement.pdf")
+        text_path = os.path.join(temp, "announcement.txt")
+        with open(pdf_path, "wb") as handle:
+            handle.write(content)
+        result = subprocess.run(
+            [pdftotext, "-layout", pdf_path, text_path],
+            capture_output=True, text=True, timeout=timeout, check=False,
+        )
+        if result.returncode != 0 or not os.path.exists(text_path):
+            return [], "pdftotext gagal"
+        with open(text_path, "r", encoding="utf-8", errors="replace") as handle:
+            text = handle.read()
+
+    candidates = set(re.findall(r"(?<![A-Z])[A-Z]{4}(?![A-Z])", text.upper()))
+    tickers = sorted(candidates & universe)
+    if not tickers:
+        return [], "PDF tidak menghasilkan kode emiten terverifikasi"
+    return tickers, None
+
+
+def resolve_multi_ticker_rows(session, events: list[dict], unresolved: list[dict],
+                              universe: set[str], retries: int, timeout: int):
+    """Ubah setiap baris '>1 Kode' menjadi satu peristiwa per emiten dari PDF."""
+    resolved_events = list(events)
+    still_unresolved: list[dict] = []
+    pdf_rows = 0
+    extracted_codes = 0
+
+    for row in unresolved:
+        if row.get("rawCode") != ">1 Kode" or row.get("infoType") not in KNOWN_TYPES:
+            still_unresolved.append(row)
+            continue
+
+        tickers, error = extract_tickers_from_pdf(
+            session, row.get("attachment") or "", universe, retries, timeout,
+        )
+        if error:
+            failed = dict(row)
+            failed["reason"] = f"{row.get('reason')}; {error}"
+            still_unresolved.append(failed)
+            continue
+
+        pdf_rows += 1
+        extracted_codes += len(tickers)
+        for ticker in tickers:
+            event = {k: v for k, v in row.items() if k not in {"rawCode", "reason"}}
+            event["eventId"] = make_event_id(
+                row["date"], ticker, row["infoType"], row.get("title") or "",
+                row.get("attachment") or "",
+            )
+            event["ticker"] = ticker
+            event["suspended"] = row["infoType"] == SUSPEND_TYPE
+            event["extractedFromPdf"] = True
+            resolved_events.append(event)
+
+    return resolved_events, still_unresolved, pdf_rows, extracted_codes
 
 
 def fetch_page(session, page_number: int, page_size: int, retries: int, timeout: int):
@@ -374,6 +483,29 @@ def main(argv: list[str]) -> int:
         (u for u in unresolved.values() if u["date"] >= cutoff),
         key=lambda u: (u["occurredAt"], u["eventId"]), reverse=True,
     )
+
+    try:
+        universe = load_ticker_universe()
+    except Exception as error:
+        print(f"[!] Universe emiten gagal dibaca: {error}. Berkas lama TIDAK ditimpa.",
+              file=sys.stderr)
+        return 1
+
+    kept_events, kept_unresolved, resolved_pdf_rows, extracted_codes = resolve_multi_ticker_rows(
+        session, kept_events, kept_unresolved, universe, args.retries, args.timeout,
+    )
+    # Satu emiten dapat muncul dari baris tunggal API sekaligus PDF multi-emiten.
+    # Dedup ulang setelah ekspansi supaya eventCount tidak menggembung diam-diam.
+    kept_events = sorted(
+        {event["eventId"]: event for event in kept_events}.values(),
+        key=lambda e: (e["occurredAt"], e["eventId"]), reverse=True,
+    )
+    kept_unresolved = sorted(
+        kept_unresolved,
+        key=lambda u: (u["occurredAt"], u["eventId"]), reverse=True,
+    )
+    print(f"[+] PDF multi-emiten: {resolved_pdf_rows} baris terurai menjadi "
+          f"{extracted_codes} kode terverifikasi", flush=True)
 
     if not kept_events:
         print(f"[!] Tidak ada peristiwa suspensi sah dalam {args.lookback_days} hari terakhir. "
