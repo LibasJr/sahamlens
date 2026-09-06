@@ -21,6 +21,10 @@ export default async function AdminAraScannerPage() {
   if (!(await isAdminServer())) redirect('/admin-login');
 
   const readiness = getAraScannerReadiness();
+  const isReady = readiness.status === 'READY';
+  const readinessTone = isReady
+    ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
+    : 'border-tv-red/30 bg-tv-red/10 text-tv-red';
 
   return (
     <main className="min-h-screen bg-tv-bg p-4 text-tv-text sm:p-8">
@@ -37,16 +41,18 @@ export default async function AdminAraScannerPage() {
               Panel ini tidak menerbitkan rekomendasi atau sinyal ke pengguna.
             </p>
           </div>
-          <span className="inline-flex items-center gap-2 rounded-full border border-tv-red/30 bg-tv-red/10 px-3 py-1.5 text-sm font-bold text-tv-red">
-            <CircleDashed className="h-4 w-4" /> {readiness.status}
+          <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-bold ${readinessTone}`}>
+            {isReady ? <CheckCircle2 className="h-4 w-4" /> : <CircleDashed className="h-4 w-4" />} {readiness.status}
           </span>
         </div>
 
-        <Card as="section" className="mt-6 border-tv-red/30" padding="lg" radius="xl" elevation="none" highlight={false}>
+        <Card as="section" className={`mt-6 ${isReady ? 'border-tv-green/30' : 'border-tv-red/30'}`} padding="lg" radius="xl" elevation="none" highlight={false}>
           <div className="flex items-start gap-3">
-            <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-tv-red" />
+            {isReady
+              ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-tv-green" />
+              : <ShieldAlert className="mt-0.5 h-5 w-5 shrink-0 text-tv-red" />}
             <div>
-              <h2 className="font-heading text-lg font-bold">Fail-closed aktif</h2>
+              <h2 className="font-heading text-lg font-bold">{isReady ? 'Readiness gate lulus' : 'Fail-closed aktif'}</h2>
               <p className="mt-1 text-sm text-tv-muted">{readiness.reason}</p>
               <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-xs text-tv-muted">
                 <span>Input terblokir: <b className="text-tv-text">{readiness.blockerCount}/{readiness.inputs.length}</b></span>

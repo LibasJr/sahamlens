@@ -206,13 +206,23 @@ export default async function AdminPage() {
 
         <Link
           href="/admin/ara-scanner"
-          className="flex items-start gap-3 rounded-xl border border-tv-red/30 bg-tv-card p-5 transition-colors hover:border-tv-red/60 hover:bg-tv-hover"
+          className={`flex items-start gap-3 rounded-xl border bg-tv-card p-5 transition-colors hover:bg-tv-hover ${
+            araScannerReadiness?.status === 'READY'
+              ? 'border-tv-green/30 hover:border-tv-green/60'
+              : 'border-tv-red/30 hover:border-tv-red/60'
+          }`}
         >
-          <div className="rounded-lg bg-tv-red/10 p-2 text-tv-red"><Radar className="h-5 w-5" /></div>
+          <div className={`rounded-lg p-2 ${
+            araScannerReadiness?.status === 'READY' ? 'bg-tv-green/10 text-tv-green' : 'bg-tv-red/10 text-tv-red'
+          }`}><Radar className="h-5 w-5" /></div>
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-heading text-lg font-bold text-tv-text">Kesiapan Scanner ARA</h2>
-              <span className="rounded-full border border-tv-red/30 bg-tv-red/10 px-2 py-0.5 text-[10px] font-bold text-tv-red">{araScannerReadiness?.status ?? 'UNAVAILABLE'}</span>
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+                araScannerReadiness?.status === 'READY'
+                  ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
+                  : 'border-tv-red/30 bg-tv-red/10 text-tv-red'
+              }`}>{araScannerReadiness?.status ?? 'UNAVAILABLE'}</span>
             </div>
             {!araScannerPanel.ok ? (
               <p className="mt-1 text-sm text-tv-yellow">{araScannerPanel.message}</p>
@@ -316,15 +326,6 @@ export default async function AdminPage() {
           </div>
         </Link>
 
-        {/* BROKER SUMMARY - NONAKTIF, SENGAJA DIPERTAHANKAN.
-            Ingestion-nya menuntut upload berkas manual per emiten, yang tidak
-            scalable untuk ratusan ticker; timer systemd-nya sudah dinonaktifkan
-            2026-08-14 (lihat config/scheduled-jobs.json). Kode, skema, dan seluruh
-            data historisnya TIDAK dihapus - fitur ini menunggu sumber broker
-            summary yang legal, stabil, dan dapat diotomasi.
-            Ownership Flow BUKAN penggantinya: keduanya mengukur besaran berbeda
-            (transaksi per broker vs komposisi kepemilikan) - lihat
-            docs/ownership-flow/broker-vs-ownership.md. */}
         <Link
           href="/admin/ownership-flow-validation"
           className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
@@ -340,13 +341,6 @@ export default async function AdminPage() {
           </div>
         </Link>
 
-        {/* 2026-08-18: kartu ini dulu menunjuk /admin/broker-summary (monitor broker
-            PER EMITEN) dan berlabel "Aktif (EOD)". Labelnya menyesatkan - ingestion
-            per-emiten itu menuntut upload berkas manual dan sudah dinonaktifkan
-            2026-08-14 (lihat modules/broker-flow/index.ts), sehingga panelnya selalu
-            kosong. Kartu sekarang menunjuk panel Broker EOD BEI yang benar-benar terisi
-            dari API resmi Bursa. Rute lama TIDAK dihapus - modul, skema, dan datanya
-            sengaja dipertahankan, hanya tidak lagi dipajang sebagai menu utama. */}
         <Link
           href="/admin/broker-eod"
           className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
@@ -356,7 +350,7 @@ export default async function AdminPage() {
           </div>
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">
-              IDX Broker EOD Ingestion <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">OFFICIAL</span>
+              IDX Broker Summary <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">ACTIVE · OFFICIAL</span>
             </h2>
             <p className="text-sm text-tv-muted mt-1">
               Aggregate daily trading value, volume, dan frequency per broker code dari IDX official source.
