@@ -43,7 +43,7 @@ describe('getBrokerSummaryMonitor', () => {
   it('membaca tanggal terbaru, cakupan, ticker, dan agregasi broker otomatis', async () => {
     const job = {
       id: 9,
-      job_name: 'broker-summary-scan',
+      job_name: 'idx-flow-sync',
       item_key: null,
       status: 'SUCCESS',
       started_at: '2026-08-11T11:30:00.000Z',
