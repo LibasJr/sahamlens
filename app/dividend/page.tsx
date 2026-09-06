@@ -98,7 +98,7 @@ export default function DividendPage() {
       stockNav={isTickerMode}
       tickerSearch={isTickerMode}
       headerExtra={
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-0.5 text-[11px]">
             <PrimitiveButton
               variant="bare"
@@ -125,39 +125,46 @@ export default function DividendPage() {
               Ticker
             </PrimitiveButton>
           </div>
-          <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="mb-2 min-w-[220px]" />
-          <MenuUsageGuide
-            menuKey="dividend"
-            whatItAnswers={isTickerMode ? 'Berapa arus kas dividen dari ticker yang dipilih?' : 'Berapa arus kas dividen dari portofolio berbasis universe?'}
-            steps={isTickerMode ? [
-              'Pilih mode Ticker, lalu cari emiten di header.',
-              'Yield, payout ratio, dan track record dibaca untuk ticker itu saja.',
-              'Gunakan hasil sebagai simulasi, bukan kepastian dividen masa depan.',
-            ] : [
-              'Mode Universe memakai rata-rata saham dividen yang berhasil dibaca provider.',
-              'Isi modal awal dan target pasif bulanan.',
-              'Pakai tabel kandidat untuk lanjut riset per emiten.',
-            ]}
-          />
-          <Input
-            label={isEn ? 'Initial Capital (IDR)' : 'Modal Awal (IDR)'}
-            type="number"
-            size="sm"
-            value={capital}
-            onChange={(e) => setCapital(Number(e.target.value))}
-            className="w-40 font-number"
-          />
-          <Input
-            label={isEn ? 'Monthly Target (IDR)' : 'Target Pasif/Bulan (IDR)'}
-            type="number"
-            size="sm"
-            value={targetMonthly}
-            onChange={(e) => setTargetMonthly(Number(e.target.value))}
-            className="w-40 font-number"
-          />
         </div>
       }
     >
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 rounded-xl border border-tv-border bg-tv-card p-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
+            <Input
+              label={isEn ? 'Initial Capital (IDR)' : 'Modal Awal (IDR)'}
+              type="number"
+              size="sm"
+              value={capital}
+              onChange={(e) => setCapital(Number(e.target.value))}
+              className="w-full font-number sm:w-48"
+            />
+            <Input
+              label={isEn ? 'Monthly Target (IDR)' : 'Target Pasif/Bulan (IDR)'}
+              type="number"
+              size="sm"
+              value={targetMonthly}
+              onChange={(e) => setTargetMonthly(Number(e.target.value))}
+              className="w-full font-number sm:w-48"
+            />
+          </div>
+          <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="w-full sm:w-auto sm:min-w-[220px]" />
+        </div>
+        <MenuUsageGuide
+          menuKey="dividend"
+          whatItAnswers={isTickerMode ? 'Berapa arus kas dividen dari ticker yang dipilih?' : 'Berapa arus kas dividen dari portofolio berbasis universe?'}
+          steps={isTickerMode ? [
+            'Pilih mode Ticker, lalu cari emiten di header.',
+            'Yield, payout ratio, dan track record dibaca untuk ticker itu saja.',
+            'Gunakan hasil sebagai simulasi, bukan kepastian dividen masa depan.',
+          ] : [
+            'Mode Universe memakai rata-rata saham dividen yang berhasil dibaca provider.',
+            'Isi modal awal dan target pasif bulanan.',
+            'Pakai tabel kandidat untuk lanjut riset per emiten.',
+          ]}
+        />
+      </div>
+
       {loading && !data && (
         <div className="mb-6 space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4">
