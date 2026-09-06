@@ -169,11 +169,11 @@ export default async function AdminPage() {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-heading text-lg font-bold text-tv-text">Pembuat Infografis 360°</h2>
-              <span className="rounded-full bg-tv-blue/20 px-2 py-0.5 text-[10px] font-bold text-tv-blue">Baru</span>
+              <h2 className="font-heading text-lg font-bold text-tv-text">Infographic Studio</h2>
+              <span className="rounded-full bg-tv-blue/20 px-2 py-0.5 text-[10px] font-bold text-tv-blue">NEW</span>
             </div>
             <p className="text-sm text-tv-muted mt-1">
-              Buat factsheet dan infografis saham dari data SahamLens yang tersedia, siap ekspor HD PNG.
+              Render factsheet dari SahamLens dataset dan export artifact PNG resolusi tinggi.
             </p>
           </div>
         </Link>
@@ -186,9 +186,9 @@ export default async function AdminPage() {
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Uji Akurasi LensRadar</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">LensScore Calibration</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Cek apakah skor tinggi benar-benar lebih baik pada horizon T+20. Hasilnya riset, bukan auto-ubah model.
+              Evaluasi bucket score pada horizon T+20; output research-only dan tidak memutasi model production.
             </p>
           </div>
         </Link>
@@ -199,8 +199,8 @@ export default async function AdminPage() {
         >
           <div className="rounded-lg bg-tv-green/10 p-2 text-tv-green"><Bot className="h-5 w-5" /></div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Simulasi Keputusan AI</h2>
-            <p className="mt-1 text-sm text-tv-muted">Uji sinyal, ukuran posisi, dan paper order internal dengan konfirmasi manusia.</p>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Decision Engine Lab</h2>
+            <p className="mt-1 text-sm text-tv-muted">Simulasi signal, position sizing, dan paper order dengan human confirmation gate.</p>
           </div>
         </Link>
 
@@ -234,9 +234,9 @@ export default async function AdminPage() {
             <ShieldCheck className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Bukti Validasi LensRadar</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Model Validation Evidence</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Bukti performa per kelompok skor, status OOS, dan cek harga penutupan lintas sumber.
+              Bucket performance, OOS status, dan cross-source close-price reconciliation.
             </p>
           </div>
         </Link>
@@ -249,9 +249,9 @@ export default async function AdminPage() {
             <FileSpreadsheet className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Impor Histori Fundamental</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Fundamental History Backfill</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Upload CSV fundamental resmi, cek dulu, lalu simpan append-only ke histori.
+              Validate dan ingest CSV resmi ke append-only fundamental history.
             </p>
           </div>
         </Link>
@@ -264,9 +264,9 @@ export default async function AdminPage() {
             <BarChart3 className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Pemeriksaan Data Keuangan</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Financial Data Integrity</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Cek dampak data makro dan bukti bank sebelum boleh dipakai model produksi.
+              Audit macro input dan bank evidence sebelum production-model adoption.
             </p>
           </div>
         </Link>
@@ -279,9 +279,9 @@ export default async function AdminPage() {
             <Waves className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Bukti Data Makro</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Macro Assumption Evidence</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Cek sumber SBN 10Y, ERP Indonesia, BI-Rate, target inflasi, dan tanggal data.
+              Audit provenance dan as-of SBN 10Y, ERP Indonesia, BI-Rate, serta inflation target.
             </p>
           </div>
         </Link>
@@ -294,9 +294,9 @@ export default async function AdminPage() {
             <Building2 className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Bukti Fundamental Bank</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Bank Fundamental Evidence</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Cek NIM, NPL, CASA, CAR, LDR, credit cost, dan PPOP per sumber. Belum masuk LensScore.
+              Audit NIM, NPL, CASA, CAR, LDR, credit cost, PPOP, dan source provenance; belum diadopsi LensScore.
             </p>
           </div>
         </Link>
@@ -309,9 +309,9 @@ export default async function AdminPage() {
             <Users className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Arus Kepemilikan</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Ownership Flow Ingestion</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Status data kepemilikan lokal/asing: tanggal observasi, cakupan emiten, kegagalan, dan sumber.
+              Monitor observation date, issuer coverage, ingestion failure, dan source provenance kepemilikan lokal/asing.
             </p>
           </div>
         </Link>
@@ -333,9 +333,9 @@ export default async function AdminPage() {
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Uji Arus Kepemilikan</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Ownership Flow Validation</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Cek perubahan kepemilikan asing/lokal sebelum label akumulasi/distribusi boleh dipercaya.
+              Validate foreign/local ownership delta sebelum accumulation/distribution classification diaktifkan.
             </p>
           </div>
         </Link>
@@ -356,10 +356,10 @@ export default async function AdminPage() {
           </div>
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">
-              Ringkasan Broker BEI <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">Resmi</span>
+              IDX Broker EOD Ingestion <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">OFFICIAL</span>
             </h2>
             <p className="text-sm text-tv-muted mt-1">
-              Ringkasan harian seluruh Anggota Bursa dari BEI: nilai transaksi, volume, dan frekuensi per broker.
+              Aggregate daily trading value, volume, dan frequency per broker code dari IDX official source.
             </p>
           </div>
         </Link>
@@ -379,10 +379,10 @@ export default async function AdminPage() {
           </div>
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">
-              Cakupan Dana Asing <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">Resmi</span>
+              IDX Foreign Flow Coverage <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">OFFICIAL</span>
             </h2>
             <p className="text-sm text-tv-muted mt-1">
-              Emiten mana yang sudah punya data dana asing resmi BEI, mana yang masih memakai proxy, dan seberapa segar datanya.
+              Monitor issuer coverage, official/proxy source mode, artifact availability, dan data freshness.
             </p>
           </div>
         </Link>
@@ -400,9 +400,9 @@ export default async function AdminPage() {
             <Target className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Uji Target &amp; Cut Loss</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">TP/CL Validation</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Uji historis target price dan cut loss: TP1/TP2/CL, sensitivitas parameter, dan forward OOS.
+              Historical validation TP1/TP2/CL, parameter sensitivity, dan forward OOS.
             </p>
           </div>
         </Link>
@@ -414,9 +414,9 @@ export default async function AdminPage() {
             <MessageSquare className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Masukan LensAI</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">LensAI Feedback Audit</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Tinjau jawaban LensAI yang diberi 👍/👎 pengguna, lengkap dengan intent dan sumber data.
+              Inspect user rating, resolved intent, response payload, dan data-source provenance.
             </p>
           </div>
         </Link>
@@ -434,9 +434,9 @@ export default async function AdminPage() {
             <Timer className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Uji Intraday</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Intraday Model Validation</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Uji model intraday memakai candle 5 menit, horizon 15/30/60 menit dan EOD, termasuk biaya transaksi.
+              Validate 5-minute candles pada horizon 15/30/60 menit dan EOD, termasuk transaction cost.
             </p>
           </div>
         </Link>
@@ -448,9 +448,9 @@ export default async function AdminPage() {
             <Activity className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-heading text-lg font-bold text-tv-text">Kesehatan Operasional</h2>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Runtime &amp; Scheduled Jobs</h2>
             <p className="text-sm text-tv-muted mt-1">
-              Pantau cron, update data mingguan, koneksi cache/database, error provider, dan hasil audit terakhir.
+              Monitor cron state, weekly sync, cache/database connectivity, provider errors, dan latest audit runs.
             </p>
           </div>
         </Link>
