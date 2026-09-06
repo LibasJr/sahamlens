@@ -263,12 +263,6 @@ export default function CalendarPage() {
             />
           </Card>
         )}
-        {coverage && coverage.ksei.status !== 'COMPLETE' && (
-          <div role="alert" className="mb-6 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 px-4 py-3 text-xs text-tv-text">
-            <strong>RUPS {coverage.ksei.status}</strong> — tanggal kosong bukan bukti tidak ada agenda. Sinkronisasi: {coverage.ksei.generatedAt ? new Date(coverage.ksei.generatedAt).toLocaleString('id-ID') : 'belum tersedia'}; ditolak: {coverage.ksei.documentsRejected}.
-          </div>
-        )}
-
         {/* Tabs - `custom-scrollbar` dilepas: tidak ada blok <style> yang
             mendefinisikannya di file ini, jadi selama ini inert. */}
         <div className="flex overflow-x-auto gap-2 mb-8 pb-2">
