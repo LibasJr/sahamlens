@@ -122,7 +122,7 @@ export async function getBrokerSummaryMonitor(input: {
   ticker?: string | null;
 } = {}): Promise<BrokerSummaryMonitor> {
   const [job, tableCheck] = await Promise.all([
-    getLastRun('broker-summary-scan'),
+    getLastRun('idx-flow-sync'),
     queryReadWithRetry<{ table_name: string | null }>(
       `SELECT to_regclass('public.broker_summary_daily')::text AS table_name`,
     ),
