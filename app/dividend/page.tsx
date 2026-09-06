@@ -129,7 +129,7 @@ export default function DividendPage() {
       }
     >
       <div className="space-y-4">
-        <div className="flex flex-col gap-3 rounded-xl border border-tv-border bg-tv-card p-4 sm:flex-row sm:items-end sm:justify-between">
+        <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="flex flex-col gap-3 border-tv-border p-4 sm:flex-row sm:items-end sm:justify-between">
           <div className="grid min-w-0 grid-cols-1 gap-3 sm:grid-cols-2">
             <Input
               label={isEn ? 'Initial Capital (IDR)' : 'Modal Awal (IDR)'}
@@ -149,7 +149,7 @@ export default function DividendPage() {
             />
           </div>
           <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="w-full sm:w-auto sm:min-w-[220px]" />
-        </div>
+        </Card>
         <MenuUsageGuide
           menuKey="dividend"
           whatItAnswers={isTickerMode ? 'Berapa arus kas dividen dari ticker yang dipilih?' : 'Berapa arus kas dividen dari portofolio berbasis universe?'}
