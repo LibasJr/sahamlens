@@ -4,21 +4,44 @@ import { parseOrThrow } from '../../../shared/validation/parse-or-throw';
 import { loginSchema, signupSchema, verifySchema, forgotPasswordSchema, resetPasswordSchema } from '../validator/auth.validator';
 import { login, signup, verifyAccount, type AuthSessionResult } from '../service/auth.service';
 import { requestPasswordReset, resetPassword } from '../service/password-reset.service';
-import type { HttpResult } from '../../../shared/types/http-result.types';
+import type { HttpResult, CookieToSet } from '../../../shared/types/http-result.types';
 import { getUserById } from '../repository/user.repository';
 import { recordAuthEvent } from '../repository/user.repository';
 import { getActiveUsers } from '../../../shared/auth/presence';
 import type { AuthRequestMeta } from '../../../shared/security/auth-request-meta';
 import { logger } from '../../../shared/logger/logger';
+import { signAdminToken, ADMIN_SESSION_MAX_AGE_SECONDS } from '../../../shared/auth/admin-token';
+import { getAdminSecretState } from '../repository/admin-secret.repository';
 
-function sessionCookies(result: AuthSessionResult) {
-  return [
+async function sessionCookies(result: AuthSessionResult): Promise<CookieToSet[]> {
+  const secure = process.env.NODE_ENV === 'production';
+  const cookies: CookieToSet[] = [
     {
       name: SESSION_COOKIE,
       value: result.token,
-      options: { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax' as const, path: '/', maxAge: result.maxAgeSec },
+      options: { httpOnly: true, secure, sameSite: 'lax' as const, path: '/', maxAge: result.maxAgeSec },
     },
   ];
+
+  if (result.role === 'admin') {
+    try {
+      const state = await getAdminSecretState();
+      const sessionVersion = state?.sessionVersion ?? 1;
+      cookies.push(
+        {
+          name: ADMIN_COOKIE,
+          value: await signAdminToken(sessionVersion),
+          options: { httpOnly: true, secure, sameSite: 'strict', path: '/', maxAge: ADMIN_SESSION_MAX_AGE_SECONDS },
+        },
+        { name: ADMIN_BADGE_COOKIE, value: 'true', options: { httpOnly: false, secure, sameSite: 'strict', path: '/', maxAge: ADMIN_SESSION_MAX_AGE_SECONDS } },
+        { name: ROLE_BADGE_COOKIE, value: 'admin', options: { httpOnly: false, secure, sameSite: 'strict', path: '/', maxAge: ADMIN_SESSION_MAX_AGE_SECONDS } },
+      );
+    } catch (e) {
+      logger.warn('Gagal membuat admin cookie saat login user admin', { error: String(e) });
+    }
+  }
+
+  return cookies;
 }
 
 async function recordAuthEventSafely(input: Parameters<typeof recordAuthEvent>[0]): Promise<void> {
@@ -37,7 +60,7 @@ export async function handleLogin(rawBody: unknown, requestMeta?: AuthRequestMet
   if (requestMeta) {
     await recordAuthEventSafely({ userId: result.userId, email: result.email, eventType: 'login', requestMeta });
   }
-  return { status: 200, body: { success: true, role: result.role }, cookiesToSet: sessionCookies(result) };
+  return { status: 200, body: { success: true, role: result.role }, cookiesToSet: await sessionCookies(result) };
 }
 
 /** Login khusus klien desktop; token disimpan oleh Tauri dalam Stronghold. */
@@ -47,7 +70,11 @@ export async function handleDesktopLogin(rawBody: unknown, requestMeta?: AuthReq
   if (requestMeta) {
     await recordAuthEventSafely({ userId: result.userId, email: result.email, eventType: 'login', requestMeta });
   }
-  return { status: 200, body: { success: true, token: result.token, role: result.role, email: result.email } };
+  return {
+    status: 200,
+    body: { success: true, token: result.token, role: result.role, email: result.email },
+    cookiesToSet: await sessionCookies(result),
+  };
 }
 
 export async function handleSignup(rawBody: unknown, requestMeta?: AuthRequestMeta): Promise<HttpResult> {
@@ -65,7 +92,7 @@ export async function handleVerify(rawBody: unknown, requestMeta?: AuthRequestMe
   if (requestMeta) {
     await recordAuthEventSafely({ userId: result.userId, email: result.email, eventType: 'verify', requestMeta });
   }
-  return { status: 200, body: { success: true, message: 'Verifikasi berhasil' }, cookiesToSet: sessionCookies(result) };
+  return { status: 200, body: { success: true, message: 'Verifikasi berhasil' }, cookiesToSet: await sessionCookies(result) };
 }
 
 export async function handleForgotPassword(rawBody: unknown): Promise<HttpResult> {
