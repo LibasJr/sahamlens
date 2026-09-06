@@ -1,30 +1,15 @@
 // Barrel modules/broker-flow.
 //
-// ============================================================================
-// FITUR NONAKTIF - SENGAJA DIPERTAHANKAN, JANGAN DIHAPUS.
+// Broker Summary aktif melalui pipeline resmi IDX `idx-flow-sync`.
+// Endpoint TradingSummary/GetBrokerSummary menyediakan agregat EOD seluruh pasar
+// per kode broker (value, volume, frequency), tanpa ticker dan tanpa sisi buy/sell.
+// Karena itu data IDX disimpan terpisah di broker_market_daily dan tidak boleh
+// dipaksakan masuk ke skema broker_summary_daily per-emiten.
 //
-// Disabled because ingestion currently requires manual source upload.
-// Retained for future automated/legal data source.
-//
-// Dinonaktifkan 2026-08-14: ingestion menuntut upload berkas sumber MANUAL per
-// emiten, yang tidak scalable untuk ratusan ticker. Timer systemd
-// broker-summary-scan di-disable (bukan dihapus) - lihat catatan entrinya di
-// config/scheduled-jobs.json.
-//
-// YANG TETAP UTUH DAN TIDAK BOLEH DIHAPUS: seluruh kode di modul ini, skema
-// database broker summary, dan SELURUH DATA HISTORISNYA. Tidak ada migrasi
-// destruktif yang boleh dibuat untuknya.
-//
-// Fitur ini menunggu sumber broker summary yang legal, stabil, dan dapat
-// diotomasi. Begitu tersedia, ia dapat diaktifkan kembali tanpa kehilangan
-// apa pun.
-//
-// CATATAN PENTING: modules/ownership-flow BUKAN pengganti modul ini. Keduanya
-// mengukur besaran yang BERBEDA - transaksi per kode broker (di sini) vs
-// komposisi kepemilikan (di sana) - dan yang satu tidak dapat disimpulkan dari
-// yang lain. Lihat docs/ownership-flow/broker-vs-ownership.md dan
-// docs/ownership-flow/broker-summary-status.md.
-// ============================================================================
+// Integrasi Index Alpha per-emiten tetap dipertahankan hanya sebagai kode legacy;
+// ia bukan lagi provider aktif maupun prasyarat Broker Summary produksi.
+// Ownership Flow juga tetap merupakan besaran berbeda: komposisi kepemilikan,
+// bukan transaksi per broker.
 
 export {
   importBrokerSummaryCsv,
