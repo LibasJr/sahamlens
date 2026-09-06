@@ -1,23 +1,28 @@
-# Status Broker Summary — FAIL-CLOSED SETELAH INSIDEN ZERO DUMMY
+# Status Broker Summary — IDX OFFICIAL ACTIVE
 
-> Status repo per 2026-08-17. Status timer/runtime VPS harus diverifikasi langsung di server.
+> Status repo per 2026-09-06. Status timer/runtime VPS tetap harus diverifikasi langsung di server.
 
 ## Ringkasan
 
-Broker Summary **tidak boleh menganggap semua row di `broker_summary_daily` sebagai data nyata**.
-Source historis `IDX_EOD_REPORT` pernah dipakai oleh generator sintetis dan juga pernah dipakai
-sebagai label parser manual. Karena provenance label itu tercemar, row tersebut **diblok dari jalur
-publik** sampai audit database selesai.
+Broker Summary resmi IDX aktif melalui job `idx-flow-sync`. Endpoint
+`TradingSummary/GetBrokerSummary` menghasilkan agregat EOD seluruh pasar per kode broker:
+`Value`, `Volume`, dan `Frequency`. Data disimpan ke `broker_market_daily` dengan provenance
+`IDX_OFFICIAL_API` dan disajikan melalui `/admin/broker-eod`.
+
+Endpoint resmi tersebut tidak menyediakan ticker maupun pemisahan buy/sell. Karena itu datanya
+tidak boleh dipaksakan ke `broker_summary_daily`, tidak dapat menghasilkan net buy per emiten,
+dan tidak menggantikan Ownership Flow.
 
 | Aspek | Status |
 |---|---|
-| Generator sintetis lama | **dihapus dari working tree** |
-| `IDX_EOD_REPORT` | **UNVERIFIED / tidak boleh dibaca publik** |
-| Source publik yang diizinkan | `INDEX_ALPHA_API` saja |
-| Status source publik | **KNOWN_EXTERNAL_PROVIDER_UNRECONCILED** |
-| `hasRealBrokerData` | tidak boleh bernilai true hanya karena row ada |
-| Database historis | **belum boleh dianggap bersih tanpa forensic audit** |
-| Cron/timer | repo memiliki konfigurasi; **runtime VPS perlu diverifikasi** |
+| Pipeline aktif | `idx-flow-sync` |
+| Sumber aktif | `IDX_OFFICIAL_API` |
+| Storage aktif | `broker_market_daily` |
+| Cakupan | Agregat seluruh pasar per kode broker |
+| Field resmi | `Value`, `Volume`, `Frequency` |
+| Panel admin | `/admin/broker-eod` |
+| Index Alpha | Legacy/nonaktif; bukan prasyarat produksi |
+| `broker_summary_daily` historis | Tetap fail-closed; belum boleh dianggap bersih tanpa forensic audit |
 
 ## Aturan Zero Dummy
 
