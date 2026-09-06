@@ -192,8 +192,11 @@ def main() -> None:
         parser.error("--workers harus 1..12")
     result = sync(sorted(set(args.years)), args.out, args.workers)
     print(json.dumps({"status": result["status"], **result["coverage"], "output": str(args.out)}))
-    if result["status"] != "COMPLETE":
-        raise SystemExit(2)
+    # PARTIAL karena dokumen individual ditolak tetap menghasilkan artifact valid
+    # berisi seluruh event yang lolos verifikasi primer. Systemd tidak boleh menandai
+    # sinkronisasi gagal hanya karena parser fail-closed terhadap sebagian dokumen;
+    # status PARTIAL dan jumlah rejection tetap disimpan untuk observability.
+    # Kegagalan periode tanpa snapshot valid tetap raise lebih awal di sync().
 
 
 if __name__ == "__main__":
