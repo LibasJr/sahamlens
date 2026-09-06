@@ -1,0 +1,40 @@
+# /etc/systemd/system/sahamlens-cron-alert@.service
+#
+# Notifikasi Telegram kalau sebuah unit systemd sahamlens masuk status "failed".
+# Dipasang sebagai OnFailure= generik di setiap unit .service sahamlens (lihat
+# deploy/cron-failure-alert/install.sh) sehingga kegagalan tiap cron job terlihat
+# tanpa harus cek journal manual satu per satu.
+#
+# KENAPA INI ADA. Sebelum unit ini, satu-satunya sinyal kegagalan cron individual
+# adalah exit-code non-zero di journal - tidak ada push apa pun. uptime-monitor.timer
+# hanya memeriksa kesehatan aplikasi utama (proses hidup, DB/Redis, BUILD_ID,
+# deployed-sha, restart loop), BUKAN tiap cron job satu-satu. Kalau mis. idx-financial-sync
+# gagal terus-menerus, tidak ada yang tahu sampai ada yang membuka data secara manual.
+#
+# CARA KERJA. systemd memasukkan %n (nama unit pemicu, sudah ter-escape) ke instance
+# name unit ini via OnFailure=sahamlens-cron-alert@%n.service. Service ini memakai
+# %i (RAW, BUKAN %I) sebagai argumen skrip - %I mendekode dash '-' sebagai path
+# separator (systemd-escape ambigu antara '-' harfiah dan '/'), sehingga nama unit
+# seperti "sahamlens-idx-financial-sync.service" akan tampil rusak menjadi
+# "sahamlens/idx/financial/sync.service". Dikonfirmasi lewat tes end-to-end nyata
+# di VPS (2026-09-06) sebelum baris ini diperbaiki. %n sendiri (nama unit alert
+# ini sendiri, bukan nama unit yang gagal) tidak dipakai untuk ditampilkan.
+#
+# Body pesan menyertakan potongan `journalctl` unit yang gagal supaya tidak perlu
+# login VPS hanya untuk lihat baris pertama error.
+#
+# PRASYARAT: TELEGRAM_BOT_TOKEN & TELEGRAM_CHAT_ID terisi di
+# /opt/sahamlens/app/.env.production (sudah terisi, dipakai lib/telegram.ts untuk
+# notifikasi pembayaran). Skrip ini baca env yang sama - tidak menduplikasi kredensial.
+#
+# Unit ini sendiri TIDAK boleh punya OnFailure= yang menunjuk balik ke dirinya -
+# kalau pengiriman Telegram gagal, itu cuma masuk journal, tidak memicu loop.
+
+[Unit]
+Description=SahamLens - kirim notifikasi Telegram untuk kegagalan unit %I
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+ExecStart=/opt/sahamlens/scripts/cron-failure-alert.sh "%i"
