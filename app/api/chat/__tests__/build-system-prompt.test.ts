@@ -34,12 +34,13 @@ describe('buildSystemPrompt', () => {
     expect(prompt).toContain('JANGAN bahas IHSG atau saham lain kecuali pengguna memang menanyakannya');
   });
 
-  it('MODEL_UNVALIDATED melarang LensAI mengubah sinyal BUY/SELL menjadi rekomendasi actionable', () => {
+  it('MODEL_UNVALIDATED tetap memakai basis data nyata tetapi mengizinkan arah riset tegas dengan transparansi', () => {
     const prompt = buildSystemPrompt('Konsensus: BUY', false, '', 'DGWG');
     expect(prompt).toContain('LensScore validated: TIDAK');
-    expect(prompt).toContain('Recommendation actionable: DINONAKTIFKAN');
-    expect(prompt).toContain('Sinyal model: BUY');
-    expect(prompt).toContain('BUKAN rekomendasi transaksi');
+    expect(prompt).toContain('CENDERUNG BELI / JUAL / TAHAN');
+    expect(prompt).toContain('Data Terverifikasi Server');
+    expect(prompt).toContain('DILARANG mengarang angka');
+    expect(prompt).toContain('bukan jaminan hasil dan bukan nasihat keuangan personal');
   });
 
   it('memuat panduan fungsi dan cara pakai menu, termasuk Backtest', () => {
