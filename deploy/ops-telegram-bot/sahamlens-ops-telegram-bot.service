@@ -1,0 +1,25 @@
+# Visual-only Telegram console for SahamLens operations.
+# Long-polling intentionally avoids publishing a public webhook endpoint.
+[Unit]
+Description=SahamLens visual Telegram operations console
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=lens
+Group=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+Environment=SAHAMLENS_APP_DIR=/opt/sahamlens/app
+Environment=SAHAMLENS_OPS_STATE_DIR=/var/lib/sahamlens/ops-telegram-bot
+ExecStart=/usr/bin/python3 /opt/sahamlens/scripts/ops-telegram-bot.py daemon
+Restart=always
+RestartSec=8
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/sahamlens/ops-telegram-bot
+
+[Install]
+WantedBy=multi-user.target
