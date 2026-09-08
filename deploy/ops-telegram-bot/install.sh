@@ -17,13 +17,6 @@ require_env() {
 require_env TELEGRAM_OPS_BOT_TOKEN
 require_env TELEGRAM_OPS_CHAT_ID
 
-# Pillow comes from the OS package, not npm: it is only used by this isolated
-# operations process to render PNG cards and never enters the application bundle.
-/usr/bin/python3 -c 'from PIL import Image' 2>/dev/null || {
-  echo 'ops-telegram-bot install: python3-pil belum terpasang (apt install python3-pil)' >&2
-  exit 2
-}
-
 sudo install -d -m 0755 /opt/sahamlens/scripts
 sudo install -m 0755 "$APP_ROOT/deploy/ops-telegram-bot/ops-telegram-bot.py" "$SCRIPT_DEST"
 sudo install -m 0644 "$APP_ROOT/deploy/ops-telegram-bot/$UNIT_NAME" "$UNIT_DEST"
