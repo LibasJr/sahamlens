@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "system": "SahamLens production admin recovery",
+  "repositoryRunbook": "docs/operations/ADMIN_RECOVERY.md",
+  "productionHost": "sahamlens-vps",
+  "custodians": [
+    {
+      "label": "Custodian A",
+      "contactReference": "company directory / incident roster",
+      "envelopeLocationReference": "physical secure storage reference"
+    },
+    {
+      "label": "Custodian B",
+      "contactReference": "company directory / incident roster",
+      "envelopeLocationReference": "physical secure storage reference"
+    }
+  ],
+  "escalationOwnerReference": "company directory / incident roster",
+  "lastReviewedAt": null,
+  "nextReviewDueAt": null,
+  "lastDrillAt": null,
+  "lastDrillTicketReference": null,
+  "notes": "NON-SECRET MANIFEST. Never enter passwords, API keys, JWTs, database URLs, secret-manager values, or backup credential material."
+}
