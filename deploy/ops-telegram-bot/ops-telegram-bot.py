@@ -140,28 +140,106 @@ def status_color(level: str) -> str:
     return {"OK": PALETTE["ok"], "WATCH": PALETTE["warn"], "DOWN": PALETTE["bad"], "CRITICAL": PALETTE["bad"]}.get(level, PALETTE["info"])
 
 
+def icon(draw: ImageDraw.ImageDraw, kind: str, box: tuple[int, int, int, int], color: str) -> None:
+    """Draw purpose-built line icons so cards stay visual on every Linux font stack."""
+    x1, y1, x2, y2 = box
+    w = max(3, (x2 - x1) // 13)
+    cx, cy = (x1 + x2) // 2, (y1 + y2) // 2
+    if kind == "app":
+        draw.rounded_rectangle((x1 + 8, y1 + 10, x2 - 8, y2 - 10), radius=10, outline=color, width=w)
+        for y in (y1 + 31, cy, y2 - 31):
+            draw.ellipse((x1 + 25, y - 4, x1 + 33, y + 4), fill=color)
+            draw.line((x1 + 48, y, x2 - 28, y), fill=color, width=w)
+    elif kind == "health":
+        points = [(x1 + 8, cy), (x1 + 27, cy), (x1 + 42, y2 - 26), (x1 + 62, y1 + 25), (x1 + 80, cy), (x2 - 8, cy)]
+        draw.line(points, fill=color, width=w, joint="curve")
+        draw.ellipse((x1 + 5, y1 + 5, x2 - 5, y2 - 5), outline=color, width=w)
+    elif kind == "storage":
+        draw.rounded_rectangle((x1 + 12, y1 + 15, x2 - 12, y2 - 15), radius=12, outline=color, width=w)
+        draw.arc((x1 + 25, y1 + 28, x2 - 25, y2 - 28), 215, 505, fill=color, width=w)
+        draw.line((cx, cy, cx + 20, cy - 22), fill=color, width=w)
+        draw.ellipse((cx - 5, cy - 5, cx + 5, cy + 5), fill=color)
+    elif kind == "jobs":
+        for i, height in enumerate((32, 56, 80)):
+            left = x1 + 18 + i * 31
+            draw.rounded_rectangle((left, y2 - 15 - height, left + 20, y2 - 15), radius=5, fill=color)
+        draw.line((x1 + 10, y2 - 12, x2 - 10, y2 - 12), fill=color, width=w)
+    else:  # alert
+        draw.polygon([(cx, y1 + 8), (x2 - 8, y2 - 10), (x1 + 8, y2 - 10)], outline=color, width=w)
+        draw.line((cx, y1 + 34, cx, cy + 12), fill=color, width=w)
+        draw.ellipse((cx - 4, y2 - 35, cx + 4, y2 - 27), fill=color)
+
+
+def metric_kind(label: str) -> str:
+    key = label.lower()
+    if "application" in key: return "app"
+    if "api" in key or "data" in key: return "health"
+    if "storage" in key: return "storage"
+    if "job" in key or "scheduler" in key: return "jobs"
+    return "alert"
+
+
+def metric_visual(value: str, label: str) -> tuple[int, str]:
+    # Visual meter is intentionally only an indicator, never a fabricated metric.
+    # Real utilization is extracted only from the storage string that the monitor owns.
+    if "storage" in label.lower() and "% used" in value:
+        try:
+            return max(0, min(100, int(value.split("%", 1)[0].split()[-1]))), "USED"
+        except ValueError:
+            pass
+    return (100 if "active" in value or "ok" in value.lower() or "no failed" in value.lower() else 42), "HEALTH"
+
+
+def draw_metric_tile(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], label: str, value: str, row_level: str) -> None:
+    x1, y1, x2, y2 = box
+    color = status_color(row_level)
+    draw.rounded_rectangle(box, radius=28, fill="#0B1728", outline=PALETTE["line"], width=2)
+    draw.rounded_rectangle((x1 + 28, y1 + 28, x1 + 154, y1 + 154), radius=26, fill="#142842")
+    icon(draw, metric_kind(label), (x1 + 45, y1 + 45, x1 + 137, y1 + 137), color)
+    draw.text((x1 + 182, y1 + 36), label.upper(), font=font(20, True), fill=PALETTE["muted"])
+    draw.text((x1 + 182, y1 + 74), row_level, font=font(31, True), fill=color)
+    draw.ellipse((x2 - 65, y1 + 43, x2 - 43, y1 + 65), fill=color)
+    percent, meter_label = metric_visual(value, label)
+    # One fixed text column keeps value, meter, and labels clear of the icon panel.
+    text_left = x1 + 182
+    meter_left, meter_right, meter_y = text_left, x2 - 32, y2 - 48
+    draw.text((text_left, y2 - 91), value[:52], font=font(20, True), fill=PALETTE["text"])
+    draw.text((x2 - 110, y2 - 92), meter_label, font=font(14, True), fill=PALETTE["muted"])
+    draw.rounded_rectangle((meter_left, meter_y, meter_right, meter_y + 14), radius=7, fill="#223852")
+    draw.rounded_rectangle((meter_left, meter_y, meter_left + int((meter_right - meter_left) * percent / 100), meter_y + 14), radius=7, fill=color)
+
+
 def render_card(title: str, level: str, rows: list[tuple[str, str, str]], detail: str = "") -> Path:
     width, height = 1440, 900
     image = Image.new("RGB", (width, height), PALETTE["bg"])
     draw = ImageDraw.Draw(image)
-    draw.rounded_rectangle((42, 36, width - 42, height - 36), radius=28, fill=PALETTE["panel"], outline=PALETTE["line"], width=2)
     color = status_color(level)
-    draw.ellipse((82, 82, 110, 110), fill=color)
-    draw.text((130, 70), "SAHAMLENS  /  OPS CONSOLE", font=font(26, True), fill=PALETTE["muted"])
-    draw.text((82, 140), title, font=font(48, True), fill=PALETTE["text"])
-    draw.rounded_rectangle((width - 270, 82, width - 82, 132), radius=24, fill=color)
-    draw.text((width - 238, 94), level, font=font(22, True), fill=PALETTE["bg"])
-    y = 230
-    for label, value, row_level in rows:
-        draw.rounded_rectangle((82, y, width - 82, y + 116), radius=18, fill="#0B1728", outline=PALETTE["line"], width=1)
-        draw.ellipse((110, y + 45, 132, y + 67), fill=status_color(row_level))
-        draw.text((158, y + 25), label.upper(), font=font(19, True), fill=PALETTE["muted"])
-        draw.text((158, y + 57), value[:100], font=font(28, True), fill=PALETTE["text"])
-        y += 138
+    draw.rounded_rectangle((34, 30, width - 34, height - 30), radius=36, fill=PALETTE["panel"], outline=PALETTE["line"], width=2)
+    # Brand mark: shield-style hexagon, not another decorative status dot.
+    draw.polygon([(81, 78), (115, 56), (149, 78), (149, 120), (115, 143), (81, 120)], fill="#173450", outline=color)
+    draw.line((99, 101, 110, 113, 133, 86), fill=color, width=6)
+    draw.text((178, 65), "SAHAMLENS", font=font(25, True), fill=PALETTE["text"])
+    draw.text((178, 100), "VISUAL OPS CONSOLE", font=font(18, True), fill=PALETTE["muted"])
+    draw.rounded_rectangle((width - 269, 64, width - 78, 132), radius=32, fill=color)
+    draw.ellipse((width - 244, 87, width - 220, 111), fill=PALETTE["bg"])
+    draw.text((width - 205, 82), level, font=font(25, True), fill=PALETTE["bg"])
+    draw.text((82, 183), title, font=font(46, True), fill=PALETTE["text"])
+    draw.text((84, 240), "LIVE INFRASTRUCTURE SNAPSHOT", font=font(18, True), fill=PALETTE["muted"])
+
+    # Four visual tiles become a two-column control-room dashboard. Single alerts
+    # intentionally occupy one oversized tile instead of a text wall.
+    if len(rows) == 1:
+        draw_metric_tile(draw, (82, 300, width - 82, 620), *rows[0])
+    else:
+        positions = [(82, 300, 698, 527), (742, 300, 1358, 527), (82, 560, 698, 787), (742, 560, 1358, 787)]
+        for row, box in zip(rows[:4], positions):
+            draw_metric_tile(draw, box, *row)
     if detail:
-        draw.text((86, min(y + 18, 765)), detail[:130], font=font(20), fill=PALETTE["muted"])
-    now = datetime.now().astimezone().strftime("Updated %d %b %Y · %H:%M:%S %Z")
-    draw.text((82, 825), now, font=font(18), fill=PALETTE["muted"])
+        draw.rounded_rectangle((82, 795, width - 82, 839), radius=16, fill="#0B1728")
+        icon(draw, "alert", (98, 802, 130, 834), color)
+        draw.text((148, 807), detail[:112], font=font(17), fill=PALETTE["muted"])
+    now = datetime.now().astimezone().strftime("LIVE · %d %b %Y · %H:%M:%S %Z")
+    draw.text((82, 848), now, font=font(15, True), fill=PALETTE["muted"])
     path = Path(tempfile.mkstemp(prefix="sahamlens-ops-", suffix=".png")[1])
     image.save(path, "PNG", optimize=True)
     return path
