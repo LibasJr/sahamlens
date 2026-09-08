@@ -9,8 +9,10 @@ MIN_FREE_GB="${SAHAMLENS_DISK_MONITOR_MIN_FREE_GB:-20}"
 MAX_USED_PCT="${SAHAMLENS_DISK_MONITOR_MAX_USED_PCT:-85}"
 STATE_DIR="${SAHAMLENS_DISK_MONITOR_STATE_DIR:-/var/lib/sahamlens/disk-monitor}"
 STATE_FILE="$STATE_DIR/state"
-BOT_TOKEN="${TELEGRAM_BOT_TOKEN:-}"
-CHAT_ID="${TELEGRAM_CHAT_ID:-}"
+BOT_TOKEN="${TELEGRAM_OPS_BOT_TOKEN:-}"
+CHAT_ID="${TELEGRAM_OPS_CHAT_ID:-}"
+OPS_RENDERER="${SAHAMLENS_OPS_RENDERER:-/opt/sahamlens/scripts/ops-telegram-bot.py}"
+PYTHON_BIN="${SAHAMLENS_OPS_PYTHON:-/usr/bin/python3}"
 
 is_uint() { [[ "$1" =~ ^[0-9]+$ ]]; }
 for value in "$MIN_FREE_GB" "$MAX_USED_PCT"; do
@@ -58,40 +60,26 @@ if [[ "$level" == "OK" && -z "$previous" ]]; then
 fi
 
 if [[ -z "$BOT_TOKEN" || -z "$CHAT_ID" ]]; then
-  echo "disk-monitor: TELEGRAM_BOT_TOKEN/TELEGRAM_CHAT_ID kosong; status berubah $previous -> $level" >&2
+  echo "disk-monitor: TELEGRAM_OPS_BOT_TOKEN/TELEGRAM_OPS_CHAT_ID kosong; status berubah $previous -> $level" >&2
   exit 1
 fi
 
 if [[ "$level" == "OK" ]]; then
-  icon="🟢"
-  heading="SahamLens Storage Pulih"
-  detail="Kapasitas kembali dalam ambang aman."
+  card_level="OK"
+  heading="Storage recovered"
+  detail="${mountpoint}: ${used_pct}% used · ${free_gb} GB free · capacity returned to the safe threshold"
 else
-  icon="⚠️"
-  heading="SahamLens Storage ${level}"
-  detail="Penyebab: ${reason}. Tidak ada cleanup otomatis yang dilakukan."
+  card_level="$level"
+  heading="Storage ${level}"
+  detail="${mountpoint}: ${used_pct}% used · ${free_gb} GB free · ${reason} · no automatic cleanup"
 fi
 
-timestamp="$(date '+%Y-%m-%d %H:%M:%S %Z')"
-message="${icon} <b>${heading}</b>
-Mount: <code>${mountpoint}</code>
-Filesystem: <code>${filesystem}</code>
-Terpakai: <b>${used_pct}%</b>
-Sisa: <b>${free_gb} GB</b>
-Ambang: sisa &lt; ${MIN_FREE_GB} GB atau terpakai &gt;= ${MAX_USED_PCT}%
-${detail}
-Waktu: ${timestamp}"
-
-if ! curl -s --max-time 15 --fail-with-body \
-  "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
-  --data-urlencode "chat_id=${CHAT_ID}" \
-  --data-urlencode "parse_mode=HTML" \
-  --data-urlencode "text=${message}" >/dev/null; then
-  echo "disk-monitor: gagal mengirim Telegram untuk transisi $previous -> $level" >&2
+if ! "$PYTHON_BIN" "$OPS_RENDERER" alert "$card_level" "$heading" "$detail"; then
+  echo "disk-monitor: gagal mengirim kartu visual untuk transisi $previous -> $level" >&2
   exit 1
 fi
 
 install -d -m 0750 "$STATE_DIR"
 printf '%s\n' "$level" > "$STATE_FILE"
 chmod 0640 "$STATE_FILE"
-echo "disk-monitor: Telegram terkirim untuk transisi $previous -> $level ($mountpoint ${used_pct}% / ${free_gb}GB free)"
+echo "disk-monitor: kartu visual terkirim untuk transisi $previous -> $level ($mountpoint ${used_pct}% / ${free_gb}GB free)"
