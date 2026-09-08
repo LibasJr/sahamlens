@@ -52,9 +52,12 @@ export async function decisionBlock(ticker: string): Promise<string> {
   if (!analysis.decision?.advisory) {
     lines.push(
       `- Alasan: ${analysis.decision?.explanation ?? presentation.explanation ?? 'keputusan advisory dinonaktifkan'}`,
-      '- WAJIB: sampaikan kategori di atas sebagai SINYAL MODEL, bukan ajakan beli/jual.',
-      '  Jangan menerjemahkannya jadi NETRAL/HOLD, dan jangan bilang sahamnya "tidak direkomendasikan"',
-      '  seolah emitennya yang gagal - yang belum lolos adalah gerbang kelayakan/validasi model.',
+      '- Kami boleh menyimpulkan sikap tegas (CENDERUNG BELI/JUAL/TAHAN) dari data di bawah,',
+      '  dengan alasan berbasis data dan transparansi bahwa ini pandangan riset indikator,',
+      '  bukan model backtest yang terkalibrasi - bukan jaminan hasil dan bukan nasihat personal.',
+      '- Jangan memetakan keadaan ini menjadi NETRAL/HOLD tanpa dasar, dan jangan bilang sahamnya',
+      '  "tidak direkomendasikan" seolah emitennya yang gagal - yang belum lolos adalah gerbang',
+      '  validasi model, bukan kualitas emiten secara otomatis.',
     );
   } else {
     lines.push(`- Aksi model: ${analysis.decision.action ?? 'tidak tersedia'}`);

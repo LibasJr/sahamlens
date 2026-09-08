@@ -17,7 +17,7 @@ const STATUS: LensScoreValidationStatus = {
   validated: false,
   reasonCode: 'MODEL_UNVALIDATED',
   message:
-    'LensScore belum memiliki validasi backtest point-in-time yang dapat diaudit. Skor ditampilkan sebagai alat penyaring data, bukan rekomendasi beli/jual.',
+    'LensScore belum memiliki validasi backtest point-in-time yang dapat diaudit, sehingga LensAI tidak boleh menyajikannya sebagai model yang terbukti meramal hasil. LensScore tetap boleh dipakai sebagai dasar derivasi arah riset (CENDERUNG BELI/JUAL/TAHAN) yang berasal dari data nyata terverifikasi, dengan penjelasan alasan, transparansi status validasi, dan penutup DYOR.',
 };
 
 export function getLensScoreValidationStatus(): LensScoreValidationStatus {
