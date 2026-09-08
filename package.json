@@ -36,6 +36,7 @@
     "db:migrate": "node scripts/migrate-database.mjs --confirm",
     "db:migrate:check": "node scripts/migrate-database.mjs",
     "audit:integrity": "node scripts/audit-production-integrity.mjs",
+    "audit:admin-recovery": "node scripts/audit-admin-recovery.mjs",
     "privacy:cleanup": "node scripts/cleanup-privacy-retention.mjs",
     "import:macro-assumptions": "node scripts/import-macro-assumptions.mjs",
     "import:bank-fundamentals": "node scripts/import-bank-fundamentals.mjs",
