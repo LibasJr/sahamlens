@@ -70,6 +70,12 @@ Aturan:
 - Route cron baru harus didaftarkan ke jadwal yang benar dan dicatat di manifest terkait.
 - Jalankan `npm run audit:cron` setelah perubahan jadwal/route cron.
 
+## Admin recovery
+
+- `docs/operations/ADMIN_RECOVERY.md` adalah runbook resmi untuk kehilangan akses atau dugaan kebocoran credential admin.
+- Recovery memakai dual custody offline dan manifest non-secret di `/etc/sahamlens/admin-recovery/manifest.json`; tidak ada password/JWT/URL database yang boleh disimpan di repository atau manifest.
+- Jalankan `npm run audit:admin-recovery` pada drill triwulanan dan setelah rotasi credential. Audit memeriksa break-glass nonaktif, integritas credential database, audit trail, dan manifest jika sudah dipasang.
+
 ## Migration database
 
 Skema hanya boleh berubah lewat `database/migrations/`.
