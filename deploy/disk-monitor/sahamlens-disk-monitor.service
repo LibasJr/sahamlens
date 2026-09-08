@@ -1,0 +1,15 @@
+[Unit]
+Description=SahamLens disk-capacity monitor
+Wants=network-online.target
+After=network-online.target
+OnFailure=sahamlens-cron-alert@%n.service
+
+[Service]
+Type=oneshot
+User=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+Environment=SAHAMLENS_DISK_MONITOR_PATH=/
+Environment=SAHAMLENS_DISK_MONITOR_MIN_FREE_GB=20
+Environment=SAHAMLENS_DISK_MONITOR_MAX_USED_PCT=85
+Environment=SAHAMLENS_DISK_MONITOR_STATE_DIR=/var/lib/sahamlens/disk-monitor
+ExecStart=/opt/sahamlens/scripts/disk-monitor.sh

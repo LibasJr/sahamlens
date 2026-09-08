@@ -1,0 +1,11 @@
+[Unit]
+Description=Run SahamLens disk-capacity monitor every 6 hours
+
+[Timer]
+OnCalendar=*-*-* 00,06,12,18:00:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=3m
+Unit=sahamlens-disk-monitor.service
+
+[Install]
+WantedBy=timers.target

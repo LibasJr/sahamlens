@@ -70,6 +70,12 @@ Aturan:
 - Route cron baru harus didaftarkan ke jadwal yang benar dan dicatat di manifest terkait.
 - Jalankan `npm run audit:cron` setelah perubahan jadwal/route cron.
 
+## Monitor kapasitas storage
+
+- `deploy/disk-monitor/` memeriksa root filesystem tiap 6 jam dan mengirim Telegram ketika ruang bebas `<20 GB` atau penggunaan `>=85%`.
+- Monitor tidak menjalankan cleanup, resize, atau restart. Ia hanya mengirim alert pada perubahan status dan satu pesan saat pulih.
+- Setelah deploy artefak baru, pasang atau perbarui unit dengan `bash deploy/disk-monitor/install.sh`, lalu verifikasi timer dan journal sesuai README-nya.
+
 ## Admin recovery
 
 - `docs/operations/ADMIN_RECOVERY.md` adalah runbook resmi untuk kehilangan akses atau dugaan kebocoran credential admin.
