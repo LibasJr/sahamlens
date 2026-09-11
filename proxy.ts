@@ -31,10 +31,13 @@ const RATE_LIMIT_CONFIG = {
 
 // Auth endpoints need a much tighter pre-auth limit. This branch runs BEFORE
 // Pro/admin bypass logic, so a stale/forged entitlement cannot disable brute-force protection.
-const LOGIN_RATE_LIMIT_CONFIG = { windowMs: 15 * 60_000, maxPerWindow: 10, blockMs: 15 * 60_000 };
+const LOGIN_RATE_LIMIT_CONFIG = { windowMs: 15 * 60_000, maxPerWindow: 5, blockMs: 15 * 60_000 };
+const LOGIN_IP_BURST_CONFIG = { windowMs: 30_000, maxPerWindow: 5, blockMs: 60_000 };
+const LOGIN_IP_GLOBAL_CONFIG = { windowMs: 15 * 60_000, maxPerWindow: 20, blockMs: 15 * 60_000 };
 const OTP_EMAIL_RATE_LIMIT_CONFIG = { windowMs: 60 * 60_000, maxPerWindow: 3, blockMs: 60 * 60_000 };
 const OTP_IP_RATE_LIMIT_CONFIG = { windowMs: 60 * 60_000, maxPerWindow: 10, blockMs: 60 * 60_000 };
 const OTP_COOLDOWN_CONFIG = { windowMs: 60_000, maxPerWindow: 1, blockMs: 60_000 };
+const OTP_IP_COOLDOWN_CONFIG = { windowMs: 20_000, maxPerWindow: 1, blockMs: 30_000 };
 const ADMIN_AUTH_RATE_LIMIT_CONFIG = { windowMs: 15 * 60_000, maxPerWindow: 5, blockMs: 60 * 60_000 };
 
 async function authEmailKey(req: NextRequest): Promise<string> {
@@ -346,6 +349,7 @@ export async function proxy(req: NextRequest) {
 
   const sensitiveAuthPaths = new Set([
     '/api/auth/login',
+    '/api/auth/desktop/login',
     '/api/auth/signup',
     '/api/auth/verify',
     '/api/auth/forgot-password',
@@ -357,15 +361,36 @@ export async function proxy(req: NextRequest) {
     const now = Date.now();
     const options = { degradedPolicy: process.env.NODE_ENV === 'production' ? 'deny' as const : 'memory' as const };
     const emailKey = pathname === '/admin-login/key' ? null : await authEmailKey(req);
-    const limits = pathname === '/api/auth/login'
-      ? [[`auth:login:${ip}:${emailKey}`, LOGIN_RATE_LIMIT_CONFIG] as const]
-      : pathname === '/api/auth/forgot-password' || pathname === '/api/auth/signup'
+    const isLogin = pathname === '/api/auth/login' || pathname === '/api/auth/desktop/login';
+    const isOtpRequest = pathname === '/api/auth/forgot-password' || pathname === '/api/auth/signup';
+    const isVerifyOrReset = pathname === '/api/auth/verify' || pathname === '/api/auth/reset-password';
+    const isAdminKey = pathname === '/admin-login/key';
+
+    const limits = isLogin
+      ? [
+          [`auth:login:burst:${ip}`, LOGIN_IP_BURST_CONFIG] as const,
+          [`auth:login:${ip}:${emailKey}`, LOGIN_RATE_LIMIT_CONFIG] as const,
+          [`auth:login:ip:${ip}`, LOGIN_IP_GLOBAL_CONFIG] as const,
+        ]
+      : isOtpRequest
         ? [
             [`auth:otp:cooldown:${emailKey}`, OTP_COOLDOWN_CONFIG] as const,
+            [`auth:otp:ip:cooldown:${ip}`, OTP_IP_COOLDOWN_CONFIG] as const,
             [`auth:otp:email:${emailKey}`, OTP_EMAIL_RATE_LIMIT_CONFIG] as const,
             [`auth:otp:ip:${ip}`, OTP_IP_RATE_LIMIT_CONFIG] as const,
           ]
-        : [[`auth:${pathname}:${ip}`, pathname === '/admin-login/key' ? ADMIN_AUTH_RATE_LIMIT_CONFIG : LOGIN_RATE_LIMIT_CONFIG] as const];
+        : isVerifyOrReset
+          ? [
+              [`auth:verify:burst:${ip}`, LOGIN_IP_BURST_CONFIG] as const,
+              [`auth:verify:${ip}:${emailKey}`, LOGIN_RATE_LIMIT_CONFIG] as const,
+              [`auth:verify:ip:${ip}`, LOGIN_IP_GLOBAL_CONFIG] as const,
+            ]
+          : isAdminKey
+            ? [
+                [`auth:admin:burst:${ip}`, LOGIN_IP_BURST_CONFIG] as const,
+                [`auth:/admin-login/key:${ip}`, ADMIN_AUTH_RATE_LIMIT_CONFIG] as const,
+              ]
+            : [[`auth:${pathname}:${ip}`, LOGIN_RATE_LIMIT_CONFIG] as const];
     let authRate = { allowed: true } as Awaited<ReturnType<typeof checkRateLimitShared>>;
     for (const [key, rateConfig] of limits) {
       authRate = await checkRateLimitShared(key, now, rateConfig, options);
@@ -380,7 +405,7 @@ export async function proxy(req: NextRequest) {
     if (!authRate.allowed) {
       return NextResponse.json(
         { error: 'Terlalu banyak percobaan autentikasi. Coba lagi nanti.' },
-        { status: 429, headers: authRate.retryAfterSec ? { 'Retry-After': String(authRate.retryAfterSec) } : undefined },
+        { status: 429, headers: { 'Retry-After': String(authRate.retryAfterSec || 60) } },
       );
     }
 
