@@ -241,7 +241,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
                 )}
               </Badge>
             </div>
-            <p className="text-xs text-tv-muted leading-relaxed">{trend.detail}</p>
+            <p className="text-xs text-tv-muted leading-relaxed">{isEn ? `Price is evaluated against ${trend.benchmark} for the ${trend.label.toLowerCase()} trend.` : trend.detail}</p>
             <div className="pt-2 border-t border-tv-border lens-meta text-tv-muted/80 flex items-center justify-between">
               <span>Benchmark:</span>
               <span className="font-semibold text-tv-text">{trend.benchmark}</span>
@@ -301,7 +301,7 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
                     </Badge>
                   </div>
                 </div>
-                <p className="mt-2 text-xs text-tv-muted leading-relaxed">{p.description}</p>
+                <p className="mt-2 text-xs text-tv-muted leading-relaxed">{isEn ? `${p.name} was detected by the configured candlestick rules. Confirm it with trend and volume evidence.` : p.description}</p>
               </div>
             ))}
           </div>
@@ -369,8 +369,8 @@ export default function TechnicalAnalysisSuite({ symbol }: TechnicalAnalysisSuit
           </div>
 
           <p className="lens-meta text-tv-muted leading-relaxed bg-tv-bg/50 p-2.5 rounded-lg border border-tv-border">
-            <span className="font-semibold text-tv-text">Catatan Volatilitas: </span>
-            Nilai volatilitas 14-hari (ATR) dari sesi harian lengkap adalah <strong className="text-white font-number">{formatRp(tradingPlan.atr14)}</strong> per hari{dataQuality.atrAsOf ? ` (s.d. ${dataQuality.atrAsOf.slice(0, 10)})` : ''}. {t('technicalEnhance.planDisclaimer')}
+            <span className="font-semibold text-tv-text">{isEn ? 'Volatility note: ' : 'Catatan Volatilitas: '}</span>
+            {isEn ? 'The 14-day volatility value (ATR) from completed daily sessions is ' : 'Nilai volatilitas 14-hari (ATR) dari sesi harian lengkap adalah '}<strong className="text-white font-number">{formatRp(tradingPlan.atr14)}</strong>{isEn ? ' per day' : ' per hari'}{dataQuality.atrAsOf ? ` (${isEn ? 'through' : 's.d.'} ${dataQuality.atrAsOf.slice(0, 10)})` : ''}. {t('technicalEnhance.planDisclaimer')}
           </p>
         </Card>
       )}
