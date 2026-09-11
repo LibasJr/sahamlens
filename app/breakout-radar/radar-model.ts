@@ -70,22 +70,26 @@ export interface RadarSortableColumn {
   getValue: (item: AiPickItem) => string | number | null | undefined;
 }
 
-export const RADAR_SORTABLE_COLUMNS: RadarSortableColumn[] = [
-  { key: 'symbol', label: 'Saham', getValue: (i) => i.symbol },
-  { key: 'price', label: 'Harga', align: 'right', getValue: (i) => i.price },
-  { key: 'changePct', label: 'Chg', align: 'right', getValue: (i) => i.changePct },
-  // Audit skor 2026-08-05: label "Skor (0-140)" dulu jujur menggambarkan implementasi
-  // (skor 0-100 + bonus 0-40), tapi skala 0-140 itu sendiri yang salah - lihat catatan
-  // lengkap di ai-pick.service.ts. Bonus sudah dihapus; skor sekarang benar-benar 0-100.
-  { key: 'finalScore', label: 'Total', align: 'right', getValue: (i) => i.finalScore },
-  // Breakdown dari calculateScore(): Technical maks 40, Fundamental maks 30, Flow maks
-  // 30. Ditampilkan sebagai kolom terpisah agar skor tinggi tidak disalahbaca sebagai
-  // "semua aspek kuat"; bisa saja dominan teknikal sementara fundamental minim data.
-  { key: 'technicalScore', label: 'Teknikal', align: 'right', getValue: (i) => i.breakdown?.technical },
-  { key: 'fundamentalScore', label: 'Fundamental', align: 'right', getValue: (i) => i.breakdown?.fundamental },
-  { key: 'flowScore', label: 'Flow', align: 'right', getValue: (i) => i.breakdown?.flow },
-  { key: 'coverage', label: 'Coverage', align: 'right', getValue: (i) => i.coverage },
-];
+export function getRadarSortableColumns(isId = true): RadarSortableColumn[] {
+  return [
+    { key: 'symbol', label: isId ? 'Saham' : 'Stock', getValue: (i) => i.symbol },
+    { key: 'price', label: isId ? 'Harga' : 'Price', align: 'right', getValue: (i) => i.price },
+    { key: 'changePct', label: 'Chg', align: 'right', getValue: (i) => i.changePct },
+    // Audit skor 2026-08-05: label "Skor (0-140)" dulu jujur menggambarkan implementasi
+    // (skor 0-100 + bonus 0-40), tapi skala 0-140 itu sendiri yang salah - lihat catatan
+    // lengkap di ai-pick.service.ts. Bonus sudah dihapus; skor sekarang benar-benar 0-100.
+    { key: 'finalScore', label: 'Total', align: 'right', getValue: (i) => i.finalScore },
+    // Breakdown dari calculateScore(): Technical maks 40, Fundamental maks 30, Flow maks
+    // 30. Ditampilkan sebagai kolom terpisah agar skor tinggi tidak disalahbaca sebagai
+    // "semua aspek kuat"; bisa saja dominan teknikal sementara fundamental minim data.
+    { key: 'technicalScore', label: isId ? 'Teknikal' : 'Technical', align: 'right', getValue: (i) => i.breakdown?.technical },
+    { key: 'fundamentalScore', label: 'Fundamental', align: 'right', getValue: (i) => i.breakdown?.fundamental },
+    { key: 'flowScore', label: 'Flow', align: 'right', getValue: (i) => i.breakdown?.flow },
+    { key: 'coverage', label: 'Coverage', align: 'right', getValue: (i) => i.coverage },
+  ];
+}
+
+export const RADAR_SORTABLE_COLUMNS: RadarSortableColumn[] = getRadarSortableColumns(true);
 
 export function compareRadarValues(a: string | number | null | undefined, b: string | number | null | undefined, dir: 'asc' | 'desc'): number {
   if (a == null && b == null) return 0;

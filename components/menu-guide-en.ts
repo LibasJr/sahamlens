@@ -3,7 +3,16 @@ import type { MenuUsageGuideProps } from './MenuUsageGuide';
 type GuideCopy = Pick<MenuUsageGuideProps, 'whatItAnswers' | 'steps' | 'freeAccess' | 'afterSignup'>;
 
 export const MENU_GUIDE_EN: Record<string, GuideCopy> = {
-  'breakout-radar': { whatItAnswers: 'Which stocks have just broken through an important level today?', steps: ['Review the newest candidates first.', 'Check score, liquidity, freshness, and breakout evidence.', 'Treat the result as research, not an automatic buy signal.'] },
+  'breakout-radar': {
+    whatItAnswers: 'Which stocks have just broken through an important level today?',
+    steps: [
+      'The list below shows the latest session scan results, not a buy recommendation.',
+      'Inspect each candidate’s breakdown and rationale before acting.',
+      'Click a stock to open its comprehensive technical analysis.',
+    ],
+    freeAccess: 'top 3 candidates with full scores, component breakdowns, and rationale',
+    afterSignup: 'the complete session ranking across all qualifying candidates',
+  },
   backtest: { whatItAnswers: 'How would this strategy have performed historically?', steps: ['Set entry and exit rules and the date range.', 'Run the test and inspect the equity curve before summary metrics.', 'Check the trade count; a strong result from only a few trades is weak evidence.'] },
   fundamental: { whatItAnswers: 'Is the business behind this stock financially healthy?', steps: ['Enter a ticker to load its financial statements.', 'Review profitability and balance-sheet ratios first.', 'Compare quality with growth; rising profit and rising debt are not equivalent evidence.'] },
   macro: { whatItAnswers: 'Are Indonesian economic conditions supporting or pressuring equities?', steps: ['Review interest rates and inflation first.', 'Compare the latest direction with prior periods, not a single reading.', 'Use macro as context, not as a buy or sell signal.'] },

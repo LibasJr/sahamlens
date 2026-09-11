@@ -429,15 +429,19 @@ export default function HomeWorkspace() {
       <motion.section variants={fadeUp} initial="hidden" animate="show" className="space-y-4">
         <SectionHeader
           eyebrow="LensRadar"
-          title="Peluang Hari Ini"
+          title={isEn ? "Today's Opportunities" : "Peluang Hari Ini"}
           action={(
             <div className="flex items-center gap-2">
               {radarStale || !isMarketOpen() ? (
-                <Badge variant="neutral" dot>Data Sesi Terakhir</Badge>
+                <Badge variant="neutral" dot>{isEn ? 'Latest Session Data' : 'Data Sesi Terakhir'}</Badge>
               ) : (
-                <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Delayed</Badge>
+                <Badge variant="danger" dot title={isEn ? 'Yahoo Finance data, delayed ~15 min from real market conditions - not realtime' : 'Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime'}>
+                  {isEn ? 'Delayed' : 'Delayed'}
+                </Badge>
               )}
-              <Link href="/breakout-radar" className="lens-label text-tv-blue hover:underline">Lihat semua</Link>
+              <Link href="/breakout-radar" className="lens-label text-tv-blue hover:underline">
+                {isEn ? 'View all' : 'Lihat semua'}
+              </Link>
             </div>
           )}
         />
@@ -456,18 +460,39 @@ export default function HomeWorkspace() {
               <LoadingFact />
             </div>
           ) : picksLoginRequired ? (
-            <EmptyState title="Login untuk melihat peluang hari ini" description="Sinyal harian butuh akun." />
+            <EmptyState
+              title={isEn ? "Sign in to see today's opportunities" : "Login untuk melihat peluang hari ini"}
+              description={isEn ? 'Daily signals require an account.' : 'Sinyal harian butuh akun.'}
+            />
           ) : picksNeedPro ? (
-            <EmptyState title="Fitur Pro" description="Upgrade ke Pro untuk melihat peluang hari ini." />
+            <EmptyState
+              title={isEn ? 'Pro Feature' : 'Fitur Pro'}
+              description={isEn ? "Upgrade to Pro to access today's opportunities." : 'Upgrade ke Pro untuk melihat peluang hari ini.'}
+            />
           ) : radarError ? (
-            <EmptyState title="Data pasar sementara tidak tersedia." action={{ label: 'Coba lagi', onClick: fetchRadar }} />
+            <EmptyState
+              title={isEn ? 'Market data temporarily unavailable.' : 'Data pasar sementara tidak tersedia.'}
+              action={{ label: isEn ? 'Try again' : 'Coba lagi', onClick: fetchRadar }}
+            />
           ) : radarPreparing ? (
-            <EmptyState illustration="collecting" title="Pemindaian hari ini sedang disiapkan" description="Snapshot LensRadar belum tersedia. Ini bukan berarti tidak ada saham yang lolos; coba muat ulang beberapa saat lagi." action={{ label: 'Muat ulang', onClick: fetchRadar }} />
+            <EmptyState
+              illustration="collecting"
+              title={isEn ? "Today's scan is being prepared" : 'Pemindaian hari ini sedang disiapkan'}
+              description={isEn
+                ? 'LensRadar snapshot is not available yet. This does not mean no stocks qualified; please reload shortly.'
+                : 'Snapshot LensRadar belum tersedia. Ini bukan berarti tidak ada saham yang lolos; coba muat ulang beberapa saat lagi.'}
+              action={{ label: isEn ? 'Reload' : 'Muat ulang', onClick: fetchRadar }}
+            />
           ) : !radarItems[0] ? (
             /* Phase 0 (P0-1/P0-3): daftar bisa kosong karena saham berstatus 'DATA TIDAK
                CUKUP' dan yang tidak lolos gerbang kelayakan DIKELUARKAN, bukan diberi
                peringkat rendah. Deskripsinya menyebut sebabnya, bukan cuma "coba lagi". */
-            <EmptyState title="Belum ada peluang kuat hari ini" description="Tidak ada saham yang lolos ambang kualitas + kelengkapan data hari ini. Saham berdata tidak lengkap atau berlikuiditas sangat rendah sengaja tidak ditampilkan." />
+            <EmptyState
+              title={isEn ? 'No strong opportunities yet today' : 'Belum ada peluang kuat hari ini'}
+              description={isEn
+                ? 'No stocks met quality and data completeness thresholds today. Stocks with incomplete data or very low liquidity are excluded.'
+                : 'Tidak ada saham yang lolos ambang kualitas + kelengkapan data hari ini. Saham berdata tidak lengkap atau berlikuiditas sangat rendah sengaja tidak ditampilkan.'}
+            />
           ) : (() => {
             const hero = radarItems[0];
             return (
@@ -481,7 +506,7 @@ export default function HomeWorkspace() {
                         {hero.flagged ? (
                           <Badge variant="danger">{hero.flagReason}</Badge>
                         ) : (
-                          <Badge variant="success">Sinyal Kuat</Badge>
+                          <Badge variant="success">{isEn ? 'Strong Signal' : 'Sinyal Kuat'}</Badge>
                         )}
                       </div>
                       <div className={`font-number text-sm mt-1 ${hero.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
@@ -494,13 +519,13 @@ export default function HomeWorkspace() {
                       coverage (porsi bobot yang benar-benar punya data) tidak pernah tampil
                       meski sudah lama dihitung. */}
                   <div className="text-right">
-                    <div className="lens-meta text-tv-muted uppercase tracking-wide">Skor total</div>
+                    <div className="lens-meta text-tv-muted uppercase tracking-wide">{isEn ? 'Total score' : 'Skor total'}</div>
                     <div className="font-number text-3xl font-bold text-tv-blue">
                       <AnimatedNumber value={hero.finalScore} format={(n) => String(Math.round(n))} />
                       <span className="text-sm font-normal text-tv-muted">/100</span>
                     </div>
                     {typeof hero.coverage === 'number' && (
-                      <div className="lens-meta text-tv-muted">data {hero.coverage}%</div>
+                      <div className="lens-meta text-tv-muted">{isEn ? `${hero.coverage}% data` : `data ${hero.coverage}%`}</div>
                     )}
                   </div>
                 </div>
@@ -511,7 +536,7 @@ export default function HomeWorkspace() {
                 )}
                 <div className="flex gap-2 pt-1">
                   <Link href={`/technical/${hero.symbol}`} className="px-3 py-1.5 rounded-md bg-tv-blue hover:bg-tv-blueHover text-white text-xs font-semibold transition-colors">
-                    Buka Analisis
+                    {isEn ? 'Open Analysis' : 'Buka Analisis'}
                   </Link>
                   <Button variant="bare" size="none"
                     onClick={() => window.dispatchEvent(new Event('open-ai-chat'))}
@@ -527,7 +552,7 @@ export default function HomeWorkspace() {
                   <div className="mt-1 border-t border-tv-border pt-3">
                     <div className="mb-2.5 flex items-center gap-2">
                       <Radar className="h-3.5 w-3.5 text-tv-purple" />
-                      <h4 className="lens-meta font-bold uppercase tracking-wider text-tv-muted">Kandidat Berikutnya</h4>
+                      <h4 className="lens-meta font-bold uppercase tracking-wider text-tv-muted">{isEn ? 'Next Candidates' : 'Kandidat Berikutnya'}</h4>
                     </div>
                 <div className="space-y-2">
                   {radarItems.slice(1, 6).map((it) => (
@@ -549,7 +574,7 @@ export default function HomeWorkspace() {
                               user tidak bisa membedakan "tidak ada alasan" dari "alasannya
                               gagal dimuat". Sekarang kekosongannya dinamai. */}
                           <div className="lens-meta text-tv-muted truncate">
-                            {it.topReasons?.[0] ?? (it.signals?.[0] || 'Lolos ambang skor, rincian alasan belum tersedia')}
+                            {it.topReasons?.[0] ?? (it.signals?.[0] || (isEn ? 'Meets score threshold, detailed rationale pending' : 'Lolos ambang skor, rincian alasan belum tersedia'))}
                           </div>
                         </div>
                         {/* Bar skor: posisi relatif terhadap 100 langsung terbaca tanpa
