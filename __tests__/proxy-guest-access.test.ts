@@ -49,7 +49,9 @@ describe('proxy guest public access', () => {
     expect(checkRateLimitShared).not.toHaveBeenCalled();
   });
 
-  it('membatasi login 10 kali per 15 menit untuk kombinasi IP dan email', async () => {
+  it('membatasi login burst 5 kali per 30 detik per IP', async () => {
+    vi.mocked(checkRateLimitShared).mockResolvedValueOnce({ allowed: false, retryAfterSec: 60 });
+
     const res = await proxy(request('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email: 'User@Example.ID', password: 'wrong' }),
@@ -57,10 +59,76 @@ describe('proxy guest public access', () => {
     }));
 
     expect(res.status).toBe(429);
-    expect(checkRateLimitShared).toHaveBeenCalledWith(
+    expect(res.headers.get('Retry-After')).toBe('60');
+    expect(checkRateLimitShared).toHaveBeenNthCalledWith(
+      1,
+      'auth:login:burst:unknown',
+      expect.any(Number),
+      expect.objectContaining({ maxPerWindow: 5, windowMs: 30_000, blockMs: 60_000 }),
+      { degradedPolicy: 'memory' },
+    );
+  });
+
+  it('membatasi login 5 kali per 15 menit untuk kombinasi IP dan target akun jika lolos burst', async () => {
+    vi.mocked(checkRateLimitShared)
+      .mockResolvedValueOnce({ allowed: true })
+      .mockResolvedValueOnce({ allowed: false, retryAfterSec: 900 });
+
+    const res = await proxy(request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'User@Example.ID', password: 'wrong' }),
+      headers: { 'content-type': 'application/json' },
+    }));
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('900');
+    expect(checkRateLimitShared).toHaveBeenNthCalledWith(
+      2,
       expect.stringMatching(/^auth:login:unknown:[0-9a-f]{64}$/),
       expect.any(Number),
-      expect.objectContaining({ maxPerWindow: 10, windowMs: 15 * 60_000 }),
+      expect.objectContaining({ maxPerWindow: 5, windowMs: 15 * 60_000, blockMs: 15 * 60_000 }),
+      { degradedPolicy: 'memory' },
+    );
+  });
+
+  it('membatasi total login 20 kali per 15 menit per IP (anti-password-spraying)', async () => {
+    vi.mocked(checkRateLimitShared)
+      .mockResolvedValueOnce({ allowed: true })
+      .mockResolvedValueOnce({ allowed: true })
+      .mockResolvedValueOnce({ allowed: false, retryAfterSec: 900 });
+
+    const res = await proxy(request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'User@Example.ID', password: 'wrong' }),
+      headers: { 'content-type': 'application/json' },
+    }));
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('900');
+    expect(checkRateLimitShared).toHaveBeenNthCalledWith(
+      3,
+      'auth:login:ip:unknown',
+      expect.any(Number),
+      expect.objectContaining({ maxPerWindow: 20, windowMs: 15 * 60_000 }),
+      { degradedPolicy: 'memory' },
+    );
+  });
+
+  it('menerapkan guard auth rate limit yang sama untuk endpoint desktop login', async () => {
+    vi.mocked(checkRateLimitShared).mockResolvedValueOnce({ allowed: false, retryAfterSec: 60 });
+
+    const res = await proxy(request('/api/auth/desktop/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'User@Example.ID', password: 'wrong' }),
+      headers: { 'content-type': 'application/json' },
+    }));
+
+    expect(res.status).toBe(429);
+    expect(checkRateLimitShared).toHaveBeenNthCalledWith(
+      1,
+      'auth:login:burst:unknown',
+      expect.any(Number),
+      expect.objectContaining({ maxPerWindow: 5, windowMs: 30_000 }),
       { degradedPolicy: 'memory' },
     );
   });
@@ -82,15 +150,16 @@ describe('proxy guest public access', () => {
       error: 'Layanan autentikasi sementara tidak tersedia. Coba lagi nanti.',
     });
     expect(checkRateLimitShared).toHaveBeenCalledWith(
-      expect.stringMatching(/^auth:login:unknown:[0-9a-f]{64}$/),
+      'auth:login:burst:unknown',
       expect.any(Number),
-      expect.objectContaining({ maxPerWindow: 10, windowMs: 15 * 60_000 }),
+      expect.objectContaining({ maxPerWindow: 5, windowMs: 30_000 }),
       { degradedPolicy: 'deny' },
     );
   });
 
-  it('membatasi kirim OTP per email, per IP, dan cooldown server 60 detik', async () => {
+  it('membatasi kirim OTP dengan dual cooldown (email 60s & IP 20s) serta kuota email dan IP', async () => {
     vi.mocked(checkRateLimitShared)
+      .mockResolvedValueOnce({ allowed: true })
       .mockResolvedValueOnce({ allowed: true })
       .mockResolvedValueOnce({ allowed: true })
       .mockResolvedValueOnce({ allowed: false, retryAfterSec: 60 });
@@ -104,8 +173,22 @@ describe('proxy guest public access', () => {
     expect(res.status).toBe(429);
     expect(res.headers.get('Retry-After')).toBe('60');
     expect(checkRateLimitShared).toHaveBeenNthCalledWith(1, expect.stringMatching(/^auth:otp:cooldown:[0-9a-f]{64}$/), expect.any(Number), expect.objectContaining({ maxPerWindow: 1, windowMs: 60_000 }), { degradedPolicy: 'memory' });
-    expect(checkRateLimitShared).toHaveBeenNthCalledWith(2, expect.stringMatching(/^auth:otp:email:[0-9a-f]{64}$/), expect.any(Number), expect.objectContaining({ maxPerWindow: 3, windowMs: 60 * 60_000 }), { degradedPolicy: 'memory' });
-    expect(checkRateLimitShared).toHaveBeenNthCalledWith(3, 'auth:otp:ip:unknown', expect.any(Number), expect.objectContaining({ maxPerWindow: 10, windowMs: 60 * 60_000 }), { degradedPolicy: 'memory' });
+    expect(checkRateLimitShared).toHaveBeenNthCalledWith(2, 'auth:otp:ip:cooldown:unknown', expect.any(Number), expect.objectContaining({ maxPerWindow: 1, windowMs: 20_000, blockMs: 30_000 }), { degradedPolicy: 'memory' });
+    expect(checkRateLimitShared).toHaveBeenNthCalledWith(3, expect.stringMatching(/^auth:otp:email:[0-9a-f]{64}$/), expect.any(Number), expect.objectContaining({ maxPerWindow: 3, windowMs: 60 * 60_000 }), { degradedPolicy: 'memory' });
+    expect(checkRateLimitShared).toHaveBeenNthCalledWith(4, 'auth:otp:ip:unknown', expect.any(Number), expect.objectContaining({ maxPerWindow: 10, windowMs: 60 * 60_000 }), { degradedPolicy: 'memory' });
+  });
+
+  it('selalu menyertakan header Retry-After default 60 detik jika limiter tidak mengirim retryAfterSec', async () => {
+    vi.mocked(checkRateLimitShared).mockResolvedValueOnce({ allowed: false });
+
+    const res = await proxy(request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: 'test@example.com', password: 'bad' }),
+      headers: { 'content-type': 'application/json' },
+    }));
+
+    expect(res.status).toBe(429);
+    expect(res.headers.get('Retry-After')).toBe('60');
   });
 });
 
