@@ -31,8 +31,18 @@ const RATE_LIMIT_CONFIG = {
 
 // Auth endpoints need a much tighter pre-auth limit. This branch runs BEFORE
 // Pro/admin bypass logic, so a stale/forged entitlement cannot disable brute-force protection.
-const AUTH_RATE_LIMIT_CONFIG = { windowMs: 60_000, maxPerWindow: 10, blockMs: 15 * 60_000 };
+const LOGIN_RATE_LIMIT_CONFIG = { windowMs: 15 * 60_000, maxPerWindow: 10, blockMs: 15 * 60_000 };
+const OTP_EMAIL_RATE_LIMIT_CONFIG = { windowMs: 60 * 60_000, maxPerWindow: 3, blockMs: 60 * 60_000 };
+const OTP_IP_RATE_LIMIT_CONFIG = { windowMs: 60 * 60_000, maxPerWindow: 10, blockMs: 60 * 60_000 };
+const OTP_COOLDOWN_CONFIG = { windowMs: 60_000, maxPerWindow: 1, blockMs: 60_000 };
 const ADMIN_AUTH_RATE_LIMIT_CONFIG = { windowMs: 15 * 60_000, maxPerWindow: 5, blockMs: 60 * 60_000 };
+
+async function authEmailKey(req: NextRequest): Promise<string> {
+  const body = await req.clone().json().catch(() => null) as { email?: unknown } | null;
+  const email = typeof body?.email === 'string' ? body.email.trim().toLowerCase() : 'invalid';
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 // Sebelum nonce CSP, matcher proxy hanya mencakup kelompok halaman ini. Matcher HTML
 // sekarang diperluas supaya setiap dokumen mendapat nonce, tetapi auth/rate-limit lama
@@ -344,13 +354,23 @@ export async function proxy(req: NextRequest) {
   ]);
   if (req.method === 'POST' && sensitiveAuthPaths.has(pathname)) {
     const ip = getClientIp(req);
-    const authConfig = pathname === '/admin-login/key' ? ADMIN_AUTH_RATE_LIMIT_CONFIG : AUTH_RATE_LIMIT_CONFIG;
-    const authRate = await checkRateLimitShared(
-      `auth:${pathname}:${ip}`,
-      Date.now(),
-      authConfig,
-      { degradedPolicy: process.env.NODE_ENV === 'production' ? 'deny' : 'memory' },
-    );
+    const now = Date.now();
+    const options = { degradedPolicy: process.env.NODE_ENV === 'production' ? 'deny' as const : 'memory' as const };
+    const emailKey = pathname === '/admin-login/key' ? null : await authEmailKey(req);
+    const limits = pathname === '/api/auth/login'
+      ? [[`auth:login:${ip}:${emailKey}`, LOGIN_RATE_LIMIT_CONFIG] as const]
+      : pathname === '/api/auth/forgot-password' || pathname === '/api/auth/signup'
+        ? [
+            [`auth:otp:cooldown:${emailKey}`, OTP_COOLDOWN_CONFIG] as const,
+            [`auth:otp:email:${emailKey}`, OTP_EMAIL_RATE_LIMIT_CONFIG] as const,
+            [`auth:otp:ip:${ip}`, OTP_IP_RATE_LIMIT_CONFIG] as const,
+          ]
+        : [[`auth:${pathname}:${ip}`, pathname === '/admin-login/key' ? ADMIN_AUTH_RATE_LIMIT_CONFIG : LOGIN_RATE_LIMIT_CONFIG] as const];
+    let authRate = { allowed: true } as Awaited<ReturnType<typeof checkRateLimitShared>>;
+    for (const [key, rateConfig] of limits) {
+      authRate = await checkRateLimitShared(key, now, rateConfig, options);
+      if (!authRate.allowed) break;
+    }
     if (authRate.unavailable) {
       return NextResponse.json(
         { error: 'Layanan autentikasi sementara tidak tersedia. Coba lagi nanti.' },
