@@ -3,6 +3,7 @@ import { pool } from '@/shared/database/postgres.client';
 import { pingRedis } from '@/shared/cache/redis-cache';
 import { listDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 import { runController } from '@/shared/http/next-response.adapter';
+import { getSession } from '@/shared/auth/session';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,10 +77,14 @@ export async function GET(request: NextRequest) {
       ...(redisDegraded ? [`redis:${checks.redis}`] : []),
       ...(sourceDegradedCount > 0 ? [`data_source:${sourceDegradedCount}`] : []),
     ];
+    // Publik hanya memerlukan sinyal liveness agregat. Detail komponen, nama sumber,
+    // dan timestamp tersedia untuk sesi admin agar observability tetap berguna.
+    const body = { status: degraded.length > 0 ? 'degraded' : 'ok' };
+    const session = await getSession();
     return {
       status: databaseDown ? 503 : 200,
-      body: {
-        status: degraded.length > 0 ? 'degraded' : 'ok',
+      body: session?.role === 'admin' ? {
+        ...body,
         checks,
         degraded,
         operationalReadiness: {
@@ -98,7 +103,7 @@ export async function GET(request: NextRequest) {
           warnings: sourceWarnings.map((row) => row.sourceId),
         },
         timestamp: new Date().toISOString(),
-      },
+      } : body,
     };
   }, request);
 }
