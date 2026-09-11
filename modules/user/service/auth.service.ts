@@ -11,6 +11,8 @@ import { timingSafeStringEqual } from '../../../shared/security/timing-safe-equa
 import { NotFoundError, ValidationError } from '../../../shared/errors/app-error';
 import { clearVerifyOtpAttempts, isVerifyOtpAttemptBlocked, recordVerifyOtpFailure } from '../../../shared/security/otp-attempt-limiter';
 import type { LoginInput, SignupInput, VerifyInput } from '../validator/auth.validator';
+import { evaluateEntitlement } from '../../../shared/auth/entitlement';
+import { TESTING_OPEN_ACCESS } from '../../../shared/constants/access';
 
 // Hash dummy dipakai saat user tidak ditemukan, supaya waktu respons login mirip
 // dengan kasus password salah - mencegah user enumeration lewat timing (temuan M5).
@@ -22,6 +24,8 @@ export interface AuthSessionResult {
   role: string;
   userId: string;
   email: string;
+  isPro: boolean;
+  hasProAccess: boolean;
 }
 
 export async function login(input: LoginInput): Promise<AuthSessionResult> {
@@ -63,7 +67,15 @@ export async function login(input: LoginInput): Promise<AuthSessionResult> {
     sessionExpires
   );
 
-  return { token, maxAgeSec, role: user.role, userId: user.id, email: user.email };
+  return {
+    token,
+    maxAgeSec,
+    role: user.role,
+    userId: user.id,
+    email: user.email,
+    isPro: user.is_pro,
+    hasProAccess: evaluateEntitlement(user, { testingOpen: TESTING_OPEN_ACCESS }),
+  };
 }
 
 export async function signup(input: SignupInput): Promise<{ userId: string; email: string }> {
@@ -146,5 +158,13 @@ export async function verifyAccount(input: VerifyInput): Promise<AuthSessionResu
     pro_expires_at: null,
   });
 
-  return { token, maxAgeSec: 24 * 60 * 60, role: user.role, userId: user.id, email: user.email };
+  return {
+    token,
+    maxAgeSec: 24 * 60 * 60,
+    role: user.role,
+    userId: user.id,
+    email: user.email,
+    isPro: user.is_pro,
+    hasProAccess: evaluateEntitlement(user, { testingOpen: TESTING_OPEN_ACCESS }),
+  };
 }
