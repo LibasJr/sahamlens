@@ -60,7 +60,11 @@ export async function handleLogin(rawBody: unknown, requestMeta?: AuthRequestMet
   if (requestMeta) {
     await recordAuthEventSafely({ userId: result.userId, email: result.email, eventType: 'login', requestMeta });
   }
-  return { status: 200, body: { success: true, role: result.role }, cookiesToSet: await sessionCookies(result) };
+  return {
+    status: 200,
+    body: { success: true, role: result.role, isPro: result.isPro, hasProAccess: result.hasProAccess },
+    cookiesToSet: await sessionCookies(result),
+  };
 }
 
 /** Login khusus klien desktop; token disimpan oleh Tauri dalam Stronghold. */
@@ -72,7 +76,14 @@ export async function handleDesktopLogin(rawBody: unknown, requestMeta?: AuthReq
   }
   return {
     status: 200,
-    body: { success: true, token: result.token, role: result.role, email: result.email },
+    body: {
+      success: true,
+      token: result.token,
+      role: result.role,
+      email: result.email,
+      isPro: result.isPro,
+      hasProAccess: result.hasProAccess,
+    },
     cookiesToSet: await sessionCookies(result),
   };
 }
