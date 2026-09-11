@@ -85,32 +85,32 @@ export default function FundamentalAnalyzerGrid({
             onClick={onToggleSort}
             className={`text-xs px-2 py-1 rounded border transition-colors ${sortByConfidence ? 'bg-tv-accent/20 border-tv-accent text-tv-accent' : 'border-tv-border text-tv-muted hover:text-white'}`}
           >
-            Urutkan Kekuatan Rule
+            {isEn ? 'Sort by Rule Strength' : 'Urutkan Kekuatan Rule'}
           </Button>
         </div>
 
-        <p className="mb-3 lens-meta leading-relaxed text-tv-muted">Kekuatan rule 0-100 adalah intensitas aturan dari rasio yang tersedia, bukan probabilitas akurasi model atau peluang profit. Statistik lokal kunjungan, bila tampil, dipisahkan jelas dan bukan backtest/OOS.</p>
+        <p className="mb-3 lens-meta leading-relaxed text-tv-muted">{isEn ? 'Rule strength 0–100 measures rule intensity from available ratios, not model accuracy or profit probability. Local visit statistics, when shown, are separate and are not a backtest or OOS validation.' : 'Kekuatan rule 0-100 adalah intensitas aturan dari rasio yang tersedia, bukan probabilitas akurasi model atau peluang profit. Statistik lokal kunjungan, bila tampil, dipisahkan jelas dan bukan backtest/OOS.'}</p>
 
         {lockedAnalyzerCount > 0 && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-tv-yellow/30 bg-tv-yellow/10 px-3.5 py-2.5 text-xs text-tv-yellow">
             <div className="flex items-center gap-2">
               <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-              <span><strong>{lockedAnalyzerCount} indikator fundamental lanjutan terkunci</strong> (ROA, likuiditas, margin, EPS growth).</span>
+              <span><strong>{lockedAnalyzerCount} {isEn ? 'advanced fundamental indicators locked' : 'indikator fundamental lanjutan terkunci'}</strong> (ROA, {isEn ? 'liquidity' : 'likuiditas'}, margin, EPS growth).</span>
             </div>
-            <Link href="/login?next=%2Ffundamental" onClick={() => trackSignupClick('fundamental_indicators')} className="shrink-0 font-bold underline underline-offset-2 hover:text-white">Masuk untuk membuka</Link>
+            <Link href="/login?next=%2Ffundamental" onClick={() => trackSignupClick('fundamental_indicators')} className="shrink-0 font-bold underline underline-offset-2 hover:text-white">{isEn ? 'Sign in to unlock' : 'Masuk untuk membuka'}</Link>
           </div>
         )}
 
         {noLocalObservationCount > 0 && (
           <div className="mb-4 rounded-lg border border-tv-border bg-tv-bg/70 px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
-            <span className="font-semibold text-tv-text">Tracking lokal perangkat masih terbatas.</span>{' '}
-            {noLocalObservationCount} dari {displayedAnalyzers.length} indikator yang tampil belum memiliki observasi kunjungan berikutnya. Ini bukan validasi historis/OOS dan tidak memengaruhi skor fundamental.
+            <span className="font-semibold text-tv-text">{isEn ? 'Local device tracking is still limited.' : 'Tracking lokal perangkat masih terbatas.'}</span>{' '}
+            {isEn ? `${noLocalObservationCount} of ${displayedAnalyzers.length} displayed indicators do not yet have a next-visit observation. This is not historical/OOS validation and does not affect the fundamental score.` : `${noLocalObservationCount} dari ${displayedAnalyzers.length} indikator yang tampil belum memiliki observasi kunjungan berikutnya. Ini bukan validasi historis/OOS dan tidak memengaruhi skor fundamental.`}
           </div>
         )}
         {viewMode === 'compact' && filteredAnalyzers.length > displayedAnalyzers.length && (
           <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-tv-blue/25 bg-tv-blue/10 px-3 py-2 text-[11px] text-tv-muted">
-            <span>Mode Ringkas menampilkan wakil inti: valuasi, profitabilitas, dan pertumbuhan/margin. Mode Lengkap membuka semua analyzer.</span>
-            <Button variant="bare" size="none" type="button" onClick={onShowAll} className="shrink-0 font-semibold text-tv-blue">Lihat semua</Button>
+            <span>{isEn ? 'Compact mode shows core representatives: valuation, profitability, and growth/margin. Full mode opens every analyzer.' : 'Mode Ringkas menampilkan wakil inti: valuasi, profitabilitas, dan pertumbuhan/margin. Mode Lengkap membuka semua analyzer.'}</span>
+            <Button variant="bare" size="none" type="button" onClick={onShowAll} className="shrink-0 font-semibold text-tv-blue">{isEn ? 'View all' : 'Lihat semua'}</Button>
           </div>
         )}
 
@@ -122,8 +122,8 @@ export default function FundamentalAnalyzerGrid({
               return (
                 <Card key={`${algo.label}-${idx}`} padding="none" radius="lg" elevation="none" highlight={false} className="relative flex min-h-[104px] flex-col gap-2 border-tv-border bg-tv-bg p-3">
                   <div className="absolute inset-0 z-10 flex items-center justify-center bg-tv-bg/70 backdrop-blur-[3px]">
-                    <Link href="/login?next=%2Ffundamental" onClick={() => trackSignupClick('fundamental_indicators')} className="flex items-center gap-1 rounded-full border border-tv-yellow/40 bg-tv-yellow/10 px-2.5 py-1 lens-meta font-bold text-tv-yellow transition-colors hover:border-tv-yellow hover:text-white shadow-sm" aria-label={`Masuk untuk membuka indikator ${algo.label}`}>
-                      <Lock className="h-3 w-3" aria-hidden="true" /> Masuk
+                    <Link href="/login?next=%2Ffundamental" onClick={() => trackSignupClick('fundamental_indicators')} className="flex items-center gap-1 rounded-full border border-tv-yellow/40 bg-tv-yellow/10 px-2.5 py-1 lens-meta font-bold text-tv-yellow transition-colors hover:border-tv-yellow hover:text-white shadow-sm" aria-label={`${isEn ? 'Sign in to unlock indicator' : 'Masuk untuk membuka indikator'} ${algo.label}`}>
+                      <Lock className="h-3 w-3" aria-hidden="true" /> {isEn ? 'Sign in' : 'Masuk'}
                     </Link>
                   </div>
                   <div className="flex justify-between items-center text-sm blur-sm select-none opacity-40" aria-hidden="true">
@@ -146,7 +146,7 @@ export default function FundamentalAnalyzerGrid({
                 </div>
                 <div className="flex justify-between items-center text-xs font-mono text-tv-muted"><span>{algo.value}</span><span className="text-white">Rule: {algo.confidence}/100</span></div>
                 <ResearchProvenanceDetails
-                  label={`Sumber ${algo.label}`}
+                  label={`${isEn ? 'Source' : 'Sumber'} ${algo.label}`}
                   entries={[{ label: algo.label, value: metricSource?.value ?? null, provenance: metricSource?.provenance }]}
                 />
                 <div className="pt-2 border-t border-tv-hover lens-meta">
@@ -170,7 +170,7 @@ export default function FundamentalAnalyzerGrid({
           }) : loading ? (
             <>{[0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} className="h-[104px] w-full" />)}<div className="col-span-full"><LoadingFact /></div></>
           ) : (
-            <div className="col-span-full"><EmptyState illustration="empty" title="Belum ada indikator fundamental untuk emiten ini" description="Sumber data tidak menyediakan rasio keuangan yang cukup untuk dihitung. Emiten yang baru tercatat biasanya butuh beberapa periode laporan sebelum rasionya muncul." /></div>
+            <div className="col-span-full"><EmptyState illustration="empty" title={isEn ? 'No fundamental indicators are available for this issuer' : 'Belum ada indikator fundamental untuk emiten ini'} description={isEn ? 'The data source does not provide enough financial ratios to calculate them. Newly listed issuers usually need several reporting periods before ratios become available.' : 'Sumber data tidak menyediakan rasio keuangan yang cukup untuk dihitung. Emiten yang baru tercatat biasanya butuh beberapa periode laporan sebelum rasionya muncul.'} /></div>
           )}
         </div>
       </Card>

@@ -7,6 +7,7 @@ import type {
 } from '@/modules/market/service/market-regime.service';
 import { Card } from '@/components/ui/Card';
 import { percentageLeftClass, percentageWidthClass } from '@/shared/presentation/percentage-width';
+import { useLanguage } from '@/lib/i18n';
 
 // Token, bukan hex mati. Hex-nya dulu nilai tema GELAP yang ikut terpakai di tema
 // terang: terukur di atas kartu putih, #eab308 = 1,92:1 dan #22c55e = 2,28:1 - di bawah
@@ -49,7 +50,7 @@ function formatNumber(value: number | null, suffix = '', digits = 1): string {
   }) + suffix;
 }
 
-function rawSummary(indicator: MarketRegimeIndicator): string {
+function rawSummary(indicator: MarketRegimeIndicator, isEn: boolean): string {
   const raw = indicator.raw;
   switch (indicator.id) {
     case 'trend':
@@ -59,7 +60,7 @@ function rawSummary(indicator: MarketRegimeIndicator): string {
     case 'breadth':
       return formatNumber(raw.advanceShare, '%') +
         ' advance · ' + formatNumber(raw.advancing, '', 0) +
-        ' naik / ' + formatNumber(raw.declining, '', 0) + ' turun';
+        (isEn ? ' advancing / ' : ' naik / ') + formatNumber(raw.declining, '', 0) + (isEn ? ' declining' : ' turun');
     case 'momentum':
       return '5D ' + formatNumber(raw.return5d, '%') +
         ' · 20D ' + formatNumber(raw.return20d, '%') +
@@ -73,14 +74,14 @@ function rawSummary(indicator: MarketRegimeIndicator): string {
   }
 }
 
-function IndicatorCard({ indicator }: { indicator: MarketRegimeIndicator }) {
+function IndicatorCard({ indicator, isEn }: { indicator: MarketRegimeIndicator; isEn: boolean }) {
   const score = indicator.score;
   return (
     <div className="rounded-lg border border-tv-border bg-tv-bg/55 p-3">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-tv-muted">{indicator.label}</p>
-          <p className="mt-1 text-[10px] text-tv-muted/70">Bobot {indicator.weight}%</p>
+          <p className="mt-1 text-[10px] text-tv-muted/70">{isEn ? 'Weight' : 'Bobot'} {indicator.weight}%</p>
         </div>
         <span className={'font-number text-lg font-extrabold ' + signalClass(indicator.signal)}>
           {score ?? 'N/A'}
@@ -93,23 +94,25 @@ function IndicatorCard({ indicator }: { indicator: MarketRegimeIndicator }) {
           className={`h-full rounded-full transition-[width] duration-700 ${scoreBackgroundClass(score)} ${percentageWidthClass(score)}`}
         />
       </div>
-      <p className="mt-2 min-h-8 text-[10px] leading-relaxed text-tv-text/80">{rawSummary(indicator)}</p>
+      <p className="mt-2 min-h-8 text-[10px] leading-relaxed text-tv-text/80">{rawSummary(indicator, isEn)}</p>
       <div className="mt-2 flex items-center justify-between border-t border-tv-border pt-2 lens-meta text-tv-muted/70">
-        <span>Kontribusi {score == null ? '0' : indicator.contribution.toFixed(1)} poin</span>
-        <span>Kualitas data {indicator.confidence}%</span>
+        <span>{isEn ? 'Contribution' : 'Kontribusi'} {score == null ? '0' : indicator.contribution.toFixed(1)} {isEn ? 'points' : 'poin'}</span>
+        <span>{isEn ? 'Data quality' : 'Kualitas data'} {indicator.confidence}%</span>
       </div>
     </div>
   );
 }
 
 export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
   const score = data.score;
   const color = scoreColor(score);
   const gaugeDegrees = ((score ?? 0) / 100) * 360;
   const asOf = new Date(data.asOf);
   const asOfLabel = Number.isNaN(asOf.getTime())
-    ? 'waktu tidak tersedia'
-    : asOf.toLocaleString('id-ID', {
+    ? (isEn ? 'time unavailable' : 'waktu tidak tersedia')
+    : asOf.toLocaleString(isEn ? 'en-US' : 'id-ID', {
         day: 'numeric',
         month: 'short',
         hour: '2-digit',
@@ -134,7 +137,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
               </span>
             </div>
             <p className="mt-1 text-[11px] text-tv-muted">
-              Skor deterministik data pasar · bukan voting AI atau sentimen berita
+              {isEn ? 'Deterministic market-data score · not AI voting or news sentiment' : 'Skor deterministik data pasar · bukan voting AI atau sentimen berita'}
             </p>
           </div>
           <p className="text-[10px] text-tv-muted">As of {asOfLabel}</p>
@@ -148,12 +151,12 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
                 background: 'conic-gradient(' + color + ' ' + gaugeDegrees + 'deg, rgba(100,116,139,0.16) 0deg)',
               }}
               role="img"
-              aria-label={'Fear Greed score ' + String(score ?? 'tidak tersedia') + ' dari 100'}
+              aria-label={'Fear Greed score ' + String(score ?? (isEn ? 'unavailable' : 'tidak tersedia')) + (isEn ? ' out of 100' : ' dari 100')}
             >
               <div className="grid h-[112px] w-[112px] place-items-center rounded-full border border-tv-border bg-tv-card text-center">
                 <div>
                   <p className="font-number text-4xl font-black text-tv-text">{score ?? 'N/A'}</p>
-                  <p className="lens-meta font-bold uppercase tracking-[0.12em] text-tv-muted">dari 100</p>
+                  <p className="lens-meta font-bold uppercase tracking-[0.12em] text-tv-muted">{isEn ? 'out of 100' : 'dari 100'}</p>
                 </div>
               </div>
             </div>
@@ -162,24 +165,23 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="rounded-md border border-tv-border bg-tv-bg px-3 py-1.5 text-sm font-bold text-tv-text">
-                {data.fearGreed.label}
+                {isEn && data.fearGreed.code === 'DATA_LIMITED' ? 'Limited data' : data.fearGreed.label}
               </span>
               <span className="rounded-md border border-tv-blue/25 bg-tv-blue/10 px-3 py-1.5 text-sm font-bold text-tv-blue">
-                {data.regime.label}
+                {isEn ? data.regime.code.replaceAll('_', ' ') : data.regime.label}
               </span>
               <span className="rounded-md border border-tv-border bg-tv-bg px-3 py-1.5 text-[10px] font-semibold text-tv-muted">
                 Posture: {data.regime.posture.replaceAll('_', ' ')}
               </span>
             </div>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-tv-text/85">{data.summary}</p>
+            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-tv-text/85">{isEn ? `The quantitative regime is ${data.regime.code.replaceAll('_', ' ').toLowerCase()} with a ${data.fearGreed.code.replaceAll('_', ' ').toLowerCase()} reading. Use this as market context, not as a standalone trading signal.` : data.summary}</p>
             <p className="mt-2 max-w-3xl text-[11px] leading-relaxed text-tv-muted">
-              Skor {score ?? 'N/A'} = {scoreTerms.map((indicator) => `${indicator.label} ${formatNumber(indicator.contribution)} poin`).join(' + ')} = {formatNumber(contributionTotal)} poin (dibulatkan).
-              {' '}Dihitung dari snapshot harga Yahoo Finance yang sama, bukan data dummy atau prediksi AI.
+              {isEn ? 'Score' : 'Skor'} {score ?? 'N/A'} = {scoreTerms.map((indicator) => `${indicator.label} ${formatNumber(indicator.contribution)} ${isEn ? 'points' : 'poin'}`).join(' + ')} = {formatNumber(contributionTotal)} {isEn ? 'points (rounded). Calculated from the same Yahoo Finance price snapshot, not dummy data or an AI prediction.' : 'poin (dibulatkan). Dihitung dari snapshot harga Yahoo Finance yang sama, bukan data dummy atau prediksi AI.'}
             </p>
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">
-                <p className="lens-meta uppercase tracking-wide text-tv-muted">Kualitas data</p>
+                <p className="lens-meta uppercase tracking-wide text-tv-muted">{isEn ? 'Data quality' : 'Kualitas data'}</p>
                 <p className="mt-1 font-number text-lg font-bold text-tv-text">{data.confidence}%</p>
               </div>
               <div className="rounded-md border border-tv-border bg-tv-bg/70 p-2.5">
@@ -205,7 +207,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4 text-tv-green" />
-            <h4 className="text-sm font-bold text-tv-text">Kontribusi indikator</h4>
+            <h4 className="text-sm font-bold text-tv-text">{isEn ? 'Indicator contribution' : 'Kontribusi indikator'}</h4>
           </div>
           <p className="text-[10px] text-tv-muted">
             25% trend · 25% breadth · 20% momentum · 15% volatility · 15% participation
@@ -214,7 +216,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
 
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
           {data.indicators.map((indicator) => (
-            <IndicatorCard key={indicator.id} indicator={indicator} />
+            <IndicatorCard key={indicator.id} indicator={indicator} isEn={isEn} />
           ))}
         </div>
 
@@ -222,7 +224,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
           <div
             className="relative h-full w-full"
             role="img"
-            aria-label={'Posisi skor pada skala fear greed: ' + String(score ?? 'tidak tersedia')}
+            aria-label={(isEn ? 'Score position on fear-greed scale: ' : 'Posisi skor pada skala fear greed: ') + String(score ?? (isEn ? 'unavailable' : 'tidak tersedia'))}
           >
             {score != null && (
               <span
@@ -240,7 +242,7 @@ export function MarketRegimePanel({ data }: { data: QuantitativeMarketRegime }) 
         <details className="mt-4 rounded-lg border border-tv-border bg-tv-bg/40 p-3">
           <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-tv-text">
             <Info className="h-3.5 w-3.5 text-tv-blue" />
-            Metodologi dan batasan data
+            {isEn ? 'Methodology and data limitations' : 'Metodologi dan batasan data'}
           </summary>
           <div className="mt-3 grid gap-3 lg:grid-cols-2">
             <div className="space-y-2">

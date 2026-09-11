@@ -6,6 +6,8 @@ import { HelpCircle, X, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { useLanguage } from '@/lib/i18n';
+import { MENU_GUIDE_EN } from './menu-guide-en';
 
 /**
  * Panduan pemakaian per menu untuk pengguna awam (keputusan produk 2026-08-23).
@@ -55,6 +57,12 @@ export default function MenuUsageGuide({
   const [open, setOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
+  const { language } = useLanguage();
+  const english = language === 'en' ? MENU_GUIDE_EN[menuKey] : undefined;
+  const answerCopy = english?.whatItAnswers ?? whatItAnswers;
+  const stepCopy = english?.steps ?? steps;
+  const freeCopy = english?.freeAccess ?? freeAccess;
+  const signupCopy = english?.afterSignup ?? afterSignup;
   // Bagian "setelah daftar" hanya relevan bagi yang belum punya akun. Menampilkannya ke
   // pengguna yang sudah masuk cuma jadi iklan untuk sesuatu yang sudah mereka miliki.
   const isGuest = !authResolved || authLoading || !authUser;
@@ -91,7 +99,7 @@ export default function MenuUsageGuide({
         className="inline-flex items-center gap-1.5 rounded-full border border-tv-border px-3 py-1.5 text-xs font-bold text-tv-muted transition hover:border-tv-blue hover:text-tv-blue"
       >
         <HelpCircle className="h-3.5 w-3.5" />
-        Cara pakai menu ini
+        {language === 'en' ? 'How to use this menu' : 'Cara pakai menu ini'}
       </Button>
     );
   }
@@ -101,13 +109,13 @@ export default function MenuUsageGuide({
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-start gap-2.5">
           <HelpCircle className="mt-0.5 h-4 w-4 shrink-0 text-tv-blue" />
-          <p className="text-sm font-bold leading-relaxed text-tv-text">{whatItAnswers}</p>
+          <p className="text-sm font-bold leading-relaxed text-tv-text">{answerCopy}</p>
         </div>
         <Button
           variant="bare"
           size="none"
           onClick={dismiss}
-          aria-label="Tutup panduan cara pakai menu ini"
+          aria-label={language === 'en' ? 'Close menu usage guide' : 'Tutup panduan cara pakai menu ini'}
           className="shrink-0 p-1 text-tv-muted transition hover:text-tv-text"
         >
           <X className="h-4 w-4" />
@@ -115,7 +123,7 @@ export default function MenuUsageGuide({
       </div>
 
       <ol className="mt-3 space-y-1.5 pl-7">
-        {steps.map((step, index) => (
+        {stepCopy.map((step, index) => (
           <li key={step} className="flex gap-2 text-xs leading-relaxed text-tv-muted">
             <span className="font-bold text-tv-text">{index + 1}.</span>
             <span>{step}</span>
@@ -123,23 +131,23 @@ export default function MenuUsageGuide({
         ))}
       </ol>
 
-      {isGuest && (freeAccess || afterSignup) && (
+      {isGuest && (freeCopy || signupCopy) && (
         <div className="mt-3 ml-7 space-y-1.5 border-t border-tv-border pt-3">
-          {freeAccess && (
+          {freeCopy && (
             <p className="text-xs leading-relaxed text-tv-muted">
-              <span className="font-bold text-tv-text">Tanpa akun:</span> {freeAccess}
+              <span className="font-bold text-tv-text">{language === 'en' ? 'Without an account:' : 'Tanpa akun:'}</span> {freeCopy}
             </p>
           )}
-          {afterSignup && (
+          {signupCopy && (
             <p className="flex flex-wrap items-center gap-1.5 text-xs leading-relaxed text-tv-muted">
               <Lock className="h-3 w-3 shrink-0 text-tv-yellow" />
-              <span><span className="font-bold text-tv-text">Setelah daftar gratis:</span> {afterSignup}</span>
+              <span><span className="font-bold text-tv-text">{language === 'en' ? 'After free signup:' : 'Setelah daftar gratis:'}</span> {signupCopy}</span>
               {loginNext && (
                 <Link
                   href={`/login?next=${loginNext}`}
                   className="font-bold text-tv-blue underline underline-offset-2 hover:text-tv-blueHover"
                 >
-                  Daftar sekarang
+                  {language === 'en' ? 'Sign up now' : 'Daftar sekarang'}
                 </Link>
               )}
             </p>
