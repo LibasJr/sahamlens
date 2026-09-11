@@ -61,7 +61,23 @@ describe('auth.service login()', () => {
 
     expect(result.token).toBe('fake-jwt-token');
     expect(result.role).toBe('free');
+    expect(result.isPro).toBe(false);
+    expect(result.hasProAccess).toBe(true);
     expect(recordSuccessfulLogin).toHaveBeenCalledWith('user-1');
+  });
+
+  it('memisahkan role RBAC dari entitlement Pro', async () => {
+    mockGetUserByEmail.mockResolvedValue(makeUser({
+      role: 'free',
+      is_pro: true,
+      pro_expires_at: new Date(Date.now() + 86_400_000).toISOString(),
+    }));
+
+    const result = await login({ email: 'user@test.com', password: 'password-benar' });
+
+    expect(result.role).toBe('free');
+    expect(result.isPro).toBe(true);
+    expect(result.hasProAccess).toBe(true);
   });
 
   it('menolak password yang salah dengan InvalidCredentialsError', async () => {
