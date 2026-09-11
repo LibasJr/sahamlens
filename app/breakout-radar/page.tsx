@@ -11,9 +11,11 @@ import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { trackJourneyEvent } from '@/shared/analytics/product-journey';
 import { Badge, Button, Card, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber, EmptyState } from '@/components/ui';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { useLanguage } from '@/lib/i18n';
 import {
   GUEST_VISIBLE_RADAR_ROWS,
   RADAR_SORTABLE_COLUMNS,
+  getRadarSortableColumns,
   compareRadarValues,
   displayTicker,
   scoreBarWidth,
@@ -39,6 +41,8 @@ export default function AiPickPage() {
   const [stale, setStale] = useState(false);
   const [bucketBacktest, setBucketBacktest] = useState<BucketBacktest | null>(null);
   const { resolved: authResolved, loading: authLoading, user: authUser } = useAuthUser();
+  const { language } = useLanguage();
+  const isId = language === 'id';
   const [loading, setLoading] = useState(true);
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
@@ -57,6 +61,8 @@ export default function AiPickPage() {
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
+  const sortableColumns = useMemo(() => getRadarSortableColumns(isId), [isId]);
+
   const handleRadarSort = (key: RadarColumnKey) => {
     if (radarSortKey === key) {
       setRadarSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
@@ -70,9 +76,9 @@ export default function AiPickPage() {
 
   const sortedItems = useMemo(() => {
     if (!radarSortKey) return items;
-    const col = RADAR_SORTABLE_COLUMNS.find((c) => c.key === radarSortKey)!;
+    const col = sortableColumns.find((c) => c.key === radarSortKey)!;
     return [...items].sort((a, b) => compareRadarValues(col.getValue(a), col.getValue(b), radarSortDir));
-  }, [items, radarSortKey, radarSortDir]);
+  }, [items, radarSortKey, radarSortDir, sortableColumns]);
 
   // GEMBOK TAMU (2026-08-23). Menutup menu keenam dari survei halaman tanpa pemeriksaan
   // auth. LensRadar sengaja digembok PALING BELAKANG karena ia pintu masuk utama dari
@@ -139,7 +145,7 @@ export default function AiPickPage() {
   // label lama memakai new Date() sehingga selalu menampilkan waktu klik seolah-olah
   // itu waktu data dihitung.
   const updateLabel = computedAt
-    ? new Intl.DateTimeFormat('id-ID', {
+    ? new Intl.DateTimeFormat(isId ? 'id-ID' : 'en-US', {
       timeZone: 'Asia/Jakarta',
       weekday: 'short',
       day: '2-digit',
@@ -170,11 +176,22 @@ export default function AiPickPage() {
                     basi di akhir pekan, setelah TTL cache diperpanjang supaya tidak
                     kosong total di luar jam bursa - lihat shared/cache/ai-pick-cache.ts).
                     Sekarang badge jujur: "Live" cuma kalau data benar-benar segar. */}
-                {stale ? <Badge variant="neutral" dot>Data Sesi Terakhir</Badge> : <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Live</Badge>}
+                {stale ? (
+                  <Badge variant="neutral" dot>{isId ? 'Data Sesi Terakhir' : 'Latest Session Data'}</Badge>
+                ) : (
+                  <Badge variant="danger" dot title={isId ? 'Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime' : 'Yahoo Finance data, delayed ~15 min from real market conditions - not realtime'}>
+                    Live
+                  </Badge>
+                )}
               </h1>
-              <p className="text-xs text-tv-muted mt-0.5">Breakout & Opportunity Scanner</p>
+              <p className="text-xs text-tv-muted mt-0.5">Breakout &amp; Opportunity Scanner</p>
               <p className="text-xs text-tv-muted flex items-center gap-1 mt-1">
-                <Clock className="w-3 h-3" /> {updateLabel ? `${stale ? 'Data sesi terakhir' : 'Data'} per ${updateLabel} • Yahoo Finance, delay ±15 menit` : 'Memuat...'}
+                <Clock className="w-3 h-3" />{' '}
+                {updateLabel
+                  ? (isId
+                      ? `${stale ? 'Data sesi terakhir' : 'Data'} per ${updateLabel} • Yahoo Finance, delay ±15 menit`
+                      : `${stale ? 'Latest session data' : 'Data'} as of ${updateLabel} • Yahoo Finance, ~15m delay`)
+                  : (isId ? 'Memuat...' : 'Loading...')}
               </p>
             </div>
           </div>
@@ -186,24 +203,30 @@ export default function AiPickPage() {
         <AnalysisViewModeToggle mode={viewMode} onChange={setViewMode} className="mb-5" />
         <MenuUsageGuide
           menuKey="breakout-radar"
-          whatItAnswers="Saham mana yang baru saja menembus level pentingnya hari ini?"
-          steps={[
-            "Daftar di bawah adalah hasil pemindaian sesi terakhir, bukan rekomendasi beli.",
-            "Periksa alasan tiap kandidat sebelum menindaklanjuti.",
-            "Klik satu saham untuk membuka analisis teknikal lengkapnya.",
+          whatItAnswers={isId ? 'Saham mana yang baru saja menembus level pentingnya hari ini?' : 'Which stocks have just broken through an important level today?'}
+          steps={isId ? [
+            'Daftar di bawah adalah hasil pemindaian sesi terakhir, bukan rekomendasi beli.',
+            'Periksa alasan tiap kandidat sebelum menindaklanjuti.',
+            'Klik satu saham untuk membuka analisis teknikal lengkapnya.',
+          ] : [
+            'The list below shows the latest session scan results, not a buy recommendation.',
+            'Inspect each candidate’s breakdown and rationale before acting.',
+            'Click a stock to open its comprehensive technical analysis.',
           ]}
-          freeAccess={`${GUEST_VISIBLE_RADAR_ROWS} kandidat teratas beserta skor, rinciannya, dan alasannya`}
-          afterSignup="seluruh peringkat hasil pemindaian sesi, bukan hanya puncaknya"
+          freeAccess={isId ? `${GUEST_VISIBLE_RADAR_ROWS} kandidat teratas beserta skor, rinciannya, dan alasannya` : `Top ${GUEST_VISIBLE_RADAR_ROWS} candidates with full scores, component breakdowns, and rationale`}
+          afterSignup={isId ? 'seluruh peringkat hasil pemindaian sesi, bukan hanya puncaknya' : 'the complete session ranking across all qualifying candidates'}
           loginNext="/breakout-radar"
         />
           <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border">
             <div className="p-4 border-b border-tv-border bg-tv-bg/40">
               <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2">
                 <TrendingUp className="w-4 h-4 text-tv-blue" />
-                Pantauan Terkuat Hari Ini
+                {isId ? 'Pantauan Terkuat Hari Ini' : "Today's Strongest Screen"}
               </h2>
               <p className="text-[11px] text-tv-muted mt-1">
-                Diurutkan dari skor komposit tertinggi. Hanya saham berskor 60 ke atas yang tampil; ini scanner, bukan rekomendasi beli/jual.
+                {isId
+                  ? 'Diurutkan dari skor komposit tertinggi. Hanya saham berskor 60 ke atas yang tampil; ini scanner, bukan rekomendasi beli/jual.'
+                  : 'Sorted by highest composite score. Only stocks scoring 60 and above appear; this is a scanner, not a buy/sell recommendation.'}
               </p>
             </div>
 
@@ -217,18 +240,18 @@ export default function AiPickPage() {
             {!loading && gated === 'login' && (
               <EmptyState
                 illustration="locked"
-                title="Login untuk melihat hasil LensRadar"
-                description="Butuh akun gratis untuk memakai fitur selama masa pengujian."
-                action={{ label: 'Daftar Gratis', onClick: () => { window.location.href = '/signup'; } }}
+                title={isId ? 'Login untuk melihat hasil LensRadar' : 'Sign in to view LensRadar results'}
+                description={isId ? 'Butuh akun gratis untuk memakai fitur selama masa pengujian.' : 'A free account is required to use this feature during beta testing.'}
+                action={{ label: isId ? 'Daftar Gratis' : 'Sign Up Free', onClick: () => { window.location.href = '/signup'; } }}
               />
             )}
 
             {!loading && gated === 'pro' && (
               <EmptyState
                 illustration="locked"
-                title="LensRadar Live butuh akun Pro"
-                description="Silakan masuk kembali untuk melanjutkan penggunaan."
-                action={{ label: 'Lihat Paket', onClick: () => setShowPaywall(true) }}
+                title={isId ? 'LensRadar Live butuh akun Pro' : 'LensRadar Live requires a Pro account'}
+                description={isId ? 'Silakan masuk kembali untuk melanjutkan penggunaan.' : 'Please sign in or upgrade to continue using LensRadar Live.'}
+                action={{ label: isId ? 'Lihat Paket' : 'View Plans', onClick: () => setShowPaywall(true) }}
               />
             )}
 
@@ -237,18 +260,22 @@ export default function AiPickPage() {
             {!loading && !gated && loadError && (
               <EmptyState
                 illustration="empty"
-                title="Hasil pemindaian gagal dimuat"
-                description="Permintaan ke server tidak sampai, jadi belum diketahui ada berapa saham yang lolos hari ini. Ini bukan berarti hasilnya nihil."
-                action={{ label: 'Coba lagi', onClick: fetchPicks }}
+                title={isId ? 'Hasil pemindaian gagal dimuat' : 'Failed to load scan results'}
+                description={isId
+                  ? 'Permintaan ke server tidak sampai, jadi belum diketahui ada berapa saham yang lolos hari ini. Ini bukan berarti hasilnya nihil.'
+                  : 'Server request failed, so candidate count is currently unknown. This does not mean zero results.'}
+                action={{ label: isId ? 'Coba lagi' : 'Try again', onClick: fetchPicks }}
               />
             )}
 
             {!loading && !gated && !loadError && !ready && (
               <EmptyState
                 illustration="collecting"
-                title="Pemindaian hari ini sedang disiapkan"
-                description="Scanner sedang menghitung ulang seluruh universe saham. Proses ini berjalan di latar belakang setiap sesi bursa."
-                action={{ label: 'Muat ulang', onClick: fetchPicks }}
+                title={isId ? 'Pemindaian hari ini sedang disiapkan' : "Today's scan is being prepared"}
+                description={isId
+                  ? 'Scanner sedang menghitung ulang seluruh universe saham. Proses ini berjalan di latar belakang setiap sesi bursa.'
+                  : 'The scanner is currently recalculating across the stock universe. This runs in the background during market sessions.'}
+                action={{ label: isId ? 'Muat ulang' : 'Reload', onClick: fetchPicks }}
               />
             )}
 
@@ -273,8 +300,10 @@ export default function AiPickPage() {
             {!loading && !gated && !loadError && ready && items.length === 0 && (
               <EmptyState
                 illustration="search"
-                title="Tidak ada saham yang lolos hari ini"
-                description="Pemindaian berjalan normal dan hasilnya nihil. Saham dengan data tidak lengkap, likuiditas sangat rendah, atau yang kemungkinan tidak diperdagangkan sengaja dikeluarkan - bukan diberi peringkat rendah. Daftar kosong adalah jawaban yang benar untuk hari seperti ini."
+                title={isId ? 'Tidak ada saham yang lolos hari ini' : 'No stocks qualified today'}
+                description={isId
+                  ? 'Pemindaian berjalan normal dan hasilnya nihil. Saham dengan data tidak lengkap, likuiditas sangat rendah, atau yang kemungkinan tidak diperdagangkan sengaja dikeluarkan - bukan diberi peringkat rendah. Daftar kosong adalah jawaban yang benar untuk hari seperti ini.'
+                  : 'The scan completed normally and found zero matching candidates. Stocks with incomplete data, very low liquidity, or suspended trading are strictly excluded rather than given low ranks. An empty list is the truthful output for days like this.'}
               />
             )}
 
@@ -289,7 +318,7 @@ export default function AiPickPage() {
                     <thead>
                       <tr className="border-b border-tv-border text-xs text-tv-muted uppercase font-semibold tracking-wide">
                         <th className="w-12 py-3 px-4">#</th>
-                        {RADAR_SORTABLE_COLUMNS.map((col) => (
+                        {sortableColumns.map((col) => (
                           <th key={col.key} className={`py-3 px-4 ${col.align === 'right' ? 'text-right' : ''}`}>
                             {/* Ikon dua-arah selalu tampil (redup) supaya terlihat kolom
                                 mana yang bisa diurutkan - sebelumnya penanda hanya muncul
@@ -298,7 +327,7 @@ export default function AiPickPage() {
                             <Button variant="bare" size="none"
                               type="button"
                               onClick={() => handleRadarSort(col.key)}
-                              title={`Urutkan menurut ${col.label}`}
+                              title={isId ? `Urutkan menurut ${col.label}` : `Sort by ${col.label}`}
                               className={`group inline-flex items-center gap-1 hover:text-tv-text transition-colors ${col.align === 'right' ? 'flex-row-reverse' : ''} ${radarSortKey === col.key ? 'text-tv-text' : ''}`}
                             >
                               {col.label}
@@ -310,8 +339,8 @@ export default function AiPickPage() {
                             </Button>
                           </th>
                         ))}
-                        <th className="py-3 px-4">Sinyal</th>
-                        <th className="py-3 px-4 text-center">Kenapa</th>
+                        <th className="py-3 px-4">{isId ? 'Sinyal' : 'Signals'}</th>
+                        <th className="py-3 px-4 text-center">{isId ? 'Kenapa' : 'Why'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-tv-border text-sm">
@@ -345,7 +374,7 @@ export default function AiPickPage() {
                             </div>
                           </td>
                           <td className="py-3 px-4 text-right font-number text-tv-muted">
-                            {Math.round(it.price).toLocaleString('id-ID')}
+                            {Math.round(it.price).toLocaleString(isId ? 'id-ID' : 'en-US')}
                           </td>
                           <td className={`py-3 px-4 text-right font-number ${it.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                             {it.changePct >= 0 ? '+' : ''}{it.changePct.toFixed(1)}%
@@ -400,7 +429,7 @@ export default function AiPickPage() {
                             <Button variant="bare" size="none"
                               type="button"
                               onClick={() => setExpandedSymbol(isExpanded ? null : it.symbol)}
-                              aria-label={isExpanded ? `Tutup rincian ${it.symbol}` : `Buka rincian ${it.symbol}`}
+                              aria-label={isExpanded ? (isId ? `Tutup rincian ${it.symbol}` : `Close details for ${it.symbol}`) : (isId ? `Buka rincian ${it.symbol}` : `Open details for ${it.symbol}`)}
                               className="inline-flex items-center gap-1 text-[11px] text-tv-blue hover:text-tv-text transition-colors"
                             >
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -413,20 +442,20 @@ export default function AiPickPage() {
                               <div className="flex flex-col md:flex-row gap-4 text-xs">
                                 <div className="flex gap-4 shrink-0">
                                   <div>
-                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">Technical</div>
+                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{isId ? 'Technical' : 'Technical'}</div>
                                     <div className="font-bold font-number text-tv-text">{it.breakdown?.technical ?? 'N/A'}/40</div>
                                   </div>
                                   <div>
-                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">Fundamental</div>
+                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{isId ? 'Fundamental' : 'Fundamental'}</div>
                                     <div className="font-bold font-number text-tv-text">{it.breakdown?.fundamental ?? 'N/A'}/30</div>
                                   </div>
                                   <div>
-                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">Arus Dana</div>
+                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{isId ? 'Arus Dana' : 'Fund Flow'}</div>
                                     <div className="font-bold font-number text-tv-text">{it.breakdown?.flow ?? 'N/A'}/30</div>
                                   </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">Alasan Utama</div>
+                                  <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">{isId ? 'Alasan Utama' : 'Key Drivers'}</div>
                                   {it.topReasons && it.topReasons.length > 0 ? (
                                     <ul className="space-y-0.5">
                                       {it.topReasons.map((r, i) => (
@@ -434,7 +463,7 @@ export default function AiPickPage() {
                                       ))}
                                     </ul>
                                   ) : (
-                                    <span className="text-tv-muted">Rincian belum tersedia untuk saham ini.</span>
+                                    <span className="text-tv-muted">{isId ? 'Rincian belum tersedia untuk saham ini.' : 'Details are not yet available for this stock.'}</span>
                                   )}
                                 </div>
                               </div>
@@ -452,7 +481,7 @@ export default function AiPickPage() {
                               className="flex items-center justify-center gap-2 px-4 py-6 text-sm font-bold text-tv-blue transition hover:bg-white/[0.03]"
                             >
                               <Lock className="h-4 w-4" />
-                              Masuk untuk melihat {lockedCount} kandidat lainnya
+                              {isId ? `Masuk untuk melihat ${lockedCount} kandidat lainnya` : `Sign in to view ${lockedCount} more candidates`}
                             </Link>
                           </td>
                         </tr>
@@ -465,8 +494,8 @@ export default function AiPickPage() {
                     urut di bawah tetap berlaku untuk kedua tampilan. */}
                 <div className="md:hidden">
                   <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 border-b border-tv-border">
-                    <span className="text-[10px] uppercase tracking-wide text-tv-muted shrink-0 mr-1">Urutkan</span>
-                    {RADAR_SORTABLE_COLUMNS.map((col) => (
+                    <span className="text-[10px] uppercase tracking-wide text-tv-muted shrink-0 mr-1">{isId ? 'Urutkan' : 'Sort'}</span>
+                    {sortableColumns.map((col) => (
                       <Button variant="bare" size="none"
                         key={col.key}
                         type="button"
@@ -501,11 +530,11 @@ export default function AiPickPage() {
                                 </span>
                               </div>
                               <div className="text-[11px] text-tv-muted font-number">
-                                Rp {Math.round(it.price).toLocaleString('id-ID')}
+                                Rp {Math.round(it.price).toLocaleString(isId ? 'id-ID' : 'en-US')}
                               </div>
                               <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] font-number text-tv-muted">
                                 <span>T {it.finalScore}</span>
-                                <span>Tek {it.breakdown?.technical ?? 'N/A'}/40</span>
+                                <span>{isId ? 'Tek' : 'Tech'} {it.breakdown?.technical ?? 'N/A'}/40</span>
                                 <span>Fund {it.breakdown?.fundamental ?? 'N/A'}/30</span>
                                 <span>Flow {it.breakdown?.flow ?? 'N/A'}/30</span>
                                 <span>Cov {typeof it.coverage === 'number' ? `${it.coverage}%` : 'N/A'}</span>
@@ -523,7 +552,7 @@ export default function AiPickPage() {
                             <Button variant="bare" size="none"
                               type="button"
                               onClick={() => setExpandedSymbol(isExpanded ? null : it.symbol)}
-                              aria-label={isExpanded ? 'Tutup rincian' : 'Buka rincian'}
+                              aria-label={isExpanded ? (isId ? 'Tutup rincian' : 'Close details') : (isId ? 'Buka rincian' : 'Open details')}
                               className="shrink-0 p-1.5 text-tv-blue"
                             >
                               {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -541,7 +570,7 @@ export default function AiPickPage() {
                                 {([
                                   ['Technical', it.breakdown?.technical, 40],
                                   ['Fundamental', it.breakdown?.fundamental, 30],
-                                  ['Arus Dana', it.breakdown?.flow, 30],
+                                  [isId ? 'Arus Dana' : 'Fund Flow', it.breakdown?.flow, 30],
                                 ] as const).map(([label, value, max]) => (
                                   <div key={label}>
                                     <div className="text-tv-muted uppercase text-[10px] tracking-wide">{label}</div>
@@ -555,13 +584,13 @@ export default function AiPickPage() {
                                 ))}
                               </div>
                               <div className="mt-3">
-                                <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">Alasan Utama</div>
+                                <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">{isId ? 'Alasan Utama' : 'Key Drivers'}</div>
                                 {it.topReasons && it.topReasons.length > 0 ? (
                                   <ul className="space-y-0.5">
                                     {it.topReasons.map((r, i) => <li key={i} className="text-[11px] text-tv-text">✓ {r}</li>)}
                                   </ul>
                                 ) : (
-                                  <span className="text-[11px] text-tv-muted">Rincian belum tersedia untuk saham ini.</span>
+                                  <span className="text-[11px] text-tv-muted">{isId ? 'Rincian belum tersedia untuk saham ini.' : 'Details are not yet available for this stock.'}</span>
                                 )}
                               </div>
                             </motion.div>
@@ -577,7 +606,7 @@ export default function AiPickPage() {
                       className="flex items-center justify-center gap-2 border-t border-tv-border px-4 py-6 text-sm font-bold text-tv-blue transition hover:bg-white/[0.03]"
                     >
                       <Lock className="h-4 w-4" />
-                      Masuk untuk melihat {lockedCount} kandidat lainnya
+                      {isId ? `Masuk untuk melihat ${lockedCount} kandidat lainnya` : `Sign in to view ${lockedCount} more candidates`}
                     </Link>
                   )}
                 </div>
@@ -586,15 +615,30 @@ export default function AiPickPage() {
           </Card>
 
           <p className="text-[11px] text-tv-muted mt-4 leading-relaxed">
-            Skor 0-100 = komposit teknikal (maks 40), fundamental (maks 30), dan arus dana (maks 30).
-            Sinyal hari ini (breakout, golden cross, akumulasi) ditampilkan sebagai label dan dipakai
-            mengurutkan saat skor seri - TIDAK menambah poin, karena bahan bakunya sudah dinilai di
-            dalam skor komposit itu sendiri. &quot;data X%&quot; = porsi bobot yang benar-benar punya data;
-            komponen yang tidak tersedia (mis. bank tidak melaporkan DER ke sumber data) dikeluarkan
-            dari perhitungan, bukan dihitung nol. Akumulasi memakai estimasi Chaikin Money Flow dari
-            posisi close di range High-Low, BUKAN data broker/asing resmi. Tanda merah menandai sinyal
-            yang bertentangan - saham tetap ditampilkan supaya kontradiksinya terlihat, bukan
-            disembunyikan.
+            {isId ? (
+              <>
+                Skor 0-100 = komposit teknikal (maks 40), fundamental (maks 30), dan arus dana (maks 30).
+                Sinyal hari ini (breakout, golden cross, akumulasi) ditampilkan sebagai label dan dipakai
+                mengurutkan saat skor seri - TIDAK menambah poin, karena bahan bakunya sudah dinilai di
+                dalam skor komposit itu sendiri. &quot;data X%&quot; = porsi bobot yang benar-benar punya data;
+                komponen yang tidak tersedia (mis. bank tidak melaporkan DER ke sumber data) dikeluarkan
+                dari perhitungan, bukan dihitung nol. Akumulasi memakai estimasi Chaikin Money Flow dari
+                posisi close di range High-Low, BUKAN data broker/asing resmi. Tanda merah menandai sinyal
+                yang bertentangan - saham tetap ditampilkan supaya kontradiksinya terlihat, bukan
+                disembunyikan.
+              </>
+            ) : (
+              <>
+                Score 0–100 = composite of technical (max 40), fundamental (max 30), and fund flow (max 30).
+                Today&apos;s signals (breakout, golden cross, accumulation) serve as descriptive labels and tie-breakers
+                — they do NOT add extra points, since their underlying inputs are already factored into the composite
+                score itself. &quot;data X%&quot; = proportion of total weighting supported by verified data;
+                unavailable metrics (e.g. banks not reporting DER to data feeds) are excluded from the calculation,
+                not scored as zero. Accumulation uses Chaikin Money Flow estimates based on close relative to High-Low,
+                NOT official broker summary/foreign flow feeds. Red alerts highlight conflicting signals — stocks remain
+                visible so contradictions are transparent, never hidden.
+              </>
+            )}
           </p>
         </PageContainer>
       </div>
@@ -606,23 +650,27 @@ export default function AiPickPage() {
       <PaywallModal
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
-        title="Akses Akun Belum Tersedia"
-        body="Silakan masuk kembali untuk melanjutkan penggunaan LensRadar Live."
-        benefits={[
+        title={isId ? 'Akses Akun Belum Tersedia' : 'Account Access Required'}
+        body={isId ? 'Silakan masuk kembali untuk melanjutkan penggunaan LensRadar Live.' : 'Please sign in again to continue using LensRadar Live.'}
+        benefits={isId ? [
           'Unlimited LensTechnical (10 filter)',
           'LensRadar scan berkala, LensConsensus & Compare Tool',
           'Watchlist & Alert unlimited',
+        ] : [
+          'Unlimited LensTechnical (10 filters)',
+          'Periodic LensRadar scans, LensConsensus & Compare Tool',
+          'Unlimited Watchlists & Alerts',
         ]}
-        secondaryLabel="Tunggu Besok"
+        secondaryLabel={isId ? 'Tunggu Besok' : 'Wait Until Tomorrow'}
       />
       <PaywallModal
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
-        title="Daftar Dulu untuk Lihat Hasil"
-        body="LensRadar butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
+        title={isId ? 'Daftar Dulu untuk Lihat Hasil' : 'Sign Up to View Results'}
+        body={isId ? 'LensRadar butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian.' : 'LensRadar requires a free account. Sign up to access this feature during beta testing.'}
         ctaHref="/signup"
-        ctaLabel="Daftar Gratis"
-        secondaryLabel="Nanti"
+        ctaLabel={isId ? 'Daftar Gratis' : 'Sign Up Free'}
+        secondaryLabel={isId ? 'Nanti' : 'Later'}
       />
     </div>
   );
