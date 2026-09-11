@@ -59,7 +59,7 @@ const SENTIMENT_BADGE_VARIANT: Record<NewsInsight['sentiment'], 'success' | 'dan
   NETRAL: 'info',
 };
 
-const TRUST_WORKFLOWS = [
+const TRUST_WORKFLOWS_ID = [
   {
     title: 'Analisis Saham',
     desc: 'Buka skor total, alasan, risiko, dan sumber data per emiten.',
@@ -86,8 +86,17 @@ const TRUST_WORKFLOWS = [
   },
 ] as const;
 
+const TRUST_WORKFLOWS_EN = [
+  { title: 'Stock Analysis', desc: 'Open the total score, rationale, risks, and data sources for each issuer.', href: '/technical/BBCA', icon: BarChart3 },
+  { title: 'Screener', desc: 'Find candidates using risk profiles and quantitative filters.', href: '/screener', icon: Radar },
+  { title: 'Backtest', desc: 'Test a strategy on historical data before using it as a research idea.', href: '/backtest', icon: Activity },
+  { title: 'Watchlist Alerts', desc: 'Save selected stocks and monitor important changes.', href: '/watchlist', icon: Bell },
+] as const;
+
 export default function HomeWorkspace() {
   const { t, dictionary, language } = useLanguage();
+  const isEn = language === 'en';
+  const trustWorkflows = isEn ? TRUST_WORKFLOWS_EN : TRUST_WORKFLOWS_ID;
   const { user: authUser, resolved: authResolved, effectiveRole } = useAuthUser();
   const {
     ihsg,
@@ -269,22 +278,22 @@ export default function HomeWorkspace() {
 
       <motion.section initial="hidden" animate="show" variants={fadeUp} className="space-y-4">
         <SectionHeader
-          eyebrow="Langkah riset"
-          title="Mulai dari cek data, lalu lihat buktinya"
+          eyebrow={isEn ? 'Research workflow' : 'Langkah riset'}
+          title={isEn ? 'Start with the data, then inspect the evidence' : 'Mulai dari cek data, lalu lihat buktinya'}
           action={
             <Button
               variant="secondary"
               size="sm"
               type="button"
-              onClick={() => window.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { prompt: 'Jelaskan alur riset saham di SahamLens dari cek data sampai pantau watchlist' } }))}
+              onClick={() => window.dispatchEvent(new CustomEvent('open-ai-chat', { detail: { prompt: isEn ? 'Explain the SahamLens stock-research workflow from data checks to watchlist monitoring' : 'Jelaskan alur riset saham di SahamLens dari cek data sampai pantau watchlist' } }))}
               className="gap-2"
             >
-              <Bot className="h-4 w-4" /> Tanya LensAI
+              <Bot className="h-4 w-4" /> {isEn ? 'Ask LensAI' : 'Tanya LensAI'}
             </Button>
           }
         />
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          {TRUST_WORKFLOWS.map((item) => {
+          {trustWorkflows.map((item) => {
             const Icon = item.icon;
             return (
               <Link

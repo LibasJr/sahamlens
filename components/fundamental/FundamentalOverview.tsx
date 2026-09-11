@@ -13,6 +13,7 @@ import { isBlueChipConstituent, LQ45_BADGE_TITLE } from '@/lib/utils/blue-chip-i
 import { classifyTradingBoard } from '@/lib/utils/idx-trading-board';
 import { buildExportFileName } from '@/shared/format/export-filename';
 import { fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
+import { useLanguage } from '@/lib/i18n';
 
 function displayTicker(symbol: string): string {
   return symbol.replace('.JK', '').replace('.JK', '');
@@ -50,18 +51,20 @@ function FundamentalMetric({
   value,
   tone = 'text-white',
   provenance,
+  isEn,
 }: {
   label: string;
   value: string;
   tone?: string;
   provenance?: ProvenancedFinancialValue<number | string | null>;
+  isEn: boolean;
 }) {
   return (
     <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-bg p-2.5 sm:p-3 flex flex-col justify-between">
       <span className="lens-meta uppercase text-tv-muted">{label}</span>
       <span className={`font-number text-lg font-bold ${tone}`}>{value}</span>
       <ResearchProvenanceDetails
-        label={`Sumber ${label}`}
+        label={`${isEn ? 'Source' : 'Sumber'} ${label}`}
         entries={[{ label, value: provenance?.value ?? null, provenance: provenance?.provenance }]}
       />
     </Card>
@@ -82,6 +85,8 @@ export default function FundamentalOverview({
   onRefresh,
   formatTime,
 }: FundamentalOverviewProps) {
+  const { language } = useLanguage();
+  const isEn = language === 'en';
   const isBankProfile = Boolean(data?.profile?.sector?.includes('Financial') || data?.profile?.industry?.includes('Bank'));
   const bank = data?.bankFundamentals ?? null;
   const bankQuality = bank?.quality ?? null;
@@ -92,13 +97,13 @@ export default function FundamentalOverview({
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-y border-tv-border/70 py-2 text-xs">
         <div className="flex items-center gap-2 text-tv-muted">
           <span className={`h-2 w-2 rounded-full ${marketClosed ? 'bg-tv-red' : 'bg-tv-green animate-pulse'}`} />
-          {marketClosed ? 'Bursa sedang tutup' : 'Bursa sedang buka'}
+          {marketClosed ? (isEn ? 'Market closed' : 'Bursa sedang tutup') : (isEn ? 'Market open' : 'Bursa sedang buka')}
         </div>
         <div className="text-tv-muted">
-          Sumber harga: {data?._meta?.provider || 'Yahoo Finance'} • sesi {formatTime(marketSnapshotAt)}
+          {isEn ? 'Price source' : 'Sumber harga'}: {data?._meta?.provider || 'Yahoo Finance'} • {isEn ? 'session' : 'sesi'} {formatTime(marketSnapshotAt)}
         </div>
         <div className="text-tv-muted">
-          Data sesi: {formatTime(lastUpdate)} • {marketClosed ? 'menunggu sesi berikutnya' : 'cek ulang tiap 1 menit'}
+          {isEn ? 'Session data' : 'Data sesi'}: {formatTime(lastUpdate)} • {marketClosed ? (isEn ? 'waiting for the next session' : 'menunggu sesi berikutnya') : (isEn ? 'recheck every minute' : 'cek ulang tiap 1 menit')}
         </div>
         <Button
           variant="bare"
@@ -114,7 +119,7 @@ export default function FundamentalOverview({
         <ExportImageButton
           targetRef={exportRef}
           fileName={buildExportFileName('Fundamental', ticker)}
-          label="Export Kartu Fundamental"
+          label={isEn ? 'Export Fundamental Card' : 'Export Kartu Fundamental'}
           disabled={!data}
         />
       </div>
@@ -156,7 +161,7 @@ export default function FundamentalOverview({
                   {boardInfo?.isFca && (
                     <div className="mt-2 flex items-start gap-2 rounded-xl border border-tv-gold/30 bg-tv-gold/10 p-2 text-xs text-tv-gold">
                       <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
-                      <div><strong>Papan Pemantauan Khusus (FCA):</strong> Diperdagangkan dengan mekanisme Periodic Call Auction (5 sesi lelang/hari).</div>
+                      <div><strong>{isEn ? 'Special Monitoring Board (FCA):' : 'Papan Pemantauan Khusus (FCA):'}</strong> {isEn ? 'Traded through the Periodic Call Auction mechanism (5 auction sessions/day).' : 'Diperdagangkan dengan mekanisme Periodic Call Auction (5 sesi lelang/hari).'}</div>
                     </div>
                   )}
                 </>
@@ -170,7 +175,7 @@ export default function FundamentalOverview({
                   className="font-number text-xl font-bold text-white tabular-nums sm:text-2xl"
                 />
               ) : (
-                <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
+                <span className="text-sm text-tv-muted">{isEn ? 'Price unavailable from the data source' : 'Harga tidak tersedia dari sumber data'}</span>
               )}
               {typeof stock.change_pct === 'number' && Number.isFinite(stock.change_pct) ? (
                 <span className={`font-number text-sm font-bold flex items-center gap-0.5 ${stock.change_pct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
@@ -195,7 +200,7 @@ export default function FundamentalOverview({
             </div>
           )}
           <div className="min-w-0">
-            <div className="mb-1.5 flex min-h-[28px] items-center justify-center text-center lens-meta font-sans font-semibold uppercase tracking-wide text-tv-muted">Valuasi Harga</div>
+            <div className="mb-1.5 flex min-h-[28px] items-center justify-center text-center lens-meta font-sans font-semibold uppercase tracking-wide text-tv-muted">{isEn ? 'Price Valuation' : 'Valuasi Harga'}</div>
             {(() => {
               const valuation = splitStatusText(data?.consensus);
               return (
@@ -206,13 +211,6 @@ export default function FundamentalOverview({
                       ? 'bg-tv-red/10 text-tv-red border-tv-red/30'
                       : 'bg-tv-yellow/10 text-tv-yellow border-tv-yellow/30'
                 }`}>
-                  {/* LUBER DI PONSEL SEMPIT (terukur 2026-08-23 lewat harness e2e).
-                      "UNDERVALUED" satu kata selebar 117px dan tidak bisa dipenggal,
-                      sedangkan kartu ini cuma separuh layar (grid-cols-2): di 320px ruang
-                      isinya 110px, jadi labelnya menonjol keluar dari kotaknya. Tiga lapis
-                      penahan, dari yang paling tidak mengubah tampilan: padding mengecil
-                      (px-2 di bawah sm), baris boleh membungkus, kata boleh dipenggal
-                      sebagai jaring terakhir. */}
                   <div className="flex min-w-0 flex-wrap items-center justify-center gap-1.5">
                     {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <TrendingUp className="h-4 w-4 shrink-0" />}
                     <span className="min-w-0 break-words text-sm font-bold leading-tight">{loading ? 'Calculating...' : valuation.primary}</span>
@@ -241,9 +239,6 @@ export default function FundamentalOverview({
         </div>
       </Card>
 
-      {/* Kontrol tampilan & glosarium dipindah ke BAWAH kartu identitas. Sebelumnya
-          keduanya berada di atasnya, sehingga hal pertama yang terlihat di halaman
-          emiten adalah dua pengatur tampilan - bukan emiten yang sedang dibuka. */}
       <AnalysisViewModeToggle mode={viewMode} onChange={onViewModeChange} />
       <AnalysisGlossary />
 
@@ -254,15 +249,15 @@ export default function FundamentalOverview({
         const buruk = data.fundamentalQuality.label === 'BURUK';
         if (!(murah || mahal) || !(bagus || buruk)) return null;
         const verdict = murah && bagus
-          ? { tone: 'border-tv-green/30 bg-tv-green/5 text-tv-green', text: 'Bisnisnya dinilai bagus DAN harganya di bawah nilai wajar - kuadran yang paling dicari. Periksa apakah ada risiko yang belum tercermin di rasio (perkara hukum, ketergantungan pada satu pelanggan, tata kelola).' }
+          ? { tone: 'border-tv-green/30 bg-tv-green/5 text-tv-green', text: isEn ? 'The business is rated strong AND priced below fair value—the most attractive quadrant. Check risks not reflected in the ratios, including litigation, customer concentration, and governance.' : 'Bisnisnya dinilai bagus DAN harganya di bawah nilai wajar - kuadran yang paling dicari. Periksa apakah ada risiko yang belum tercermin di rasio (perkara hukum, ketergantungan pada satu pelanggan, tata kelola).' }
           : murah && buruk
-            ? { tone: 'border-tv-warning/30 bg-tv-warning/5 text-tv-warning', text: 'Harganya murah TAPI kualitas fundamentalnya buruk. Ini pola perangkap nilai (value trap): harga rendah sering merupakan penilaian pasar yang benar atas bisnis yang sedang memburuk, bukan diskon.' }
+            ? { tone: 'border-tv-warning/30 bg-tv-warning/5 text-tv-warning', text: isEn ? 'The price is low BUT fundamental quality is weak. This is a value-trap pattern: the low price may reflect a deteriorating business rather than a discount.' : 'Harganya murah TAPI kualitas fundamentalnya buruk. Ini pola perangkap nilai (value trap): harga rendah sering merupakan penilaian pasar yang benar atas bisnis yang sedang memburuk, bukan diskon.' }
             : mahal && bagus
-              ? { tone: 'border-tv-blue/30 bg-tv-blue/5 text-tv-blue', text: 'Bisnisnya bagus TAPI harganya sudah di atas nilai wajar. Kualitas tidak menghapus risiko harga - membeli perusahaan bagus di harga terlalu tinggi tetap bisa merugi bertahun-tahun.' }
-              : { tone: 'border-tv-red/30 bg-tv-red/5 text-tv-red', text: 'Harganya di atas nilai wajar DAN kualitas fundamentalnya buruk - kuadran dengan pembenaran paling lemah dari kedua sisi.' };
+              ? { tone: 'border-tv-blue/30 bg-tv-blue/5 text-tv-blue', text: isEn ? 'The business is strong BUT the price is above fair value. Quality does not eliminate valuation risk.' : 'Bisnisnya bagus TAPI harganya sudah di atas nilai wajar. Kualitas tidak menghapus risiko harga - membeli perusahaan bagus di harga terlalu tinggi tetap bisa merugi bertahun-tahun.' }
+              : { tone: 'border-tv-red/30 bg-tv-red/5 text-tv-red', text: isEn ? 'The price is above fair value AND fundamental quality is weak—the least defensible quadrant.' : 'Harganya di atas nilai wajar DAN kualitas fundamentalnya buruk - kuadran dengan pembenaran paling lemah dari kedua sisi.' };
         return (
           <div className={`rounded-lg border px-4 py-3 ${verdict.tone}`}>
-            <div className="lens-meta font-semibold uppercase tracking-wide opacity-70">Kombinasi Valuasi &times; Kualitas</div>
+            <div className="lens-meta font-semibold uppercase tracking-wide opacity-70">{isEn ? 'Valuation × Quality Combination' : 'Kombinasi Valuasi × Kualitas'}</div>
             <p className="mt-1 text-[11px] leading-relaxed text-tv-text">{verdict.text}</p>
           </div>
         );
@@ -272,38 +267,39 @@ export default function FundamentalOverview({
         <Card padding="none" radius="xl" elevation="sm" overflow="visible" highlight={false} className="w-full border-tv-border p-4 sm:p-5">
           <h3 className="mb-3 flex items-center gap-2 border-b border-tv-border pb-2.5 font-heading text-lg font-extrabold text-white sm:mb-4 sm:pb-3 sm:text-xl">
             <Layers className="w-5 h-5 text-tv-accent" />
-            Profil Perusahaan & Data Fundamental
+            {isEn ? 'Company Profile & Fundamental Data' : 'Profil Perusahaan & Data Fundamental'}
           </h3>
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
             <div className="lg:col-span-1 space-y-4">
               <div>
-                <div className="text-xs text-tv-muted uppercase tracking-wide mb-1">Sektor & Industri</div>
+                <div className="text-xs text-tv-muted uppercase tracking-wide mb-1">{isEn ? 'Sector & Industry' : 'Sektor & Industri'}</div>
                 <div className="text-sm text-white font-bold">
                   {data?.profile?.sector || data?.profile?.industry ? (
-                    <>{data?.profile?.sector || 'Sektor belum diklasifikasi'}<span className="text-tv-muted font-normal"> / </span>{data?.profile?.industry || 'industri belum diklasifikasi'}</>
+                    <>{data?.profile?.sector || (isEn ? 'Unclassified sector' : 'Sektor belum diklasifikasi')}<span className="text-tv-muted font-normal"> / </span>{data?.profile?.industry || (isEn ? 'unclassified industry' : 'industri belum diklasifikasi')}</>
                   ) : (
-                    <span className="text-tv-muted font-normal">Sumber data belum mengklasifikasi emiten ini</span>
+                    <span className="text-tv-muted font-normal">{isEn ? 'The data source has not classified this issuer' : 'Sumber data belum mengklasifikasi emiten ini'}</span>
                   )}
                 </div>
               </div>
               <div>
-                <div className="text-xs text-tv-muted uppercase tracking-wide mb-1">Deskripsi Bisnis</div>
-                <div className="text-sm text-tv-muted line-clamp-6 hover:line-clamp-none transition-all">{data?.profile?.description || 'Memuat deskripsi perusahaan...'}</div>
+                <div className="text-xs text-tv-muted uppercase tracking-wide mb-1">{isEn ? 'Business Description' : 'Deskripsi Bisnis'}</div>
+                <div className="text-sm text-tv-muted line-clamp-6 hover:line-clamp-none transition-all">{data?.profile?.description || (isEn ? 'Loading company description...' : 'Memuat deskripsi perusahaan...')}</div>
               </div>
               {data?.profile?.website && (
                 <div className="pt-2">
                   <a href={data.profile.website} target="_blank" rel="noreferrer" className="text-xs text-tv-accent hover:underline flex items-center gap-1">
-                    Kunjungi Website <ArrowUpRight className="w-3 h-3" />
+                    {isEn ? 'Visit Website' : 'Kunjungi Website'} <ArrowUpRight className="w-3 h-3" />
                   </a>
                 </div>
               )}
             </div>
 
             <div className="lg:col-span-2 grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4">
-              <FundamentalMetric label="Market Cap" value={fmtTriliun(data?.fundamentals?.marketCap)} provenance={data?.provenance?.fundamentals?.marketCap} />
-              <FundamentalMetric label="P/E Ratio (TTM)" value={fmtKali(data?.fundamentals?.trailingPE)} provenance={data?.provenance?.fundamentals?.trailingPE} />
-              <FundamentalMetric label="Price to Book (PBV)" value={fmtKali(data?.fundamentals?.priceToBook)} provenance={data?.provenance?.fundamentals?.priceToBook} />
+              <FundamentalMetric isEn={isEn} label="Market Cap" value={fmtTriliun(data?.fundamentals?.marketCap)} provenance={data?.provenance?.fundamentals?.marketCap} />
+              <FundamentalMetric isEn={isEn} label="P/E Ratio (TTM)" value={fmtKali(data?.fundamentals?.trailingPE)} provenance={data?.provenance?.fundamentals?.trailingPE} />
+              <FundamentalMetric isEn={isEn} label="Price to Book (PBV)" value={fmtKali(data?.fundamentals?.priceToBook)} provenance={data?.provenance?.fundamentals?.priceToBook} />
               <FundamentalMetric
+                isEn={isEn}
                 label="Return on Equity (ROE)"
                 value={fmtPersen(data?.fundamentals?.returnOnEquity)}
                 tone={data?.fundamentals?.returnOnEquity == null ? 'text-tv-muted' : data.fundamentals.returnOnEquity > 0 ? 'text-tv-green' : 'text-tv-red'}
@@ -311,13 +307,13 @@ export default function FundamentalOverview({
               />
               {!isBankProfile ? (
                 <>
-                  <FundamentalMetric label="Gross Margin" value={fmtPersen(data?.fundamentals?.grossMargins)} provenance={data?.provenance?.fundamentals?.grossMargins} />
-                  <FundamentalMetric label="Pendapatan (Revenue)" value={fmtTriliun(data?.fundamentals?.totalRevenue)} provenance={data?.provenance?.fundamentals?.totalRevenue} />
+                  <FundamentalMetric isEn={isEn} label="Gross Margin" value={fmtPersen(data?.fundamentals?.grossMargins)} provenance={data?.provenance?.fundamentals?.grossMargins} />
+                  <FundamentalMetric isEn={isEn} label="Pendapatan (Revenue)" value={fmtTriliun(data?.fundamentals?.totalRevenue)} provenance={data?.provenance?.fundamentals?.totalRevenue} />
                 </>
               ) : (
                 <>
-                  <FundamentalMetric label="NIM (Net Interest Margin)" value={fmtBankPct(bank?.nimPct)} tone={bank?.nimPct == null ? 'text-tv-muted' : 'text-tv-green'} />
-                  <FundamentalMetric label="Pendapatan (Revenue)" value={fmtTriliun(data?.fundamentals?.totalRevenue)} provenance={data?.provenance?.fundamentals?.totalRevenue} />
+                  <FundamentalMetric isEn={isEn} label="NIM (Net Interest Margin)" value={fmtBankPct(bank?.nimPct)} tone={bank?.nimPct == null ? 'text-tv-muted' : 'text-tv-green'} />
+                  <FundamentalMetric isEn={isEn} label="Pendapatan (Revenue)" value={fmtTriliun(data?.fundamentals?.totalRevenue)} provenance={data?.provenance?.fundamentals?.totalRevenue} />
                 </>
               )}
             </div>
