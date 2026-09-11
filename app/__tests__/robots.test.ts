@@ -7,10 +7,13 @@ const rules = () => {
 };
 
 describe('robots.txt', () => {
-  it('menutup API, admin, dan workbench untuk semua crawler', () => {
+  it('menutup API dan workbench tanpa mengiklankan route sensitif', () => {
     for (const rule of rules()) {
       expect(rule.disallow).toEqual(
-        expect.arrayContaining(['/api/', '/admin', '/admin-login', '/_workbench']),
+        expect.arrayContaining(['/api/', '/_workbench']),
+      );
+      expect(rule.disallow).not.toEqual(
+        expect.arrayContaining(['/admin', '/admin-login', '/multi-agent']),
       );
     }
   });

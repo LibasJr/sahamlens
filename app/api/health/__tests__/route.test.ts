@@ -9,12 +9,16 @@ vi.mock('@/shared/cache/redis-cache', () => ({
 vi.mock('@/modules/observability/service/data-source-health.service', () => ({
   listDataSourceHealth: vi.fn(),
 }));
+vi.mock('@/shared/auth/session', () => ({
+  getSession: vi.fn(),
+}));
 
 import { GET } from '../route';
 import { pool } from '@/shared/database/postgres.client';
 import { pingRedis } from '@/shared/cache/redis-cache';
 import { listDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 import type { NextRequest } from 'next/server';
+import { getSession } from '@/shared/auth/session';
 
 // Request pertama route handler TIDAK boleh opsional (CLAUDE.md §1) - jadi test yang
 // butuh memanggilnya membuat Request-nya sendiri, bukan melonggarkan tanda tangannya.
@@ -28,6 +32,21 @@ async function callHealth() {
 beforeEach(() => {
   vi.mocked(pool.query).mockResolvedValue({ rows: [] } as never);
   vi.mocked(listDataSourceHealth).mockResolvedValue([]);
+  vi.mocked(getSession).mockResolvedValue({ role: 'admin' } as never);
+});
+
+it('publik hanya menerima status ringkas tanpa detail infrastruktur', async () => {
+  vi.stubEnv('NODE_ENV', 'production');
+  vi.mocked(pingRedis).mockResolvedValue('ok');
+  vi.mocked(getSession).mockResolvedValue(null);
+
+  const { status, body } = await callHealth();
+
+  expect(status).toBe(200);
+  expect(body).toEqual({ status: 'ok', meta: { requestId: expect.any(String) } });
+  expect(body).not.toHaveProperty('checks');
+  expect(body).not.toHaveProperty('sources');
+  expect(body).not.toHaveProperty('timestamp');
 });
 
 afterEach(() => {
