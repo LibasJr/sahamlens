@@ -23,6 +23,54 @@ from typing import Any
 API_ROOT = "https://api.telegram.org"
 STATE_DIR = Path(os.getenv("SAHAMLENS_OPS_STATE_DIR", "/var/lib/sahamlens/ops-telegram-bot"))
 
+# Sumber kebenaran: config/scheduled-jobs.json (23 job aplikasi) + timer
+# infrastruktur yang tidak ada di sana (backup, disk-monitor, dst). Nama timer
+# systemd tidak selalu sama dengan nama job -- sebagian dipasang dengan awalan
+# qstash- (migrasi dari QStash) atau akhiran -collector. Kalau timer di VPS
+# berganti nama, perbarui peta ini juga (lihat CLAUDE.md #2: gerbang pemindai
+# yang menunjuk nama lama lulus diam-diam tanpa memeriksa apa pun).
+JOB_CATEGORIES: list[tuple[str, list[tuple[str, str]]]] = [
+    ("📈 PASAR & INTRADAY", [
+        ("ai-pick-scan", "qstash-ai-pick-scan"),
+        ("market-pulse", "qstash-market-pulse"),
+        ("market-summary", "qstash-market-summary"),
+        ("breakout-scan", "qstash-breakout-scan"),
+        ("intraday-collect", "intraday-collect"),
+        ("market-data-reconcile", "market-data-reconcile"),
+        ("macro", "qstash-macro"),
+    ]),
+    ("🏢 FUNDAMENTAL & ALIRAN DANA", [
+        ("bank-fundamental-collect", "bank-fundamental-collector"),
+        ("idx-financial-sync", "idx-financial-sync"),
+        ("idx-flow-sync", "idx-flow-sync"),
+        ("ownership-flow-ksei-sync", "ownership-flow-ksei-sync"),
+        ("fundamental-snapshot", "qstash-fundamental-snapshot"),
+    ]),
+    ("🔍 SCANNER & RISET", [
+        ("screener-scan", "screener-scan"),
+        ("news", "qstash-news"),
+        ("tpcl-validation-worker", "tpcl-validation-worker"),
+        ("calendar-scan", "calendar-scan"),
+        ("dividend-scan", "dividend-scan"),
+        ("recommendation-scan", "qstash-recommendation-scan"),
+        ("watchlist-alert", "qstash-watchlist-alert"),
+    ]),
+    ("🛡️ MODEL & PEMELIHARAAN", [
+        ("lens-bucket-backtest", "lens-bucket-backtest"),
+        ("lens-score-optimizer", "lens-score-optimizer"),
+        ("backtest-precompute", "qstash-backtest-precompute"),
+        ("privacy-cleanup", "privacy-cleanup"),
+    ]),
+    ("🧰 INFRASTRUKTUR", [
+        ("database-backup", "database-backup"),
+        ("disk-monitor", "disk-monitor"),
+        ("weekly-maintenance", "weekly-maintenance"),
+        ("uptime-monitor", "uptime-monitor"),
+        ("cloudflared-watchdog", "cloudflared-watchdog"),
+        ("corporate-calendar-ksei-sync", "corporate-calendar-ksei-sync"),
+    ]),
+]
+
 
 def env(name: str) -> str:
     return os.getenv(name, "").strip()
@@ -84,12 +132,81 @@ def internal_health() -> tuple[str, str]:
         return "DOWN", "local health endpoint unavailable"
 
 
+def db_url() -> str | None:
+    return env("DATABASE_URL") or None
+
+
+def redis_url_value() -> str | None:
+    return env("REDIS_URL") or None
+
+
+def postgres_detail() -> tuple[str, str]:
+    """Latensi + jumlah baris via psql (stdlib subprocess), tanpa dependensi baru."""
+    url = db_url()
+    if not url:
+        return "WATCH", "DATABASE_URL kosong"
+    started = time.monotonic()
+    code, out = run(["psql", url, "-t", "-A", "-c", "SELECT count(*) FROM job_run_log"], timeout=8)
+    latency_ms = round((time.monotonic() - started) * 1000)
+    if code != 0 or not out.strip().isdigit():
+        return "DOWN", "psql query gagal"
+    return ("OK" if latency_ms < 1500 else "WATCH"), f"{latency_ms} ms · {out.strip()} baris job_run_log"
+
+
+def redis_detail() -> tuple[str, str]:
+    url = redis_url_value()
+    if not url:
+        return "WATCH", "REDIS_URL kosong"
+    code, out = run(["redis-cli", "-u", url, "--no-raw", "ping"], timeout=6)
+    if code != 0 or "PONG" not in out:
+        return "DOWN", "PING gagal"
+    _, info = run(["redis-cli", "-u", url, "info", "memory"], timeout=6)
+    used = next((line.split(":", 1)[1] for line in info.splitlines() if line.startswith("used_memory_human:")), "?")
+    return "OK", f"PONG · memory {used}"
+
+
+def data_source_detail() -> tuple[str, str]:
+    url = db_url()
+    if not url:
+        return "WATCH", "DATABASE_URL kosong"
+    query = (
+        "SELECT status, count(*) FROM data_source_health "
+        "WHERE source_id <> 'IDX_PUBLIC_STOCK_SUMMARY' GROUP BY status"
+    )
+    code, out = run(["psql", url, "-t", "-A", "-F", "|", "-c", query], timeout=8)
+    if code != 0:
+        return "WATCH", "query data_source_health gagal"
+    counts = {"HEALTHY": 0, "DEGRADED": 0, "DOWN": 0, "UNKNOWN": 0}
+    for line in out.splitlines():
+        if "|" not in line:
+            continue
+        status, n = line.split("|", 1)
+        if status in counts and n.strip().isdigit():
+            counts[status] = int(n.strip())
+    level = "DOWN" if counts["DOWN"] > 0 else "WATCH" if counts["DEGRADED"] or counts["UNKNOWN"] else "OK"
+    return level, f"healthy {counts['HEALTHY']} · degraded {counts['DEGRADED']} · down {counts['DOWN']}"
+
+
 def storage() -> tuple[str, str]:
     usage = shutil.disk_usage("/")
     used_pct = round(usage.used * 100 / usage.total)
     free_gb = usage.free // 1024**3
     level = "OK" if free_gb >= 20 and used_pct < 85 else "WATCH"
     return level, f"{used_pct}% used · {free_gb} GB free"
+
+
+def storage_detail_lines() -> list[str]:
+    """Rincian per-direktori data, terpisah dari total root untuk konteks."""
+    app_dir = Path(os.getenv("SAHAMLENS_APP_DIR", "/opt/sahamlens/app"))
+    targets = [("data/", app_dir / "data"), (".next/", app_dir / ".next")]
+    lines: list[str] = []
+    for label, path in targets:
+        if not path.exists():
+            continue
+        code, out = run(["du", "-sh", str(path)], timeout=10)
+        size = out.split()[0] if code == 0 and out else "?"
+        lines.append(f"    📁 <code>{html.escape(label)}</code> {html.escape(size)}")
+    return lines
 
 
 def service_status() -> tuple[str, str]:
@@ -105,6 +222,99 @@ def latest_failed_jobs() -> tuple[str, str]:
     if failed:
         return "DOWN", ", ".join(failed[:2]) + (" +more" if len(failed) > 2 else "")
     return "OK", "no failed units"
+
+
+def job_run_rows() -> dict[str, dict[str, Any]]:
+    """Status terakhir + hitungan 24 jam per job_name langsung dari job_run_log.
+
+    Agregat 24 jam dihitung dengan FILTER dalam SATU pass (bukan correlated
+    subquery per baris) -- versi subquery menghabiskan ~20s pada 53k+ baris
+    dan kepotong oleh timeout; ini turun ke sub-detik.
+    """
+    url = db_url()
+    if not url:
+        return {}
+    query = (
+        "WITH recent AS ("
+        "  SELECT job_name, status, started_at,"
+        "         row_number() OVER (PARTITION BY job_name ORDER BY started_at DESC) AS rn"
+        "  FROM job_run_log WHERE started_at > now() - interval '24 hours'"
+        ") "
+        "SELECT j.job_name, j.status,"
+        "       to_char(j.started_at AT TIME ZONE 'Asia/Jakarta', 'DD Mon HH24:MI'),"
+        "       count(r.*) FILTER (WHERE r.job_name IS NOT NULL),"
+        "       count(r.*) FILTER (WHERE r.status = 'FAILED') "
+        "FROM (SELECT DISTINCT ON (job_name) job_name, status, started_at FROM job_run_log"
+        "      ORDER BY job_name, started_at DESC) j "
+        "LEFT JOIN recent r ON r.job_name = j.job_name "
+        "GROUP BY j.job_name, j.status, j.started_at"
+    )
+    code, out = run(["psql", url, "-t", "-A", "-F", "|", "-c", query], timeout=20)
+    if code != 0:
+        return {}
+    rows: dict[str, dict[str, Any]] = {}
+    for line in out.splitlines():
+        parts = line.split("|")
+        if len(parts) < 5:
+            continue
+        name, status, last_run, runs_24h, fails_24h = parts[:5]
+        if not (runs_24h.isdigit() and fails_24h.isdigit()):
+            continue
+        rows[name] = {
+            "status": status,
+            "last_run": last_run,
+            "runs_24h": int(runs_24h),
+            "fails_24h": int(fails_24h),
+        }
+    return rows
+
+
+def timer_next_run() -> dict[str, str]:
+    """Jadwal berikutnya per unit .timer, dibaca dari systemctl list-timers."""
+    code, out = run(["systemctl", "list-timers", "sahamlens*", "--no-legend", "--plain", "--all"], timeout=8)
+    if code != 0:
+        return {}
+    result: dict[str, str] = {}
+    for line in out.splitlines():
+        parts = line.split()
+        if len(parts) < 6:
+            continue
+        unit = parts[-2]
+        result[unit] = "n/a" if parts[0] == "n/a" else f"{parts[0]} {parts[2][:5]}"
+    return result
+
+
+def jobs_detail_text() -> str:
+    """Rincian seluruh scheduled job (23 aplikasi + infrastruktur), per kategori."""
+    rows = job_run_rows()
+    next_run = timer_next_run()
+    lines: list[str] = []
+    total = healthy = 0
+    for category, jobs in JOB_CATEGORIES:
+        lines.append(f"<b>{html.escape(category)}</b>")
+        for job_name, timer_name in jobs:
+            total += 1
+            info = rows.get(job_name)
+            next_at = next_run.get(f"sahamlens-{timer_name}.timer")
+            suffix = f" · next {html.escape(next_at)}" if next_at else ""
+            if info is None:
+                lines.append(f"  ⚪ <code>{html.escape(job_name)}</code>\n      └ <i>tidak ada riwayat run</i>{suffix}")
+                continue
+            if info["status"] == "SUCCESS" and info["fails_24h"] == 0:
+                icon = "🟢"
+                healthy += 1
+            elif info["fails_24h"] > 0:
+                icon = "🔴"
+            else:
+                icon = "🟡"
+            lines.append(
+                f"  {icon} <code>{html.escape(job_name)}</code>\n"
+                f"      └ {html.escape(info['status'])} · {html.escape(info['last_run'])} WIB"
+                f" · 24h: {info['runs_24h']}r/{info['fails_24h']}f{suffix}"
+            )
+        lines.append("")
+    lines.append(f"📌 <b>{healthy}/{total}</b> job sukses tanpa kegagalan 24 jam terakhir.")
+    return "\n".join(lines)
 
 
 def level_icon(level: str) -> str:
@@ -136,20 +346,51 @@ def dashboard(kind: str = "snapshot") -> str:
         ("💾", "STORAGE", *storage()),
         ("📊", "SCHEDULED JOBS", *latest_failed_jobs()),
     ]
+    now = datetime.now().astimezone().strftime("%d %b · %H:%M:%S %Z")
+
+    if kind == "jobs":
+        body = jobs_detail_text()
+        return f"📊 <b>SAHAMLENS SCHEDULED JOBS</b>\n━━━ <i>DETAIL SEMUA JOB & TIMER</i> ━━━\n\n{body}\n\n🕒 <i>Updated {now}</i>"
+
+    if kind == "health":
+        detail_checks = [
+            ("🖥️", "APPLICATION", *service_status()),
+            ("🐘", "POSTGRESQL", *postgres_detail()),
+            ("⚡", "REDIS", *redis_detail()),
+            ("🌐", "DATA SOURCES", *data_source_detail()),
+        ]
+        overall = (
+            "DOWN" if any(c[2] == "DOWN" for c in detail_checks)
+            else "WATCH" if any(c[2] == "WATCH" for c in detail_checks)
+            else "OK"
+        )
+        lines = ["💓 <b>APPLICATION HEALTH</b>", f"{level_icon(overall)} <b>{overall}</b>  ━━ <i>DETAIL TELEMETRY</i>", ""]
+        for icon, label, level, detail in detail_checks:
+            lines.append(row(icon, label, level, detail))
+            lines.append("")
+        lines.append(f"🕒 <i>Updated {now}</i>")
+        return "\n".join(lines)
+
+    if kind == "storage":
+        level, detail = storage()
+        lines = ["💾 <b>STORAGE STATUS</b>", f"{level_icon(level)} <b>{level}</b>  ━━ <i>DETAIL DISK</i>", ""]
+        lines.append(row("💾", "ROOT (/)", level, detail, storage_percent(detail)))
+        dir_lines = storage_detail_lines()
+        if dir_lines:
+            lines.append("")
+            lines.append("📁 <b>Rincian direktori</b>")
+            lines.extend(dir_lines)
+        lines.append("")
+        lines.append(f"🕒 <i>Updated {now}</i>")
+        return "\n".join(lines)
+
     selected = checks
     title = "🛡️ <b>SAHAMLENS OPS</b>"
-    if kind == "storage":
-        selected, title = [checks[2]], "💾 <b>STORAGE STATUS</b>"
-    elif kind == "health":
-        selected, title = checks[:2], "💓 <b>APPLICATION HEALTH</b>"
-    elif kind == "jobs":
-        selected, title = [checks[3]], "📊 <b>SCHEDULER STATUS</b>"
     overall = "DOWN" if any(item[2] == "DOWN" for item in selected) else "WATCH" if any(item[2] == "WATCH" for item in selected) else "OK"
     lines = [title, f"{level_icon(overall)} <b>{overall}</b>  ━━ <i>LIVE SNAPSHOT</i>", ""]
     for icon, label, level, detail in selected:
         lines.append(row(icon, label, level, detail, storage_percent(detail) if label == "STORAGE" else None))
         lines.append("")
-    now = datetime.now().astimezone().strftime("%d %b · %H:%M:%S %Z")
     lines.append(f"🕒 <i>Updated {now}</i>")
     return "\n".join(lines)
 
