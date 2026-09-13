@@ -7,6 +7,7 @@ import { logger } from '@/shared/logger/logger';
 import { AI_PICK_UNIVERSE } from '@/modules/market/constants/ai-pick-universe';
 import { writeFundamentalSnapshot, type FundamentalSnapshot } from '@/shared/cache/ai-pick-cache';
 import { archiveFundamentalSnapshotSafe } from '@/modules/fundamental/repository/fundamental-history.repository';
+import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
@@ -33,7 +34,23 @@ async function fetchOne(ticker: string) {
     });
     return {
       per: qs?.summaryDetail?.trailingPE || qs?.summaryDetail?.forwardPE || null,
-      pbv: qs?.defaultKeyStatistics?.priceToBook || null,
+      // BUG FIX (audit cross-check XBRL vs Yahoo, 2026-09-14): `priceToBook` mentah untuk
+      // emiten pelapor USD membandingkan harga IDR dengan nilai buku USD, jadi angka yang
+      // tersimpan sebenarnya KURS, bukan rasio. Terukur di `fundamental_history`
+      // 2026-09-12: ADRO 16500, AADI 28563, AMMN 63947 - 38 dari 200 emiten (19%) punya
+      // pbv > 50.
+      //
+      // Koreksinya sudah ada sejak audit 2026-08-03 (temuan C-07) dan dipakai di
+      // recommendation.service.ts, tapi jalur snapshot ini tidak ikut dilindungi -
+      // penjaga yang hanya menutup satu dari dua jalur. `price` sudah ikut diminta di
+      // daftar modules di atas, jadi koreksi ini tidak menambah biaya fetch.
+      pbv: await correctPbvForUsdReporter({
+        priceCurrency: qs?.price?.currency,
+        financialCurrency: qs?.financialData?.financialCurrency,
+        bookValue: qs?.defaultKeyStatistics?.bookValue,
+        price: qs?.price?.regularMarketPrice,
+        rawPbv: qs?.defaultKeyStatistics?.priceToBook || null,
+      }),
       roe: qs?.financialData?.returnOnEquity != null ? qs.financialData.returnOnEquity * 100 : null,
       der: qs?.financialData?.debtToEquity != null ? qs.financialData.debtToEquity / 100 : null,
       currentRatio: qs?.financialData?.currentRatio || null,
