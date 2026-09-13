@@ -117,6 +117,11 @@ describe('InvestmentSnapshot360Card', () => {
     expect(html).toContain('Evidence Quality');
     expect(html).toContain('Data per 04 September 2026');
     expect(html).toContain('LensScore adalah keselarasan faktor, bukan probabilitas profit');
+    // Snapshot, Teknikal, dan Fundamental harus terlihat berasal dari satu paket riset:
+    // kertas hangat, sheet putih, dan aksen sektor—bukan terminal neon terpisah.
+    expect(html).toContain('background-color:#F4F2EC');
+    expect(html).toContain('background-color:#FFFFFF');
+    expect(html).toContain('background-color:#1B3A6B');
   });
 
   it('mencetak kedalaman teknikal yang sudah dihitung, bukan membuangnya', () => {
