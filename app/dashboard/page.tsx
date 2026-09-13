@@ -41,10 +41,10 @@ function DashboardContent() {
   const {
     ticker, setTicker, loading, fetchError, fetchErrorRequestId, data, lastUpdate, marketClosed,
     sortByConfidence, setSortByConfidence, viewMode, changeViewMode,
-    openFullAnalysis, collapseAnalysis, timeframe, setTimeframe, chartCandles,
+    openFullAnalysis, collapseAnalysis, timeframe, setTimeframe, chartCandles, chartLoading,
     radarRank, stockNews, loadingStockNews, newsModalOpen, setNewsModalOpen,
     analisaRemaining, showPaywall, setShowPaywall, showLoginPrompt,
-    setShowLoginPrompt, usedSymbolsToday, isAdminUser, isTrialExpired, lockForGuest, handleRefresh,
+    setShowLoginPrompt, usedSymbolsToday, isAdminUser, isTrialExpired, isConfirmedGuest, lockForGuest, handleRefresh,
   } = useDashboardAnalysis();
 
   const downloadTechnicalPDF = () => downloadTechnicalReport({ data, ticker });
@@ -111,6 +111,9 @@ function DashboardContent() {
         analisaRemaining={analisaRemaining}
         isAdminUser={isAdminUser}
         currentIsIndex={currentIsIndex}
+        guestPreview={isConfirmedGuest && !currentIsIndex}
+        chartCandles={chartCandles}
+        chartLoading={chartLoading}
         showLoginPrompt={showLoginPrompt}
         showPaywall={showPaywall}
         isTrialExpired={isTrialExpired}
