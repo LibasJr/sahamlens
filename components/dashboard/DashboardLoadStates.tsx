@@ -4,8 +4,7 @@ import Header from '@/components/Header';
 import PaywallModal from '@/components/PaywallModal';
 import { ApiErrorHint, EmptyState, LoadingFact, PageContainer, Skeleton } from '@/components/ui';
 import { FREE_LIMITS } from '@/shared/constants/limits';
-import { displayDashboardTicker, type DashboardCandle } from '@/components/dashboard/dashboard-analysis';
-import { GuestTechnicalPreview } from '@/components/dashboard/GuestTechnicalPreview';
+import { displayDashboardTicker } from '@/components/dashboard/dashboard-analysis';
 
 type SharedProps = {
   ticker: string;
@@ -42,9 +41,6 @@ export function DashboardLoadingState(props: SharedProps) {
 
 export function DashboardEmptyState(props: SharedProps & {
   currentIsIndex: boolean;
-  guestPreview: boolean;
-  chartCandles: DashboardCandle[];
-  chartLoading: boolean;
   showLoginPrompt: boolean;
   showPaywall: boolean;
   isTrialExpired: boolean;
@@ -55,7 +51,7 @@ export function DashboardEmptyState(props: SharedProps & {
   setShowPaywall: (value: boolean) => void;
 }) {
   const {
-    ticker, setTicker, analisaRemaining, isAdminUser, currentIsIndex, guestPreview, chartCandles, chartLoading,
+    ticker, setTicker, analisaRemaining, isAdminUser, currentIsIndex,
     showLoginPrompt, showPaywall, isTrialExpired, usedSymbolsToday, requestId,
     onRetry, setShowLoginPrompt, setShowPaywall,
   } = props;
@@ -73,21 +69,7 @@ export function DashboardEmptyState(props: SharedProps & {
         isAdmin={isAdminUser}
       />
       <PageContainer className="p-4 md:p-6 lg:p-7">
-        {guestPreview && chartLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-28 w-full" />
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {[0, 1, 2, 3].map((index) => <Skeleton key={index} className="h-24 w-full" />)}
-            </div>
-            <Skeleton className="h-[320px] w-full" />
-          </div>
-        ) : guestPreview && chartCandles.length > 1 ? (
-          <GuestTechnicalPreview
-            ticker={ticker}
-            candles={chartCandles}
-            onUnlock={() => setShowLoginPrompt(true)}
-          />
-        ) : showLoginPrompt ? (
+        {showLoginPrompt ? (
           <EmptyState
             illustration="locked"
             title="Analisa teknikal butuh akun"
