@@ -26,6 +26,13 @@ function devOnlyLog(label: string, email: string, code: string) {
   }
 }
 
+// Alamat bantuan yang dicantumkan di setiap email OTP. Keduanya mailbox nyata yang
+// diverifikasi 13 September 2026 (RCPT TO -> 250, dengan alamat kontrol 550 sebagai
+// pembanding). Dicantumkan sebagai konstanta karena dipakai di tiga tempat: header
+// Reply-To, badan plain-text, dan badan HTML - kalau berubah, ketiganya harus ikut.
+const SUPPORT_EMAIL = 'support@sahamlens.id';
+const ADMIN_EMAIL = 'admin@sahamlens.id';
+
 interface OtpEmailTemplate {
   label: string;
   subject: string;
@@ -53,6 +60,11 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
     await transporter.sendMail({
       from: `"${process.env.SMTP_FROM_NAME || 'SahamLens'}" <${process.env.SMTP_EMAIL}>`,
       to: email,
+      // Pengirimnya no-reply@ (mailbox tanpa penjaga), jadi balasan diarahkan ke
+      // support@ yang memang dibaca manusia. Tanpa Reply-To, pengguna yang butuh
+      // bantuan membalas ke no-reply@ dan tidak ada yang menjawab - footer "mohon
+      // tidak membalas" tidak menghentikan orang yang sedang kebingungan.
+      replyTo: SUPPORT_EMAIL,
       subject: template.subject,
       text: [
         template.heading,
@@ -63,6 +75,8 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
         code,
         '',
         template.securityText,
+        '',
+        `Butuh bantuan? Hubungi ${SUPPORT_EMAIL} (alternatif: ${ADMIN_EMAIL}).`,
         '',
         'Hormat kami,',
         'Tim SahamLens',
@@ -87,7 +101,8 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
               <p style="margin:24px 0 0;font-size:15px;line-height:1.7;color:#475569;">Hormat kami,<br><strong style="color:#0f172a;">Tim SahamLens</strong></p>
             </div>
             <div style="padding:18px 28px;background-color:#f8fafc;border-top:1px solid #e2e8f0;">
-              <p style="margin:0;font-size:12px;line-height:1.6;color:#64748b;">Email ini dikirim secara otomatis. Mohon tidak membalas email ini.</p>
+              <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:#64748b;">Butuh bantuan? Hubungi <a href="mailto:${SUPPORT_EMAIL}" style="color:#0f766e;text-decoration:underline;">${SUPPORT_EMAIL}</a> atau <a href="mailto:${ADMIN_EMAIL}" style="color:#0f766e;text-decoration:underline;">${ADMIN_EMAIL}</a>.</p>
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#64748b;">Email ini dikirim otomatis dari alamat yang tidak dipantau. Balasan akan diteruskan ke ${SUPPORT_EMAIL}.</p>
             </div>
           </div>
         </div>
@@ -107,9 +122,12 @@ export async function sendVerificationEmail(email: string, code: string): Promis
     label: 'Kode Verifikasi',
     subject: 'Verifikasi Akun SahamLens',
     heading: 'Verifikasi Akun Anda',
-    bodyText: 'Terima kasih telah mendaftar di SahamLens.',
-    instructionText: 'Masukkan kode berikut pada halaman verifikasi untuk menyelesaikan proses pendaftaran:',
-    securityText: 'Kode ini berlaku selama 15 menit. Jangan membagikan kode ini kepada siapa pun. Jika Anda tidak melakukan pendaftaran, abaikan email ini.',
+    bodyText: 'Terima kasih telah mendaftar di SahamLens. Satu langkah lagi sebelum akun Anda aktif.',
+    instructionText: 'Buka halaman verifikasi di SahamLens, lalu masukkan kode di bawah ini untuk menyelesaikan pendaftaran:',
+    // TTL disebut eksplisit karena pengguna yang tidak tahu batas waktunya akan mencoba
+    // kode lama lalu menyimpulkan aplikasinya rusak. Angka 15 harus tetap sama dengan
+    // VERIFICATION_CODE_TTL_MIN di modules/user/constants/user.constants.ts - dijaga test.
+    securityText: 'Kode ini hanya berlaku 15 menit dan sekali pakai. Jangan berikan kode ini kepada siapa pun, termasuk pihak yang mengaku dari SahamLens. Jika Anda tidak mendaftar, abaikan email ini dan tidak ada akun yang dibuat.',
   });
 }
 
@@ -119,7 +137,11 @@ export async function sendResetPasswordEmail(email: string, code: string): Promi
     subject: 'Kode Reset Kata Sandi SahamLens',
     heading: 'Permintaan Reset Kata Sandi',
     bodyText: 'Kami menerima permintaan untuk mengatur ulang kata sandi akun SahamLens Anda.',
-    instructionText: 'Masukkan kode berikut pada halaman reset kata sandi untuk melanjutkan:',
-    securityText: 'Kode ini berlaku selama 15 menit. Jangan membagikan kode ini kepada siapa pun. Jika Anda tidak mengajukan permintaan ini, abaikan email ini dan kata sandi Anda tidak akan berubah.',
+    instructionText: 'Buka halaman reset kata sandi, masukkan kode di bawah ini, lalu buat kata sandi baru:',
+    // Penegasan "kata sandi TIDAK berubah" penting secara keamanan, bukan sekadar sopan:
+    // penerima yang tidak meminta reset perlu tahu ia tidak harus bertindak apa pun.
+    // Tanpa itu, email reset yang tidak diminta terbaca seperti akun sudah disusupi dan
+    // memancing kepanikan - yang justru membuat orang mengklik hal yang tidak semestinya.
+    securityText: 'Kode ini hanya berlaku 15 menit dan sekali pakai. Jangan berikan kode ini kepada siapa pun. Jika Anda tidak mengajukan permintaan ini, abaikan email ini - kata sandi Anda tidak berubah dan akun Anda tetap aman.',
   });
 }
