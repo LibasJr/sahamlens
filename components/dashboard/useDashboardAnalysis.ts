@@ -73,6 +73,7 @@ export function useDashboardAnalysis() {
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartCandles, setChartCandles] = useState<DashboardCandle[]>([]);
+  const [chartLoading, setChartLoading] = useState(true);
   const [chartRefreshKey, setChartRefreshKey] = useState(0);
   const [radarRank, setRadarRank] = useState<{ finalScore: number; topReasons?: string[] } | null>(null);
   const [stockNews, setStockNews] = useState<StockNewsItem[]>([]);
@@ -152,9 +153,13 @@ export function useDashboardAnalysis() {
   };
 
   const fetchAnalyzerData = async (symbol: string) => {
-    if (isIndexTicker(symbol)) {
-      setLoading(false);
+    if (isIndexTicker(symbol) || !authResolved || !authUser) {
+      analyzerAbortRef.current?.abort();
+      setData(null);
+      setLoading(!authResolved);
       setFetchError(false);
+      setFetchErrorRequestId(null);
+      if (authResolved) setShowLoginPrompt(false);
       return;
     }
     analyzerAbortRef.current?.abort();
@@ -211,8 +216,15 @@ export function useDashboardAnalysis() {
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
-        if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
-        else { setFetchError(true); setFetchErrorRequestId(error.requestId); }
+        if (await shouldShowLoginPromptFor401()) {
+          // Guest tetap melihat preview dari endpoint chart publik. Modal pendaftaran
+          // baru dibuka saat bagian analisis lanjutan diklik.
+          setShowLoginPrompt(Boolean(authUser));
+          setFetchError(false);
+        } else {
+          setFetchError(true);
+          setFetchErrorRequestId(error.requestId);
+        }
         return;
       }
       if (isApiClientError(error) && error.code === 'SUBSCRIPTION_REQUIRED') {
@@ -234,7 +246,7 @@ export function useDashboardAnalysis() {
   };
 
   const handleRefresh = () => {
-    if (isIndexTicker(ticker)) {
+    if (isIndexTicker(ticker) || (authResolved && !authUser)) {
       setChartRefreshKey((value) => value + 1);
       return;
     }
@@ -266,7 +278,7 @@ export function useDashboardAnalysis() {
   }, [authLoading, authResolved, authUser]);
 
   useEffect(() => {
-    if (!mounted || !adminReady) return;
+    if (!mounted || !adminReady || !authResolved) return;
     if (isIndexTicker(ticker)) {
       setMarketClosed(!isMarketOpen(new Date()));
       setLoading(false);
@@ -294,6 +306,7 @@ export function useDashboardAnalysis() {
     const controller = new AbortController();
     const code = ticker.replace('.JK', '');
     setChartCandles([]);
+    setChartLoading(true);
     if (isIndexTicker(ticker)) {
       setData(null);
       setLoading(true);
@@ -323,7 +336,10 @@ export function useDashboardAnalysis() {
         }
       })
       .finally(() => {
-        if (isIndexTicker(ticker) && !controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setChartLoading(false);
+          if (isIndexTicker(ticker)) setLoading(false);
+        }
       });
     return () => controller.abort();
   }, [ticker, timeframe, mounted, chartRefreshKey]);
@@ -363,6 +379,7 @@ export function useDashboardAnalysis() {
     timeframe,
     setTimeframe,
     chartCandles,
+    chartLoading,
     radarRank,
     stockNews,
     loadingStockNews,
@@ -376,6 +393,7 @@ export function useDashboardAnalysis() {
     usedSymbolsToday,
     isAdminUser,
     isTrialExpired,
+    isConfirmedGuest: authResolved && !authLoading && !authUser,
     lockForGuest: !authResolved || authLoading || !authUser,
     handleRefresh,
     displayTicker: displayDashboardTicker,
