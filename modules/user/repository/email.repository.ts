@@ -32,6 +32,12 @@ function devOnlyLog(label: string, email: string, code: string) {
 // plain-text, dan badan HTML - kalau berubah, ketiganya harus ikut.
 const SUPPORT_EMAIL = 'support@sahamlens.id';
 
+// Logo di kepala email. URL-nya WAJIB absolut ke domain produksi: klien email membuka
+// HTML di luar konteks situs, jadi path relatif seperti `/email-logo.png` tidak akan
+// pernah teresolusi. Tidak memakai APP_URL karena nilainya bisa localhost saat dev dan
+// gambar yang menunjuk localhost akan rusak di kotak masuk penerima.
+const EMAIL_LOGO_URL = 'https://sahamlens.id/email-logo.png';
+
 interface OtpEmailTemplate {
   label: string;
   subject: string;
@@ -84,7 +90,15 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
         <div style="background-color:#f8fafc;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;color:#0f172a;">
           <div style="max-width:560px;margin:0 auto;background-color:#ffffff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;">
             <div style="padding:20px 28px;background-color:#0f172a;">
-              <div style="color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">SahamLens</div>
+              <!--
+                Logo DAN teks, bukan salah satu. Gmail/Outlook memblokir gambar eksternal
+                secara bawaan untuk pengirim yang belum dipercaya, jadi header yang hanya
+                berisi <img> akan tampil kosong persis pada email pertama - yaitu email
+                OTP pendaftaran, satu-satunya email yang pasti diterima pengguna baru.
+                Teks di sebelahnya membuat kepala email tetap berjenama saat gambar mati.
+              -->
+              <img src="${EMAIL_LOGO_URL}" width="58" height="36" alt="" style="display:inline-block;vertical-align:middle;border:0;outline:none;text-decoration:none;" />
+              <span style="display:inline-block;vertical-align:middle;margin-left:12px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.3px;">SahamLens</span>
             </div>
             <div style="padding:32px 28px;">
               <h1 style="margin:0 0 20px;font-size:24px;line-height:1.3;color:#0f172a;">${template.heading}</h1>
