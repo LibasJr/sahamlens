@@ -36,6 +36,11 @@ export default function ClientHeader({ symbol }: { symbol: string }) {
       currentTicker={symbol === '^JKSE' ? 'IHSG' : symbol.replace('.JK', '')}
       onTickerChange={handleTickerChange}
       stockNav
+      // Halaman ini sudah punya `h1` sendiri berisi kode emiten (lihat page.tsx),
+      // jadi judul modul di Header WAJIB turun jadi `p`. Tanpa ini halaman
+      // mengirim dua `h1` sekaligus dan mesin pencari kehilangan sinyal tentang
+      // isi halaman. Terukur di produksi 13 September 2026.
+      titleAs="p"
     />
   );
 }

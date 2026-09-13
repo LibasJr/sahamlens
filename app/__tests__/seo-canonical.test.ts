@@ -44,7 +44,19 @@ describe('canonical URL', () => {
 
   // Halaman 'use client' TIDAK BISA mengekspor `metadata` - Next mengabaikannya
   // tanpa peringatan. Satu-satunya jalan adalah layout.tsx tipis di folder rute.
-  const CLIENT_PAGES = ['screener', 'breakout-radar', 'market-pulse', 'news', 'calendar', 'about'];
+  const CLIENT_PAGES = [
+    'screener',
+    'breakout-radar',
+    'market-pulse',
+    'news',
+    'calendar',
+    'about',
+    'fundamental',
+    'dcf',
+    'moat',
+    'dividend',
+    'backtest',
+  ];
 
   it.each(CLIENT_PAGES)('halaman client /%s punya layout dengan canonical sendiri', (slug) => {
     const layoutPath = path.join(APP_DIR, slug, 'layout.tsx');
@@ -100,22 +112,78 @@ describe('judul halaman', () => {
 
 describe('struktur heading', () => {
   /**
-   * Header aplikasi tampil di SETIAP halaman. Sebagai <h1> ia beradu dengan judul
-   * asli halaman: /technical/BBCA mengirim dua <h1> sekaligus, terukur di
-   * produksi 13 September 2026.
+   * Header aplikasi tampil di SETIAP halaman, jadi elemen judulnya tidak boleh
+   * dipatok.
+   *
+   * SEJARAH. Versi pertama perbaikan ini mengubahnya menjadi <p> tanpa syarat
+   * untuk membereskan dua <h1> di /technical/[symbol]. Akibatnya /screener dan
+   * /fundamental - yang <h1>-nya HANYA berasal dari Header - kehilangan <h1>
+   * sepenuhnya, dan e2e critical-path merah. Regresi itu lebih buruk daripada
+   * masalah aslinya, dan gerbang versi pertama meluluskannya karena hanya
+   * memeriksa Header.tsx tanpa menanyakan dampaknya ke halaman lain.
+   *
+   * Karena itu default WAJIB 'h1', dan halaman yang sudah punya <h1> sendiri
+   * yang harus opt-in ke 'p'.
    */
-  it('Header memakai <p> untuk judul modul, bukan <h1>', () => {
-    const source = stripComments(
-      fs.readFileSync(path.join(process.cwd(), 'components', 'Header.tsx'), 'utf8'),
-    );
+  const headerSource = () =>
+    stripComments(fs.readFileSync(path.join(process.cwd(), 'components', 'Header.tsx'), 'utf8'));
 
-    expect(source).not.toMatch(/<h1[\s>]/);
-    expect(source).toMatch(/<p[^>]*>\{moduleTitle\}<\/p>/);
+  it('Header memakai tag judul yang bisa dipilih pemanggil', () => {
+    const source = headerSource();
+    expect(source).toMatch(/titleAs\?\s*:\s*'h1'\s*\|\s*'p'/);
+    expect(source).toMatch(/<ModuleTitleTag[^>]*>\{moduleTitle\}<\/ModuleTitleTag>/);
   });
 
-  it('halaman ticker menyisakan tepat satu <h1>', () => {
+  it("default titleAs adalah 'h1' supaya halaman tanpa judul sendiri tetap punya h1", () => {
+    const source = headerSource();
+    expect(source).toMatch(/titleAs\s*=\s*'h1'/);
+  });
+
+  it('halaman ticker menurunkan judul Header ke <p> karena sudah punya h1 sendiri', () => {
+    const source = stripComments(read('technical/[symbol]/ClientHeader.tsx'));
+    expect(source).toMatch(/titleAs="p"/);
+  });
+
+  it('halaman ticker menyisakan tepat satu <h1> di markup-nya sendiri', () => {
     const source = stripComments(read('technical/[symbol]/page.tsx'));
     const headings = source.match(/<h1[\s>]/g) ?? [];
     expect(headings).toHaveLength(1);
+  });
+
+  /**
+   * Penjaga arah: HANYA halaman yang punya <h1> sendiri yang boleh opt-in ke 'p'.
+   * Kalau ada pemanggil lain menambahkannya tanpa punya <h1> sendiri, halaman itu
+   * akan kehilangan h1 seperti regresi di atas.
+   */
+  it('tidak ada halaman lain yang memakai titleAs="p" tanpa h1 sendiri', () => {
+    const roots = ['app', 'components'];
+    const offenders: string[] = [];
+
+    const walk = (dir: string) => {
+      for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+        const full = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          if (entry.name === 'node_modules' || entry.name === '__tests__') continue;
+          walk(full);
+          continue;
+        }
+        if (!entry.name.endsWith('.tsx')) continue;
+
+        const source = stripComments(fs.readFileSync(full, 'utf8'));
+        if (!/titleAs\s*=\s*["']p["']/.test(source)) continue;
+
+        // Normalkan pemisah path (CLAUDE.md §2) sebelum membandingkan.
+        const rel = path.relative(process.cwd(), full).split(path.sep).join('/');
+        // Pemakai sah: berada di folder rute yang page.tsx-nya punya <h1>.
+        const pageFile = path.join(path.dirname(full), 'page.tsx');
+        const hasOwnH1 =
+          fs.existsSync(pageFile) && /<h1[\s>]/.test(stripComments(fs.readFileSync(pageFile, 'utf8')));
+        if (!hasOwnH1) offenders.push(rel);
+      }
+    };
+
+    for (const root of roots) walk(path.join(process.cwd(), root));
+
+    expect(offenders, `titleAs="p" tanpa <h1> sendiri: ${offenders.join(', ')}`).toEqual([]);
   });
 });
