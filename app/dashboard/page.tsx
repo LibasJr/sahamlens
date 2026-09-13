@@ -12,6 +12,7 @@ import { DashboardIndexSection } from '@/components/dashboard/DashboardIndexSect
 import { DashboardStockOverview } from '@/components/dashboard/DashboardStockOverview';
 import { DashboardInsightSummary } from '@/components/dashboard/DashboardInsightSummary';
 import { DashboardFooterActions } from '@/components/dashboard/DashboardFooterActions';
+import { GuestLockedSection } from '@/components/dashboard/GuestLockedSection';
 import { downloadTechnicalReport } from '@/components/dashboard/downloadTechnicalReport';
 import {
   buildChartTechnical,
@@ -41,7 +42,7 @@ function DashboardContent() {
   const {
     ticker, setTicker, loading, fetchError, fetchErrorRequestId, data, lastUpdate, marketClosed,
     sortByConfidence, setSortByConfidence, viewMode, changeViewMode,
-    openFullAnalysis, collapseAnalysis, timeframe, setTimeframe, chartCandles, chartLoading,
+    openFullAnalysis, collapseAnalysis, timeframe, setTimeframe, chartCandles,
     radarRank, stockNews, loadingStockNews, newsModalOpen, setNewsModalOpen,
     analisaRemaining, showPaywall, setShowPaywall, showLoginPrompt,
     setShowLoginPrompt, usedSymbolsToday, isAdminUser, isTrialExpired, isConfirmedGuest, lockForGuest, handleRefresh,
@@ -111,9 +112,6 @@ function DashboardContent() {
         analisaRemaining={analisaRemaining}
         isAdminUser={isAdminUser}
         currentIsIndex={currentIsIndex}
-        guestPreview={isConfirmedGuest && !currentIsIndex}
-        chartCandles={chartCandles}
-        chartLoading={chartLoading}
         showLoginPrompt={showLoginPrompt}
         showPaywall={showPaywall}
         isTrialExpired={isTrialExpired}
@@ -434,50 +432,50 @@ function DashboardContent() {
           {viewMode === 'full' ? (
             <>
               <div className="w-full space-y-4">
-                <RiskRewardCalculator currentPrice={currentPrice} analyzers={analyzers} />
-                {(() => {
-                  const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
-                  const support = analyzers.find((a) => a.label?.includes('Support'))?.raw?.support;
-                  const resistance = analyzers.find((a) => a.label?.includes('Resistance'))?.raw?.resistance;
-                  // TradePlan v1.0 (formula terbaru) diutamakan; tradeSetup lama cuma
-                  // fallback untuk entri cache lama yang belum punya field ini (TTL 3
-                  // hari) - lihat catatan di ai-pick.service.ts.
-                  const stopLossPrice = data?.tradePlan?.stopLoss ?? data?.tradeSetup?.stop ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
-                  const takeProfit1Price = data?.tradePlan?.takeProfit1 ?? data?.tradeSetup?.tp1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
-                  const takeProfit2Price = data?.tradePlan?.takeProfit2 ?? data?.tradeSetup?.tp2 ?? null;
-                  const entryPrice = data?.tradePlan?.entry ?? data?.tradeSetup?.entry ?? currentPrice;
-                  if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
-                    return (
+                {isConfirmedGuest ? (
+                  <GuestLockedSection label="Risk/reward dan position sizing">
+                    <div className="space-y-4">
+                      <RiskRewardCalculator currentPrice={currentPrice} analyzers={analyzers} />
                       <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="50" className="border-tv-border px-4 py-3 text-xs text-tv-muted">
-                        Position sizing belum ditampilkan karena level stop-loss terverifikasi belum tersedia. SahamLens tidak membuat stop-loss/TP persentase default.
+                        Position sizing memakai level entry, stop-loss, dan target terverifikasi.
                       </Card>
-                    );
-                  }
-                  return (
-                    <PositionSizingCalculator
-                      ticker={ticker}
-                      entryPrice={entryPrice}
-                      cutLossPrice={stopLossPrice}
-                      takeProfit1Price={takeProfit1Price ?? undefined}
-                      takeProfit2Price={takeProfit2Price ?? undefined}
-                    />
-                  );
-                })()}
-                <AlgoFilters
-                  analyzers={analyzers}
-                  sortByConfidence={sortByConfidence}
-                  setSortByConfidence={setSortByConfidence}
-                  getAccuracyPct={getAccuracyPct}
-                  // Jangan membuka detail sebelum status sesi selesai diperiksa. Ini
-                  // mencegah kilatan data lengkap untuk pengunjung saat halaman baru dimuat.
-                  lockForGuest={lockForGuest}
-                />
+                    </div>
+                  </GuestLockedSection>
+                ) : (
+                  <>
+                    <RiskRewardCalculator currentPrice={currentPrice} analyzers={analyzers} />
+                    {(() => {
+                      const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
+                      const support = analyzers.find((a) => a.label?.includes('Support'))?.raw?.support;
+                      const resistance = analyzers.find((a) => a.label?.includes('Resistance'))?.raw?.resistance;
+                      const stopLossPrice = data?.tradePlan?.stopLoss ?? data?.tradeSetup?.stop ?? (typeof support === 'number' && Number.isFinite(support) && support > 0 ? support : null);
+                      const takeProfit1Price = data?.tradePlan?.takeProfit1 ?? data?.tradeSetup?.tp1 ?? (typeof resistance === 'number' && Number.isFinite(resistance) && resistance > 0 ? resistance : null);
+                      const takeProfit2Price = data?.tradePlan?.takeProfit2 ?? data?.tradeSetup?.tp2 ?? null;
+                      const entryPrice = data?.tradePlan?.entry ?? data?.tradeSetup?.entry ?? currentPrice;
+                      if (currentPrice == null || typeof entryPrice !== 'number' || !Number.isFinite(entryPrice) || entryPrice <= 0 || stopLossPrice == null || stopLossPrice >= entryPrice) {
+                        return (
+                          <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="50" className="border-tv-border px-4 py-3 text-xs text-tv-muted">
+                            Position sizing belum ditampilkan karena level stop-loss terverifikasi belum tersedia. SahamLens tidak membuat stop-loss/TP persentase default.
+                          </Card>
+                        );
+                      }
+                      return <PositionSizingCalculator ticker={ticker} entryPrice={entryPrice} cutLossPrice={stopLossPrice} takeProfit1Price={takeProfit1Price ?? undefined} takeProfit2Price={takeProfit2Price ?? undefined} />;
+                    })()}
+                  </>
+                )}
+                <AlgoFilters analyzers={analyzers} sortByConfidence={sortByConfidence} setSortByConfidence={setSortByConfidence} getAccuracyPct={getAccuracyPct} lockForGuest={lockForGuest} />
               </div>
             </>
           ) : (
             <div className="w-full space-y-4">
-              <RiskRewardCalculator currentPrice={currentPrice} analyzers={analyzers} />
-              {(() => {
+              {isConfirmedGuest ? (
+                <GuestLockedSection label="Risk/reward dan position sizing">
+                  <RiskRewardCalculator currentPrice={currentPrice} analyzers={analyzers} />
+                </GuestLockedSection>
+              ) : (
+                <RiskRewardCalculator currentPrice={currentPrice} analyzers={analyzers} />
+              )}
+              {!isConfirmedGuest && (() => {
                 const currentPrice = typeof data?.stock?.current_price === 'number' && Number.isFinite(data.stock.current_price) && data.stock.current_price > 0 ? data.stock.current_price : null;
                 const support = analyzers.find((a) => a.label?.includes('Support'))?.raw?.support;
                 const resistance = analyzers.find((a) => a.label?.includes('Resistance'))?.raw?.resistance;
