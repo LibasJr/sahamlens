@@ -26,12 +26,11 @@ function devOnlyLog(label: string, email: string, code: string) {
   }
 }
 
-// Alamat bantuan yang dicantumkan di setiap email OTP. Keduanya mailbox nyata yang
-// diverifikasi 13 September 2026 (RCPT TO -> 250, dengan alamat kontrol 550 sebagai
-// pembanding). Dicantumkan sebagai konstanta karena dipakai di tiga tempat: header
-// Reply-To, badan plain-text, dan badan HTML - kalau berubah, ketiganya harus ikut.
+// Alamat bantuan yang dicantumkan di setiap email OTP. Mailbox nyata yang diverifikasi
+// 13 September 2026 (RCPT TO -> 250, dengan alamat kontrol 550 sebagai pembanding).
+// Dicantumkan sebagai konstanta karena dipakai di tiga tempat: header Reply-To, badan
+// plain-text, dan badan HTML - kalau berubah, ketiganya harus ikut.
 const SUPPORT_EMAIL = 'support@sahamlens.id';
-const ADMIN_EMAIL = 'admin@sahamlens.id';
 
 interface OtpEmailTemplate {
   label: string;
@@ -76,7 +75,7 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
         '',
         template.securityText,
         '',
-        `Butuh bantuan? Hubungi ${SUPPORT_EMAIL} (alternatif: ${ADMIN_EMAIL}).`,
+        `Butuh bantuan? Hubungi ${SUPPORT_EMAIL}.`,
         '',
         'Hormat kami,',
         'Tim SahamLens',
@@ -101,7 +100,7 @@ async function sendOtpEmail(email: string, code: string, template: OtpEmailTempl
               <p style="margin:24px 0 0;font-size:15px;line-height:1.7;color:#475569;">Hormat kami,<br><strong style="color:#0f172a;">Tim SahamLens</strong></p>
             </div>
             <div style="padding:18px 28px;background-color:#f8fafc;border-top:1px solid #e2e8f0;">
-              <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:#64748b;">Butuh bantuan? Hubungi <a href="mailto:${SUPPORT_EMAIL}" style="color:#0f766e;text-decoration:underline;">${SUPPORT_EMAIL}</a> atau <a href="mailto:${ADMIN_EMAIL}" style="color:#0f766e;text-decoration:underline;">${ADMIN_EMAIL}</a>.</p>
+              <p style="margin:0 0 8px;font-size:12px;line-height:1.6;color:#64748b;">Butuh bantuan? Hubungi <a href="mailto:${SUPPORT_EMAIL}" style="color:#0f766e;text-decoration:underline;">${SUPPORT_EMAIL}</a>.</p>
               <p style="margin:0;font-size:12px;line-height:1.6;color:#64748b;">Email ini dikirim otomatis dari alamat yang tidak dipantau. Balasan akan diteruskan ke ${SUPPORT_EMAIL}.</p>
             </div>
           </div>
