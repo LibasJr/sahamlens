@@ -13,6 +13,7 @@ import { DashboardStockOverview } from '@/components/dashboard/DashboardStockOve
 import { DashboardInsightSummary } from '@/components/dashboard/DashboardInsightSummary';
 import { DashboardFooterActions } from '@/components/dashboard/DashboardFooterActions';
 import { GuestLockedSection } from '@/components/dashboard/GuestLockedSection';
+import { TradePlanDisclosure } from '@/components/dashboard/TradePlanDisclosure';
 import { downloadTechnicalReport } from '@/components/dashboard/downloadTechnicalReport';
 import {
   buildChartTechnical,
@@ -502,6 +503,20 @@ function DashboardContent() {
                   />
                 );
               })()}
+              {/* Disclosure kualitas data TradePlan v1.0. Ditempatkan DI LUAR guard
+                  `!isConfirmedGuest` dengan sengaja: payload tamu memang punya
+                  `tradePlan: null` (dikunci dashboard-guest-parity.test.ts), sehingga
+                  komponennya menyembunyikan diri sendiri tanpa perlu cabang kedua.
+                  Menambah guard di sini berarti menduplikasi aturan yang sudah dijaga
+                  test parity - dan duplikat itulah yang nanti menyimpang. */}
+              <TradePlanDisclosure
+                confidenceScore={data?.tradePlan?.confidenceScore}
+                confidenceLevel={data?.tradePlan?.confidenceLevel}
+                entryReference={data?.tradePlan?.entryReference}
+                missingData={data?.tradePlan?.missingData}
+                caveats={data?.tradePlan?.caveats}
+                dataPoints={data?.tradePlan?.dataPoints}
+              />
               <Button
                 type="button"
                 variant="bare"
