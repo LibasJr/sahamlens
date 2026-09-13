@@ -117,7 +117,7 @@ export function DashboardFooterActions(props: {
         open={showLoginPrompt}
         onClose={() => setShowLoginPrompt(false)}
         title="Daftar Dulu untuk Lihat Hasil"
-        body="Analisa teknikal butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
+        body="LensTechnical butuh akun gratis. Daftar untuk memakai fitur selama masa pengujian."
         ctaHref="/signup"
         ctaLabel="Daftar Gratis"
         secondaryLabel="Nanti"
