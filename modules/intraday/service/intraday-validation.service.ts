@@ -15,6 +15,7 @@ import {
   type CalibrationPair,
 } from '@/modules/lens-radar/service/score-calibration.service';
 import { fetchYahooHistoryDirect } from '@/modules/technical/service/yahoo-history.service';
+import { ConflictError } from '@/shared/errors/app-error';
 import {
   INTRADAY_COST_SCENARIOS,
   INTRADAY_HORIZONS,
@@ -844,8 +845,11 @@ export interface RunValidationOptions {
 export async function runIntradayValidation(options: RunValidationOptions): Promise<IntradayValidationResult> {
   const config = options.config ?? defaultIntradayRunConfig();
   const configHash = intradayConfigHash(config);
-  const protocol = await getActiveOosProtocol();
-  const oosOnly = Boolean(options.oosOnly && protocol);
+  const protocol = await getActiveOosProtocol(config.modelVersion, configHash);
+  if (options.oosOnly && !protocol) {
+    throw new ConflictError('Belum ada protokol OOS beku untuk versi dan konfigurasi model ini.');
+  }
+  const oosOnly = Boolean(options.oosOnly);
 
   const runId = await startValidationRun({
     modelVersion: config.modelVersion,
@@ -1285,12 +1289,12 @@ export async function getIntradayDashboard(config = defaultIntradayRunConfig()):
     await Promise.all([
       getIntradayCoverage(config.modelVersion, configHash),
       getIntradayDataQualitySummary(),
-      getLatestValidationRunResult(),
-      listValidationRuns(10),
+      getLatestValidationRunResult(config.modelVersion, configHash),
+      listValidationRuns(10, 0, config.modelVersion, configHash),
       listRecentIntradaySamples(config.modelVersion, configHash),
-      getActiveOosProtocol(),
-      getLatestWeightProposal(),
-      getLatestThresholdProposal(),
+      getActiveOosProtocol(config.modelVersion, configHash),
+      getLatestWeightProposal(config.modelVersion, configHash),
+      getLatestThresholdProposal(config.modelVersion, configHash),
     ]);
 
   // Coverage OOS dihitung terpisah supaya progres yang ditampilkan benar-benar sinyal
