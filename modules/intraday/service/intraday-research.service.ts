@@ -184,7 +184,7 @@ export async function proposeIntradayThreshold(input: {
     horizon: input.horizon,
     thresholds: [input.threshold],
   });
-  const protocol = await getActiveOosProtocol();
+  const protocol = await getActiveOosProtocol(config.modelVersion, configHash);
 
   // Proposal SELALU dibekukan sampai OOS asli memenuhi syarat. Tidak ada jalur kode
   // apa pun di modul ini yang mengubahnya menjadi ambang aktif.
