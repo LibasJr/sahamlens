@@ -178,6 +178,11 @@ export interface CalibrationDashboardData {
   sourceRows: number;
   uniqueTickers: number;
   observationsT20: number;
+  t20MaturityProgress: {
+    firstSignalDate: string | null;
+    tradingDaysElapsed: number;
+    requiredTradingDays: 20;
+  };
   chart: CalibrationBucketChartRow[];
   chartSource: 'live-calibration-observations';
   cronComparison: { runDate: string | null; liveHighBucketSamples: number; cronHighBucketSamples: number | null; deltaHighBucketSamples: number | null; populationMismatch: boolean; note: string };
