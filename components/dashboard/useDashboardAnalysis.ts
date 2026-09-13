@@ -9,6 +9,8 @@ import { isMarketOpen } from '@/lib/utils/market';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import {
   buildIndexPayload,
+  buildPublicTechnicalPayload,
+  canFetchPrivateTechnicalAnalysis,
   displayDashboardTicker,
   isIndexTicker,
   normalizeDashboardTicker,
@@ -88,6 +90,7 @@ export function useDashboardAnalysis() {
   const [isAdminUser, setIsAdminUser] = useState(false);
   const [isTrialExpired, setIsTrialExpired] = useState(false);
   const analyzerAbortRef = useRef<AbortController | null>(null);
+  const isConfirmedGuest = authResolved && !authLoading && !authUser;
 
   useEffect(() => {
     const saved = window.localStorage.getItem('sahamlens.analysis-view.dashboard.v2');
@@ -153,7 +156,7 @@ export function useDashboardAnalysis() {
   };
 
   const fetchAnalyzerData = async (symbol: string) => {
-    if (isIndexTicker(symbol) || !authResolved || !authUser) {
+    if (!canFetchPrivateTechnicalAnalysis(authResolved, authUser, isIndexTicker(symbol))) {
       analyzerAbortRef.current?.abort();
       setData(null);
       setLoading(!authResolved);
@@ -279,7 +282,7 @@ export function useDashboardAnalysis() {
 
   useEffect(() => {
     if (!mounted || !adminReady || !authResolved) return;
-    if (isIndexTicker(ticker)) {
+    if (isIndexTicker(ticker) || isConfirmedGuest) {
       setMarketClosed(!isMarketOpen(new Date()));
       setLoading(false);
       setShowLoginPrompt(false);
@@ -321,15 +324,22 @@ export function useDashboardAnalysis() {
             setData(indexPayload);
             const sourceTime = indexPayload._meta?.dataTimestamp ? new Date(indexPayload._meta.dataTimestamp) : null;
             setLastUpdate(sourceTime && !Number.isNaN(sourceTime.getTime()) ? sourceTime : null);
+          } else if (isConfirmedGuest) {
+            const publicPayload = buildPublicTechnicalPayload(ticker, payload.history);
+            setData(publicPayload);
+            const sourceTime = publicPayload?._meta?.dataTimestamp ? new Date(publicPayload._meta.dataTimestamp) : null;
+            setLastUpdate(sourceTime && !Number.isNaN(sourceTime.getTime()) ? sourceTime : null);
+            setFetchError(publicPayload == null);
           }
-        } else if (isIndexTicker(ticker)) {
+        } else if (isIndexTicker(ticker) || isConfirmedGuest) {
+          setData(null);
           setFetchError(true);
         }
       })
       .catch((error) => {
         if (!(error instanceof DOMException && error.name === 'AbortError')) {
           console.error('Chart fetch failed', error);
-          if (isIndexTicker(ticker)) {
+          if (isIndexTicker(ticker) || isConfirmedGuest) {
             setFetchError(true);
             if (isApiClientError(error)) setFetchErrorRequestId(error.requestId);
           }
@@ -338,11 +348,11 @@ export function useDashboardAnalysis() {
       .finally(() => {
         if (!controller.signal.aborted) {
           setChartLoading(false);
-          if (isIndexTicker(ticker)) setLoading(false);
+          if (isIndexTicker(ticker) || isConfirmedGuest) setLoading(false);
         }
       });
     return () => controller.abort();
-  }, [ticker, timeframe, mounted, chartRefreshKey]);
+  }, [ticker, timeframe, mounted, chartRefreshKey, isConfirmedGuest]);
 
   useEffect(() => {
     if (!mounted || !data?.stock?.symbol) return;
@@ -393,7 +403,7 @@ export function useDashboardAnalysis() {
     usedSymbolsToday,
     isAdminUser,
     isTrialExpired,
-    isConfirmedGuest: authResolved && !authLoading && !authUser,
+    isConfirmedGuest,
     lockForGuest: !authResolved || authLoading || !authUser,
     handleRefresh,
     displayTicker: displayDashboardTicker,

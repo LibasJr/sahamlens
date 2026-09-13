@@ -34,9 +34,9 @@ export type StockAnalysisPayloadWithQuota<T extends Record<string, unknown>> = T
 };
 
 /**
- * Resolves ticker validation, session entitlement and daily free quota in one place.
- * Guest access remains intentionally open; registered non-Pro users keep the existing
- * daily analysis quota contract.
+ * Resolves ticker validation, authenticated-session entitlement and daily free quota.
+ * Guest memakai endpoint chart publik; endpoint analisis premium ini fail-closed sebelum
+ * pemeriksaan testing-open supaya payload lengkap tidak bocor tanpa sesi.
  */
 export async function resolveStockAnalysisAccess(
   request: Request,
@@ -49,6 +49,12 @@ export async function resolveStockAnalysisAccess(
 
   const isInternal = isInternalServiceRequest(request);
   const session = isInternal ? null : await getSession();
+  if (!isInternal && !session) {
+    return {
+      ok: false,
+      response: { status: 401, body: { error: 'Sesi tidak valid', code: 'UNAUTHENTICATED' } },
+    };
+  }
   const hasPro = isInternal || (await hasOpenOrProAccess(session));
 
   if (!hasPro) {

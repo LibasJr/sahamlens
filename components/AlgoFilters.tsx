@@ -5,15 +5,9 @@ import React from 'react';
 import Link from 'next/link';
 import { Info, Layers, RefreshCw, Lock } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
+import { trackSignupClick } from '@/shared/analytics/product-funnel';
+import { isGuestVisibleDashboardAnalyzer } from '@/components/dashboard/dashboard-analysis';
 
-// Filter yang tetap terlihat jelas di free tier - cocok dengan comment spek:
-// "cuma EMA, RSI, MA Trend". Dicocokkan berdasarkan label (bukan posisi index)
-// supaya tidak salah pilih kalau urutan analyzer dari API berubah.
-const FREE_VISIBLE_KEYWORDS = ['EMA', 'RSI', 'MA Trend'];
-
-function isVisibleForFree(label: string) {
-  return FREE_VISIBLE_KEYWORDS.some((k) => label.includes(k));
-}
 
 interface AlgoFiltersProps {
   analyzers: any[];
@@ -31,8 +25,8 @@ export default function AlgoFilters({
   getAccuracyPct,
   lockForGuest = false,
 }: AlgoFiltersProps) {
-  const lockedAnalyzers = lockForGuest ? analyzers.filter((a) => !isVisibleForFree(a.label)) : [];
-  const visibleAnalyzers = analyzers.filter((a) => !lockForGuest || isVisibleForFree(a.label));
+  const lockedAnalyzers = lockForGuest ? analyzers.filter((a) => !isGuestVisibleDashboardAnalyzer(a.label)) : [];
+  const visibleAnalyzers = analyzers.filter((a) => !lockForGuest || isGuestVisibleDashboardAnalyzer(a.label));
   const lowSampleCount = visibleAnalyzers.filter((a) => getAccuracyPct(a.label) == null).length;
 
   return (
@@ -58,7 +52,7 @@ export default function AlgoFilters({
         <div className="mb-4 px-3 py-2 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs font-sans flex items-center gap-2">
           <Lock className="w-3.5 h-3.5 flex-shrink-0" />
           {lockedAnalyzers.length} indikator lanjutan terkunci ({lockedAnalyzers.slice(0, 2).map((a) => a.label).join(', ')}, dll).
-          <Link href="/login?next=%2Fdashboard" className="font-bold underline underline-offset-2 hover:text-white">Masuk untuk membuka</Link>
+          <Link href="/signup?next=%2Fdashboard" onClick={() => trackSignupClick('technical_indicators')} className="font-bold underline underline-offset-2 hover:text-white">Daftar Gratis</Link>
         </div>
       )}
 
@@ -72,15 +66,15 @@ export default function AlgoFilters({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
         {analyzers.length > 0 ? analyzers.map((algo: any, idx: number) => {
           const isTop3 = sortByConfidence && idx < 3;
-          const isFreeVisible = isVisibleForFree(algo.label);
+          const isFreeVisible = isGuestVisibleDashboardAnalyzer(algo.label);
           const locked = lockForGuest && !isFreeVisible;
 
           if (locked) {
             return (
               <div key={idx} className="relative p-3 rounded-lg bg-tv-bg border border-tv-border flex flex-col gap-2 overflow-hidden">
                 <div className="absolute inset-0 z-10 flex items-center justify-center bg-tv-bg/70 backdrop-blur-[3px]">
-                  <Link href="/login?next=%2Fdashboard" className="flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-1 rounded-full hover:text-white">
-                    <Lock className="h-3 w-3" /> Masuk
+                  <Link href="/signup?next=%2Fdashboard" onClick={() => trackSignupClick('technical_indicators')} className="flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-1 rounded-full hover:text-white">
+                    <Lock className="h-3 w-3" /> Daftar Gratis
                   </Link>
                 </div>
                 <div className="flex justify-between items-center text-sm blur-sm select-none">
