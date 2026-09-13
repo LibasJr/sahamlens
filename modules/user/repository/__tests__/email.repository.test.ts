@@ -65,6 +65,29 @@ describe('email OTP — header dan tujuan balasan', () => {
       expect(body).not.toContain('admin@sahamlens.id');
     }
   });
+
+  it('memakai logo absolut dan tetap berjenama saat gambar diblokir', async () => {
+    const { sendVerificationEmail } = await import('../email.repository');
+    await sendVerificationEmail('budi@gmail.com', '123456');
+
+    const sent = sendMailMock.mock.calls[0][0];
+
+    // URL wajib absolut: klien email membuka HTML di luar konteks situs, jadi path
+    // relatif tidak pernah teresolusi dan logonya muncul sebagai gambar rusak.
+    expect(sent.html).toContain('src="https://sahamlens.id/email-logo.png"');
+    expect(sent.html).not.toMatch(/src="\/[^/]/);
+    expect(sent.html).not.toContain('localhost');
+
+    // Gmail dan Outlook memblokir gambar eksternal secara bawaan untuk pengirim baru -
+    // persis kondisi email OTP pendaftaran. Nama merek harus tetap terbaca sebagai teks,
+    // bukan hanya hidup di dalam <img>.
+    const withoutImages = sent.html.replace(/<img[^>]*>/g, '');
+    expect(withoutImages).toContain('SahamLens');
+
+    // Dimensi eksplisit: tanpa width/height, Outlook memesan ruang penuh ukuran asli
+    // gambar dan kepala email melonjak sebelum gambarnya dimuat.
+    expect(sent.html).toMatch(/<img[^>]+width="58"[^>]+height="36"/);
+  });
 });
 
 describe('email OTP — copy yang memberi tahu pengguna apa yang harus dilakukan', () => {
