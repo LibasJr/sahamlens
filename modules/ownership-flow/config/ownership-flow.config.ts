@@ -72,4 +72,4 @@ export function getOwnershipFlowConfig(): OwnershipFlowConfig {
 
 /** User-Agent yang jujur menyebut siapa kita dan ke mana harus mengadu. */
 export const OWNERSHIP_FLOW_USER_AGENT =
-  'SahamLens-OwnershipFlow/1.0 (+https://sahamlens.id; kontak: admin@sahamlens.id)';
+  'SahamLens-OwnershipFlow/1.0 (+https://sahamlens.id; kontak: support@sahamlens.id)';

@@ -52,14 +52,17 @@ describe('email OTP — header dan tujuan balasan', () => {
     expect(sent.to).toBe('budi@gmail.com');
   });
 
-  it('mencantumkan alamat bantuan di badan teks dan HTML', async () => {
+  it('mencantumkan alamat bantuan support dan tidak menyebut admin@', async () => {
     const { sendResetPasswordEmail } = await import('../email.repository');
     await sendResetPasswordEmail('siti@yahoo.co.id', '654321');
 
     const sent = sendMailMock.mock.calls[0][0];
     for (const body of [sent.text, sent.html]) {
       expect(body).toContain('support@sahamlens.id');
-      expect(body).toContain('admin@sahamlens.id');
+      // admin@ dipensiunkan sebagai kontak pengguna: hanya support@ dan no-reply@ yang
+      // tersisa. Kalau alamat itu muncul lagi, pengguna diarahkan ke mailbox yang tidak
+      // lagi ditujukan untuk mereka.
+      expect(body).not.toContain('admin@sahamlens.id');
     }
   });
 });
@@ -139,7 +142,8 @@ describe('email OTP — invarian keamanan H5 (kode tidak boleh masuk log product
       .replace(/(^|[^:])\/\/.*$/gm, '$1');
 
     expect(src).toContain("const SUPPORT_EMAIL = 'support@sahamlens.id'");
-    expect(src).toContain("const ADMIN_EMAIL = 'admin@sahamlens.id'");
+    // admin@ tidak boleh kembali sebagai kontak pengguna di email OTP.
+    expect(src).not.toContain('admin@sahamlens.id');
 
     // Penjaga jumlah: kalau pemindainya rusak, angka ini jatuh dan test ini yang
     // memberi tahu - bukan lolos diam-diam (CLAUDE.md §2).

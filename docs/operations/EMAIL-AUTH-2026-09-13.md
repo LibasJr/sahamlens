@@ -29,9 +29,13 @@ Diverifikasi lewat `RCPT TO` ke MX resmi — tanpa mengirim email, tanpa passwor
 | Alamat | Hasil | Dipakai di |
 |---|---|---|
 | `no-reply@sahamlens.id` | `250 Ok` | `SMTP_EMAIL` — pengirim semua email transaksional (OTP, reset password) |
-| `admin@sahamlens.id` | `250 Ok` | `modules/ownership-flow/config/ownership-flow.config.ts:75` — User-Agent kontak saat mengambil data kepemilikan |
-| `support@sahamlens.id` | `250 Ok` | `modules/notification/service/web-push.service.ts:97` — VAPID subject push notification |
+| `support@sahamlens.id` | `250 Ok` | kontak pengguna di email OTP (`Reply-To` + badan), User-Agent ownership-flow, dan VAPID subject push notification |
 | `pasti-tidak-ada-zzq91@` | `550 Reject` | **kontrol** |
+
+Sejak 13 September 2026 `admin@sahamlens.id` **tidak lagi dipakai sebagai kontak pengguna**
+di produk: email OTP pendaftaran dan reset kata sandi hanya menyebut `support@`, dan
+pengirimnya tetap `no-reply@`. Alamat `admin@` masih dipakai sebagai tujuan laporan DMARC
+(`rua`/`ruf`) — itu urusan operasional, bukan alamat yang ditawarkan ke pengguna.
 
 Kontrol `550` itu bagian dari buktinya: ia membuktikan server membedakan mailbox yang ada
 dari yang tidak. Tanpa kontrol, tiga jawaban `250` tidak membuktikan apa pun — server yang
