@@ -1,3 +1,6 @@
+import { analyze as analyzeEma } from '@/modules/technical/service/analyzers/ema-analyzer';
+import { analyze as analyzeRsi } from '@/modules/technical/service/analyzers/rsi-analyzer';
+import { analyze as analyzeTrend } from '@/modules/technical/service/analyzers/trend-analyzer';
 import { calculateRsi } from '@/modules/technical/service/rsi';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
 import type { StockAnalysisResponse, StockAnalyzerResult } from '@/modules/technical/contracts';
@@ -54,7 +57,87 @@ export const displayDashboardTicker = (symbol: string) => (
   isIndexTicker(symbol) ? 'IHSG' : symbol.replace('.JK', '').replace('.JK', '')
 );
 
-export type DashboardData = StockAnalysisResponse | DashboardIndexPayload;
+export type DashboardPublicTechnicalPayload = DashboardIndexPayload & {
+  ticker: string;
+  analyzers: StockAnalyzerResult[];
+};
+
+export type DashboardData = StockAnalysisResponse | DashboardIndexPayload | DashboardPublicTechnicalPayload;
+
+const GUEST_VISIBLE_ANALYZER_KEYWORDS = ['EMA', 'RSI', 'MA Trend'] as const;
+
+export function isGuestVisibleDashboardAnalyzer(label: unknown): boolean {
+  return typeof label === 'string'
+    && GUEST_VISIBLE_ANALYZER_KEYWORDS.some((keyword) => label.includes(keyword));
+}
+
+export function canFetchPrivateTechnicalAnalysis(
+  authResolved: boolean,
+  user: { id?: string } | null,
+  indexTicker: boolean,
+): boolean {
+  return authResolved && Boolean(user?.id) && !indexTicker;
+}
+
+export function buildPublicTechnicalPayload(
+  symbol: string,
+  candles: DashboardCandle[],
+): DashboardPublicTechnicalPayload | null {
+  const valid = candles.filter((candle) => (
+    typeof candle.close === 'number' && Number.isFinite(candle.close) && candle.close > 0
+  ));
+  if (valid.length < 2) return null;
+
+  const currentPrice = valid.at(-1)!.close;
+  const timestamps = valid.map((candle) => {
+    const rawTime = candle.time ?? candle.Date ?? candle.date;
+    const millis = typeof rawTime === 'number' ? rawTime * 1000 : typeof rawTime === 'string' ? Date.parse(rawTime) : NaN;
+    return Number.isFinite(millis) ? Math.floor(millis / 1000) : null;
+  });
+  const { previousClose } = resolvePreviousClose({ timestamps, closes: valid.map((candle) => candle.close) });
+  const analyzerHistory = valid.slice(-200).map((candle) => {
+    const adjusted = candle.adjClose;
+    return {
+      Close: candle.close,
+      ...(typeof adjusted === 'number' && Number.isFinite(adjusted) && adjusted > 0 ? { AdjClose: adjusted } : {}),
+    };
+  });
+  const analyzers = [
+    { ...analyzeEma(analyzerHistory, currentPrice), dimension: 'TREND' as const },
+    { ...analyzeRsi(analyzerHistory, currentPrice), dimension: 'MOMENTUM' as const },
+    { ...analyzeTrend(analyzerHistory, currentPrice), dimension: 'TREND' as const },
+  ] as StockAnalyzerResult[];
+  const last = valid.at(-1)!;
+  const rawTime = last.time ?? last.Date ?? last.date;
+  const dataTimestamp = typeof rawTime === 'string'
+    ? rawTime
+    : typeof rawTime === 'number'
+      ? new Date(rawTime * 1000).toISOString()
+      : null;
+
+  // Layout login dipakai ulang, tetapi payload tamu hanya berisi candle publik dan tiga
+  // indikator yang dihitung dari adjusted close nyata. Kontrak premium tetap null.
+  return {
+    ticker: symbol,
+    stock: {
+      symbol,
+      name: symbol.replace(/\.JK$/i, ''),
+      current_price: currentPrice,
+      change_pct: previousClose == null ? null : Number((((currentPrice - previousClose) / previousClose) * 100).toFixed(2)),
+      history: valid,
+    },
+    analyzers,
+    technical: {},
+    price: currentPrice,
+    scoring: null,
+    decision: null,
+    tradeSetup: null,
+    tradePlan: null,
+    consensus: null,
+    eligibility: null,
+    _meta: { dataTimestamp, freshness: 'EOD', source: 'public-chart' },
+  };
+}
 
 export function buildIndexPayload(symbol: string, candles: DashboardCandle[]): DashboardIndexPayload {
   const last = candles[candles.length - 1];
