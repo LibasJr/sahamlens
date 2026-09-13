@@ -31,7 +31,19 @@ export const metadata = {
   description: 'Skor teknikal, fundamental, dan arus dana saham likuid IDX dari rumus terbuka - bukan kotak hitam. Screener, LensRadar, backtest, dan penjelasan AI untuk membantu riset saham Indonesia.',
   applicationName: 'SahamLens',
   manifest: '/manifest.json?v=5',
-  alternates: { canonical: '/' },
+  // TIDAK ADA `alternates.canonical` di sini - sengaja.
+  //
+  // Next mewariskan metadata root ke SETIAP halaman anak yang tidak menimpanya.
+  // Sebelumnya baris ini berbunyi `alternates: { canonical: '/' }`, sehingga
+  // /screener, /news, /calendar, /about, /fundamental, /dcf, /moat, dan /dividend
+  // semuanya mengirim <link rel="canonical" href="https://sahamlens.id"> - yaitu
+  // menyuruh Google mengabaikan halaman itu dan mengindeks beranda sebagai gantinya.
+  // Sitemap mendaftarkan URL-nya, canonical membatalkannya; canonical yang menang.
+  //
+  // Canonical HARUS dideklarasikan per halaman. Halaman yang tidak bisa mengekspor
+  // metadata (komponen 'use client') memakai layout.tsx tipis di folder rutenya.
+  // Tanpa nilai di root, halaman yang belum punya canonical akan self-canonical -
+  // salah yang jauh lebih ringan daripada menunjuk ke beranda.
   robots: {
     index: true,
     follow: true,
