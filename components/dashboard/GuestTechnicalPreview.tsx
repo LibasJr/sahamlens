@@ -3,6 +3,7 @@
 import { Activity, FileText, LockKeyhole, Newspaper, ShieldCheck, Target } from 'lucide-react';
 import { calculateEmaSeries } from '@/modules/technical/service/ema';
 import { calculateRsi } from '@/modules/technical/service/rsi';
+import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { Badge, Button, Card } from '@/components/ui';
 import type { DashboardCandle } from '@/components/dashboard/dashboard-analysis';
 
@@ -22,8 +23,14 @@ export function buildGuestTechnicalSnapshot(candles: DashboardCandle[]): GuestTe
     .filter((close): close is number => typeof close === 'number' && Number.isFinite(close) && close > 0);
   if (closes.length < 2) return null;
 
-  const price = closes[closes.length - 1];
-  const previous = closes[closes.length - 2];
+  const price = closes.at(-1) ?? null;
+  if (price == null) return null;
+  const timestamps = candles.map((candle) => {
+    const rawTime = candle.time ?? candle.Date ?? candle.date;
+    const millis = typeof rawTime === 'number' ? rawTime * 1000 : typeof rawTime === 'string' ? Date.parse(rawTime) : NaN;
+    return Number.isFinite(millis) ? Math.floor(millis / 1000) : null;
+  });
+  const { previousClose } = resolvePreviousClose({ timestamps, closes: candles.map((candle) => candle.close) });
   const ema20 = calculateEmaSeries(closes, 20).at(-1) ?? null;
   const ema50 = calculateEmaSeries(closes, 50).at(-1) ?? null;
   const rsi14 = calculateRsi(closes, 14);
@@ -31,7 +38,7 @@ export function buildGuestTechnicalSnapshot(candles: DashboardCandle[]): GuestTe
 
   return {
     price,
-    changePct: ((price - previous) / previous) * 100,
+    changePct: previousClose == null ? 0 : ((price - previousClose) / previousClose) * 100,
     ema20,
     ema50,
     rsi14,
