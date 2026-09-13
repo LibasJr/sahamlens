@@ -136,14 +136,28 @@ export async function buildStockAnalysisResponse(args: {
   // data hilang) - membungkus buildLongTradingSetup yang sama di atas, jadi tp1/tp2/CL
   // tidak berubah, cuma dibungkus dengan konteks kualitas yang lebih lengkap.
   //
-  // volumeRatio/officialNetPressure20/officialPositiveRatio20 SENGAJA null di layer
-  // ini: belum ada jalur yang mengalirkan flowMetrics/volAvg20 dari
-  // stock-analysis-scoring.service.ts ke sini. Bukan bug - TradePlan v1.0 memang
-  // dirancang menandai data yang tidak tersedia lewat missingData[]/confidenceScore
-  // yang lebih rendah, bukan mengarang angka pengganti. Kalau nanti ada yang
-  // mengalirkannya, cukup isi tiga field ini - tidak perlu ubah apa pun di trade-plan.ts.
+  // Arus dana asing RESMI diambil dari `indicators.flowMetrics`, yang sudah dihitung
+  // `appendStockFlowAnalyzers()` dari artefak Bursa di `data/foreign-flow/`. Sebelumnya
+  // dua field ini literal `null` di sini dengan alasan "belum ada jalur yang
+  // mengalirkan flowMetrics" - padahal jalurnya ada: `StockIndicatorContext.flowMetrics`.
+  // Akibatnya SETIAP TradePlan di jalur dashboard - jalur dengan trafik tertinggi -
+  // selalu melaporkan "Foreign flow IDX resmi 20D" hilang meski datanya sudah dibaca,
+  // dianalisis, dan dipakai LensScore di permintaan yang sama.
+  //
+  // `officialUsable` adalah penjaganya, bukan kenyamanan: artefak ADA untuk emiten yang
+  // nyaris tidak ditransaksikan dan isinya nol semua (contoh `POOL.json`, 90 baris nol).
+  // Untuk kasus itu `analyzeOfficialForeignFlow` mengembalikan netPressure20 null dan
+  // `officialUsable` false, sehingga TradePlan tetap menyatakan datanya tidak ada alih-alih
+  // melaporkan "arus asing netral" - percaya diri palsu yang justru dilawan missingData[].
+  //
+  // volumeRatio MASIH sengaja null: volToday/volAvg20 dihitung di dalam
+  // stock-analysis-scoring.service.ts dan tidak diekspor lewat StockScoringContext.
+  // Menghitung ulang di sini berarti menduplikasi penjaga isLiveFormingBar-nya, dan
+  // penjaga yang diduplikasi adalah penjaga yang akan menyimpang. Dibiarkan ditandai
+  // missingData[] sampai ada yang mengekspornya dengan benar.
   const adxResult = analyzeAdx(analyzerHistory, currentPrice);
   const bollingerResult = analyzeBollinger(analyzerHistory, currentPrice);
+  const officialFlowUsable = indicators.flowMetrics?.officialUsable === true;
   const tradePlan = buildTradePlanV1({
     history: setupHistory,
     currentPrice,
@@ -153,8 +167,8 @@ export async function buildStockAnalysisResponse(args: {
     minusDi: typeof adxResult?.raw?.minusDi === 'number' ? adxResult.raw.minusDi : null,
     bollingerPercentB: typeof bollingerResult?.raw?.percentB === 'number' ? bollingerResult.raw.percentB : null,
     volumeRatio: null,
-    officialNetPressure20: null,
-    officialPositiveRatio20: null,
+    officialNetPressure20: officialFlowUsable ? indicators.flowMetrics.officialNetPressure20 : null,
+    officialPositiveRatio20: officialFlowUsable ? indicators.flowMetrics.officialPositiveRatio20 : null,
   });
 
   const { previousClose } = resolvePreviousClose({
