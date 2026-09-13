@@ -19,6 +19,7 @@ import type { ScoredStock } from './ai-pick.service';
 import { buildLongTradingSetup } from './trading-setup';
 import { buildHybridV2TradingSetup } from './trading-setup-hybrid-v2';
 import { buildTradePlanV1 } from './trade-plan';
+import { readTradePlanOfficialFlow } from './trade-plan-flow';
 import {
   PRICE_ADJUSTMENT_VERSION,
   RETURN_PRICE_BASIS,
@@ -155,6 +156,10 @@ async function scoreOne(
   const accumulation = analyzeAccumulationSignal(dailyHistory.slice(-20));
   const accumulationConfirmed = accumulation.status === 'AKUMULASI';
   const bandarmology = analyzeBandarmology(dailyHistory.slice(-20));
+  // Arus dana asing RESMI dari artefak Bursa, bukan `null` hardcoded seperti sebelumnya.
+  // Penjaga nol/basi/jendela-pendek ada di trade-plan-flow.ts dan alasan penolakannya
+  // dinyatakan di sana, bukan disamarkan jadi "data tidak ada".
+  const officialFlow = readTradePlanOfficialFlow(ticker.replace('.JK', ''));
   const tradePlan = buildTradePlanV1({
     history: history.map((h) => ({ High: h.High, Low: h.Low, Close: h.Close, AdjClose: h.AdjClose })),
     currentPrice,
@@ -164,8 +169,8 @@ async function scoreOne(
     minusDi: typeof adxResult?.raw?.minusDi === 'number' ? adxResult.raw.minusDi : null,
     bollingerPercentB: typeof bollingerResult?.raw?.percentB === 'number' ? bollingerResult.raw.percentB : null,
     volumeRatio: volRatio,
-    officialNetPressure20: null,
-    officialPositiveRatio20: null,
+    officialNetPressure20: officialFlow.officialNetPressure20,
+    officialPositiveRatio20: officialFlow.officialPositiveRatio20,
   });
 
   const scoring = calculateScore(
