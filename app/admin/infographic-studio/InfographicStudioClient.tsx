@@ -5,10 +5,8 @@ import { Button } from '@/components/ui';
 import React, { useCallback, useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft, Search, Download, Sparkles, PieChart, ShieldCheck,
-  TrendingUp, RefreshCw, Layers, CheckCircle2, Image as ImageIcon,
-  Building2, Sliders, FileText, Check, AlertTriangle, ChevronDown,
-  LineChart, Landmark, ZoomIn, ZoomOut, Maximize2, Zap, Dices, Palette
+  ArrowLeft, Search, Download, Sparkles, RefreshCw, Layers,
+  Image as ImageIcon, AlertTriangle, LineChart, Landmark, Palette,
 } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TechnicalResearchCard from '@/components/export/TechnicalResearchCard';
@@ -16,10 +14,7 @@ import FundamentalResearchCard from '@/components/export/FundamentalResearchCard
 import InvestmentSnapshot360Card from '@/components/export/InvestmentSnapshot360Card';
 import {
   Card3DTheme,
-  CARD_3D_THEMES,
-  THEME_KEYS,
   getSector3DTheme,
-  getRandomTheme,
   getThemeById,
 } from '@/components/export/card-3d-themes';
 import { buildMoatProxy } from '@/modules/fundamental/service/moat-proxy.service';
@@ -274,8 +269,8 @@ export default function InfographicStudioClient() {
     void fetchStockData('BBCA');
   }, [fetchStockData]);
 
-  // Compute Active 3D Theme (Auto sector-based vs manual override)
-  const active3DTheme: Card3DTheme = React.useMemo(() => {
+  // Tema menentukan aksen laporan; struktur dan kontras dokumen tetap konsisten.
+  const activeTheme: Card3DTheme = React.useMemo(() => {
     if (selectedThemeId === 'auto' || !selectedThemeId) {
       return getSector3DTheme(
         data?.fundamental?.profile?.sector,
@@ -285,12 +280,6 @@ export default function InfographicStudioClient() {
     }
     return getThemeById(selectedThemeId);
   }, [selectedThemeId, data?.fundamental?.profile?.sector, data?.fundamental?.profile?.industry, activeTicker]);
-
-  const handleShuffleTheme = () => {
-    const random = getRandomTheme();
-    setSelectedThemeId(random.id);
-    showToast(`Tema sektor diacak: ${random.name}`, 'info');
-  };
 
   const handleDownloadImage = async () => {
     if (!canvasRef.current) return;
@@ -352,8 +341,8 @@ export default function InfographicStudioClient() {
               <ArrowLeft className="w-3.5 h-3.5" />
               Kembali ke Panel Admin
             </Link>
-            <span className={`rounded-full ${active3DTheme.accentBg} border ${active3DTheme.accentBorder} px-3 py-0.5 text-[11px] font-bold ${active3DTheme.accentText}`}>
-              Studio 3D: {active3DTheme.sectorLabel}
+            <span className="rounded-full border border-white/[0.12] bg-white/[0.05] px-3 py-0.5 text-[11px] font-bold text-slate-300">
+              Institutional Editorial · {activeTheme.sectorLabel}
             </span>
           </div>
 
@@ -362,7 +351,7 @@ export default function InfographicStudioClient() {
               type="button"
               onClick={handleDownloadImage}
               disabled={exporting || loading || !data}
-              className={`inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-bold text-white shadow-xl transition-all duration-150 hover:brightness-110 active:scale-95 disabled:opacity-50 bg-gradient-to-r ${active3DTheme.buttonGrad} ${active3DTheme.accentShadow}`}
+              className="inline-flex items-center gap-2 rounded-xl bg-[#5e6ad2] px-5 py-2.5 text-sm font-bold text-white shadow-lg transition-colors hover:bg-[#707bf0] active:bg-[#4f59b8] disabled:opacity-50"
             >
               <Download className="w-4 h-4" />
               <span>
@@ -382,10 +371,10 @@ export default function InfographicStudioClient() {
         <div className="mb-6">
           <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-2.5">
             <Sparkles className="w-7 h-7 text-[#828fff]" />
-            Studio Investment Snapshot 360°
+            Studio Infografis 360°
           </h1>
           <p className="mt-1 text-sm text-tv-muted max-w-3xl">
-            Satu lembar institutional terminal yang merangkum teknikal, fundamental, valuasi, earnings, kepemilikan, kualitas bukti, dan struktur keputusan. Catatan riset terpisah tetap tersedia.
+            Tiga lembar riset konsisten: Snapshot untuk keputusan cepat, Teknikal untuk eksekusi, dan Fundamental untuk kualitas bisnis serta valuasi.
           </p>
         </div>
 
@@ -417,10 +406,10 @@ export default function InfographicStudioClient() {
               <Button variant="bare" size="none"
                 type="submit"
                 disabled={loading}
-                className={`w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r ${active3DTheme.buttonGrad} hover:brightness-110 text-white font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md shrink-0`}
-              >
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-[#5e6ad2] hover:bg-[#707bf0] text-white font-bold text-sm transition-colors flex items-center justify-center gap-2 shadow-md shrink-0"
+                >
                 <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                <span>{loading ? 'Memuat Data...' : 'Generate 3D Visual'}</span>
+                <span>{loading ? 'Memuat Data...' : 'Buat Infografis'}</span>
               </Button>
             </form>
 
@@ -465,7 +454,7 @@ export default function InfographicStudioClient() {
                 onClick={() => selectTicker(s)}
                 className={`px-2.5 py-1 rounded-lg border font-number text-xs font-bold transition-all ${
                   activeTicker === s
-                    ? `${active3DTheme.accentBorder} ${active3DTheme.accentBg} ${active3DTheme.accentText} shadow-xs`
+                    ? `${activeTheme.accentBorder} ${activeTheme.accentBg} ${activeTheme.accentText} shadow-xs`
                     : 'border-slate-700 bg-[#070d18] text-slate-300 hover:border-slate-500 hover:text-white'
                 }`}
               >
@@ -475,99 +464,67 @@ export default function InfographicStudioClient() {
           </div>
         </Card>
 
-        {/* =========================================================================
-         * MODULAR CONTROLS: 1. OUTPUT SELECTOR + 2. TEMA 3D SEKTOR + 3. ZOOM SLIDER
-         * ========================================================================= */}
-        <div className="mb-6 flex flex-col gap-4 bg-gradient-to-r from-[#060e1f] to-[#0a1835] border border-slate-700/80 p-4 rounded-2xl shadow-lg">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-            {/* 1. Output Card Switcher */}
-            <div className="flex items-center gap-2 p-1 bg-[#030612] rounded-xl border border-slate-800 w-full lg:w-auto">
-              <Button variant="bare" size="none"
+        <div className="mb-6 rounded-2xl border border-white/[0.08] bg-[#080d18] p-4 shadow-lg">
+          <div className="grid gap-3 lg:grid-cols-3">
+            {[
+              { id: 'snapshot_360' as const, icon: Layers, title: 'Snapshot 360°', note: 'Keputusan cepat & risiko' },
+              { id: 'technical' as const, icon: LineChart, title: 'Teknikal', note: 'Timing, level & arus dana' },
+              { id: 'fundamental_moat_earnings' as const, icon: Landmark, title: 'Fundamental', note: 'Kualitas, valuasi & earnings' },
+            ].map(({ id, icon: Icon, title, note }) => (
+              <Button
+                key={id}
+                variant="bare"
+                size="none"
                 type="button"
-                onClick={() => setCardMode('snapshot_360')}
-                className={`flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-heading text-xs font-bold transition-all ${
-                  cardMode === 'snapshot_360'
-                    ? 'bg-[#5e6ad2] text-white shadow-[0_0_0_1px_rgba(130,143,255,.35)]'
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                onClick={() => setCardMode(id)}
+                className={`flex min-h-16 items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
+                  cardMode === id
+                    ? 'border-[#828fff]/60 bg-[#5e6ad2]/20 text-white'
+                    : 'border-white/[0.08] bg-white/[0.025] text-slate-400 hover:bg-white/[0.05] hover:text-white'
                 }`}
               >
-                <Layers className="w-4 h-4" />
-                <span>Snapshot 360°</span>
+                <Icon className="h-5 w-5 shrink-0" />
+                <span>
+                  <span className="block text-sm font-bold">{title}</span>
+                  <span className="mt-0.5 block text-[11px] font-normal text-slate-400">{note}</span>
+                </span>
               </Button>
+            ))}
+          </div>
 
-              <Button variant="bare" size="none"
-                type="button"
-                onClick={() => setCardMode('technical')}
-                className={`flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-heading text-xs font-bold transition-all ${
-                  cardMode === 'technical'
-                    ? `bg-gradient-to-r ${active3DTheme.buttonGrad} text-white ${active3DTheme.accentShadow}`
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
+          <div className="mt-4 flex flex-col gap-3 border-t border-white/[0.08] pt-4 lg:flex-row lg:items-center lg:justify-between">
+            <label className="flex items-center gap-2 text-xs text-slate-400">
+              <Palette className="h-4 w-4" />
+              <span>Aksen laporan</span>
+              <select
+                value={selectedThemeId}
+                onChange={(e) => setSelectedThemeId(e.target.value)}
+                className="rounded-lg border border-white/[0.1] bg-[#030612] px-3 py-2 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#828fff]/40"
               >
-                <LineChart className="w-4 h-4" />
-                <span>1. Catatan Teknikal</span>
-              </Button>
+                <option value="auto">Otomatis sesuai sektor</option>
+                <option value="sapphire-bank">Biru finansial</option>
+                <option value="imperial-gold">Emas properti</option>
+                <option value="solar-mining">Tembaga energi</option>
+                <option value="tokyo-neon">Ungu teknologi</option>
+                <option value="rose-fmcg">Rose konsumer</option>
+                <option value="ruby-health">Merah kesehatan</option>
+                <option value="emerald-infra">Hijau infrastruktur</option>
+                <option value="obsidian-cyber">Teal netral</option>
+              </select>
+            </label>
 
-              <Button variant="bare" size="none"
-                type="button"
-                onClick={() => setCardMode('fundamental_moat_earnings')}
-                className={`flex-1 lg:flex-initial flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-heading text-xs font-bold transition-all ${
-                  cardMode === 'fundamental_moat_earnings'
-                    ? `bg-gradient-to-r ${active3DTheme.buttonGrad} text-white ${active3DTheme.accentShadow}`
-                    : 'text-slate-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <Landmark className="w-4 h-4" />
-                <span>2. Catatan Fundamental</span>
-              </Button>
-            </div>
-
-            {/* 2. Theme Selector & Randomize Button */}
-            <div className="flex items-center gap-2 w-full lg:w-auto justify-between lg:justify-end">
-              <div className="flex items-center gap-1.5 bg-[#030612] border border-slate-800 rounded-xl px-3 py-1.5 text-xs">
-                <Palette className={`w-3.5 h-3.5 ${active3DTheme.accentText}`} />
-                <span className="text-slate-400 text-[11px] hidden sm:inline">Tema sektor:</span>
-                <select
-                  value={selectedThemeId}
-                  onChange={(e) => setSelectedThemeId(e.target.value)}
-                  className="bg-transparent text-white font-mono text-xs font-bold focus:outline-none cursor-pointer"
-                >
-                  <option value="auto" className="bg-[#0c162c] text-white">🏛️ Sesuai Sektor Emiten (Otomatis)</option>
-                  <option value="obsidian-cyber" className="bg-[#0c162c] text-emerald-300">⚡ Obsidian Cyber Neon (High Contrast)</option>
-                  <option value="imperial-gold" className="bg-[#0c162c] text-amber-300">👑 Imperial Gold &amp; Wealth (Luxury)</option>
-                  <option value="tokyo-neon" className="bg-[#0c162c] text-fuchsia-300">🔮 Tokyo Quantum Violet (Tech/Crypto)</option>
-                  <option value="emerald-infra" className="bg-[#0c162c] text-emerald-400">🟢 Bullish Emerald Matrix (High Growth)</option>
-                  <option value="sapphire-bank" className="bg-[#0c162c] text-cyan-300">💎 Royal Sapphire (Banking/Bluechip)</option>
-                  <option value="solar-mining" className="bg-[#0c162c] text-amber-400">🌋 Ember Magma (Energy/Mining)</option>
-                  <option value="rose-fmcg" className="bg-[#0c162c] text-pink-300">🌸 Champagne Rose (Consumer/Retail)</option>
-                  <option value="ruby-health" className="bg-[#0c162c] text-rose-300">🩸 Ruby Crimson (Healthcare)</option>
-                </select>
-              </div>
-
-              <Button variant="bare" size="none"
-                type="button"
-                onClick={handleShuffleTheme}
-                title="Acak tema sektor"
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-bold text-slate-200 transition-colors shadow-sm"
-              >
-                <Dices className="w-4 h-4 text-cyan-400" />
-                <span className="hidden sm:inline">Acak Tema</span>
-              </Button>
-            </div>
-
-            {/* 3. Zoom Control */}
-            <div className="flex items-center gap-2 text-xs font-mono text-slate-400 w-full lg:w-auto justify-end">
-              <span className="hidden xl:inline">Zoom:</span>
-              <div className="flex items-center gap-1 bg-[#030612] border border-slate-800 rounded-lg p-1">
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <span>Ukuran pratinjau</span>
+              <div className="flex items-center gap-1 rounded-lg border border-white/[0.08] bg-[#030612] p-1">
                 {[0.5, 0.65, 0.75, 0.88, 1.0].map((scale) => (
-                  <Button variant="bare" size="none"
+                  <Button
                     key={scale}
+                    variant="bare"
+                    size="none"
                     type="button"
                     onClick={() => setZoomScale(scale)}
-                    className={`px-2 py-1 rounded text-[11px] font-mono font-bold transition-colors ${
-                      zoomScale === scale
-                        ? `${active3DTheme.accentBg} ${active3DTheme.accentText} border ${active3DTheme.accentBorder}`
-                        : 'text-slate-400 hover:text-white'
+                    className={`rounded px-2 py-1 text-[11px] font-bold transition-colors ${
+                      zoomScale === scale ? 'bg-[#5e6ad2] text-white' : 'text-slate-400 hover:text-white'
                     }`}
                   >
                     {Math.round(scale * 100)}%
@@ -582,7 +539,7 @@ export default function InfographicStudioClient() {
         <div className="rounded-3xl border border-slate-700/80 bg-[#01040a] p-6 shadow-2xl overflow-hidden">
           <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.08]">
             <div className="flex items-center gap-2">
-              <ImageIcon className={`w-5 h-5 ${active3DTheme.accentText}`} />
+              <ImageIcon className={`w-5 h-5 ${activeTheme.accentText}`} />
               <span className="font-heading text-sm font-bold text-white">
                 Pratinjau: {cardMode === 'snapshot_360'
                   ? 'Investment Snapshot 360°'
@@ -590,8 +547,8 @@ export default function InfographicStudioClient() {
                     ? 'Catatan Teknikal & Smart Money'
                     : 'Catatan Fundamental, Moat & Earnings'}
               </span>
-              <span className="hidden md:inline text-[11px] font-mono text-slate-400">
-                • Tema Sektor: <b className={active3DTheme.accentText}>{active3DTheme.name}</b> (dipakai sebagai warna aksen)
+              <span className="hidden md:inline text-[11px] text-slate-400">
+                • Aksen laporan: <b className={activeTheme.accentText}>{activeTheme.sectorLabel}</b>
               </span>
             </div>
 
@@ -645,6 +602,7 @@ export default function InfographicStudioClient() {
                       latestEarningsQuarter={data.fundamental.latestEarningsQuarter}
                       upcomingEarnings={data.fundamental.upcomingEarnings}
                       ownership={data.fundamental.ownership}
+                      theme={activeTheme}
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
                   ) : cardMode === 'technical' ? (
@@ -669,7 +627,7 @@ export default function InfographicStudioClient() {
                       patterns={data.technical.patterns}
                       patternAsOf={data.technical.patternAsOf}
                       flowDetails={data.technical.flowDetails}
-                      theme={active3DTheme}
+                      theme={activeTheme}
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
                   ) : (
@@ -686,7 +644,7 @@ export default function InfographicStudioClient() {
                       latestEarningsQuarter={data.fundamental.latestEarningsQuarter}
                       valuation={data.fundamental.valuation}
                       ownership={data.fundamental.ownership}
-                      theme={active3DTheme}
+                      theme={activeTheme}
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
                   )
