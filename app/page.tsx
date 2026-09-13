@@ -1,6 +1,12 @@
 import { headers } from 'next/headers';
 import HomeWorkspace from '@/components/HomeWorkspace';
 
+// Canonical eksplisit. Root layout sengaja tidak lagi menetapkannya (lihat app/layout.tsx),
+// jadi beranda menyatakan dirinya sendiri di sini.
+export const metadata = {
+  alternates: { canonical: '/' },
+};
+
 const WEBSITE_STRUCTURED_DATA = {
   '@context': 'https://schema.org',
   '@type': 'WebSite',
