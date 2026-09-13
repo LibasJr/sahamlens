@@ -110,4 +110,27 @@ describe('LensTechnical guest parity', () => {
     expect(html).toContain('/signup?next=%2Fdashboard');
     expect(html).not.toContain('Masuk untuk membuka');
   });
+
+  it('menumpuk overlay terkunci dengan grid supaya CTA tidak terpotong', () => {
+    // 13 September 2026: overlay memakai `absolute inset-0` di dalam `overflow-hidden`.
+    // Untuk tamu, konten di belakangnya nyaris kosong (level entry/stop/target memang
+    // tidak dikirim ke tamu), jadi kotaknya kolaps dan tombol "Daftar Gratis" terpotong
+    // separuh. Grid satu sel membuat tinggi baris = max(konten, overlay).
+    const source = fs.readFileSync(
+      path.join(__dirname, 'GuestLockedSection.tsx'),
+      'utf8',
+    );
+    // Komentar dibuang dulu - komentar di atas menyebut polanya sendiri (CLAUDE.md §2).
+    const code = source
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1');
+
+    // Penjaga jumlah: kalau pemindainya rusak, ini yang memberi tahu.
+    expect(code).toContain('GuestLockedSection');
+    expect(code).toContain('Daftar Gratis');
+
+    expect(code).toMatch(/className="relative grid overflow-hidden/);
+    expect(code).not.toMatch(/absolute\s+inset-0/);
+    expect((code.match(/col-start-1 row-start-1/g) ?? []).length).toBe(2);
+  });
 });
