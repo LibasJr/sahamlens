@@ -136,14 +136,14 @@ export function GuestTechnicalPreview({
         </div>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {LOCKED_FEATURES.map(({ label, icon: Icon }) => (
-            <button key={label} type="button" onClick={onUnlock} className="group rounded-2xl border border-white/[0.075] bg-tv-card p-4 text-left transition hover:border-tv-blue/35 hover:bg-tv-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60">
+            <Button key={label} type="button" variant="bare" size="none" onClick={onUnlock} className="group rounded-2xl border border-white/[0.075] bg-tv-card p-4 text-left transition hover:border-tv-blue/35 hover:bg-tv-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60">
               <div className="flex items-center justify-between gap-3">
                 <Icon className="h-5 w-5 text-tv-muted transition group-hover:text-tv-blue" aria-hidden="true" />
                 <LockKeyhole className="h-4 w-4 text-tv-yellow" aria-hidden="true" />
               </div>
               <p className="mt-5 text-sm font-semibold text-tv-text">{label}</p>
               <p className="mt-1 text-xs text-tv-muted">Masuk atau daftar untuk membuka</p>
-            </button>
+            </Button>
           ))}
         </div>
       </section>
