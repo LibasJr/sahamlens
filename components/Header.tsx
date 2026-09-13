@@ -23,6 +23,16 @@ interface HeaderProps {
   stockNav?: boolean;
   /** Tampilkan command palette pencarian ticker di header. */
   tickerSearch?: boolean;
+  /**
+   * Elemen untuk judul modul. Default `h1`: di sebagian besar halaman (/screener,
+   * /fundamental, /macro) judul modul inilah SATU-SATUNYA judul halaman, jadi ia
+   * memang harus `h1`.
+   *
+   * Halaman yang sudah punya `h1` sendiri - /technical/[symbol] memakai kode
+   * emiten - WAJIB mengirim `titleAs="p"`. Tanpa itu halaman mengirim dua `h1`
+   * sekaligus dan mesin pencari kehilangan sinyal tentang isi halaman.
+   */
+  titleAs?: 'h1' | 'p';
 }
 
 export default function Header({
@@ -35,8 +45,10 @@ export default function Header({
   isAdmin = false,
   stockNav = false,
   tickerSearch = true,
+  titleAs = 'h1',
 }: HeaderProps) {
   const showUsageQuota = !isAdmin && typeof analisaRemaining === 'number' && Number.isFinite(analisaRemaining);
+  const ModuleTitleTag = titleAs;
 
   return (
     <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 backdrop-blur-xl">
@@ -52,7 +64,20 @@ export default function Header({
               </span>
             )}
           </div>
-          <h1 className="truncate text-lg font-bold tracking-tight text-white md:text-xl">{moduleTitle}</h1>
+          {/*
+            Elemen judul ditentukan pemanggil, BUKAN dipatok di sini.
+
+            Default `h1` karena di sebagian besar halaman (/screener,
+            /fundamental, /macro) judul modul inilah satu-satunya judul halaman.
+            Sempat diubah menjadi `p` tanpa syarat untuk membereskan dua `h1` di
+            /technical/[symbol]; akibatnya /screener dan /fundamental kehilangan
+            `h1` sepenuhnya dan e2e critical-path merah - regresi yang lebih
+            buruk daripada masalah aslinya.
+
+            Halaman yang sudah punya `h1` sendiri mengirim `titleAs="p"`.
+            Kelas visualnya sama untuk kedua tag, jadi tampilan tidak berubah.
+          */}
+          <ModuleTitleTag className="truncate text-lg font-bold tracking-tight text-white md:text-xl">{moduleTitle}</ModuleTitleTag>
         </div>
 
         {(tickerSearch || showUsageQuota) && (

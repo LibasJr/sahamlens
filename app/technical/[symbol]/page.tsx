@@ -57,7 +57,11 @@ export async function generateMetadata({
   const code = normalizeTechnicalSymbol(rawSymbol);
   if (code === '^JKSE') {
     return {
-      title: 'Analisis Teknikal IHSG | SahamLens',
+      // `title` di sini adalah string biasa, jadi Next menerapkan
+      // `template: '%s | SahamLens'` dari root layout. Menulis '| SahamLens'
+      // sendiri berarti sufiksnya muncul DUA KALI di <title> dan judulnya
+      // terpotong di hasil pencarian.
+      title: 'Analisis Teknikal IHSG',
       description: 'Chart dan indikator teknikal Indeks Harga Saham Gabungan (IHSG).',
       alternates: { canonical: `${SITE_URL}/technical/IHSG` },
     };
@@ -66,13 +70,13 @@ export async function generateMetadata({
 
   if (!emiten) {
     return {
-      title: 'Emiten tidak ditemukan | SahamLens',
+      title: 'Emiten tidak ditemukan',
       robots: { index: false, follow: false },
     };
   }
 
   const displayName = emiten.name === code ? code : emiten.name;
-  const title = `Analisis Saham ${code} - Teknikal, Chart & Skor total | SahamLens`;
+  const title = `Analisis Saham ${code} - Teknikal, Chart & Skor total`;
   const description = `Analisis teknikal saham ${code}${displayName !== code ? ` (${displayName})` : ''}: chart interaktif, indikator, skor total, momentum, arus dana, dan konteks risiko berbasis data SahamLens.`;
   const canonical = `${SITE_URL}/technical/${code}`;
 
