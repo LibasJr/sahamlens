@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { buildGuestTechnicalSnapshot } from './GuestTechnicalPreview';
 
 function candles(closes: number[]) {
-  return closes.map((close, index) => ({ close, time: `2026-01-${String(index + 1).padStart(2, '0')}` }));
+  return closes.map((close, index) => ({
+    close,
+    time: new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10),
+  }));
 }
 
 describe('buildGuestTechnicalSnapshot', () => {
