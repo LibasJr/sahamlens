@@ -52,7 +52,15 @@ export default function Header({
               </span>
             )}
           </div>
-          <h1 className="truncate text-lg font-bold tracking-tight text-white md:text-xl">{moduleTitle}</h1>
+          {/*
+            SENGAJA <p>, BUKAN <h1>. Ini judul modul di chrome aplikasi yang
+            tampil di SETIAP halaman, jadi sebagai <h1> ia beradu dengan judul
+            asli halaman - /technical/BBCA sempat mengirim dua <h1> sekaligus
+            ("LensConsensus Technical + Bandarmology" dan "BBCA"), dan mesin
+            pencari kehilangan sinyal tentang isi halaman sebenarnya.
+            Tampilannya tidak berubah; kelas visualnya sama persis.
+          */}
+          <p className="truncate text-lg font-bold tracking-tight text-white md:text-xl">{moduleTitle}</p>
         </div>
 
         {(tickerSearch || showUsageQuota) && (

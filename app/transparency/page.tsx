@@ -11,6 +11,7 @@ export const revalidate = 0;
 export const metadata = {
   title: 'Transparansi Model SahamLens',
   description: 'Metodologi, status validasi, sumber data, dan batasan LensRadar/LensScore.',
+  alternates: { canonical: '/transparency' },
 };
 
 function fmt(value: number | null | undefined, suffix = '', isEn = false) {
