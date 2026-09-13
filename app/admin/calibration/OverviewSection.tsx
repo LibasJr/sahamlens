@@ -23,10 +23,14 @@ export function HeadlineCardsSection({ data }: { data: CalibrationDashboardData 
           <div className="font-number text-xl font-bold mt-1">{num(data.sourceRows)}</div>
         </Card>
         <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
-          <div className="text-xs text-tv-muted uppercase">Observasi T+20</div>
+          <div className="text-xs text-tv-muted uppercase">Observasi T+20 mentah</div>
           <div className="font-number text-xl font-bold mt-1">{data.observationsT20.toLocaleString('id-ID')}</div>
-          {/* Angka telanjang tidak menyatakan ia sedang menuju ambang tertentu. */}
-          <div className="text-[10px] text-tv-muted mt-0.5">dari {MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} minimum</div>
+          <div className="text-[10px] text-tv-muted mt-0.5">
+            Sampel efektif edge: {num(data.genuineOos.highBucketSamples)}/{MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} · {num(data.genuineOos.lowBucketSamples)}/{MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION}
+          </div>
+          <div className="text-[10px] text-tv-muted mt-0.5">
+            Hari bursa sejak sinyal pertama: {data.t20MaturityProgress.tradingDaysElapsed}/{data.t20MaturityProgress.requiredTradingDays}
+          </div>
         </Card>
       </div>
 
@@ -91,10 +95,10 @@ export function ObservationProgressSection({ data }: { data: CalibrationDashboar
         title="Observasi T+20 belum terkumpul"
         description="Setiap sinyal baru bisa dihitung setelah 20 hari bursa berlalu sejak tanggal skornya. Seluruh angka di bawah akan tetap kosong sampai itu terpenuhi - halaman ini sengaja tidak menampilkan angka pengganti."
         progress={{
-          current: data.observationsT20,
-          total: MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION,
-          unit: 'observasi',
-          label: 'Observasi T+20 terkumpul',
+          current: data.t20MaturityProgress.tradingDaysElapsed,
+          total: data.t20MaturityProgress.requiredTradingDays,
+          unit: 'hari bursa',
+          label: 'Menuju kematangan T+20 pertama',
         }}
       />
       <p className="pb-5 text-center text-[11px] text-tv-muted">
