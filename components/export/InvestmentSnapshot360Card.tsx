@@ -4,7 +4,12 @@ import React from 'react';
 import type { MoatProxyResult } from '@/modules/fundamental/service/moat-proxy.service';
 import type { EarningsQuarter } from '@/modules/fundamental/service/public-earnings-data.service';
 import { fmtDer, fmtKali, fmtPersen, fmtTriliun } from '@/shared/format/fundamental-format';
-import { ABSENT, BULL, BEAR, FLAT, orAbsent, pct, rp, timestampLabel, toneColor } from './research-paper';
+import type { Card3DTheme } from './card-3d-themes';
+import { getSector3DTheme, getThemeById } from './card-3d-themes';
+import {
+  ABSENT, BULL, BEAR, FLAT, HIGHLIGHT, INK, INK_2, INK_3, RULE, RULE_SOFT,
+  Sheet, accentOf, orAbsent, pct, rp, toneColor,
+} from './research-paper';
 
 /**
  * Lembar ekspor "Investment Snapshot 360°".
@@ -108,18 +113,18 @@ interface SnapshotProps {
     trend?: string | null;
     previous?: { actualGapDays?: number | null; foreignPp?: number | null } | null;
   } | null;
+  themeId?: string;
+  theme?: Card3DTheme;
   exportedAt?: Date;
 }
 
-const BG = '#08090A';
-const PANEL = '#111214';
-const PANEL_2 = '#17181B';
-const BORDER = 'rgba(255,255,255,.09)';
-const TEXT = '#F7F8F8';
-const MUTED = '#8A8F98';
-const SUBTLE = '#62666D';
-const ACCENT = '#7170FF';
-const NEUTRAL_BAR = '#3A3D44';
+const PANEL = HIGHLIGHT;
+const PANEL_2 = '#FAF9F5';
+const BORDER = RULE;
+const TEXT = INK;
+const MUTED = INK_2;
+const SUBTLE = INK_3;
+const NEUTRAL_BAR = RULE_SOFT;
 
 /**
  * Nol yang DIUKUR dibedakan dari nol yang berarti "tidak dilaporkan". Yahoo mengirim
@@ -198,9 +203,13 @@ export default function InvestmentSnapshot360Card({
   latestEarningsQuarter = null,
   upcomingEarnings = null,
   ownership = null,
+  themeId,
+  theme,
   exportedAt = new Date(),
 }: SnapshotProps) {
   const ticker = symbol.replace('.JK', '').toUpperCase();
+  const activeTheme = theme || (themeId ? getThemeById(themeId) : getSector3DTheme(profile.sector, profile.industry, ticker));
+  const accent = accentOf(activeTheme);
 
   const isBank = `${profile.sector || ''} ${profile.industry || ''}`.toLowerCase().includes('bank')
     || `${profile.sector || ''}`.toLowerCase().includes('financial');
@@ -257,11 +266,17 @@ export default function InvestmentSnapshot360Card({
   if (riskLines.length === 0) riskLines.push('Risiko mengikuti batas invalidasi teknikal');
 
   return (
-    <div className="w-[1080px] font-sans" style={{ background: BG, color: TEXT, padding: 26 }}>
-      <header className="flex items-start justify-between" style={{ padding: '4px 2px 18px' }}>
+    <Sheet
+      documentLabel="Investment Snapshot 360°"
+      accent={accent}
+      exportedAt={exportedAt}
+      sectorLabel={activeTheme.sectorLabel}
+      disclaimer="Snapshot 360° merangkum sinyal teknikal, fundamental, valuasi, arus dana, dan kualitas bukti dari data SahamLens. LensScore adalah keselarasan faktor, bukan probabilitas profit. Level harga dan nilai wajar adalah keluaran model, bukan anjuran beli atau jual."
+    >
+      <header className="flex items-start justify-between" style={{ padding: '22px 2px 20px' }}>
         <div>
-          <div style={{ color: ACCENT, fontSize: 10.5, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase' }}>
-            SahamLens · Investment Snapshot 360°
+          <div style={{ color: accent, fontSize: 10.5, fontWeight: 600, letterSpacing: '.14em', textTransform: 'uppercase' }}>
+            Ringkasan Keputusan 360°
           </div>
           <div className="flex items-baseline gap-3" style={{ marginTop: 8 }}>
             <h1 style={{ fontSize: 46, fontWeight: 590, lineHeight: 1, letterSpacing: '-1.05px' }}>{ticker}</h1>
@@ -278,7 +293,7 @@ export default function InvestmentSnapshot360Card({
             {changePct == null ? ABSENT : pct(changePct, true, 2)}
           </div>
           <div style={{ color: SUBTLE, fontSize: 9.5, marginTop: 8 }}>
-            Data per {dateLabel(dataTimestamp)}<br />Dibuat {timestampLabel(exportedAt)}
+            Data per {dateLabel(dataTimestamp)}
           </div>
         </div>
       </header>
@@ -289,7 +304,7 @@ export default function InvestmentSnapshot360Card({
             label="LensScore"
             value={score == null ? ABSENT : `${score}/100`}
             sub={`Teknikal ${scoreBreakdown.technical ?? ABSENT}/40 · Flow ${scoreBreakdown.flow ?? ABSENT}/30 · Fundamental ${scoreBreakdown.fundamental ?? ABSENT}/30`}
-            color={ACCENT}
+            color={accent}
           />
         </div>
         <div style={{ background: PANEL_2, border: `1px solid ${BORDER}`, borderRadius: 10, padding: 15 }}>
@@ -361,7 +376,7 @@ export default function InvestmentSnapshot360Card({
           </div>
           {position != null ? (
             <div style={{ height: 5, background: NEUTRAL_BAR, marginTop: 13, borderRadius: 5 }}>
-              <div style={{ width: `${position}%`, height: 5, background: ACCENT, borderRadius: 5 }} />
+              <div style={{ width: `${position}%`, height: 5, background: accent, borderRadius: 5 }} />
             </div>
           ) : null}
         </Section>
@@ -531,14 +546,6 @@ export default function InvestmentSnapshot360Card({
         </div>
       </section>
 
-      <footer className="flex items-start justify-between" style={{ color: SUBTLE, fontSize: 9.5, lineHeight: 1.5, padding: '15px 2px 2px' }}>
-        <span style={{ maxWidth: 780 }}>
-          LensScore adalah keselarasan faktor, bukan probabilitas profit. Level teknikal, nilai wajar, moat proxy, dan status sinyal adalah keluaran model SahamLens atas data publik; metrik bank bersifat DATA_ONLY dan tidak mengubah skor. Angka kepemilikan adalah snapshot KSEI, bukan broker flow. Validasi sumber, kesegaran data, aksi korporasi, dan likuiditas tetap diperlukan.
-        </span>
-        <span className="text-right">
-          sahamlens.id<br />Bursa Efek Indonesia
-        </span>
-      </footer>
-    </div>
+    </Sheet>
   );
 }
