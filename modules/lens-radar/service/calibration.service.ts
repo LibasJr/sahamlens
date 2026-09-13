@@ -176,6 +176,11 @@ export interface CalibrationDashboardData {
   sourceRows: number;
   uniqueTickers: number;
   observationsT20: number;
+  t20MaturityProgress: {
+    firstSignalDate: string | null;
+    tradingDaysElapsed: number;
+    requiredTradingDays: 20;
+  };
   /** Sinyal yang dibuang karena tidak punya bar bursa MAJU untuk entry (temuan C-03).
    * Sebelum perbaikan, sinyal seperti ini dieksekusi pada bar tanggal sinyal itu sendiri
    * dan hasilnya masuk ke seluruh angka di halaman ini sebagai look-ahead. */
@@ -462,6 +467,7 @@ export async function calculateCalibrationObservations(
   normalizedRows: number;
   uniqueTickers: number;
   observations: CalibrationObservation[];
+  t20MaturityProgress: CalibrationDashboardData['t20MaturityProgress'];
   /** Sinyal yang dibuang karena tidak punya bar bursa maju untuk entry (temuan C-03). */
   skippedNoForwardEntry: number;
   /** Baris yang dibuang gerbang populasi produksi (temuan H-01). */
@@ -586,10 +592,18 @@ export async function calculateCalibrationObservations(
     }
   }
 
+  const firstSignalDate = observations.map((obs) => obs.signalDate).sort()[0] ?? null;
+  const firstSignalIndex = firstSignalDate == null ? -1 : tradingCalendar.indexOf(firstSignalDate);
+
   return {
     normalizedRows: normalized.length,
     uniqueTickers: tickers.length,
     observations,
+    t20MaturityProgress: {
+      firstSignalDate,
+      tradingDaysElapsed: firstSignalIndex < 0 ? 0 : Math.min(20, tradingCalendar.length - firstSignalIndex - 1),
+      requiredTradingDays: 20,
+    },
     skippedNoForwardEntry,
     productionGate,
     tradingCalendarSource: calendar.source,
@@ -940,6 +954,7 @@ export async function getCalibrationDashboardData(
     normalizedRows,
     uniqueTickers,
     observations,
+    t20MaturityProgress,
     skippedNoForwardEntry,
     productionGate,
     tradingCalendarSource,
@@ -999,6 +1014,7 @@ export async function getCalibrationDashboardData(
     sourceRows: normalizedRows,
     uniqueTickers,
     observationsT20,
+    t20MaturityProgress,
     skippedNoForwardEntry,
     productionGate,
     minCoveragePct: MIN_VALIDATION_COVERAGE_PCT,

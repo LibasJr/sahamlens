@@ -67,6 +67,25 @@ describe('calibration.service', () => {
     expect(first.bucket).toBe('80-100');
     // Exit T+20 = close hari bursa ke-20 dari sinyal = 121, entry open H+1 = 100, net cost 0.5%.
     expect(first.returnT20).toBeCloseTo(20.5);
+    expect(result.t20MaturityProgress).toEqual({
+      firstSignalDate: '2026-01-01',
+      tradingDaysElapsed: 20,
+      requiredTradingDays: 20,
+    });
+  });
+
+  it('melaporkan progres hari bursa menuju kematangan T+20 pertama', async () => {
+    const dates = Array.from({ length: 10 }, (_, index) => `2026-01-${String(index + 1).padStart(2, '0')}`);
+    const result = await calculateCalibrationObservations(
+      dates.map((date) => row(date, 'AAAA.JK', 85, 100)),
+      provider({ 'AAAA.JK': Object.fromEntries(dates.map((date) => [date, 100])) })
+    );
+
+    expect(result.t20MaturityProgress).toEqual({
+      firstSignalDate: '2026-01-01',
+      tradingDaysElapsed: 9,
+      requiredTradingDays: 20,
+    });
   });
 
   it('menghitung horizon dari kalender bursa global, bukan indeks baris ticker yang bolong', async () => {
