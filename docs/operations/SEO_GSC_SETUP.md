@@ -3,6 +3,26 @@
 Kode SEO sudah menyiapkan title, meta description, canonical, robots.txt, sitemap.xml, dan WebSite structured data.
 Bagian di bawah tetap harus dilakukan oleh pemilik domain karena membutuhkan akses Google/DNS.
 
+> **Kalau traffic organik non-brand datar, baca
+> [`SEO-POSTMORTEM-2026-09-13.md`](./SEO-POSTMORTEM-2026-09-13.md) lebih dulu.**
+>
+> Kalimat "canonical sudah disiapkan" di atas pernah benar secara kode tapi salah
+> secara akibat: `app/layout.tsx` memasang `alternates: { canonical: '/' }`, dan
+> Next mewariskannya ke setiap halaman yang tidak menimpanya. Sepuluh halaman
+> publik menyuruh Google mengabaikan dirinya dan mengindeks beranda. Sitemap
+> mendaftarkan 970 URL; canonical membatalkannya satu per satu.
+>
+> Tidak ada gejala, tidak ada yang merah. Cek 10 detik:
+>
+> ```bash
+> for u in / /screener /fundamental /news /about; do
+>   printf "%-14s %s\n" "$u" \
+>     "$(curl -s "https://sahamlens.id$u" | grep -o '<link rel="canonical" href="[^"]*' | sed 's/.*href="//')"
+> done
+> ```
+>
+> Semua baris memulangkan `https://sahamlens.id` berarti bug itu kembali.
+
 ## 1. Verifikasi Domain Property (disarankan)
 
 1. Buka Google Search Console.
