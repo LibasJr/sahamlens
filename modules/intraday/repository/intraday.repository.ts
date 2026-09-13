@@ -739,15 +739,24 @@ export interface ValidationRunRow {
   triggeredBy: string | null;
 }
 
-export async function listValidationRuns(limit = 20, offset = 0): Promise<ValidationRunRow[]> {
+export async function listValidationRuns(
+  limit = 20,
+  offset = 0,
+  modelVersion?: string,
+  configHash?: string
+): Promise<ValidationRunRow[]> {
   await ensureIntradaySchema();
+  const scoped = Boolean(modelVersion && configHash);
   const res = await queryReadWithRetry<any>(
     `SELECT run_id, dataset_hash, model_version, config_hash, protocol_version, started_at,
             completed_at, status, sample_raw, sample_effective, error_message, triggered_by
      FROM intraday_validation_runs
+     ${scoped ? 'WHERE model_version = $3 AND config_hash = $4' : ''}
      ORDER BY started_at DESC
      LIMIT $1 OFFSET $2`,
-    [Math.min(limit, 100), Math.max(0, offset)]
+    scoped
+      ? [Math.min(limit, 100), Math.max(0, offset), modelVersion, configHash]
+      : [Math.min(limit, 100), Math.max(0, offset)]
   );
   return res.rows.map((r) => ({
     runId: Number(r.run_id),
@@ -765,15 +774,19 @@ export async function listValidationRuns(limit = 20, offset = 0): Promise<Valida
   }));
 }
 
-export async function getLatestValidationRunResult(): Promise<{ row: ValidationRunRow; result: unknown } | null> {
+export async function getLatestValidationRunResult(
+  modelVersion: string,
+  configHash: string
+): Promise<{ row: ValidationRunRow; result: unknown } | null> {
   await ensureIntradaySchema();
   const res = await queryReadWithRetry<any>(
     `SELECT run_id, dataset_hash, model_version, config_hash, protocol_version, started_at,
             completed_at, status, sample_raw, sample_effective, error_message, triggered_by, result
      FROM intraday_validation_runs
-     WHERE status <> 'RUNNING'
+     WHERE status <> 'RUNNING' AND model_version = $1 AND config_hash = $2
      ORDER BY started_at DESC
-     LIMIT 1`
+     LIMIT 1`,
+    [modelVersion, configHash]
   );
   const r = res.rows[0];
   if (!r) return null;
@@ -832,10 +845,16 @@ function mapProtocol(r: any): OosProtocolRow {
   };
 }
 
-export async function getActiveOosProtocol(): Promise<OosProtocolRow | null> {
+export async function getActiveOosProtocol(
+  modelVersion: string,
+  configHash: string
+): Promise<OosProtocolRow | null> {
   await ensureIntradaySchema();
   const res = await queryReadWithRetry<any>(
-    `SELECT * FROM intraday_oos_protocols ORDER BY freeze_timestamp DESC LIMIT 1`
+    `SELECT * FROM intraday_oos_protocols
+     WHERE model_version = $1 AND config_hash = $2 AND status = 'FROZEN'
+     ORDER BY freeze_timestamp DESC LIMIT 1`,
+    [modelVersion, configHash]
   );
   return res.rows[0] ? mapProtocol(res.rows[0]) : null;
 }
@@ -928,10 +947,13 @@ export async function insertWeightProposal(input: {
   return Number(res.rows[0]!.proposal_id);
 }
 
-export async function getLatestWeightProposal(): Promise<any | null> {
+export async function getLatestWeightProposal(modelVersion: string, configHash: string): Promise<any | null> {
   await ensureIntradaySchema();
   const res = await queryReadWithRetry<any>(
-    `SELECT * FROM intraday_weight_proposals ORDER BY created_at DESC LIMIT 1`
+    `SELECT * FROM intraday_weight_proposals
+     WHERE model_version = $1 AND config_hash = $2
+     ORDER BY created_at DESC LIMIT 1`,
+    [modelVersion, configHash]
   );
   const r = res.rows[0];
   if (!r) return null;
@@ -978,10 +1000,13 @@ export async function insertThresholdProposal(input: {
   return Number(res.rows[0]!.proposal_id);
 }
 
-export async function getLatestThresholdProposal(): Promise<any | null> {
+export async function getLatestThresholdProposal(modelVersion: string, configHash: string): Promise<any | null> {
   await ensureIntradaySchema();
   const res = await queryReadWithRetry<any>(
-    `SELECT * FROM intraday_threshold_proposals ORDER BY created_at DESC LIMIT 1`
+    `SELECT * FROM intraday_threshold_proposals
+     WHERE model_version = $1 AND config_hash = $2
+     ORDER BY created_at DESC LIMIT 1`,
+    [modelVersion, configHash]
   );
   const r = res.rows[0];
   if (!r) return null;
