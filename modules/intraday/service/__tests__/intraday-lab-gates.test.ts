@@ -287,7 +287,19 @@ describe('#7 pemetaan volumeSurge berpusat pada sebaran fiturnya', () => {
   });
 });
 
-describe('#8 protokol OOS beku menyebut pemetaan apa adanya', () => {
+describe('#8 mode OOS gagal-tertutup tanpa protokol yang cocok', () => {
+  it('menolak sebelum validation run dibuat', () => {
+    const fn = validationSource.slice(
+      validationSource.indexOf('export async function runIntradayValidation'),
+      validationSource.indexOf('async function computeValidation')
+    );
+    expect(fn).toContain("if (options.oosOnly && !protocol)");
+    expect(fn).toContain('throw new ConflictError');
+    expect(fn.indexOf('throw new ConflictError')).toBeLessThan(fn.indexOf('startValidationRun'));
+  });
+});
+
+describe('#9 protokol OOS beku menyebut pemetaan apa adanya', () => {
   /**
    * Protokol beku adalah artefak yang paling lama hidup di modul ini - ia dibaca
    * berbulan-bulan kemudian oleh orang yang tidak membuka kode. Sampai 24 Agustus 2026
