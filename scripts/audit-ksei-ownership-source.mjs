@@ -157,7 +157,7 @@ const ANTI_BOT_MARKERS = [
 const LOGIN_MARKERS = [/type=["']password["']/i, /silakan login/i, /please login/i];
 
 const USER_AGENT =
-  'SahamLens-OwnershipFlow-Audit/1.0 (+https://sahamlens.id; kontak: admin@sahamlens.id)';
+  'SahamLens-OwnershipFlow-Audit/1.0 (+https://sahamlens.id; kontak: support@sahamlens.id)';
 
 function parseArgs(argv) {
   const args = { tickers: DEFAULT_TICKERS, out: 'reports', fixtures: 'data/source-fixtures/ksei', saveFixtures: true, delayMs: 1500, timeoutMs: 20000, baseUrl: DEFAULT_BASE_URL };
