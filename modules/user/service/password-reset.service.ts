@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { getUserByEmail, updateUser } from '../repository/user.repository';
+import { consumeResetCodeAndSetPassword, getUserByEmail, updateUser } from '../repository/user.repository';
 import { sendResetPasswordEmail } from '../repository/email.repository';
 import { generateOtp } from '../utils/otp-generator';
 import { RESET_CODE_TTL_MIN } from '../constants/user.constants';
@@ -51,6 +51,21 @@ export async function resetPassword(input: ResetPasswordInput): Promise<void> {
     throw new InvalidResetCodeError();
   }
 
+  // ===========================================================================
+  // Pembacaan ini BUKAN gerbang keamanan - ia hanya menentukan pesan galat.
+  // ===========================================================================
+  // Gerbang yang sesungguhnya adalah `consumeResetCodeAndSetPassword` di bawah,
+  // yang memeriksa kode DAN menukarnya dalam satu operasi database.
+  //
+  // Pembacaan di sini ada supaya dua hal tetap terjaga:
+  //   1. Kode yang jelas salah ditolak tanpa membayar biaya bcrypt.
+  //   2. Kedaluwarsa tetap bisa dibedakan dari kode salah - kedaluwarsa adalah
+  //      kesalahan yang bukan salah pengguna, jadi tidak dihitung sebagai
+  //      percobaan gagal.
+  //
+  // Kalau pembacaan ini dihapus, keamanannya TIDAK berkurang sedikit pun; yang
+  // hilang hanya kualitas pesannya. Itu ukuran yang tepat untuk menilai apakah
+  // sebuah pembacaan adalah gerbang atau bukan.
   const user = await getUserByEmail(input.email);
   if (!user || !user.reset_code || !timingSafeStringEqual(user.reset_code, input.code)) {
     await recordResetOtpFailure(input.email);
@@ -61,7 +76,24 @@ export async function resetPassword(input: ResetPasswordInput): Promise<void> {
   }
 
   const hash = await bcrypt.hash(input.newPassword, 10);
-  await updateUser(user.id, { password_hash: hash, reset_code: null, reset_code_expires: null });
+
+  // ===========================================================================
+  // Konsumsi atomic: periksa dan tukar dalam satu pernyataan.
+  // ===========================================================================
+  // Mengembalikan `false` berarti barisnya TIDAK berubah - dan pada titik ini,
+  // setelah pembacaan di atas menyatakan kodenya benar, sebab yang paling mungkin
+  // adalah request lain sudah mengonsumsinya lebih dulu. Itu persis perlombaan
+  // yang hendak ditutup.
+  //
+  // Perlakuannya sama dengan kode salah: password TIDAK berubah, percobaan
+  // dicatat, pesan tetap generik. Yang kalah dalam perlombaan tidak boleh
+  // mendapat perlakuan istimewa hanya karena kodenya sempat benar.
+  const consumed = await consumeResetCodeAndSetPassword(input.email, input.code, hash);
+  if (!consumed) {
+    await recordResetOtpFailure(input.email);
+    throw new InvalidResetCodeError();
+  }
+
   // Alur yang tuntas tidak boleh menghukum pengguna: kedua penghitung dibersihkan
   // HANYA di sini - setelah kode terbukti benar dan password benar-benar berganti.
   await clearResetOtpAttempts(input.email);

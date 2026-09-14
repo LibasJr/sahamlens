@@ -242,6 +242,67 @@ const UPDATABLE_COLUMNS = new Set<keyof User>([
   'reset_code_expires',
 ]);
 
+/**
+ * Menukar OTP reset dengan password baru dalam SATU operasi database.
+ *
+ * ===================================================================================
+ * MASALAH YANG DIPECAHKAN
+ * ===================================================================================
+ * Sebelumnya alurnya tiga langkah terpisah di service:
+ *
+ *     const user = await getUserByEmail(email);   // 1. BACA
+ *     if (user.reset_code !== code) throw ...;    // 2. PERIKSA
+ *     await updateUser(user.id, { ... });         // 3. TULIS
+ *
+ * Di antara langkah 1 dan 3 tidak ada yang menahan apa pun. Dua request yang datang
+ * bersamaan dengan OTP valid yang sama akan SAMA-SAMA membaca `reset_code` yang masih
+ * terisi, SAMA-SAMA lolos pemeriksaan, dan SAMA-SAMA menulis password baru. OTP yang
+ * seharusnya sekali pakai menjadi bisa dipakai berkali-kali selama request-nya
+ * berbarengan.
+ *
+ * ===================================================================================
+ * CARA KERJA
+ * ===================================================================================
+ * Syaratnya dipindah ke dalam `WHERE` milik `UPDATE` itu sendiri. Postgres menjamin
+ * satu baris hanya bisa dikunci satu transaksi pada satu waktu, jadi request kedua
+ * akan mengevaluasi `WHERE` SETELAH request pertama menghapus `reset_code` -
+ * dan gagal mencocokkan.
+ *
+ * `RETURNING id` membuat pemanggil tahu apakah barisnya benar-benar berubah:
+ *   - 1 baris  -> OTP sah, belum kedaluwarsa, dan baru saja DIKONSUMSI.
+ *   - 0 baris  -> kode salah, ATAU kedaluwarsa, ATAU sudah dipakai duluan.
+ *
+ * Tidak ada celah di antaranya karena tidak ada "di antara".
+ *
+ * ===================================================================================
+ * KENAPA KEDALUWARSA DIPERIKSA DENGAN NOW() MILIK DATABASE
+ * ===================================================================================
+ * Memakai `Date.now()` dari aplikasi berarti kedaluwarsa dinilai memakai jam mesin
+ * aplikasi, yang bisa berbeda dari jam database. Satu sumber waktu lebih sedikit
+ * berarti satu ketidaksesuaian lebih sedikit.
+ */
+export async function consumeResetCodeAndSetPassword(
+  email: string,
+  code: string,
+  newPasswordHash: string,
+): Promise<boolean> {
+  await ensureSchema();
+  const { rowCount } = await pool.query(
+    `UPDATE users
+        SET password_hash = $3,
+            reset_code = NULL,
+            reset_code_expires = NULL
+      WHERE LOWER(email) = LOWER($1)
+        AND reset_code IS NOT NULL
+        AND reset_code = $2
+        AND reset_code_expires IS NOT NULL
+        AND reset_code_expires > NOW()
+      RETURNING id`,
+    [email, code, newPasswordHash],
+  );
+  return (rowCount ?? 0) > 0;
+}
+
 export async function updateUser(id: string, updates: Partial<User>): Promise<void> {
   await ensureSchema();
   const keys = Object.keys(updates).filter((k): k is keyof User => UPDATABLE_COLUMNS.has(k as keyof User));
