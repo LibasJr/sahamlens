@@ -83,6 +83,36 @@ export function assessIdxEodFreshness(
   toleranceTradingDays: number = IDX_EOD_STALENESS_TRADING_DAYS,
 ): IdxEodFreshnessResult {
   const dateKey = latestTradeDate.slice(0, 10);
+
+  // Tanggal MASA DEPAN diperiksa lebih dulu, sebelum penghitung hari bursa.
+  //
+  // `countTradingDaysBetween` memajukan kursor dari `dateKey` dan berhenti begitu
+  // melewati hari ini. Kalau `dateKey` sendiri sudah di depan hari ini, loop-nya
+  // berhenti pada iterasi pertama dan mengembalikan 0 - yang terbaca "tidak
+  // tertinggal sama sekali", lalu lolos sebagai FRESH.
+  //
+  // Artinya artefak EOD bertanggal besok akan dinilai lebih segar daripada artefak
+  // hari ini. Itu kebalikan dari tujuan gerbang ini.
+  //
+  // Toleransi satu hari kalender dipakai di sini (bukan menit): kunci tanggal WIB
+  // bisa bergeser sehari kalau jam mesin sedikit meleset di sekitar tengah malam,
+  // dan itu bukan data rusak.
+  const nowKey = jakartaDateKey(now);
+  if (dateKey > nowKey) {
+    const tomorrowKey = jakartaDateKey(new Date(now.getTime() + 24 * 60 * 60 * 1000));
+    if (dateKey > tomorrowKey) {
+      return {
+        freshness: 'STALE',
+        tradingDaysBehind: 0,
+        latestTradeDate: dateKey,
+        reason:
+          `artefak EOD IDX bertanggal MASA DEPAN (${dateKey}, hari ini ${nowKey}) - ` +
+          `jam mesin atau tanggal baris bermasalah. Ditandai STALE karena stempel ` +
+          `waktu yang salah tidak boleh dianggap data segar.`,
+      };
+    }
+  }
+
   const tradingDaysBehind = countTradingDaysBetween(dateKey, now);
 
   if (tradingDaysBehind <= toleranceTradingDays) {

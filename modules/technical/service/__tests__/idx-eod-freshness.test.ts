@@ -107,3 +107,30 @@ describe('assessIdxEodFreshness', () => {
     expect(r.tradingDaysBehind).toBeLessThanOrEqual(30);
   });
 });
+
+// ===========================================================================
+// V2 butir 002 - tanggal EOD di masa depan tidak boleh lolos sebagai FRESH
+// ===========================================================================
+describe('002 - tanggal artefak EOD di masa depan', () => {
+  const now = new Date('2026-09-14T10:00:00+07:00');
+
+  it('SERANGAN: artefak bertanggal jauh di depan ditandai STALE, bukan FRESH', () => {
+    // countTradingDaysBetween memajukan kursor lalu berhenti saat melewati hari
+    // ini. Kalau tanggalnya sendiri sudah di depan, ia berhenti pada iterasi
+    // pertama dan mengembalikan 0 - terbaca "tidak tertinggal" alias FRESH.
+    const hasil = assessIdxEodFreshness('2026-10-01', now);
+    expect(hasil.freshness).toBe('STALE');
+    expect(hasil.reason).toContain('MASA DEPAN');
+  });
+
+  it('pergeseran satu hari di sekitar tengah malam TIDAK memerahkan gerbang', () => {
+    // Kunci tanggal WIB bisa bergeser sehari kalau jam mesin sedikit meleset.
+    // Gerbang yang memerah untuk itu akan diabaikan.
+    const besok = assessIdxEodFreshness('2026-09-15', now);
+    expect(besok.freshness).toBe('FRESH');
+  });
+
+  it('tanggal hari ini tetap FRESH', () => {
+    expect(assessIdxEodFreshness('2026-09-14', now).freshness).toBe('FRESH');
+  });
+});
