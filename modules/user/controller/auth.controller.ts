@@ -106,10 +106,11 @@ export async function handleVerify(rawBody: unknown, requestMeta?: AuthRequestMe
   return { status: 200, body: { success: true, message: 'Verifikasi berhasil' }, cookiesToSet: await sessionCookies(result) };
 }
 
-export async function handleForgotPassword(rawBody: unknown): Promise<HttpResult> {
+export async function handleForgotPassword(rawBody: unknown, ip: string): Promise<HttpResult> {
   const input = parseOrThrow(forgotPasswordSchema, rawBody);
-  await requestPasswordReset(input);
-  // Selalu balas sukses generik - tidak membocorkan apakah email terdaftar.
+  await requestPasswordReset(input, ip);
+  // Selalu balas sukses generik - tidak membocorkan apakah email terdaftar, DAN
+  // tidak membocorkan apakah kuota pengiriman sedang habis.
   return { status: 200, body: { success: true, message: 'Jika email terdaftar, kode reset akan dikirim ke email Anda.' } };
 }
 
