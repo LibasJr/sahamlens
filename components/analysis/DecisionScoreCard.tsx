@@ -2,6 +2,8 @@ import { Button } from '@/components/ui/Button';
 import { ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { RadialScoreGauge } from '@/components/ui/RadialScoreGauge';
 import { percentageWidthClass } from '@/shared/presentation/percentage-width';
+import { LENS_SCORE_WEIGHTS } from '@/shared/constants/lens-score-weights';
+import { isLensScoreValidated } from '@/modules/validation';
 
 interface DecisionScoreCardProps {
   verdict: string;
@@ -15,10 +17,17 @@ interface DecisionScoreCardProps {
   onCollapse: () => void;
 }
 
+// Bobot DITURUNKAN dari LENS_SCORE_WEIGHTS, bukan ditulis ulang sebagai angka.
+//
+// Sebelumnya 40/30/30 ditulis langsung di sini - salinan yang tidak terikat apa pun.
+// Kalau bobot produksi diubah, kartu ini tetap menampilkan "32/40" terhadap penyebut
+// yang sudah tidak dipakai siapa pun: angkanya terlihat wajar, batangnya terisi rapi,
+// dan tidak ada yang merah. Itu kegagalan diam-diam yang persis sama dengan yang
+// didokumentasikan di shared/constants/lens-score-weights.ts, hanya pindah ke UI.
 const SCORE_PARTS = [
-  { key: 'technical', label: 'Technical', max: 40, color: 'bg-tv-green' },
-  { key: 'fundamental', label: 'Fundamental', max: 30, color: 'bg-tv-blue' },
-  { key: 'flow', label: 'Flow', max: 30, color: 'bg-tv-yellow' },
+  { key: 'technical', label: 'Technical', max: LENS_SCORE_WEIGHTS.technical, color: 'bg-tv-green' },
+  { key: 'fundamental', label: 'Fundamental', max: LENS_SCORE_WEIGHTS.fundamental, color: 'bg-tv-blue' },
+  { key: 'flow', label: 'Flow', max: LENS_SCORE_WEIGHTS.flow, color: 'bg-tv-yellow' },
 ] as const;
 
 function safeScore(value: number | null | undefined, max: number) {
@@ -44,6 +53,7 @@ export default function DecisionScoreCard({
   };
   const safeTotal = safeScore(totalScore, 100);
   const safeCoverage = safeScore(coveragePct, 100);
+  const modelValidated = isLensScoreValidated();
 
   return (
     <section
@@ -67,10 +77,35 @@ export default function DecisionScoreCard({
                 ? 'Data belum cukup untuk menghasilkan kesimpulan yang andal.'
                 : verdict === 'TIDAK LAYAK'
                   ? 'Belum lolos pemeriksaan kelayakan dan risiko data SahamLens.'
-                  : 'Status berasal dari mesin keputusan SahamLens yang telah lolos pemeriksaan kelayakan.'}
+                  : 'Status berasal dari mesin keputusan SahamLens yang telah lolos pemeriksaan kelayakan data dan risiko — bukan dari model yang tervalidasi backtest.'}
           </p>
           {safeCoverage !== null && safeCoverage < 100 && (
             <p className="mt-2 text-[11px] text-tv-muted">Kelengkapan data: {safeCoverage}%</p>
+          )}
+          {/*
+            Disclosure status validasi - TIDAK bersyarat pada verdict.
+
+            Sebelumnya kalimat "belum lolos validasi backtest" hanya muncul untuk
+            verdict INFORMASI. Verdict lain justru mendapat kalimat yang meyakinkan
+            ("telah lolos pemeriksaan kelayakan") tanpa satu pun penanda bahwa model
+            skornya sendiri belum tervalidasi - padahal kelayakan dan validasi model
+            adalah dua hal yang berbeda.
+
+            Konsekuensinya terbalik dari yang diinginkan: makin tinggi skornya, makin
+            besar peluang pengguna melihat angka besar TANPA konteks. Angka 82 yang
+            berdiri sendiri terbaca sebagai rekomendasi.
+
+            Sumbernya isLensScoreValidated() - artefak berfingerprint dari #419, bukan
+            konstanta yang bisa ditulis true tanpa bukti.
+          */}
+          {!modelValidated && (
+            <p
+              data-testid="model-validation-disclosure"
+              className="mt-2 rounded-lg border border-tv-yellow/30 bg-tv-yellow/5 px-2.5 py-1.5 text-[11px] leading-relaxed text-tv-yellow"
+            >
+              Model riset — belum tervalidasi backtest yang dapat diaudit. Bukan
+              rekomendasi beli/jual. DYOR.
+            </p>
           )}
         </div>
 
