@@ -1,0 +1,4 @@
+{
+  "_catatan": "Artefak validasi model LensScore. Berkas ini SENGAJA ada meski belum ada validasi, supaya di-import statis tanpa node:fs (bundel klien/Tauri tidak punya fs). Isi null = belum tervalidasi. Lihat modules/validation/service/validation-artifact.service.ts untuk syarat yang harus dipenuhi sebelum artifact boleh diisi.",
+  "artifact": null
+}
