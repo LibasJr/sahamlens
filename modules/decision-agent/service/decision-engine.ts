@@ -11,10 +11,18 @@ import {
 
 import { MIN_COVERAGE_PCT } from '@/modules/technical/service/scoring.service';
 import { assessDataTimestamp, isTimestampUnusable } from '@/shared/time/data-timestamp-guard';
+import { DECISION_THRESHOLDS } from '@/shared/constants/model-fingerprint';
 
-const BUY_CANDIDATE_SCORE = 70;
-const WATCH_SCORE = 60;
-const MAX_EXECUTABLE_AGE_MINUTES = 30;
+// Ambang keputusan diimpor dari sumber sidik jari model, BUKAN ditulis ulang di sini.
+//
+// Kalau angka yang sama hidup di dua tempat yang tidak saling tahu, mengubah salah
+// satunya membuat parameterFingerprint tetap sama sementara perilaku nyata sudah
+// berbeda - artefak validasi akan terus mengaku cocok untuk model yang sudah bukan
+// model yang divalidasi. Kegagalan senyap yang sama pernah terjadi pada bobot
+// LensScore (lihat catatan di shared/constants/lens-score-weights.ts).
+const BUY_CANDIDATE_SCORE = DECISION_THRESHOLDS.buyCandidateScore;
+const WATCH_SCORE = DECISION_THRESHOLDS.watchScore;
+const MAX_EXECUTABLE_AGE_MINUTES = DECISION_THRESHOLDS.maxExecutableAgeMinutes;
 
 export interface BuildDecisionInput {
   stock: ScoredStock;

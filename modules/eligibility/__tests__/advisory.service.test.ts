@@ -41,7 +41,14 @@ describe('toAdvisoryDecision - INVARIAN action !== null => ELIGIBLE', () => {
       expect(d.action).toBeNull();
       expect(d.advisory).toBe(false);
       expect(d.reasonCodes).toContain('MODEL_UNVALIDATED');
-      expect(d.explanation).toMatch(/belum memiliki validasi backtest/i);
+      // Dicocokkan pada SIFATNYA, bukan kalimat persisnya. Pesan validasi kini
+      // datang dari artefak (V2 butir 003) dan menyebutkan sebab spesifik -
+      // "belum ada artefak", "fingerprint tidak cocok", dan seterusnya. Mengunci
+      // satu kalimat tertentu membuat test ini merah setiap kali sebabnya
+      // berubah, padahal yang harus dijaga adalah: pengguna diberi tahu model
+      // belum tervalidasi, dan skor tidak berubah jadi rekomendasi.
+      expect(d.explanation).toMatch(/validasi|tervalidasi|artefak/i);
+      expect(d.explanation).toMatch(/DYOR/i);
     }
   });
 
