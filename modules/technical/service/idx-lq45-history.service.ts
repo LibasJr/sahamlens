@@ -6,6 +6,10 @@ import {
   isCurrentLq45Ticker,
   normalizeLq45Ticker,
 } from '@/modules/market/constants/lq45-universe';
+import {
+  assessIdxEodFreshness,
+  type IdxEodFreshness,
+} from '@/modules/technical/service/idx-eod-freshness.service';
 
 // Data EOD IDX dibaca dari artefak di disk, TIDAK di-fetch dari sini.
 //
@@ -55,6 +59,9 @@ export interface IdxHistoryFetchResult {
   latestClose: number;
   source: typeof SOURCE_ID;
   universeVersion: string;
+  /** FRESH selama artefak tertinggal paling banyak satu hari bursa. */
+  freshness: IdxEodFreshness;
+  tradingDaysBehind: number;
 }
 
 export interface AppliedIdxHistoryResult {
@@ -304,9 +311,17 @@ export async function fetchIdxLq45History(
   }
 
   const latest = history[history.length - 1];
+  const freshness = assessIdxEodFreshness(latest.Date.slice(0, 10));
+
+  // Artefak basi dilaporkan sebagai TIDAK sehat, tapi datanya tetap dipakai.
+  //
+  // Sebelum ini, berkas yang ada selalu dianggap sehat dan hanya berkas HILANG yang
+  // dilaporkan - artinya sinkronisasi yang macet berhari-hari lolos tanpa jejak sambil
+  // menyajikan angka lama sebagai "harga resmi Bursa". Pola kegagalan senyap yang sama
+  // dengan deploy hijau yang tidak memindahkan produksi (CLAUDE.md §7).
   await recordDataSourceHealth({
     sourceId: SOURCE_ID,
-    ok: true,
+    ok: freshness.freshness === 'FRESH',
     force: true,
     dataObservedAt: `${latest.Date.slice(0, 10)}T16:00:00+07:00`,
     detail: {
@@ -315,6 +330,9 @@ export async function fetchIdxLq45History(
       rows: history.length,
       universeVersion: CURRENT_LQ45_VERSION,
       artifactUpdatedAt: artifact.updatedAt,
+      freshness: freshness.freshness,
+      tradingDaysBehind: freshness.tradingDaysBehind,
+      ...(freshness.reason ? { reason: freshness.reason } : {}),
     },
   });
 
@@ -324,6 +342,8 @@ export async function fetchIdxLq45History(
     latestClose: latest.Close,
     source: SOURCE_ID,
     universeVersion: CURRENT_LQ45_VERSION,
+    freshness: freshness.freshness,
+    tradingDaysBehind: freshness.tradingDaysBehind,
   };
 }
 
