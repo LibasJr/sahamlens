@@ -50,7 +50,9 @@ export type CrossCheckVerdict =
   | 'DIVERGE'
   | 'XBRL_ONLY'
   | 'YAHOO_ONLY'
-  | 'BOTH_MISSING';
+  | 'BOTH_MISSING'
+  /** Kedua sumber punya angka, tapi mengukur hal yang berbeda. Lihat DEFINITION_DIFFERS. */
+  | 'NOT_COMPARABLE';
 
 export interface FieldCrossCheck {
   field: FundamentalField;
@@ -96,6 +98,34 @@ const PLAUSIBLE: Record<FundamentalField, { min: number; max: number }> = {
   currentRatio: { min: 0, max: 100 },
   revenueGrowth: { min: -100, max: 10_000 },
 };
+
+/**
+ * Field yang definisinya BERBEDA antar sumber, dengan ARAH selisih yang bisa diprediksi.
+ *
+ * `der`: XBRL menghitung **seluruh liabilitas** dibagi ekuitas (itu yang ada di neraca
+ * resmi). Yahoo `financialData.debtToEquity` hanya menghitung **utang berbunga**.
+ * Utang berbunga adalah bagian dari total liabilitas, jadi secara definisi
+ * `xbrl >= yahoo` SELALU. Untuk emiten konsumer yang hampir tidak punya pinjaman bank
+ * tapi punya utang usaha besar, selisihnya mendekati 100% dan keduanya tetap sah.
+ *
+ * Terukur pada 60 emiten produksi: CMRY 0,29 vs 0,00006 (gap 100%), UNVR 4,44 vs 0,18
+ * (gap 96%), HMSP 0,92 vs 0,013 (gap 99%). Bukan satu pun yang salah.
+ *
+ * ===================================================================================
+ * KENAPA ARAH, BUKAN PENGECUALIAN BUTA
+ * ===================================================================================
+ * Versi pertama perubahan ini menandai SETIAP selisih `der` sebagai NOT_COMPARABLE.
+ * Itu sekaligus membunuh deteksi salah-satuan: `der` 0,4 lawan 40 adalah kekeliruan
+ * rasio-vs-persen (Yahoo membagi 100 di satu tempat dan lupa di tempat lain), dan
+ * dengan pengecualian buta ia lolos diam-diam.
+ *
+ * Kelas bug itu persis yang membuat PBV terisi kurs USD/IDR selama berbulan-bulan.
+ * Membutakan pembanding terhadapnya berarti mengulang insiden yang sama.
+ *
+ * Karena arahnya diketahui, `yahoo > xbrl` di luar toleransi adalah keadaan yang
+ * MUSTAHIL menurut definisi - itu tetap DIVERGE dan tetap berbunyi.
+ */
+const DEFINITION_DIFFERS: ReadonlySet<FundamentalField> = new Set<FundamentalField>(['der']);
 
 const FIELDS: FundamentalField[] = ['per', 'pbv', 'roe', 'der', 'currentRatio', 'revenueGrowth'];
 
@@ -145,7 +175,21 @@ export function compareFundamentalField(
   }
 
   const gap = relativeGap(x, y);
-  const verdict: CrossCheckVerdict = gap !== null && gap <= TOLERANCE[field] ? 'AGREE' : 'DIVERGE';
+  const withinTolerance = gap !== null && gap <= TOLERANCE[field];
+
+  // Field berdefinisi beda diperiksa SETELAH toleransi, dan HANYA pada arah yang
+  // memang dijelaskan oleh perbedaan definisi itu.
+  //
+  // - sepakat dalam toleransi  -> AGREE, apa adanya
+  // - xbrl > yahoo di luar toleransi -> selisih yang dijelaskan definisi (total
+  //   liabilitas mencakup utang berbunga) -> NOT_COMPARABLE
+  // - yahoo > xbrl di luar toleransi -> MUSTAHIL menurut definisi. Ini gejala
+  //   salah satuan atau sumber rusak, dan wajib tetap berbunyi.
+  if (DEFINITION_DIFFERS.has(field) && !withinTolerance && x > y) {
+    return { field, verdict: 'NOT_COMPARABLE', xbrl: x, yahoo: y, relativeGap: gap, implausible };
+  }
+
+  const verdict: CrossCheckVerdict = withinTolerance ? 'AGREE' : 'DIVERGE';
   return { field, verdict, xbrl: x, yahoo: y, relativeGap: gap, implausible };
 }
 
@@ -162,6 +206,7 @@ export function crossCheckFundamentals(
     XBRL_ONLY: 0,
     YAHOO_ONLY: 0,
     BOTH_MISSING: 0,
+    NOT_COMPARABLE: 0,
   };
   let implausibleCount = 0;
   for (const f of fields) {

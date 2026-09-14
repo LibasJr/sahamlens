@@ -8,6 +8,10 @@ import { AI_PICK_UNIVERSE } from '@/modules/market/constants/ai-pick-universe';
 import { writeFundamentalSnapshot, type FundamentalSnapshot } from '@/shared/cache/ai-pick-cache';
 import { archiveFundamentalSnapshotSafe } from '@/modules/fundamental/repository/fundamental-history.repository';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
+import {
+  runFundamentalCrossCheck,
+  type CrossCheckSummary,
+} from '@/modules/fundamental/service/fundamental-cross-check-runner.service';
 import { todayDateKeyWIB } from '@/shared/market/trading-session';
 import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 
@@ -112,11 +116,31 @@ async function handlePOST(req: NextRequest) {
         });
       }
 
+      // Cross-check XBRL resmi BEI lawan angka Yahoo yang baru saja disimpan.
+      //
+      // TIDAK mengubah satu pun nilai yang dipakai LensScore - hanya mencatat
+      // perbedaannya. Mengganti sumber data dan mengubah skor sekaligus membuat
+      // mustahil membedakan "skor berubah karena data lebih benar" dari "skor berubah
+      // karena parser XBRL punya bug".
+      //
+      // Dibungkus try/catch sendiri: pembanding yang bisa menjatuhkan job snapshot akan
+      // dicopot orang pada insiden pertama, dan saat itu perlindungannya hilang diam-diam.
+      let crossCheck: CrossCheckSummary | null = null;
+      try {
+        crossCheck = runFundamentalCrossCheck(snapshot);
+        logger.info('Cross-check fundamental XBRL vs Yahoo', { observedDate, ...crossCheck });
+      } catch (err) {
+        logger.warn('Cross-check fundamental gagal seluruhnya', {
+          observedDate, err: err instanceof Error ? err.message : String(err),
+        });
+      }
+
       return {
         tickers: Object.keys(snapshot).length,
         observedDate,
         archivedRows: archive.archived,
         archiveError: archive.error,
+        crossCheck,
       };
     }));
     if (!guarded.executed) {
