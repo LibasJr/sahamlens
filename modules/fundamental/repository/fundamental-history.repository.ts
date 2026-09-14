@@ -1,6 +1,7 @@
 import { pool } from '../../../shared/database/postgres.client';
 import { ensureSharedSchema } from '../../../shared/database/schema.service';
 import { logger } from '../../../shared/logger/logger';
+import { guardImplausibleFundamentals } from '../service/fundamental-write-guard.service';
 import type { FundamentalInput } from '../../technical';
 
 // ARSIP FUNDAMENTAL POINT-IN-TIME (Phase 0 / P0-5).
@@ -129,16 +130,37 @@ function pushArchiveRow(
   source: string
 ): string {
   const base = params.length;
+
+  // Gerbang nilai mustahil di SATU titik yang dilewati semua penulis arsip.
+  //
+  // PBV=kurs (#413) bertahan berbulan-bulan karena perbaikannya selalu di sisi
+  // pemanggil, sementara lapisan penulisan menerima apa pun. Terukur: 1.163 baris di
+  // 38 emiten menyimpan kurs USD/IDR di kolom PBV tanpa satu pun peringatan.
+  //
+  // Ditaruh di sini, bukan di masing-masing pemanggil, supaya jalur ketiga yang dibuat
+  // nanti ikut terlindungi tanpa perlu ingat aturan ini.
+  const { value: guarded } = guardImplausibleFundamentals(
+    {
+      per: row.per,
+      pbv: row.pbv,
+      roe: row.roe,
+      der: row.der,
+      currentRatio: row.currentRatio,
+      revenueGrowth: row.revenueGrowth,
+    },
+    { ticker: row.ticker }
+  );
+
   params.push(
     row.ticker,
     row.observedDate,
     row.periodEnd ?? null,
-    row.per,
-    row.pbv,
-    row.roe,
-    row.der,
-    row.currentRatio,
-    row.revenueGrowth,
+    guarded.per ?? null,
+    guarded.pbv ?? null,
+    guarded.roe ?? null,
+    guarded.der ?? null,
+    guarded.currentRatio ?? null,
+    guarded.revenueGrowth ?? null,
     source,
     // Konteks sektor point-in-time (temuan C-02). `beta` sengaja TIDAK diarsipkan:
     // ia dihitung dari harga per-request terhadap IHSG, jadi ia turunan dari data
