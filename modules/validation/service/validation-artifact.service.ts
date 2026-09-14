@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { sha256Hex } from '@/shared/crypto/sha256';
 import {
   computeParameterFingerprint,
   getActiveModelParameters,
@@ -85,7 +85,7 @@ export function computeArtifactHash(artifact: Omit<ValidationArtifact, 'artifact
     .filter(([k]) => k !== 'artifactHash')
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
   const canonical = JSON.stringify(entries);
-  return createHash('sha256').update(canonical).digest('hex').slice(0, 32);
+  return sha256Hex(canonical).slice(0, 32);
 }
 
 export interface ValidationVerdict {

@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { sha256Hex } from '@/shared/crypto/sha256';
 import { LENS_SCORE_WEIGHTS, LENS_SCORE_TOTAL_WEIGHT } from './lens-score-weights';
 import { MIN_COVERAGE_PCT } from '@/modules/technical/service/scoring.service';
 
@@ -140,5 +140,5 @@ export function canonicalParameterString(params: ModelParameters): string {
 export function computeParameterFingerprint(
   params: ModelParameters = getActiveModelParameters(),
 ): string {
-  return createHash('sha256').update(canonicalParameterString(params)).digest('hex').slice(0, 16);
+  return sha256Hex(canonicalParameterString(params)).slice(0, 16);
 }
