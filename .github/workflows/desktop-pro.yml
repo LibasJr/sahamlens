@@ -11,8 +11,17 @@ on:
       - 'app/**'
       - 'components/**'
       - 'shared/**'
+      # modules/ dan lib/ ikut terkompilasi ke bundel klien: 296 dan 200 impor
+      # dari app/ + components/. Tanpa keduanya di sini, perubahan yang HANYA
+      # menyentuh modules/ tidak memicu build Windows sama sekali - dan build
+      # itulah satu-satunya yang menangkap import node:* di jalur klien.
+      - 'modules/**'
+      - 'lib/**'
+      - 'config/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'next.config.mjs'
+      - 'tsconfig.json'
       - '.github/workflows/desktop-pro.yml'
   pull_request:
     paths:
@@ -21,8 +30,17 @@ on:
       - 'app/**'
       - 'components/**'
       - 'shared/**'
+      # modules/ dan lib/ ikut terkompilasi ke bundel klien: 296 dan 200 impor
+      # dari app/ + components/. Tanpa keduanya di sini, perubahan yang HANYA
+      # menyentuh modules/ tidak memicu build Windows sama sekali - dan build
+      # itulah satu-satunya yang menangkap import node:* di jalur klien.
+      - 'modules/**'
+      - 'lib/**'
+      - 'config/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'next.config.mjs'
+      - 'tsconfig.json'
       - '.github/workflows/desktop-pro.yml'
 
 permissions:
