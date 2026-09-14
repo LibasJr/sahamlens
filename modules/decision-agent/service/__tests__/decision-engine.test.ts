@@ -109,3 +109,43 @@ describe('buildDecisionSignal', () => {
     expect(result.news.matchedArticles).toEqual([expect.objectContaining({ source: 'Sumber RSS', eventType: 'EARNINGS', basis: 'RSS_SUMMARY' })]);
   });
 });
+
+// ===========================================================================
+// V2 butir 002 - timestamp masa depan tidak boleh lolos sebagai data segar
+// ===========================================================================
+describe('002 - gerbang timestamp masa depan pada jalur keputusan', () => {
+  // Fixture ini identik dengan kasus BUY_CANDIDATE di atas. Yang BERBEDA hanya
+  // stempel waktunya, sehingga perubahan hasil hanya bisa disebabkan oleh itu.
+  const base = {
+    stock: stock(), bearish: false, newsItems: [] as NewsItem[],
+    modelValidated: false, sector: 'Financials',
+  };
+
+  it('SERANGAN: dataAsOf satu jam di masa depan membatalkan BUY_CANDIDATE', () => {
+    const kontrol = buildDecisionSignal({ ...base, dataAsOf, now });
+    expect(kontrol.action).toBe('BUY_CANDIDATE');
+    expect(kontrol.stale).toBe(false);
+
+    const masaDepan = new Date(now.getTime() + 60 * 60_000).toISOString();
+    const hasil = buildDecisionSignal({ ...base, dataAsOf: masaDepan, now });
+
+    // Sebelum perbaikan: Math.max(0, ...) -> umur 0 menit -> stale=false ->
+    // BUY_CANDIDATE. Stempel waktu paling rusak menghasilkan sinyal paling kuat.
+    expect(hasil.stale).toBe(true);
+    expect(hasil.action).not.toBe('BUY_CANDIDATE');
+  });
+
+  it('clock skew kecil TIDAK membatalkan sinyal yang sah', () => {
+    // Guard yang memerah untuk drift jam wajar akan diabaikan dalam seminggu.
+    const skew = new Date(now.getTime() + 60_000).toISOString();
+    const hasil = buildDecisionSignal({ ...base, dataAsOf: skew, now });
+    expect(hasil.stale).toBe(false);
+    expect(hasil.action).toBe('BUY_CANDIDATE');
+  });
+
+  it('timestamp tak terbaca tetap ditandai stale', () => {
+    const hasil = buildDecisionSignal({ ...base, dataAsOf: 'bukan-tanggal', now });
+    expect(hasil.stale).toBe(true);
+    expect(hasil.action).not.toBe('BUY_CANDIDATE');
+  });
+});

@@ -10,6 +10,7 @@ import {
 } from '../types/decision-agent.types';
 
 import { MIN_COVERAGE_PCT } from '@/modules/technical/service/scoring.service';
+import { assessDataTimestamp, isTimestampUnusable } from '@/shared/time/data-timestamp-guard';
 
 const BUY_CANDIDATE_SCORE = 70;
 const WATCH_SCORE = 60;
@@ -27,12 +28,6 @@ export interface BuildDecisionInput {
 
 function finite(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value);
-}
-
-function dataAgeMinutes(dataAsOf: string, now: Date): number | null {
-  const timestamp = new Date(dataAsOf).getTime();
-  if (!Number.isFinite(timestamp)) return null;
-  return Math.max(0, (now.getTime() - timestamp) / 60_000);
 }
 
 function newsEvidence(ticker: string, items: NewsItem[]): DecisionNewsEvidence {
@@ -85,7 +80,24 @@ export function buildDecisionSignal(input: BuildDecisionInput): DecisionAgentSig
   const stock = input.stock;
   const news = newsEvidence(stock.symbol, input.newsItems);
   const setup = riskSetup(stock);
-  const ageMinutes = dataAgeMinutes(input.dataAsOf, now);
+
+  // Stempel waktu dinilai sekali, dan dibedakan menjadi DUA hal berbeda:
+  //
+  //   - TIDAK SAH (masa depan / tak terbaca) -> masalah KUALITAS DATA
+  //   - sah tapi TUA                          -> masalah KESEGARAN
+  //
+  // Keduanya tidak boleh disamakan. Data tua adalah data benar yang kebetulan
+  // lewat umur; ia masih boleh tampil sebagai sinyal riset dengan peringatan.
+  // Data bertimestamp masa depan BUKAN data tua - ia data yang stempel waktunya
+  // terbukti salah, jadi tidak ada alasan mempercayai isi barisnya juga.
+  //
+  // Karena itu timestamp tak sah masuk ke `dataQualityOk` dan menghasilkan
+  // NO_SIGNAL, bukan sekadar menambah catatan peringatan.
+  const timestampAssessment = assessDataTimestamp(input.dataAsOf, now);
+  const timestampInvalid = isTimestampUnusable(timestampAssessment);
+  const ageMinutes = timestampAssessment.validity === 'VALID'
+    ? timestampAssessment.ageMinutes
+    : null;
   const stale = ageMinutes == null || ageMinutes > MAX_EXECUTABLE_AGE_MINUTES;
   const coverageOk = finite(stock.coverage) && stock.coverage >= MIN_COVERAGE_PCT;
   const breakdownAvailable = stock.breakdown != null
@@ -97,7 +109,8 @@ export function buildDecisionSignal(input: BuildDecisionInput): DecisionAgentSig
   // Portfolio diversification is enforced against official IDX-IC only. Missing
   // classification is data-quality failure, never silently replaced by Yahoo taxonomy.
   const officialSectorAvailable = Boolean(input.sector?.trim());
-  const dataQualityOk = coverageOk && eligible && categoryKnown && breakdownAvailable && officialSectorAvailable;
+  const dataQualityOk = coverageOk && eligible && categoryKnown && breakdownAvailable
+    && officialSectorAvailable && !timestampInvalid;
 
   let action: DecisionAction = 'HOLD';
   const opposingReasons: string[] = [];
@@ -107,6 +120,7 @@ export function buildDecisionSignal(input: BuildDecisionInput): DecisionAgentSig
     action = 'NO_SIGNAL';
     invalidationReasons.push('Kualitas atau kelayakan data belum memenuhi gerbang internal.');
     if (!officialSectorAvailable) invalidationReasons.push('Klasifikasi sektor resmi IDX-IC belum tersedia.');
+    if (timestampInvalid && timestampAssessment.reason) invalidationReasons.push(timestampAssessment.reason);
   } else if (input.bearish || stock.kategori?.includes('SELL')) {
     action = 'EXIT_REVIEW';
     opposingReasons.push('Tren atau kategori teknikal berada pada sisi bearish.');
