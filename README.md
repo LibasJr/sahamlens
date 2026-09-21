@@ -43,7 +43,7 @@ npm run audit:schema  # runtime tidak boleh menyentuh skema
 ## Peta kode
 
 | Direktori | Isi |
-|---|---|
+| |---|
 | `app/` | Route Next.js App Router — halaman dan 101 route API |
 | `modules/` | Logika domain per bidang (technical, fundamental, market, recommendation, …) |
 | `shared/` | Infrastruktur lintas domain: database, cache, auth, http, security, logger |
@@ -62,7 +62,7 @@ menggagalkan CI:
   migration baseline belum diterapkan; `audit:schema` melarang `CREATE TABLE`/`ALTER TABLE`
   di luar `database/migrations/`.
 - **Tidak ada angka finansial karangan.** `audit:zero-dummy` memindai tanda tangan regresi
-  data dummy di seluruh berkas sumber produksi.
+data dummy di seluruh berkas sumber produksi.
 - **Kontras warna terjaga di dua tema.** `__tests__/color-contrast.test.ts` memeriksa
   seluruh matriks teks/tint/bidang padat, bukan sampel yang kebetulan terlihat.
 - **Adopsi design system dan kontrak API hanya boleh membaik.** `audit:ui` menyimpan
@@ -79,7 +79,7 @@ sinkronisasi ada di `data/`.
 ## Deployment
 
 **Production: VPS + systemd + Cloudflare Tunnel.** Domain `sahamlens.id`. Deploy berjalan
-otomatis lewat GitHub Actions (workflow **Deploy VPS**) setelah CI hijau di `main` - tidak
+automatis lewat GitHub Actions (workflow **Deploy VPS**) setelah CI hijau di `main` - tidak
 ada langkah manual. Container `output: 'standalone'` lewat `Dockerfile` tersedia untuk
 self-host.
 
@@ -87,7 +87,7 @@ self-host.
 boleh menjalankan job terjadwal apa pun (`vercel.json` wajib tanpa blok `crons` -
 `npm run audit:cron` menggagalkan build kalau blok itu kembali). Auto-deploy-nya dimatikan
 lewat `git.deploymentEnabled: false` supaya tiap pull request tidak menunggu status dari
-lingkungan yang tidak menerbitkan apa pun; aktifkan manual kalau memang sedang dibutuhkan.
+enviro-nment yang tidak menerbitkan apa pun; aktifkan manual kalau memang sedang dibutuhkan.
 
 Selengkapnya di `docs/operations/DEPLOYMENT.md`.
 
