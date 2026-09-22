@@ -21,8 +21,50 @@ export function stripTerminalPunctuation(input: string): string {
   return input.replace(/[!?.,;:]+$/g, '').trim();
 }
 
+/**
+ * POLA KEBOCORAN TOOL-CALL (laporan operator, 2026-09-22): beberapa model menumpahkan
+ * sintaks pemanggilan fungsi internalnya ke jawaban yang terlihat pengguna - blok
+ * <tool_call>/<function_call>, payload JSON {"name": ..., "arguments": ...}, atau token
+ * spesial <|...|>. Itu bukan bagian jawaban: pengguna tidak pernah boleh melihatnya.
+ * Stripping dilakukan sebelum verifikasi angka supaya pola angka di dalam payload JSON
+ * tidak ikut dihitung sebagai klaim jawaban.
+ */
+const TOOL_CALL_BLOCK_PATTERNS: RegExp[] = [
+  /<tool_call\b[^>]*>[\s\S]*?(?:<\/tool_call>|$)/gi,
+  /<function_call\b[^>]*>[\s\S]*?(?:<\/function_call>|$)/gi,
+  /<\|(?:tool_call|function_call|tool|system|im_end|endofmessage)[^|>]{0,40}\|>/gi,
+];
+
+/** Payload JSON pemanggilan tool: {"name": "...", "arguments": {...}} - utuh atau terpotong. */
+const TOOL_CALL_JSON_RE = /"name"\s*:\s*"[^"]*"\s*,\s*"arguments"/i;
+
+export function stripToolCallSyntax(input: string): string {
+  let output = input;
+  for (const pattern of TOOL_CALL_BLOCK_PATTERNS) {
+    output = output.replace(pattern, '');
+  }
+  // Fenced code block yang isinya payload tool-call JSON dibuang utuh - identik
+  // dengan kasus blok <tool_call>, hanya dibungkus backtick oleh model.
+  output = output.replace(/```[a-zA-Z]*\n[\s\S]*?```/g, (block) =>
+    TOOL_CALL_JSON_RE.test(block) ? '' : block,
+  );
+  // Payload terpotong yang tidak kebangun blok fenced-nya: baris berawalan JSON tool-call.
+  output = output
+    .split('\n')
+    .filter((line) => !(/^\s*\{\s*"name"\s*:\s*"/i.test(line) && /arguments/i.test(line)))
+    .join('\n');
+  // Sisa tag pembuka/penutup yatim.
+  output = output
+    .replace(/<\/?(?:tool_call|function_call|function)\b[^>]*>/gi, '')
+    .replace(/<\|[^|>]{0,40}\|>/g, '');
+  return output;
+}
+
+const EMPTY_ANSWER_FALLBACK =
+  'Maaf, jawaban LensAI belum berhasil disusun dengan benar. Silakan coba tanyakan ulang.';
+
 export function sanitizeChatAnswerText(input: string): string {
-  let output = input
+  let output = stripToolCallSyntax(input)
     .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, '')
     .replace(/<think\b[^>]*>[\s\S]*$/gi, '')
     .replace(/<\/?think\b[^>]*>/gi, '')
@@ -30,6 +72,11 @@ export function sanitizeChatAnswerText(input: string): string {
     .replace(/\n{3,}/g, '\n\n');
   if (/<think\b|<\/think>/i.test(output)) {
     output = output.replace(/<\/?think\b[^>]*>/gi, '');
+  }
+  // Kalau seluruh isi ternyata cuma sintaks tool-call, jangan kirim string kosong -
+  // jawaban kosong membuat UI menggantung tanpa pesan.
+  if (!output.trim() && input.trim()) {
+    return EMPTY_ANSWER_FALLBACK;
   }
   return output;
 }
