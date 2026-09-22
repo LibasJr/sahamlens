@@ -201,6 +201,20 @@ const OPENAI_COMPATIBLE_PROVIDERS: OpenAICompatibleProvider[] = [
     url: 'https://integrate.api.nvidia.com/v1/chat/completions',
     models: ['meta/llama-3.1-8b-instruct', 'nvidia/llama-3.1-nemotron-nano-8b-v1'],
   },
+  {
+    // Nous Research (inference-api.nousresearch.com) - diverifikasi 2026-09-22 lewat
+    // GET https://inference-api.nousresearch.com/v1/models (200, ketiganya ada).
+    // Urutan PENTING: meituan/longcat-2.0:free (primary) -> upstage/solar-pro4:free
+    // (fallback 1) -> poolside/laguna-s-2.1:free (fallback 2).
+    name: 'nous',
+    envVar: 'NOUS_API_KEY',
+    url: 'https://inference-api.nousresearch.com/v1/chat/completions',
+    models: [
+      'meituan/longcat-2.0:free',
+      'upstage/solar-pro4:free',
+      'poolside/laguna-s-2.1:free',
+    ],
+  },
 ];
 
 type Combo = { kind: 'openai-compatible'; provider: OpenAICompatibleProvider; model: string };
