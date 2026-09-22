@@ -569,7 +569,11 @@ export default function AIChat() {
                       mengalir, ia dimatikan (lihat consumeStream). Yang dijanjikan kata
                       di bawah karena itu sesuai dengan yang dilihat pengguna: server
                       sedang menyiapkan data & memverifikasi angkanya. */}
-                  LensAI sedang berpikir...
+                  {/* Permintaan operator (2026-09-22): label jangan "berpikir" tapi
+                      "mengetik" + visual pensil di sebelahnya. Spinner tetap dipakai
+                      sebagai indikator loading sebelum potongan pertama tiba. */}
+                  <span className="inline-block animate-pulse" aria-hidden="true">✏️</span>
+                  LensAI sedang mengetik...
                 </div>
               </div>
             )}
