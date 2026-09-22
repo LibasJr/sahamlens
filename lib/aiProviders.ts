@@ -342,6 +342,12 @@ export function __resetAIRotationForTests(): void {
 // daftar (fallback masa depan yang belum di-rank) jatuh ke urutan PALING BAWAH, bukan
 // diam-diam diperlakukan sebagai prioritas tinggi.
 const MODEL_PRIORITY: string[] = [
+  // Keputusan operator (2026-09-22, PR #423 tindak lanjut): model Nous free dicoba
+  // PALING DEPAN untuk LensAI. Tanpa entri ini ketiganya jatuh ke ekor ranking
+  // (model belum di-rank = paling belakang) dan 9Router/model lain duluan.
+  'meituan/longcat-2.0:free',                     // Nous - primary operator
+  'upstage/solar-pro4:free',                      // Nous - fallback 1 operator
+  'poolside/laguna-s-2.1:free',                   // Nous - fallback 2 operator
   'kimi-k2.6',                                    // Moonshot Kimi K2 - kelas frontier
   'nvidia/nemotron-3-super-120b-a12b:free',       // 120B total (MoE, 12B aktif)
   'llama-3.3-70b-versatile',                      // 70B dense
