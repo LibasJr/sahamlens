@@ -1482,18 +1482,34 @@ html.lens-battery-saver .sahamlens-signal-track {
    Gerakan kecil (translate 1-3px + rotate ±10deg) supaya terlihat "menulis",
    bukan sekadar berkedip. */
 @keyframes lensai-pencil-write {
-  0%, 100% { transform: translate(0, 0) rotate(-10deg); }
-  25%      { transform: translate(2px, -1px) rotate(-2deg); }
-  50%      { transform: translate(3px, 1px) rotate(8deg); }
-  75%      { transform: translate(1px, -2px) rotate(-2deg); }
+  /* Ulang 2 (operator: "bukan lompat-lompat tapi seperti menulis di atas kertas").
+     Gerakan mulus BOLAK-BALIK horizontal (translateX) dengan rotasi mini - seperti
+     goresan pena, bukan pantasan. Tidak ada perubahan sumbu Y yang menyebabkan
+     lompatan; ease-in-out membuat tiap goresan melambat di ujung lalu kembali. */
+  0%   { transform: translateX(-3px) rotate(-5deg); }
+  50%  { transform: translateX(3px) rotate(4deg); }
+  100% { transform: translateX(-3px) rotate(-5deg); }
 }
 
 .lensai-pencil {
   display: inline-block;
   transform-origin: 70% 80%;
-  animation: lensai-pencil-write 0.7s ease-in-out infinite;
+  animation: lensai-pencil-write 1.1s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .lensai-pencil { animation: none; }
+}
+
+/* Highlight arah swipe pesan LensAI (geser kanan = forward, kiri = reply).
+   Kelas dipasang/lepas via JS (classList), bukan atribut style inline - lihat
+   catatan bubbleRefs di AIChat.tsx soal ratchet adopsi & CSP. */
+.lensai-swipe-fwd {
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.55);
+  border-radius: 16px;
+}
+
+.lensai-swipe-rep {
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.55);
+  border-radius: 16px;
 }

@@ -7,10 +7,11 @@ import { normalizeChatText, getDeterministicSmallTalkResponse, sanitizeChatAnswe
 import { resolveChatDate } from './chat-date';
 import { classifyChatIntent } from './chat-intent';
 import { buildChatVerifiedData, summarizeChatDataProvenance } from './chat-data-router';
-import { buildSystemPrompt, pakaiStrukturAnalisis, STRUKTUR_ANALISIS } from './build-system-prompt';
+import { buildSystemPrompt, CAVEMAN_DIRECTIVE, pakaiStrukturAnalisis, STRUKTUR_ANALISIS } from './build-system-prompt';
 import { outOfScopeResponse, CLARIFICATION_PROMPT } from './out-of-scope';
 import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
+import { parseFollowUps } from './follow-ups';
 import { streamChatAnswer } from './stream-answer';
 import { calculateChatQuestion } from './chat-calculator';
 import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
@@ -26,7 +27,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   anonTrial: AnonTrialState | null;
   json: ChatJsonResponder;
 }): Promise<HttpResult | Response> {
-  const { prompt, context, symbol, wantsStream, history, userId, anonTrial, json } = args;
+  const { prompt, context, symbol, wantsStream, history, mode, userId, anonTrial, json } = args;
   const normalizedPrompt = normalizeChatText(prompt);
   const directSmallTalk = getDeterministicSmallTalkResponse(normalizedPrompt);
   if (directSmallTalk) {
@@ -152,7 +153,8 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   ].filter(Boolean).join('\n');
 
   const focusedKnowledge = getFocusedMenuKnowledge(prompt);
-  const systemPrompt = buildSystemPrompt(context, history.length > 0, verified.verifiedBlock, mentionedTicker, routingBlock, focusedKnowledge);
+  const systemPrompt = buildSystemPrompt(context, history.length > 0, verified.verifiedBlock, mentionedTicker, routingBlock, focusedKnowledge)
+    + (mode === 'caveman' ? CAVEMAN_DIRECTIVE : '');
   const verificationSources = [verified.verifiedBlock, prompt, historyTranscript];
   const baseRouting = {
     intent: classification.intent,
@@ -187,7 +189,8 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   if (!numberCheck.ok) {
     console.warn('[LensAI:verify] angka tidak tertelusur', { intent: classification.intent, unverified: numberCheck.unverified });
     const retry = await generateAIResult({
-      system: buildSystemPrompt(context, history.length > 0, verified.verifiedBlock, mentionedTicker, routingBlock, focusedKnowledge),
+      system: buildSystemPrompt(context, history.length > 0, verified.verifiedBlock, mentionedTicker, routingBlock, focusedKnowledge)
+        + (mode === 'caveman' ? CAVEMAN_DIRECTIVE : ''),
       prompt: `${fullPrompt}\n\n## KOREKSI WAJIB (dari pemeriksa server, bukan dari pengguna):\n` +
         `Jawaban sebelumnya memuat angka yang TIDAK ADA di Data Terverifikasi Server: ${numberCheck.unverified.join(', ')}.\n` +
         'Tulis ulang jawabannya memakai HANYA angka yang benar-benar ada di data tersebut. Kalau sebuah angka memang tidak tersedia, katakan tidak tersedia - jangan diganti perkiraan lain.',
@@ -205,9 +208,14 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   }
 
   answer = withDyor(answer, classification.intent);
+  // Marker [[FOLLOWUP]] bukan bagian jawaban pengguna: dipisah di server, dikirim
+  // sebagai field terpisah. Diparse SETELAH DYOR karena DYOR menempel SETELAH
+  // baris marker - parser hanya mengambil isi baris marker, bukan teks setelahnya.
+  const { text: answerForUser, followUps } = parseFollowUps(answer);
   return json({
     role: 'assistant',
-    content: answer,
+    content: answerForUser,
+    followUps,
     routing: {
       intent: classification.intent,
       alsoIntents: classification.alsoIntents,

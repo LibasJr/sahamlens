@@ -10,6 +10,9 @@ export interface ParsedChatRequest {
   symbol: string | null;
   wantsStream: boolean;
   history: ChatHistoryMessage[];
+  /** Operator (2026-09-22): 'caveman' = gaya jawaban super ringkas. Hanya dua
+   *  nilai valid: null (default) dan 'caveman' - mode tak dikenal diabaikan. */
+  mode: 'caveman' | null;
 }
 
 export async function parseChatRequest(request: Request): Promise<ParsedChatRequest> {
@@ -25,5 +28,5 @@ export async function parseChatRequest(request: Request): Promise<ParsedChatRequ
     .slice(-MAX_HISTORY_TURNS)
     .map((message: any) => ({ role: message.role, content: message.content.slice(0, 1000) }));
 
-  return { prompt, context, symbol, wantsStream: body.stream === true, history };
+  return { prompt, context, symbol, wantsStream: body.stream === true, history, mode: body.mode === 'caveman' ? 'caveman' : null };
 }
