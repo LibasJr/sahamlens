@@ -4,6 +4,7 @@ import { applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/an
 import { createStreamGate } from './stream-gate';
 import { verifyAnswerNumbers, verifyStructuredEvidence, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
+import { FollowUpStreamStripper, parseFollowUps } from './follow-ups';
 import { sanitizeChatAnswerText } from './chat-normalize';
 import type { ChatIntent } from './chat-intent';
 
@@ -58,6 +59,10 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
 
       try {
         const gate = createStreamGate(args.sources);
+        // Marker [[FOLLOWUP]] tidak boleh terlihat mengalir di layar - stripper
+        // menahan teks ekor yang berpotensi jadi awal marker dan menelan baris
+        // marker utuh (isinya dikirim terpisah di peristiwa `done`).
+        const followUpStripper = new FollowUpStreamStripper();
         let shown = '';
         let rawStreamAnswer = '';
         let cleanStreamAnswer = '';
@@ -76,8 +81,11 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
             if (!releaseCandidate) return;
             const gated = gate.push(releaseCandidate);
             if (gated.release) {
-              shown += gated.release;
-              send({ t: 'delta', v: gated.release });
+              const safeRelease = followUpStripper.push(gated.release);
+              if (safeRelease) {
+                shown += safeRelease;
+                send({ t: 'delta', v: safeRelease });
+              }
             }
           },
         });
@@ -95,8 +103,16 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
 
         const tail = gate.flush();
         if (tail.release) {
-          shown += tail.release;
-          send({ t: 'delta', v: tail.release });
+          const safeTail = followUpStripper.push(tail.release);
+          if (safeTail) {
+            shown += safeTail;
+            send({ t: 'delta', v: safeTail });
+          }
+        }
+        const heldBack = followUpStripper.flush();
+        if (heldBack) {
+          shown += heldBack;
+          send({ t: 'delta', v: heldBack });
         }
 
         // Verifikasi ulang atas jawaban UTUH. Gerbang memeriksa per satuan; pemeriksaan
@@ -148,7 +164,10 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
           evidenceCheck = finalEvidenceCheck;
         }
 
-        const finalAnswer = withDyor(answer, args.intent);
+        const withDyorAnswer = withDyor(answer, args.intent);
+        // Sama seperti jalur non-streaming: marker di barisnya sendiri dipisah dari
+        // jawaban, isinya dikirim sebagai field followUps di peristiwa `done`.
+        const { text: finalAnswer, followUps } = parseFollowUps(withDyorAnswer);
 
         // `replace` dikirim kalau teks final berbeda dari yang sudah tampil - termasuk
         // kasus biasa: penutup DYOR selalu menambah bagian baru di akhir. Mengirim
@@ -159,6 +178,7 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
 
         send({
           t: 'done',
+          followUps,
           routing: {
             ...args.routing,
             streamed: true,

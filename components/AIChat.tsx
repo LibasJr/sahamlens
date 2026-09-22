@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
-import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ThumbsDown, ThumbsUp, Reply, Forward } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 /**
@@ -45,6 +45,9 @@ type ChatMessage = {
   content: string;
   routing?: ChatRouting;
   feedback?: 'up' | 'down';
+  /** Saran pertanyaan lanjutan dari server (marker [[FOLLOWUP]] yang dipisah di
+   *  backend). Di-render sebagai chip yang bisa diklik di bawah jawaban. */
+  followUps?: string[];
   /** X-Request-Id dari respons yang GAGAL. Dipisah dari `content` supaya kalimat
    *  errornya tetap terbaca manusia, sementara referensinya bisa disalin utuh ke
    *  laporan dukungan. Null/absen untuk jawaban yang berhasil. */
@@ -75,6 +78,98 @@ export default function AIChat() {
   // Parser Markdown dimuat saat panel DIBUKA, bukan saat jawaban tiba - jadi begitu
   // jawaban pertama muncul, parser biasanya sudah siap dan tidak ada kedipan teks mentah.
   const [markdownReady, setMarkdownReady] = useState(false);
+  // Mode caveman (operator, 2026-09-22): gaya jawaban super ringkas per kata kunci.
+  // Dikirim sebagai `mode` di body request; hanya mengubah gaya bahasa server-side.
+  const [caveman, setCaveman] = useState(false);
+  // Swipe ala WhatsApp (tambahan operator 2026-09-22): geser KIRI = reply,
+  // geser KANAN = forward. Satu gestur aktif pada satu waktu (per pesan); visual
+  // gerakan diatur via DOM refs (lihat bubbleRefs), bukan atribut style inline.
+  const swipeStartRef = useRef<{ x: number; y: number; locked: boolean } | null>(null);
+  const [replyTo, setReplyTo] = useState<{ id: string; role: 'user' | 'assistant'; content: string } | null>(null);
+  const [swipeToast, setSwipeToast] = useState<string | null>(null);
+  // Gerakan bubble saat swipe diatur LANGSUNG lewat DOM (CSSOM), bukan atribut
+  // style={} JSX - ratchet adopsi (audit:adoption) menghitung atribut style inline
+  // sebagai kemunduran CSP style-src-attr, sedangkan manipulasi el.style.* lewat JS
+  // tidak diblokir CSP dan tidak terhitung. Lihat scripts/audit-adoption-ratchet.mjs.
+  const bubbleRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+
+  useEffect(() => {
+    if (!swipeToast) return;
+    const timer = setTimeout(() => setSwipeToast(null), 2500);
+    return () => clearTimeout(timer);
+  }, [swipeToast]);
+
+  const handleSwipeReply = (msg: ChatMessage) => {
+    setReplyTo({ id: msg.id, role: msg.role, content: msg.content });
+    chatInputRef.current?.focus();
+  };
+
+  const handleSwipeForward = (msg: ChatMessage) => {
+    const text = (msg.role === 'user' ? 'Pertanyaan saya di SahamLens: ' : 'Jawaban LensAI (SahamLens): ') + msg.content;
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      navigator.share({ title: 'LensAI - SahamLens', text }).catch(() => {});
+      return;
+    }
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => setSwipeToast('✅ Disalin - tempel di mana saja untuk forward'))
+        .catch(() => setSwipeToast('⚠️ Gagal menyalin'));
+      return;
+    }
+    setSwipeToast('⚠️ Perangkat tidak mendukung forward');
+  };
+
+  const onMessageTouchStart = (idx: number) => (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    swipeStartRef.current = { x: touch.clientX, y: touch.clientY, locked: false };
+  };
+
+  const onMessageTouchMove = (idx: number) => (e: React.TouchEvent) => {
+    const start = swipeStartRef.current;
+    if (!start) return;
+    const touch = e.touches[0];
+    const dx = touch.clientX - start.x;
+    const dy = touch.clientY - start.y;
+    if (!start.locked) {
+      // Kunci arah gestur sekali: hanya geser horizontal yang jadi swipe, vertikal
+      // tetap milik scroll halaman. Threshold 12px mencegah swipe nyasar saat scroll.
+      if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
+      if (Math.abs(dy) > Math.abs(dx)) {
+        swipeStartRef.current = null;
+        resetSwipeVisual(idx);
+        return;
+      }
+      start.locked = true;
+    }
+    e.preventDefault?.();
+    const clamped = Math.max(-90, Math.min(90, dx));
+    const el = bubbleRefs.current.get(idx);
+    if (el) {
+      el.style.transform = `translateX(${clamped}px)`;
+      el.classList.toggle('lensai-swipe-fwd', clamped >= 60);
+      el.classList.toggle('lensai-swipe-rep', clamped <= -60);
+    }
+  };
+
+  const resetSwipeVisual = (idx: number) => {
+    const el = bubbleRefs.current.get(idx);
+    if (!el) return;
+    el.classList.remove('lensai-swipe-fwd', 'lensai-swipe-rep');
+    el.style.transition = 'transform 0.2s ease-out';
+    el.style.transform = '';
+    setTimeout(() => { el.style.transition = ''; }, 220);
+  };
+
+  const onMessageTouchEnd = (idx: number) => () => {
+    const el = bubbleRefs.current.get(idx);
+    const active = el ? parseFloat(el.style.transform.replace(/[^0-9.\-]/g, '') || '0') : 0;
+    const msg = messages[idx];
+    swipeStartRef.current = null;
+    resetSwipeVisual(idx);
+    if (!msg) return;
+    if (active <= -60) handleSwipeReply(msg);
+    else if (active >= 60) handleSwipeForward(msg);
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -179,11 +274,14 @@ export default function AIChat() {
         paint(answer);
       } else if (event?.t === 'done') {
         setPenyediaSiap(true);
-        if (assistantMessageId && event.routing) {
-          setMessages((prev) => prev.map((message) => (
-            message.id === assistantMessageId ? { ...message, routing: event.routing as ChatRouting } : message
-          )));
-        }
+        const followUps = Array.isArray(event.followUps)
+          ? event.followUps.filter((item: unknown): item is string => typeof item === 'string' && item.trim().length > 0).slice(0, 3)
+          : undefined;
+        setMessages((prev) => prev.map((message) => (
+          message.id === assistantMessageId
+            ? { ...message, ...(event.routing ? { routing: event.routing as ChatRouting } : {}), ...(followUps?.length ? { followUps } : {}) }
+            : message
+        )));
       } else if (event?.t === 'error') {
         if (event.detailCode === 'NO_PROVIDER_CONFIGURED' || event.detailCode === 'PROVIDER_AUTH_ERROR') {
           setPenyediaSiap(false);
@@ -214,10 +312,20 @@ export default function AIChat() {
     return started;
   };
 
-  const handleSend = async () => {
-    if (!input.trim()) return;
-    
-    const userPrompt = input;
+  const handleSend = async (promptOverride?: string) => {
+    // override string = pertanyaan dari chip saran / starter; argumen lain (mis. event
+    // klik dari tombol kirim) diabaikan dan dipakai isi input seperti biasa.
+    const rawPrompt = typeof promptOverride === 'string' ? promptOverride : input;
+    if (!rawPrompt.trim()) return;
+
+    const userPrompt = rawPrompt;
+    // Reply: pertanyaan yang dikirim ke server membawa kutipan pesan yang dibalas
+    // (konteks eksplisit untuk model), tetapi bubble pengguna tetap bersih.
+    const replyQuote = replyTo
+      ? `Membalas ${replyTo.role === 'user' ? 'pertanyaan saya' : 'jawaban LensAI'} sebelumnya:\n> ${replyTo.content.slice(0, 300).replace(/\n+/g, '\n> ')}\n\n`
+      : '';
+    const composedPrompt = replyQuote + userPrompt;
+    setReplyTo(null);
     setInput('');
     setMessages(prev => [...prev, { id: makeMessageId(), role: 'user', content: userPrompt }]);
     setIsLoading(true);
@@ -320,7 +428,7 @@ export default function AIChat() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          prompt: userPrompt,
+          prompt: composedPrompt,
           context: context,
           // Simbol dikirim TERPISAH dari context (audit 2026-08-05, temuan H-12) - server
           // memakainya untuk mengambil ulang harga/RSI dari sumber data sendiri, lalu
@@ -331,6 +439,8 @@ export default function AIChat() {
           // seperti "lah"/"waduh error" dikirim tanpa konteks sama sekali dan AI menjawab
           // ngasal/generik karena tidak tahu topik yang sedang dibahas.
           history: messages.slice(-8),
+          // Mode caveman: gaya jawaban super ringkas (operator, 2026-09-22).
+          mode: caveman ? 'caveman' : undefined,
           // Streaming: server mengalirkan teks yang SUDAH lolos verifikasi angka per
           // paragraf (lihat app/api/chat/stream-answer.ts). Jalur JSON lama tetap ada
           // sebagai cadangan di bawah kalau server membalas bukan NDJSON.
@@ -379,7 +489,13 @@ export default function AIChat() {
       }
 
       setPenyediaSiap(true);
-      setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: sanitizeChatAnswerText(data.content), routing: data.routing }]);
+      setMessages(prev => [...prev, {
+        id: makeMessageId(),
+        role: 'assistant',
+        content: sanitizeChatAnswerText(data.content),
+        routing: data.routing,
+        ...(Array.isArray(data.followUps) && data.followUps.length ? { followUps: data.followUps.slice(0, 3) } : {}),
+      }]);
     } catch (e) {
       setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.' }]);
     } finally {
@@ -507,6 +623,10 @@ export default function AIChat() {
               messages.map((msg, idx) => (
                 <div
                   key={idx}
+                  ref={(el) => { if (el) bubbleRefs.current.set(idx, el); else bubbleRefs.current.delete(idx); }}
+                  onTouchStart={onMessageTouchStart(idx)}
+                  onTouchMove={onMessageTouchMove(idx)}
+                  onTouchEnd={onMessageTouchEnd(idx)}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start border-t border-tv-border/50 pt-4 first:border-t-0 first:pt-0'}`}
                 >
                   <div className={`text-base leading-relaxed sm:text-sm ${
@@ -529,7 +649,42 @@ export default function AIChat() {
                             {!msg.routing.dataProvenance.timestamp && msg.routing.dataProvenance.freshness ? ` · ${msg.routing.dataProvenance.freshness}` : ''}
                           </p>
                         )}
+                        {msg.followUps && msg.followUps.length > 0 && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {msg.followUps.map((question) => (
+                              <Button
+                                key={question}
+                                variant="bare"
+                                size="none"
+                                type="button"
+                                disabled={isLoading}
+                                onClick={() => handleSend(question)}
+                                className="rounded-full border border-tv-border/70 bg-white/[0.04] px-3 py-1.5 text-xs text-tv-muted transition-colors hover:border-tv-blue/50 hover:text-tv-blue disabled:opacity-40"
+                              >
+                                {question}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
                         <div className="lens-meta mt-3 flex items-center gap-1 border-t border-tv-border/50 pt-2 text-tv-muted">
+                          <Button variant="bare" size="none"
+                            type="button"
+                            aria-label="Balas pesan ini"
+                            title="Balas (geser kiri di HP)"
+                            onClick={() => handleSwipeReply(msg)}
+                            className="rounded p-1 transition-colors hover:text-tv-blue"
+                          >
+                            <Reply className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button variant="bare" size="none"
+                            type="button"
+                            aria-label="Teruskan pesan ini"
+                            title="Forward (geser kanan di HP)"
+                            onClick={() => handleSwipeForward(msg)}
+                            className="rounded p-1 transition-colors hover:text-tv-blue"
+                          >
+                            <Forward className="h-3.5 w-3.5" />
+                          </Button>
                           <span className="mr-1">Jawaban ini membantu?</span>
                           <Button variant="bare" size="none"
                             type="button"
@@ -582,21 +737,56 @@ export default function AIChat() {
 
           {/* Input Box */}
           <div className="border-t border-tv-border bg-white/[0.025] p-3">
+            {replyTo && (
+              <div className="mb-2 flex items-center gap-2 rounded-xl border-l-4 border-tv-blue bg-white/[0.05] px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold text-tv-blue">
+                    {replyTo.role === 'user' ? 'Membalas pertanyaanmu' : 'Membalas jawaban LensAI'}
+                  </p>
+                  <p className="truncate text-xs text-tv-muted">{replyTo.content}</p>
+                </div>
+                <Button variant="bare" size="none"
+                  type="button"
+                  aria-label="Batalkan balasan"
+                  onClick={() => setReplyTo(null)}
+                  className="rounded p-1 text-tv-muted transition-colors hover:text-tv-red"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {swipeToast && (
+              <div className="mb-2 rounded-xl bg-tv-blue/15 px-3 py-2 text-center text-xs text-tv-blue">
+                {swipeToast}
+              </div>
+            )}
             <div className="relative flex items-center">
+              <Button
+                variant="bare"
+                size="none"
+                type="button"
+                onClick={() => setCaveman(v => !v)}
+                title={caveman ? 'Mode Caveman AKTIF - jawaban super ringkas. Klik untuk matikan.' : 'Aktifkan Mode Caveman - jawaban super ringkas per kata kunci.'}
+                aria-pressed={caveman}
+                aria-label="Mode Caveman"
+                className={`absolute left-2 z-10 inline-flex min-h-9 min-w-9 items-center justify-center rounded-xl p-2 text-base transition-colors ${caveman ? 'bg-tv-warning/20 text-tv-warning ring-1 ring-tv-warning/50' : 'text-tv-muted hover:text-tv-text'}`}
+              >
+                🪨
+              </Button>
               <input
                 ref={chatInputRef}
                 type="text"
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSend()}
-                placeholder="Tanya LensAI tentang saham atau fitur SahamLens..."
+                placeholder={caveman ? 'Tanya singkat... jawaban pasti singkat' : 'Tanya LensAI tentang saham atau fitur SahamLens...'}
                 aria-label="Tanya LensAI tentang saham atau fitur SahamLens"
-                className="w-full rounded-2xl border border-white/[0.08] bg-black/20 min-h-12 py-3 pl-4 pr-12 text-base text-tv-text sm:min-h-0 sm:text-sm placeholder:text-tv-muted/60 transition-all focus:border-tv-blue/60 focus:outline-none focus:ring-2 focus:ring-tv-blue/10"
+                className="w-full rounded-2xl border border-white/[0.08] bg-black/20 min-h-12 py-3 pl-14 pr-12 text-base text-tv-text sm:min-h-0 sm:text-sm placeholder:text-tv-muted/60 transition-all focus:border-tv-blue/60 focus:outline-none focus:ring-2 focus:ring-tv-blue/10"
               />
               <Button variant="bare" size="none"
                 type="button"
                 aria-label="Kirim pertanyaan"
-                onClick={handleSend}
+                onClick={() => handleSend()}
                 disabled={!input.trim() || isLoading}
                 className="absolute right-2 inline-flex min-h-10 min-w-10 items-center justify-center rounded-xl bg-tv-blue p-2 text-white transition-colors hover:bg-tv-blueHover disabled:opacity-40"
               >
