@@ -572,7 +572,7 @@ export default function AIChat() {
                   {/* Permintaan operator (2026-09-22): label jangan "berpikir" tapi
                       "mengetik" + visual pensil di sebelahnya. Spinner tetap dipakai
                       sebagai indikator loading sebelum potongan pertama tiba. */}
-                  <span className="inline-block animate-pulse" aria-hidden="true">✏️</span>
+                  <span className="lensai-pencil" aria-hidden="true">✏️</span>
                   LensAI sedang mengetik...
                 </div>
               </div>

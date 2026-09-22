@@ -1477,3 +1477,23 @@ html.lens-battery-saver .sahamlens-signal-track {
   .lens-metric { font-size: 1.25rem; }
   .lens-metric-lg { font-size: 1.875rem; }
 }
+
+/* Indikator typing LensAI (PR #425): pensil bergoyang seperti sedang menulis.
+   Gerakan kecil (translate 1-3px + rotate ±10deg) supaya terlihat "menulis",
+   bukan sekadar berkedip. */
+@keyframes lensai-pencil-write {
+  0%, 100% { transform: translate(0, 0) rotate(-10deg); }
+  25%      { transform: translate(2px, -1px) rotate(-2deg); }
+  50%      { transform: translate(3px, 1px) rotate(8deg); }
+  75%      { transform: translate(1px, -2px) rotate(-2deg); }
+}
+
+.lensai-pencil {
+  display: inline-block;
+  transform-origin: 70% 80%;
+  animation: lensai-pencil-write 0.7s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lensai-pencil { animation: none; }
+}
