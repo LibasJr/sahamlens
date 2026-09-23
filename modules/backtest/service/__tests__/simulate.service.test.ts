@@ -185,6 +185,48 @@ describe('simulateBacktest', () => {
     // Harga beli & jual sama-sama 1000 sebelum biaya -> net PnL harus negatif (cuma
     // bayar fee bolak-balik, tidak ada pergerakan harga sama sekali).
     expect(result.trades[0].pnlPct).toBeLessThan(0);
+    expect(result.ledger.openPositions).toBe(0);
+    expect(result.ledger.finalEquity).toBeCloseTo(result.ledger.terminalCash, 8);
+    expect(result.returnPct).toBeCloseTo(
+      ((result.ledger.terminalCash - 100_000_000) / 100_000_000) * 100,
+      2,
+    );
+    expect(result.equityCurve.at(-1)).toBe(Math.round(result.ledger.finalEquity));
+  });
+
+  it('ukuran order di OPEN tidak berubah ketika hanya CLOSE masa depan hari itu diubah', () => {
+    const days = 66;
+    const baseline = makeCache(days);
+    baseline.tickers[0].decisions['RSI 14'] = new Array(days).fill('BULLISH');
+    baseline.tickers[0].bars.forEach((bar) => { bar.open = 1000; bar.close = 1000; });
+    const changed = structuredClone(baseline);
+    // Entry dijadwalkan dari close hari 0 dan dieksekusi open hari 1. Close hari 1 belum
+    // diketahui pada saat lot dipilih, jadi perubahan ini tidak boleh mengubah buy/lot.
+    changed.tickers[0].bars[1].close = 100_000;
+
+    const a = simulateBacktest(baseline, { filters: ['RSI 14'], modal: 1_000_000, periodMonths: 3 });
+    const b = simulateBacktest(changed, { filters: ['RSI 14'], modal: 1_000_000, periodMonths: 3 });
+
+    expect(b.trades[0].buy).toBe(a.trades[0].buy);
+    expect(b.ledger.totalBuyValue).toBe(a.ledger.totalBuyValue);
+  });
+
+  it('bar akhir hilang tidak menciptakan penjualan fiktif pada harga entry', () => {
+    const days = 67;
+    const cache = makeCache(days);
+    cache.tickers[0].decisions['RSI 14'] = new Array(days).fill('BULLISH');
+    cache.tickers[0].bars.forEach((bar, i) => { bar.open = 100 + i; bar.close = 100 + i; });
+    const lastDate = cache.ihsg.at(-1)!.date;
+    cache.tickers[0].bars = cache.tickers[0].bars.filter((bar) => bar.date !== lastDate);
+    for (const name of ALL_INDICATORS) cache.tickers[0].decisions[name].pop();
+
+    const result = simulateBacktest(cache, { filters: ['RSI 14'], modal: 1_000_000, periodMonths: 3 });
+
+    expect(result.totalTrades).toBe(0);
+    expect(result.ledger.openPositions).toBe(1);
+    expect(result.ledger.staleOpenPositions).toBe(1);
+    expect(result.ledger.markedOpenValue).toBeGreaterThan(0);
+    expect(result.ledger.finalEquity).toBeCloseTo(result.ledger.terminalCash + result.ledger.markedOpenValue, 8);
   });
 
   it('maksimal 5 posisi terbuka bersamaan, equal-weight dari ekuitas saat itu', () => {

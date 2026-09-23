@@ -158,6 +158,18 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     return equity;
   }
 
+  // Snapshot kausal pada batas eksekusi OPEN. Tidak membaca CLOSE hari yang sama.
+  // Seluruh order entry pada satu open memakai snapshot/slot yang sama agar perubahan
+  // harga setelah open tidak mengubah lot order yang sudah dijadwalkan sebelumnya.
+  function portfolioEquityAtOpen(dateStr: string): number {
+    let equity = cash;
+    for (const pos of openPositions) {
+      const day = findIndex(pos.symbol).get(dateStr);
+      equity += pos.shares * (day?.open ?? pos.lastKnownPrice);
+    }
+    return equity;
+  }
+
   function closePosition(pos: OpenPosition, exitDate: string, exitPrice: number) {
     cash += pos.shares * exitPrice;
     totalSellValue += pos.shares * exitPrice;
@@ -192,18 +204,17 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
       pendingExits.splice(i, 1);
     }
 
+    const entrySlotSize = portfolioEquityAtOpen(date) / MAX_SLOTS;
     for (let i = pendingEntries.length - 1; i >= 0; i--) {
       const symbol = pendingEntries[i];
       const day = findIndex(symbol).get(date);
       if (!day) continue; // masih halt/kosong - coba lagi hari berikutnya
       pendingEntries.splice(i, 1);
 
-      // Equal-weight dari ekuitas SAAT INI (bukan modal awal statis) - supaya P/L
-      // trade sebelumnya ikut compounding di ukuran posisi berikutnya.
-      const currentEquity = portfolioEquity(date);
-      const slotSize = currentEquity / MAX_SLOTS;
+      // Equal-weight dari snapshot ekuitas OPEN yang dibekukan untuk batch order hari
+      // ini. P/L trade sebelumnya tetap compounding, tetapi close hari ini tidak bocor.
       const buyPrice = buyExecutionPrice(day.open);
-      const shares = Math.floor(slotSize / buyPrice / 100) * 100; // bulatkan ke kelipatan 1 lot
+      const shares = Math.floor(entrySlotSize / buyPrice / 100) * 100; // bulatkan ke kelipatan 1 lot
       if (shares <= 0 || shares * buyPrice > cash) continue;
 
       cash -= shares * buyPrice;
@@ -247,19 +258,28 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     equityCurveDates.push(date);
   }
 
-  // 3. Force-close posisi yang masih terbuka saat periode berakhir - tidak ada "besok"
-  // lagi untuk dieksekusi di open, jadi dilikuidasi di close hari terakhir (tetap kena
-  // fee/slippage jual, ini transaksi nyata bukan cuma angka mark-to-market).
+  // 3. Tutup hanya posisi yang benar-benar punya bar pada hari akhir. Ketiadaan bar dapat
+  // berarti suspend/halt; itu bukan bukti order dapat diisi. Posisi demikian tetap terbuka
+  // dan hanya di-mark memakai harga terakhir yang diketahui, dengan status stale eksplisit.
   const lastDate = ihsgWindow[ihsgWindow.length - 1]?.date;
+  let staleOpenPositions = 0;
   if (lastDate) {
     for (const pos of [...openPositions]) {
       const day = findIndex(pos.symbol).get(lastDate);
-      const exitPrice = sellExecutionPrice(day?.close ?? pos.entryPrice);
-      closePosition(pos, lastDate, exitPrice);
+      if (!day) {
+        staleOpenPositions += 1;
+        continue;
+      }
+      closePosition(pos, lastDate, sellExecutionPrice(day.close));
+      openPositions.splice(openPositions.indexOf(pos), 1);
     }
   }
 
-  const finalEquity = equityCurveDaily[equityCurveDaily.length - 1] ?? modal;
+  const markedOpenValue = openPositions.reduce((sum, pos) => sum + pos.shares * pos.lastKnownPrice, 0);
+  const finalEquity = cash + markedOpenValue;
+  // Titik terminal memakai basis ledger yang sama dengan trade/biaya. Dengan posisi sudah
+  // tertutup, terminal equity = cash; bila posisi stale tersisa, hanya mark-to-market.
+  if (equityCurveDaily.length > 0) equityCurveDaily[equityCurveDaily.length - 1] = finalEquity;
   const returnPct = ((finalEquity - modal) / modal) * 100;
 
   const ihsgStart = ihsgWindow[0]!.close;
@@ -289,10 +309,6 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     ihsgCurve.push(Math.round(ihsgValueAtIdx));
   }
 
-  // Force-close di atas terjadi SETELAH kurva ekuitas ditutup, jadi trade terakhir sudah
-  // ikut di tradePnlValues sementara equityCurveDaily berhenti di hari terakhir. Itu benar:
-  // mark-to-market hari terakhir dan likuidasi di harga yang sama hanya berbeda oleh
-  // fee/slippage jual, dan biaya itu memang milik trade-nya, bukan milik kurva.
   const performance = calculatePerformanceMetrics({
     equityCurveDaily,
     dates: equityCurveDates,
@@ -310,6 +326,15 @@ export function simulateBacktest(cache: BacktestIndicatorCache, input: SimulateI
     totalTrades: trades.length,
     maxDrawdownPct: Number(maxDrawdownPct.toFixed(2)),
     performance,
+    ledger: {
+      finalEquity,
+      terminalCash: cash,
+      markedOpenValue,
+      totalBuyValue,
+      totalSellValue,
+      openPositions: openPositions.length,
+      staleOpenPositions,
+    },
     universe,
     equityCurve,
     ihsgCurve,

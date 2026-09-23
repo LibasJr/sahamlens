@@ -124,6 +124,7 @@ export async function runBacktestSimulation(
     totalTrades: result.totalTrades,
     maxDD: fmtPct(result.maxDrawdownPct),
     performance: result.performance,
+    ledger: result.ledger,
     significance,
     universe: result.universe,
     equityCurve: result.equityCurve,

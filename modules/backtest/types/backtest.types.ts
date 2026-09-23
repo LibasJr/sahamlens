@@ -74,6 +74,18 @@ export interface SimulateResult {
   /** Metrik risiko/kinerja yang sebelumnya tidak ada sama sekali (temuan H-05):
    * CAGR, volatilitas, Sharpe, Sortino, profit factor, expectancy, turnover. */
   performance: PerformanceMetrics;
+  /** Rekonsiliasi terminal satu sumber. Jika openPositions=0, finalEquity harus sama
+   * dengan terminalCash (dalam toleransi floating point). Posisi tanpa bar akhir tidak
+   * dijual fiktif; nilainya hanya di-mark dengan last known close dan dilaporkan stale. */
+  ledger: {
+    finalEquity: number;
+    terminalCash: number;
+    markedOpenValue: number;
+    totalBuyValue: number;
+    totalSellValue: number;
+    openPositions: number;
+    staleOpenPositions: number;
+  };
   /** Berapa emiten yang benar-benar bisa diuji pada periode ini. `excludedShortHistory`
    * naik seiring panjang periode - emiten yang belum listing selama itu gugur dari
    * universe, dan itu memperkuat survivorship bias yang sudah ada. */
