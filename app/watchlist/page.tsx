@@ -104,7 +104,7 @@ function JournalSection({
           className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md px-2 py-1.5 text-xs focus:outline-none focus:border-tv-blue resize-none"
         />
         <div className="flex items-center justify-between gap-2">
-          <span className="text-[10px] text-white/40">{journalNote.length}/500</span>
+          <span className="text-xs text-white/40">{journalNote.length}/500</span>
           <div className="flex items-center gap-1.5">
             <Button variant="bare" size="none" onClick={onCancelEdit} className="p-1 text-tv-muted hover:text-tv-text" aria-label={`Batalkan edit catatan ${item.symbol}`}>
               <X className="w-3.5 h-3.5" />
@@ -122,7 +122,7 @@ function JournalSection({
     <div className="mt-1.5">
       {notePreview ? (
         <div className="flex items-start gap-1.5">
-          <span className="text-[11px] text-white/50 italic leading-snug">
+          <span className="text-xs text-white/50 italic leading-snug">
             📝 {notePreview}
             {savedDate && <span className="text-white/30 ml-1">— {savedDate}</span>}
           </span>
@@ -131,7 +131,7 @@ function JournalSection({
           </Button>
         </div>
       ) : (
-        <Button variant="bare" size="none" onClick={onStartEdit} className="text-[11px] text-tv-muted hover:text-tv-blue flex items-center gap-1 transition-colors">
+        <Button variant="bare" size="none" onClick={onStartEdit} className="text-xs text-tv-muted hover:text-tv-blue flex items-center gap-1 transition-colors">
           <Pencil className="w-3 h-3" /> Tambah catatan
         </Button>
       )}
