@@ -100,6 +100,7 @@ export default function HomeWorkspace() {
   const { user: authUser, resolved: authResolved, effectiveRole } = useAuthUser();
   const {
     ihsg,
+    ihsgAsOfLabel,
     topGainers,
     topLosers,
     topVolume,
@@ -256,12 +257,13 @@ export default function HomeWorkspace() {
       {/* Canonical home hero: brand promise + direct stock search + live IHSG.
           Uses the workspace market snapshot below, so restoring the brand proposition
           adds no extra network request or competing home route. */}
-      <HomeBrandHero ihsg={ihsg} loadingMarket={loadingMarket} marketError={marketError} />
+      <HomeBrandHero ihsg={ihsg} ihsgAsOfLabel={ihsgAsOfLabel} loadingMarket={loadingMarket} marketError={marketError} />
 
       <ApiErrorHint requestId={supportRequestId} className="justify-end" />
 
       <HomeTodayBrief
         ihsg={ihsg}
+        ihsgAsOfLabel={ihsgAsOfLabel}
         marketPulse={marketPulse}
         dailyPicks={dailyPicks}
         radarItems={radarItems}

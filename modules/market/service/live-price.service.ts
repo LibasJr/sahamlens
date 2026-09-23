@@ -3,6 +3,8 @@ import { classifyFreshness } from '@/shared/http/freshness';
 import { isProviderCircuitOpen, recordProviderFailure, recordProviderSuccess } from '@/shared/http/provider-circuit-breaker';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
+import { readIdxIhsgEod } from '@/modules/market/service/idx-ihsg-eod.service';
+import { isMarketOpen } from '@/lib/utils/market';
 
 function isFinitePositive(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
@@ -23,6 +25,39 @@ export interface LivePriceResult {
  * source payload. Provider failure remains fail-closed: no fabricated or silent provider
  * fallback is returned from this service.
  */
+/**
+ * Koreksi acuan close-to-close untuk ^JKSE (insiden 2026-09-23, laporan operator:
+ * banner menampilkan -1% saat IHSG live +0,64%). Yahoo sering mengembalikan
+ * meta.previousClose yang basi untuk indeks IDX (menunjuk sesi sebelum terakhir),
+ * sementara artefak EOD resmi BEI (data/idx-index/ihsg.json) memuat close sesi
+ * terakhir yang benar. Kalau tanggal artefak LEBIH BARU dari tanggal bar harian
+ * Yahoo yang dijadikan acuan previousClose, pakai close artefak - fail-closed ke
+ * data resmi, bukan angka karangan.
+ */
+export function correctIhsgPreviousClose(
+  ticker: string,
+  timestamps: number[] | undefined,
+  yahooPreviousClose: number | null,
+  dataDir?: string,
+): { previousClose: number | null; source: 'YAHOO' | 'IDX_OFFICIAL_INDEX_SUMMARY' } {
+  if (ticker !== '^JKSE' || yahooPreviousClose == null || !Array.isArray(timestamps) || timestamps.length < 2) {
+    return { previousClose: yahooPreviousClose, source: 'YAHOO' };
+  }
+  const eod = readIdxIhsgEod(dataDir);
+  if (!eod || !(eod.price > 0) || eod.price === yahooPreviousClose) {
+    return { previousClose: yahooPreviousClose, source: 'YAHOO' };
+  }
+  const jakartaDate = (ts: number) =>
+    new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ts * 1000);
+  // bar kedua-terakhir = sesi yang jadi acuan previousClose Yahoo;
+  // bar terakhir bisa berupa bar live hari berjalan.
+  const prevBarDate = jakartaDate(timestamps[timestamps.length - 2]);
+  if (eod.tradeDate > prevBarDate) {
+    return { previousClose: eod.price, source: 'IDX_OFFICIAL_INDEX_SUMMARY' };
+  }
+  return { previousClose: yahooPreviousClose, source: 'YAHOO' };
+}
+
 export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceResult> {
   const startedAt = Date.now();
   const yahooCircuitOpen = await isProviderCircuitOpen('YAHOO_CHART');
@@ -51,7 +86,11 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
           metaPreviousClose: meta?.previousClose,
           metaChartPreviousClose: meta?.chartPreviousClose,
         });
-        const previousClose = resolved.previousClose;
+        const corrected = correctIhsgPreviousClose(ticker, result?.timestamp, resolved.previousClose);
+        if (corrected.source === 'IDX_OFFICIAL_INDEX_SUMMARY' && process.env.NODE_ENV !== 'test') {
+          console.warn(`[live:${ticker}] previousClose Yahoo basi (${resolved.previousClose}) dikoreksi ke close resmi BEI ${corrected.previousClose}`);
+        }
+        const previousClose = corrected.previousClose;
 
         if (resolved.metaDisagrees) {
           console.warn(
@@ -76,6 +115,13 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
             previousClose,
             volume,
             lastUpdate: fresh.dataTimestamp,
+            // Label kejujuran (opsi 2, operator 2026-09-23): saat bursa tutup,
+            // angka ini adalah harga penutupan terakhir - bukan realtime.
+            asOfLabel: fresh.dataTimestamp == null
+              ? null
+              : isMarketOpen(new Date())
+                ? 'Live'
+                : `per penutupan ${new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short' }).format(new Date(fresh.dataTimestamp))}`,
             dataTimestamp: fresh.dataTimestamp,
             ageSeconds: fresh.ageSeconds,
             freshness: fresh.freshness,

@@ -89,6 +89,9 @@ async function sharedOrNull(url: string, onError?: (error: unknown) => void): Pr
 
 export function useHomeWorkspaceData(language: Language) {
   const [ihsg, setIhsg] = useState<{ price: number; changePct: number } | null>(null);
+  // Opsi 2 (operator, 2026-09-23): label kejujuran asal data IHSG ('Live' /
+  // 'per penutupan <tanggal>') dari /api/live - sumber kebenaran di server.
+  const [ihsgAsOfLabel, setIhsgAsOfLabel] = useState<string | null>(null);
   const [topGainers, setTopGainers] = useState<MarketMover[]>([]);
   const [topLosers, setTopLosers] = useState<MarketMover[]>([]);
   const [topVolume, setTopVolume] = useState<MarketMover[]>([]);
@@ -146,6 +149,7 @@ export function useHomeWorkspaceData(language: Language) {
           Number.isFinite(liveJkse.changePercent)
         ) {
           setIhsg({ price: liveJkse.price, changePct: liveJkse.changePercent });
+          setIhsgAsOfLabel(typeof liveJkse.asOfLabel === 'string' ? liveJkse.asOfLabel : null);
         }
 
         setTopGainers((summary.topGainers || []).slice(0, 10));
@@ -319,6 +323,7 @@ export function useHomeWorkspaceData(language: Language) {
 
   return {
     ihsg,
+    ihsgAsOfLabel,
     topGainers,
     topLosers,
     topVolume,

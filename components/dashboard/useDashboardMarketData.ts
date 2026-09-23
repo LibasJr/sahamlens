@@ -23,6 +23,7 @@ export interface DashboardMarketDataOptions {
 
 export function useDashboardMarketData({ initialIhsg = null, initialRenderedAt, initialLensRadar = null }: DashboardMarketDataOptions) {
   const [ihsg, setIhsg] = useState<{ price: number; change: number; pointChange: number; dataTimestamp?: string | null; ageSeconds?: number | null } | null>(initialIhsg);
+  const [ihsgAsOfLabel, setIhsgAsOfLabel] = useState<string | null>(null);
   const [ihsgFailed, setIhsgFailed] = useState(false);
   const [tickerFailed, setTickerFailed] = useState(false);
   const [now, setNow] = useState<Date | null>(() => initialRenderedAt ? new Date(initialRenderedAt) : null);
@@ -61,6 +62,7 @@ export function useDashboardMarketData({ initialIhsg = null, initialRenderedAt, 
             dataTimestamp: typeof data.dataTimestamp === 'string' ? data.dataTimestamp : null,
             ageSeconds: typeof data.ageSeconds === 'number' ? data.ageSeconds : null,
           });
+          setIhsgAsOfLabel(typeof data.asOfLabel === 'string' ? data.asOfLabel : null);
         } else {
           setIhsgFailed(true);
         }
@@ -200,6 +202,7 @@ export function useDashboardMarketData({ initialIhsg = null, initialRenderedAt, 
 
   return {
     ihsg,
+    ihsgAsOfLabel,
     ihsgFailed,
     tickerFailed,
     tickerItems,
