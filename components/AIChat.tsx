@@ -27,6 +27,7 @@ import { apiRequest } from '@/shared/http/api-client';
 import { ApiErrorHint } from '@/components/ui/ApiErrorHint';
 import { trackJourneyEvent } from '@/shared/analytics/product-journey';
 import { sanitizeChatAnswerText } from '@/modules/ai/chat/chat-normalize';
+import { insertThreadMessage, replyHistory } from '@/components/ai-chat-message-tree';
 
 type ChatDataProvenance = {
   sourceLabel: string;
@@ -52,6 +53,8 @@ type ChatMessage = {
    *  errornya tetap terbaca manusia, sementara referensinya bisa disalin utuh ke
    *  laporan dukungan. Null/absen untuk jawaban yang berhasil. */
   supportRequestId?: string | null;
+  /** Parent message for an inline reply branch. */
+  replyToId?: string;
 };
 
 
@@ -74,6 +77,7 @@ export default function AIChat() {
   // dikirimi pertanyaan, jadi memang belum ada yang bisa dipastikan.
   const [penyediaSiap, setPenyediaSiap] = useState<boolean | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const replyScrollTargetId = useRef<string | null>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
   // Parser Markdown dimuat saat panel DIBUKA, bukan saat jawaban tiba - jadi begitu
   // jawaban pertama muncul, parser biasanya sudah siap dan tidak ada kedipan teks mentah.
@@ -81,9 +85,8 @@ export default function AIChat() {
   // Mode caveman (operator, 2026-09-22): gaya jawaban super ringkas per kata kunci.
   // Dikirim sebagai `mode` di body request; hanya mengubah gaya bahasa server-side.
   const [caveman, setCaveman] = useState(false);
-  // Swipe ala WhatsApp (tambahan operator 2026-09-22): geser KIRI = reply,
-  // geser KANAN = forward. Satu gestur aktif pada satu waktu (per pesan); visual
-  // gerakan diatur via DOM refs (lihat bubbleRefs), bukan atribut style inline.
+  // Operator: swipe kiri ATAU kanan membuka balasan inline pada pesan yang dipilih.
+  // Forward tetap tersedia lewat tombol agar kedua arah gestur konsisten di HP.
   const swipeStartRef = useRef<{ x: number; y: number; locked: boolean } | null>(null);
   const [replyTo, setReplyTo] = useState<{ id: string; role: 'user' | 'assistant'; content: string } | null>(null);
   const [swipeToast, setSwipeToast] = useState<string | null>(null);
@@ -91,7 +94,7 @@ export default function AIChat() {
   // style={} JSX - ratchet adopsi (audit:adoption) menghitung atribut style inline
   // sebagai kemunduran CSP style-src-attr, sedangkan manipulasi el.style.* lewat JS
   // tidak diblokir CSP dan tidak terhitung. Lihat scripts/audit-adoption-ratchet.mjs.
-  const bubbleRefs = useRef<Map<number, HTMLDivElement>>(new Map());
+  const bubbleRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   useEffect(() => {
     if (!swipeToast) return;
@@ -119,12 +122,12 @@ export default function AIChat() {
     setSwipeToast('⚠️ Perangkat tidak mendukung forward');
   };
 
-  const onMessageTouchStart = (idx: number) => (e: React.TouchEvent) => {
+  const onMessageTouchStart = (id: string) => (e: React.TouchEvent) => {
     const touch = e.touches[0];
     swipeStartRef.current = { x: touch.clientX, y: touch.clientY, locked: false };
   };
 
-  const onMessageTouchMove = (idx: number) => (e: React.TouchEvent) => {
+  const onMessageTouchMove = (id: string) => (e: React.TouchEvent) => {
     const start = swipeStartRef.current;
     if (!start) return;
     const touch = e.touches[0];
@@ -136,14 +139,14 @@ export default function AIChat() {
       if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return;
       if (Math.abs(dy) > Math.abs(dx)) {
         swipeStartRef.current = null;
-        resetSwipeVisual(idx);
+        resetSwipeVisual(id);
         return;
       }
       start.locked = true;
     }
     e.preventDefault?.();
     const clamped = Math.max(-90, Math.min(90, dx));
-    const el = bubbleRefs.current.get(idx);
+    const el = bubbleRefs.current.get(id);
     if (el) {
       el.style.transform = `translateX(${clamped}px)`;
       el.classList.toggle('lensai-swipe-fwd', clamped >= 60);
@@ -151,8 +154,8 @@ export default function AIChat() {
     }
   };
 
-  const resetSwipeVisual = (idx: number) => {
-    const el = bubbleRefs.current.get(idx);
+  const resetSwipeVisual = (id: string) => {
+    const el = bubbleRefs.current.get(id);
     if (!el) return;
     el.classList.remove('lensai-swipe-fwd', 'lensai-swipe-rep');
     el.style.transition = 'transform 0.2s ease-out';
@@ -160,15 +163,12 @@ export default function AIChat() {
     setTimeout(() => { el.style.transition = ''; }, 220);
   };
 
-  const onMessageTouchEnd = (idx: number) => () => {
-    const el = bubbleRefs.current.get(idx);
+  const onMessageTouchEnd = (msg: ChatMessage) => () => {
+    const el = bubbleRefs.current.get(msg.id);
     const active = el ? parseFloat(el.style.transform.replace(/[^0-9.\-]/g, '') || '0') : 0;
-    const msg = messages[idx];
     swipeStartRef.current = null;
-    resetSwipeVisual(idx);
-    if (!msg) return;
-    if (active <= -60) handleSwipeReply(msg);
-    else if (active >= 60) handleSwipeForward(msg);
+    resetSwipeVisual(msg.id);
+    if (Math.abs(active) >= 60) handleSwipeReply(msg);
   };
 
   const scrollToBottom = () => {
@@ -176,6 +176,11 @@ export default function AIChat() {
   };
 
   useEffect(() => {
+    const targetId = replyScrollTargetId.current;
+    if (targetId) {
+      document.getElementById(`lensai-message-${targetId}`)?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      return;
+    }
     scrollToBottom();
   }, [messages]);
 
@@ -236,7 +241,7 @@ export default function AIChat() {
    * diverifikasi). Return false kalau tidak ada satu pun peristiwa yang bisa dibaca,
    * supaya pemanggil bisa jatuh ke jalur JSON biasa.
    */
-  const consumeStream = async (stream: ReadableStream<Uint8Array>): Promise<boolean> => {
+  const consumeStream = async (stream: ReadableStream<Uint8Array>, userMessageId?: string): Promise<boolean> => {
     const reader = stream.getReader();
     const decoder = new TextDecoder();
     let carry = '';
@@ -256,7 +261,12 @@ export default function AIChat() {
           }
         }
         assistantMessageId = makeMessageId();
-        return [...next, { id: assistantMessageId, role: 'assistant', content: sanitizedText }];
+        return insertThreadMessage(next, {
+          id: assistantMessageId,
+          role: 'assistant',
+          content: sanitizedText,
+          ...(userMessageId ? { replyToId: userMessageId } : {}),
+        });
       });
       started = true;
     };
@@ -319,15 +329,24 @@ export default function AIChat() {
     if (!rawPrompt.trim()) return;
 
     const userPrompt = rawPrompt;
+    const replyTarget = replyTo;
+    const userMessageId = makeMessageId();
     // Reply: pertanyaan yang dikirim ke server membawa kutipan pesan yang dibalas
     // (konteks eksplisit untuk model), tetapi bubble pengguna tetap bersih.
-    const replyQuote = replyTo
-      ? `Membalas ${replyTo.role === 'user' ? 'pertanyaan saya' : 'jawaban LensAI'} sebelumnya:\n> ${replyTo.content.slice(0, 300).replace(/\n+/g, '\n> ')}\n\n`
+    const replyQuote = replyTarget
+      ? `Membalas ${replyTarget.role === 'user' ? 'pertanyaan saya' : 'jawaban LensAI'} sebelumnya:\n> ${replyTarget.content.slice(0, 300).replace(/\n+/g, '\n> ')}\n\n`
       : '';
     const composedPrompt = replyQuote + userPrompt;
+    const historyForRequest = replyHistory(messages, replyTarget?.id);
     setReplyTo(null);
     setInput('');
-    setMessages(prev => [...prev, { id: makeMessageId(), role: 'user', content: userPrompt }]);
+    if (replyTarget) replyScrollTargetId.current = userMessageId;
+    setMessages(prev => insertThreadMessage(prev, {
+      id: userMessageId,
+      role: 'user',
+      content: userPrompt,
+      ...(replyTarget ? { replyToId: replyTarget.id } : {}),
+    }));
     setIsLoading(true);
 
     const segments = pathname.split('/');
@@ -438,7 +457,7 @@ export default function AIChat() {
           // tidak "amnesia" begitu satu giliran gagal/error - sebelumnya balasan singkat
           // seperti "lah"/"waduh error" dikirim tanpa konteks sama sekali dan AI menjawab
           // ngasal/generik karena tidak tahu topik yang sedang dibahas.
-          history: messages.slice(-8),
+          history: historyForRequest,
           // Mode caveman: gaya jawaban super ringkas (operator, 2026-09-22).
           mode: caveman ? 'caveman' : undefined,
           // Streaming: server mengalirkan teks yang SUDAH lolos verifikasi angka per
@@ -450,7 +469,7 @@ export default function AIChat() {
 
       const isStream = res.ok && (res.headers.get('content-type') || '').includes('ndjson');
       if (isStream && res.body) {
-        const handled = await consumeStream(res.body);
+        const handled = await consumeStream(res.body, userMessageId);
         if (handled) return;
       }
 
@@ -484,20 +503,26 @@ export default function AIChat() {
         if (data?.detailCode === 'NO_PROVIDER_CONFIGURED' || data?.detailCode === 'PROVIDER_AUTH_ERROR') {
           setPenyediaSiap(false);
         }
-        setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: sanitizeChatAnswerText(safeMessage), supportRequestId }]);
+        setMessages(prev => insertThreadMessage(prev, {
+          id: makeMessageId(), role: 'assistant', content: sanitizeChatAnswerText(safeMessage), supportRequestId, replyToId: userMessageId,
+        }));
         return;
       }
 
       setPenyediaSiap(true);
-      setMessages(prev => [...prev, {
+      setMessages(prev => insertThreadMessage(prev, {
         id: makeMessageId(),
         role: 'assistant',
         content: sanitizeChatAnswerText(data.content),
         routing: data.routing,
+        replyToId: userMessageId,
         ...(Array.isArray(data.followUps) && data.followUps.length ? { followUps: data.followUps.slice(0, 3) } : {}),
-      }]);
+      }));
     } catch (e) {
-      setMessages(prev => [...prev, { id: makeMessageId(), role: 'assistant', content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.' }]);
+      setMessages(prev => insertThreadMessage(prev, {
+        id: makeMessageId(), role: 'assistant', replyToId: userMessageId,
+        content: 'Maaf, sistem AI sedang mengalami gangguan koneksi. Silakan ulangi pertanyaan Anda.',
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -622,11 +647,12 @@ export default function AIChat() {
             ) : (
               messages.map((msg, idx) => (
                 <div
-                  key={idx}
-                  ref={(el) => { if (el) bubbleRefs.current.set(idx, el); else bubbleRefs.current.delete(idx); }}
-                  onTouchStart={onMessageTouchStart(idx)}
-                  onTouchMove={onMessageTouchMove(idx)}
-                  onTouchEnd={onMessageTouchEnd(idx)}
+                  id={`lensai-message-${msg.id}`}
+                  key={msg.id}
+                  ref={(el) => { if (el) bubbleRefs.current.set(msg.id, el); else bubbleRefs.current.delete(msg.id); }}
+                  onTouchStart={onMessageTouchStart(msg.id)}
+                  onTouchMove={onMessageTouchMove(msg.id)}
+                  onTouchEnd={onMessageTouchEnd(msg)}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start border-t border-tv-border/50 pt-4 first:border-t-0 first:pt-0'}`}
                 >
                   <div className={`text-base leading-relaxed sm:text-sm ${
