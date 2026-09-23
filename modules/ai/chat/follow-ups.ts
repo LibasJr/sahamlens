@@ -28,8 +28,13 @@ export function buildTickerChips(prompt: string): string[] {
 export function splitFollowUpList(raw: string): string[] {
   return raw
     .split('|')
-    .map((item) => item.replace(/^[\s\-•*\d.)]+/, '').trim())
-    .filter((item) => item.length > 0 && item.length <= 120)
+    .map((item) => item
+      .replace(/<\/?(?:arg_value|arg|tool_call|function_call|think)\b[^>]*>/gi, '')
+      .replace(/\]\}>/g, '')
+      .replace(/^[\s\-•*\d.)]+/, '')
+      .trim())
+    // Saran adalah pertanyaan untuk pengguna, bukan tempat sintaks model/template.
+    .filter((item) => item.length > 0 && item.length <= 120 && !/[<>\[\]{}]/.test(item))
     .slice(0, MAX_FOLLOW_UPS);
 }
 
