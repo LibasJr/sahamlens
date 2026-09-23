@@ -11,7 +11,7 @@ import { buildSystemPrompt, CAVEMAN_DIRECTIVE, pakaiStrukturAnalisis, STRUKTUR_A
 import { CLARIFICATION_PROMPT } from './out-of-scope';
 import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
-import { parseFollowUps, FOLLOWUP_MARKER } from './follow-ups';
+import { parseFollowUps, FOLLOWUP_MARKER, buildTickerChips } from './follow-ups';
 import { streamChatAnswer } from './stream-answer';
 import { calculateChatQuestion } from './chat-calculator';
 import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
@@ -49,8 +49,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     // satu tap langsung mengirim pertanyaan lengkap. Emiten contoh diambil dari
     // kumpulan likuid (BBCA/ADRO/TLKM); tetap BUKAN tebakan - chip eksplisit yang
     // dipilih pengguna sendiri.
-    const clarifyTopic = prompt.replace(/\s+/g, ' ').trim().slice(0, 80);
-    const clarifyChips = ['BBCA', 'ADRO', 'TLKM'].map((ticker) => `${ticker} - ${clarifyTopic}`);
+    const clarifyChips = buildTickerChips(prompt);
     const { text: clarifyText, followUps } = parseFollowUps(
       `${CLARIFICATION_PROMPT}\n${FOLLOWUP_MARKER}${clarifyChips.join(' | ')}`,
     );
@@ -141,9 +140,17 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     : null;
 
   if (verified.directResponse) {
+    // Opsi A (operator, 2026-09-23): jalur TICKER_REQUIRED (chat-data-router
+    // noTickerResponse) juga mendapat chip "TICKER - <pertanyaan asli>" - pesan ini
+    // yang muncul di insiden screenshot user, bukan hanya branch needsClarification.
+    const chipWorthy = verified.dataError === 'TICKER_REQUIRED';
+    const direct = chipWorthy
+      ? parseFollowUps(`${verified.directResponse}\n${FOLLOWUP_MARKER}${buildTickerChips(prompt).join(' | ')}`)
+      : { text: verified.directResponse, followUps: [] };
     return json({
       role: 'assistant',
-      content: verified.directResponse,
+      content: direct.text,
+      followUps: direct.followUps.length > 0 ? direct.followUps : undefined,
       errorCode: 'DATA_ERROR',
       detailCode: verified.dataError,
       routing: { intent: classification.intent, tickers, mode: date.mode, requestedAsOf: date.requestedAsOf, providerUsed: false },
