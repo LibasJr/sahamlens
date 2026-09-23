@@ -22,6 +22,7 @@ export default function SiteFooter({ className = '' }: { className?: string }) {
         <Link href="/privacy" className="hover:text-tv-text">{t('footer.privacy')}</Link>
         <Link href="/terms" className="hover:text-tv-text">{t('footer.terms')}</Link>
         <Link href="/disclaimer" className="hover:text-tv-text">{t('footer.disclaimerLink')}</Link>
+        <Link href="/contact" className="hover:text-tv-text">{t('footer.contact')}</Link>
         <Link href="/status" className="hover:text-tv-text">{t('footer.status')}</Link>
         <span className="rounded-full bg-tv-hover px-2.5 py-1 font-semibold">© {new Date().getFullYear()} SahamLens</span>
       </div>

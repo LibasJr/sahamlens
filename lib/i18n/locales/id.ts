@@ -534,6 +534,37 @@ export const id = {
     terms: 'Ketentuan',
     disclaimerLink: 'Disclaimer',
     status: 'Status',
+    contact: 'Kontak',
+  },
+  contactPage: {
+    backToHome: 'Kembali ke Beranda',
+    badge: 'Dukungan via email',
+    heroTitle: 'Hubungi Kami',
+    heroDescription:
+      'Butuh bantuan teknis atau punya masukan? Kirim email ke support@sahamlens.id — kami baca setiap pesan dan balas dalam 1 hari kerja.',
+    ctaLabel: 'Email dukungan',
+    ctaHref: 'mailto:support@sahamlens.id?subject=Bantuan%20SahamLens',
+    responseTarget: 'Target balasan: 1 hari kerja',
+    serviceHours: 'Senin–Jumat, 09.00–17.00 WIB',
+    serviceNote: 'Pesan di luar jam layanan diperiksa pada hari kerja berikutnya.',
+    reportTitle: 'Yang perlu disertakan',
+    reportIntro:
+      'Semakin lengkap informasi yang kamu kirim, semakin cepat kami membantu. Berikut yang perlu disertakan:',
+    reportItems: {
+      account: 'Email atau ID akun terdaftar',
+      page: 'Halaman atau fitur yang bermasalah',
+      device: 'Perangkat dan browser yang dipakai',
+      steps: 'Langkah reproduksi kejadian',
+      time: 'Waktu kejadian (WIB)',
+      error: 'Pesan error yang muncul (jika ada)',
+      ticker: 'Kode saham atau periode, jika terkait data pasar',
+    },
+    securityTitle: 'Keamanan data',
+    securityWarning:
+      'Jangan kirimkan password, OTP, PIN, nomor kartu, API key, atau dokumen identitas. Samarkan data pribadi, saldo, atau rekening pada screenshot.',
+    channelTitle: 'Kanal lain',
+    channelEmail: 'Email',
+    channelEmailDesc: 'support@sahamlens.id — untuk bantuan teknis dan masukan',
   },
 };
 

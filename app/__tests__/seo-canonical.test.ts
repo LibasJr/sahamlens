@@ -56,6 +56,7 @@ describe('canonical URL', () => {
     'moat',
     'dividend',
     'backtest',
+    'contact',
   ];
 
   it.each(CLIENT_PAGES)('halaman client /%s punya layout dengan canonical sendiri', (slug) => {
