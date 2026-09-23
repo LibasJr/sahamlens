@@ -536,5 +536,36 @@ export const en: TranslationDictionary = {
     terms: 'Terms',
     disclaimerLink: 'Disclaimer',
     status: 'Status',
+    contact: 'Contact',
+  },
+  contactPage: {
+    backToHome: 'Back to Home',
+    badge: 'Email support',
+    heroTitle: 'Contact Us',
+    heroDescription:
+      'Need technical help or have feedback? Send an email to support@sahamlens.id — we read every message and reply within 1 business day.',
+    ctaLabel: 'Email support',
+    ctaHref: 'mailto:support@sahamlens.id?subject=Bantuan%20SahamLens',
+    responseTarget: 'Response target: 1 business day',
+    serviceHours: 'Monday–Friday, 09.00–17.00 WIB',
+    serviceNote: 'Messages outside service hours are reviewed on the next business day.',
+    reportTitle: 'What to include',
+    reportIntro:
+      'The more complete the information you send, the faster we can help. Here is what to include:',
+    reportItems: {
+      account: 'Registered email or account ID',
+      page: 'Page or feature that has the issue',
+      device: 'Device and browser used',
+      steps: 'Steps to reproduce the issue',
+      time: 'Time of the incident (WIB)',
+      error: 'Error message shown (if any)',
+      ticker: 'Ticker or period, if related to market data',
+    },
+    securityTitle: 'Data security',
+    securityWarning:
+      'Never send your password, OTP, PIN, card number, API key, or identity documents. Mask personal data, balances, or account numbers in screenshots.',
+    channelTitle: 'Other channels',
+    channelEmail: 'Email',
+    channelEmailDesc: 'support@sahamlens.id — for technical support and feedback',
   },
 };
