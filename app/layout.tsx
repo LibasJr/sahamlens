@@ -1,5 +1,4 @@
 import './globals.css';
-import { Inter, JetBrains_Mono } from 'next/font/google';
 import { headers } from 'next/headers';
 import React from 'react';
 import type { Viewport } from 'next';
@@ -12,8 +11,7 @@ import AppShell from '@/components/AppShell';
 // lewat aturan CSS di globals.css yang menyebut nama keluarga font secara literal
 // ('Sora', 'Space Grotesk'), bukan lewat variabel next/font, jadi variabelnya
 // tidak pernah benar-benar terpakai.
-const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
-const jetbrainsMono = JetBrains_Mono({ subsets: ['latin'], weight: ['400', '500', '700'], variable: '--font-jetbrains-mono' });
+// Font system native: avoid build-time Google fetch in CI.
 
 // Audit BUILD 002 (SEO) - sebelumnya cuma title+description di root layout, tanpa
 // metadataBase/OpenGraph/robots/canonical, dan tanpa tagline resmi ("Lihat Peluang
@@ -132,9 +130,9 @@ export default async function RootLayout({
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang="id" suppressHydrationWarning className={`${inter.variable} ${jetbrainsMono.variable}`}>
+    <html lang="id" suppressHydrationWarning className="font-sans">
       <head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: bootScript }} /></head>
-      <body className={`${inter.className} bg-tv-bg text-tv-text antialiased min-h-screen relative selection:bg-tv-blue/25`}>
+      <body className="bg-tv-bg text-tv-text antialiased min-h-screen relative selection:bg-tv-blue/25">
         <AppShell>{children}</AppShell>
       </body>
     </html>
