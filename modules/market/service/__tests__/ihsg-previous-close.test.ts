@@ -31,7 +31,20 @@ describe('correctIhsgPreviousClose (^JKSE)', () => {
     // prev bar = 21 Sep (timestamps epoch 09:15 WIB), artefak 22 Sep lebih baru.
     const ts21 = Date.UTC(2026, 8, 21, 2, 15) / 1000;
     const ts18 = Date.UTC(2026, 8, 18, 2, 15) / 1000;
-    const out = correctIhsgPreviousClose('^JKSE', [ts18, ts21], 6384.726, tmpDir!);
+    const out = correctIhsgPreviousClose('^JKSE', [ts18, ts21], [6441.159, 6384.726], 6384.726, tmpDir!);
+    expect(out.source).toBe('IDX_OFFICIAL_INDEX_SUMMARY');
+    expect(out.previousClose).toBe(6277.044);
+  });
+
+  it('KASUS NYATA 22 Sep: bar ada tapi close null - tetap dikoreksi ke close resmi', () => {
+    writeEodArtifact([
+      { date: '2026-09-21', close: 6384.726 },
+      { date: '2026-09-22', close: 6277.044 },
+    ]);
+    // Yahoo: bar 22 Sep ADA dengan close null; close valid terakhir = 21 Sep.
+    const ts21 = Date.UTC(2026, 8, 21, 2, 15) / 1000;
+    const ts22 = Date.UTC(2026, 8, 22, 2, 15) / 1000;
+    const out = correctIhsgPreviousClose('^JKSE', [ts21, ts22], [6384.726, null], 6384.726, tmpDir!);
     expect(out.source).toBe('IDX_OFFICIAL_INDEX_SUMMARY');
     expect(out.previousClose).toBe(6277.044);
   });
@@ -42,13 +55,13 @@ describe('correctIhsgPreviousClose (^JKSE)', () => {
     ]);
     const ts21 = Date.UTC(2026, 8, 21, 2, 15) / 1000;
     const ts18 = Date.UTC(2026, 8, 18, 2, 15) / 1000;
-    const out = correctIhsgPreviousClose('^JKSE', [ts18, ts21], 6384.726, tmpDir!);
+    const out = correctIhsgPreviousClose('^JKSE', [ts18, ts21], [6441.159, 6384.726], 6384.726, tmpDir!);
     expect(out.source).toBe('YAHOO');
     expect(out.previousClose).toBe(6384.726);
   });
 
   it('tidak menyentuh ticker selain ^JKSE', () => {
-    const out = correctIhsgPreviousClose('BBCA.JK', [1, 2], 8000, '/nonexistent/ihsg.json');
+    const out = correctIhsgPreviousClose('BBCA.JK', [1, 2], [7000, 8000], 8000, '/nonexistent/ihsg.json');
     expect(out.source).toBe('YAHOO');
     expect(out.previousClose).toBe(8000);
   });

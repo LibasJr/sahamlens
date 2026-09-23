@@ -37,10 +37,11 @@ export interface LivePriceResult {
 export function correctIhsgPreviousClose(
   ticker: string,
   timestamps: number[] | undefined,
+  closes: (number | null)[] | undefined,
   yahooPreviousClose: number | null,
   dataDir?: string,
 ): { previousClose: number | null; source: 'YAHOO' | 'IDX_OFFICIAL_INDEX_SUMMARY' } {
-  if (ticker !== '^JKSE' || yahooPreviousClose == null || !Array.isArray(timestamps) || timestamps.length < 2) {
+  if (ticker !== '^JKSE' || yahooPreviousClose == null || !Array.isArray(timestamps) || timestamps.length < 1) {
     return { previousClose: yahooPreviousClose, source: 'YAHOO' };
   }
   const eod = readIdxIhsgEod(dataDir);
@@ -49,10 +50,20 @@ export function correctIhsgPreviousClose(
   }
   const jakartaDate = (ts: number) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ts * 1000);
-  // bar kedua-terakhir = sesi yang jadi acuan previousClose Yahoo;
-  // bar terakhir bisa berupa bar live hari berjalan.
-  const prevBarDate = jakartaDate(timestamps[timestamps.length - 2]);
-  if (eod.tradeDate > prevBarDate) {
+  // Tanggal bar TERAKHIR yang close-nya valid. Yahoo bisa punya bar dengan
+  // close null (kejadian nyata 22 Sep 2026: bar ada, close null) - bar demikian
+  // tidak bisa jadi acuan close-to-close.
+  let prevCloseBarDate: string | null = null;
+  if (Array.isArray(closes)) {
+    for (let i = Math.min(timestamps.length, closes.length) - 1; i >= 0; i--) {
+      const c = closes[i];
+      if (typeof c === 'number' && Number.isFinite(c) && c > 0) {
+        prevCloseBarDate = jakartaDate(timestamps[i]);
+        break;
+      }
+    }
+  }
+  if (prevCloseBarDate && eod.tradeDate > prevCloseBarDate) {
     return { previousClose: eod.price, source: 'IDX_OFFICIAL_INDEX_SUMMARY' };
   }
   return { previousClose: yahooPreviousClose, source: 'YAHOO' };
@@ -86,7 +97,7 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
           metaPreviousClose: meta?.previousClose,
           metaChartPreviousClose: meta?.chartPreviousClose,
         });
-        const corrected = correctIhsgPreviousClose(ticker, result?.timestamp, resolved.previousClose);
+        const corrected = correctIhsgPreviousClose(ticker, result?.timestamp, result?.indicators?.quote?.[0]?.close, resolved.previousClose);
         if (corrected.source === 'IDX_OFFICIAL_INDEX_SUMMARY' && process.env.NODE_ENV !== 'test') {
           console.warn(`[live:${ticker}] previousClose Yahoo basi (${resolved.previousClose}) dikoreksi ke close resmi BEI ${corrected.previousClose}`);
         }
