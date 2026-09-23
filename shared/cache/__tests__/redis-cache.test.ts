@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { getOrCompute } from '../redis-cache';
+import { cacheDel, cacheGet, cacheMGet, cacheSet, getOrCompute } from '../redis-cache';
 import {
   currentRequestLogContext,
   runWithRequestObservability,
@@ -89,5 +89,23 @@ describe('getOrCompute memory fallback saat Redis tidak tersedia', () => {
       degradedReason: ['redis-not-configured'],
     });
     expect(JSON.stringify(context)).not.toContain('test:observability:');
+  });
+
+  it('MGET memory-only mempertahankan panjang, urutan, dan missing value', async () => {
+    delete process.env.REDIS_URL;
+    const prefix = `test:mget:${Date.now()}`;
+    await cacheSet(`${prefix}:a`, { value: 'a' }, 60);
+    await cacheSet(`${prefix}:c`, { value: 'c' }, 60);
+
+    await expect(cacheMGet<{ value: string }>([`${prefix}:a`, `${prefix}:b`, `${prefix}:c`]))
+      .resolves.toEqual([{ value: 'a' }, null, { value: 'c' }]);
+  });
+
+  it('DEL selalu menghapus memory fallback', async () => {
+    delete process.env.REDIS_URL;
+    const key = `test:delete:${Date.now()}`;
+    await cacheSet(key, { stale: true }, 60);
+    await cacheDel(key);
+    await expect(cacheGet(key)).resolves.toBeNull();
   });
 });

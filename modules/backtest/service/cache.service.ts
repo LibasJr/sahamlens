@@ -2,13 +2,14 @@ import { cacheGet, cacheSet, cacheMGet } from '../../../shared/cache/redis-cache
 import { CACHE_TTL_SEC } from '../../../shared/cache/ttl-policy';
 import type { BacktestIndicatorCache, TickerIndicatorSeries, DailyBar } from '../types/backtest.types';
 
-// v2 (2026-08-03): DailyBar nambah field `open` (wajib untuk eksekusi anti-look-ahead
-// di simulate.service.ts) - naikkan versi supaya cache lama (tanpa `open`, bikin harga
-// NaN kalau kepakai) otomatis cache-miss dan dihitung ulang, bukan dibaca apa adanya.
-const META_KEY = 'sahamlens:cache:computed:backtest-indicators:v2:meta';
-const tickerKey = (ticker: string) => `sahamlens:cache:computed:backtest-indicators:v2:ticker:${ticker}`;
+// v3: setiap publikasi memakai namespace snapshot immutable. Pointer/meta baru ditulis
+// SETELAH semua shard selesai, jadi reader hanya melihat generasi lama utuh atau baru utuh.
+const META_KEY = 'sahamlens:cache:computed:backtest-indicators:v3:active';
+const tickerKey = (snapshotId: string, ticker: string) =>
+  `sahamlens:cache:computed:backtest-indicators:v3:snapshot:${snapshotId}:ticker:${ticker}`;
 
 interface CacheMeta {
+  snapshotId: string;
   computedAt: string;
   ihsg: DailyBar[];
   tickers: string[];
@@ -20,28 +21,36 @@ interface CacheMeta {
 const WRITE_BATCH_SIZE = 15;
 
 export async function writeBacktestCache(data: BacktestIndicatorCache): Promise<void> {
-  const meta: CacheMeta = {
-    computedAt: data.computedAt,
-    ihsg: data.ihsg,
-    tickers: data.tickers.map((t) => t.ticker),
-  };
-  await cacheSet(META_KEY, meta, CACHE_TTL_SEC.BACKTEST_INDICATORS);
+  const snapshotId = crypto.randomUUID();
+  const shardTtl = CACHE_TTL_SEC.BACKTEST_INDICATORS * 2;
 
   for (let i = 0; i < data.tickers.length; i += WRITE_BATCH_SIZE) {
     const chunk = data.tickers.slice(i, i + WRITE_BATCH_SIZE);
     await Promise.all(
-      chunk.map((series) => cacheSet(tickerKey(series.ticker), series, CACHE_TTL_SEC.BACKTEST_INDICATORS))
+      chunk.map((series) => cacheSet(tickerKey(snapshotId, series.ticker), series, shardTtl))
     );
   }
+
+  const meta: CacheMeta = {
+    snapshotId,
+    computedAt: data.computedAt,
+    ihsg: data.ihsg,
+    tickers: data.tickers.map((t) => t.ticker),
+  };
+  // Publish terakhir. Gagal sebelum titik ini membiarkan pointer lama tetap aktif.
+  await cacheSet(META_KEY, meta, CACHE_TTL_SEC.BACKTEST_INDICATORS);
 }
 
 export async function readBacktestCache(): Promise<BacktestIndicatorCache | null> {
   const meta = await cacheGet<CacheMeta>(META_KEY);
-  if (!meta) return null;
+  if (!meta?.snapshotId || !Array.isArray(meta.tickers)) return null;
 
-  const keys = meta.tickers.map(tickerKey);
+  const keys = meta.tickers.map((ticker) => tickerKey(meta.snapshotId, ticker));
   const seriesList = await cacheMGet<TickerIndicatorSeries>(keys);
-  const tickers = seriesList.filter((s): s is TickerIndicatorSeries => s !== null);
+  if (seriesList.length !== keys.length || seriesList.some((series) => series === null)) return null;
+
+  const tickers = seriesList as TickerIndicatorSeries[];
+  if (tickers.some((series, index) => series.ticker !== meta.tickers[index])) return null;
 
   return { computedAt: meta.computedAt, ihsg: meta.ihsg, tickers };
 }

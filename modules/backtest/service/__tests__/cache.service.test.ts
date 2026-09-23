@@ -29,17 +29,26 @@ const sampleCache: BacktestIndicatorCache = {
 describe('cache.service', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('writeBacktestCache menulis satu meta key dan satu key per ticker', async () => {
+  it('menulis shard snapshot dulu lalu mempublikasikan pointer active terakhir', async () => {
     await writeBacktestCache(sampleCache);
 
-    expect(vi.mocked(cacheSet)).toHaveBeenCalledTimes(2); // 1 meta + 1 ticker
-    const metaCall = vi.mocked(cacheSet).mock.calls.find(([key]) => key.endsWith(':meta'));
-    expect(metaCall).toBeTruthy();
-    const [, metaValue] = metaCall!;
-    expect((metaValue as any).tickers).toEqual(['BBCA.JK']);
+    expect(vi.mocked(cacheSet)).toHaveBeenCalledTimes(2); // 1 ticker + 1 pointer/meta
+    const calls = vi.mocked(cacheSet).mock.calls;
+    expect(calls[0][0]).toContain(':snapshot:');
+    expect(calls[0][0]).toContain(':ticker:BBCA.JK');
+    expect(calls[1][0].endsWith(':active')).toBe(true);
+    expect(calls[1][1]).toMatchObject({
+      snapshotId: expect.any(String),
+      tickers: ['BBCA.JK'],
+    });
+    expect(calls[0][0]).toContain((calls[1][1] as any).snapshotId);
+  });
 
-    const tickerCall = vi.mocked(cacheSet).mock.calls.find(([key]) => key.includes('BBCA.JK'));
-    expect(tickerCall).toBeTruthy();
+  it('tidak mempublikasikan pointer bila penulisan shard gagal', async () => {
+    vi.mocked(cacheSet).mockRejectedValueOnce(new Error('shard failed'));
+    await expect(writeBacktestCache(sampleCache)).rejects.toThrow('shard failed');
+    expect(vi.mocked(cacheSet)).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(cacheSet).mock.calls[0][0]).toContain(':snapshot:');
   });
 
   it('readBacktestCache mengembalikan null kalau meta key belum ada (cache-miss)', async () => {
@@ -50,6 +59,7 @@ describe('cache.service', () => {
 
   it('readBacktestCache menyusun ulang data dari meta + cacheMGet', async () => {
     vi.mocked(cacheGet).mockResolvedValue({
+      snapshotId: 'snapshot-1',
       computedAt: sampleCache.computedAt,
       ihsg: sampleCache.ihsg,
       tickers: ['BBCA.JK'],
@@ -62,5 +72,30 @@ describe('cache.service', () => {
     expect(result!.tickers.length).toBe(1);
     expect(result!.tickers[0].ticker).toBe('BBCA.JK');
     expect(result!.ihsg).toEqual(sampleCache.ihsg);
+    expect(vi.mocked(cacheMGet).mock.calls[0][0][0]).toContain('snapshot-1');
+  });
+
+  it('menganggap snapshot tidak lengkap sebagai unavailable, bukan hasil kosong', async () => {
+    vi.mocked(cacheGet).mockResolvedValue({
+      snapshotId: 'snapshot-partial',
+      computedAt: sampleCache.computedAt,
+      ihsg: sampleCache.ihsg,
+      tickers: ['BBCA.JK'],
+    } as any);
+    vi.mocked(cacheMGet).mockResolvedValue([null]);
+
+    await expect(readBacktestCache()).resolves.toBeNull();
+  });
+
+  it('menolak shard dari ticker/generasi yang tidak cocok', async () => {
+    vi.mocked(cacheGet).mockResolvedValue({
+      snapshotId: 'snapshot-wrong',
+      computedAt: sampleCache.computedAt,
+      ihsg: sampleCache.ihsg,
+      tickers: ['BBCA.JK'],
+    } as any);
+    vi.mocked(cacheMGet).mockResolvedValue([{ ...sampleCache.tickers[0], ticker: 'TLKM.JK' }] as any);
+
+    await expect(readBacktestCache()).resolves.toBeNull();
   });
 });
