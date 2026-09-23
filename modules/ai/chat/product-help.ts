@@ -64,16 +64,35 @@ function allFeaturesAnswer(): string {
   ].join('\n');
 }
 
+/** Jawaban kepatuhan (temuan operator 2026-09-23: "SahamLens apa legal?" sempat dijawab
+ * daftar fitur). Semua klaim di sini harus tetap benar kapan pun: tidak ada pernyataan
+ * tentang izin/regulator yang tidak bisa dipertanggungjawabkan - fokus pada fakta produk. */
+const COMPLIANCE_QUERY = /\b(legal|legalitas|resmi|izinkah|halal|terdaftar|bohong|abal|penipuan|scam|aman(?:kah|nya)?)\b/;
+const PRODUCT_SELF_QUERY = /\b(sahamlens|saham lens|lensai|lens ai|aplikasi (?:ini|saham(?:lens)?)|tools? ini|platform ini)\b/;
+
+const COMPLIANCE_ANSWER = [
+  '**SahamLens adalah alat riset pribadi - bukan perantara transaksi.** Poin pentingnya:',
+  '',
+  '- **Bukan sekuritas/broker:** SahamLens tidak menerima order dan tidak bisa mengeksekusi transaksi; jual-beli tetap lewat sekuritas tempat kamu terdaftar.',
+  '- **Bukan pengelola dana:** tidak ada setoran uang nyata ke SahamLens - fitur transaksi di aplikasi adalah simulasi dengan saldo virtual.',
+  '- **Bukan penasihat investasi resmi:** semua skor dan sinyal (LensScore, Radar, TP/CL) bersifat research-only, bukan rekomendasi personal untuk membeli/menjual.',
+  '- **Data dari sumber publik:** laporan emiten IDX dan data pasar yang tersedia, dengan segala keterbatasannya dijelaskan di menu Transparansi.',
+  '- **Keputusan tetap milikmu:** seluruh risiko keputusan beli/jual ada pada pengguna.',
+].join('\n');
+
 /** Jawaban product-help deterministik agar bantuan fitur tetap tersedia ketika provider AI
- * sedang timeout/rate-limit. Data emiten dan pasar tetap melewati jalur terverifikasi. */
-export function getDeterministicProductHelpResponse(prompt: string): string {
+ * sedang timeout/rate-limit. Data emiten dan pasar tetap melewati jalur terverifikasi.
+ * Mengembalikan null bila tidak ada jawaban deterministik yang pas - pemanggil WAJIB
+ * meneruskan ke model, bukan memaksa daftar fitur (insiden "SahamLens apa legal?"). */
+export function getDeterministicProductHelpResponse(prompt: string): string | null {
   const text = normalizeChatText(prompt);
+  if (PRODUCT_SELF_QUERY.test(text) && COMPLIANCE_QUERY.test(text)) return COMPLIANCE_ANSWER;
   if (ALL_FEATURES_QUERY.test(text)) return allFeaturesAnswer();
   const adminStart = PRODUCT_FEATURES.findIndex((item) => item.name === ADMIN_FEATURE_START_NAME);
   const feature = /\b(validation|lab|backfill|integrity|adoption|operational|kesehatan operasional|uji akurasi|uji target|uji intraday|uji arus|pemeriksaan data|bukti data|bukti fundamental|masukan lensai|feedback lensai)\b/.test(text)
     ? PRODUCT_FEATURES.slice(adminStart).find((item) => item.pattern.test(text)) ?? PRODUCT_FEATURES.find((item) => item.pattern.test(text))
     : PRODUCT_FEATURES.find((item) => item.pattern.test(text));
-  return feature ? featureAnswer(feature) : allFeaturesAnswer();
+  return feature ? featureAnswer(feature) : null;
 }
 
 export function isAllFeaturesProductQuery(prompt: string): boolean {
