@@ -8,7 +8,7 @@ import { resolveChatDate } from './chat-date';
 import { classifyChatIntent } from './chat-intent';
 import { buildChatVerifiedData, summarizeChatDataProvenance } from './chat-data-router';
 import { buildSystemPrompt, CAVEMAN_DIRECTIVE, pakaiStrukturAnalisis, STRUKTUR_ANALISIS } from './build-system-prompt';
-import { outOfScopeResponse, CLARIFICATION_PROMPT } from './out-of-scope';
+import { CLARIFICATION_PROMPT } from './out-of-scope';
 import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
 import { parseFollowUps } from './follow-ups';
@@ -46,13 +46,9 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   if (classification.needsClarification) {
     return json({ role: 'assistant', content: CLARIFICATION_PROMPT, routing: { intent: 'CLARIFY', providerUsed: false, dataFetches: 0 } });
   }
-  if (classification.intent === 'OUT_OF_SCOPE') {
-    return json({
-      role: 'assistant',
-      content: outOfScopeResponse(classification.outOfScopeReason),
-      routing: { intent: 'OUT_OF_SCOPE', reason: classification.outOfScopeReason ?? 'NON_MARKET', providerUsed: false, dataFetches: 0 },
-    });
-  }
+  // Opsi A (keputusan operator 2026-09-23): topik di luar pasar TIDAK ditolak kaku lagi -
+  // jatuh ke model dengan aturan rule 36 (jawab singkat, tanpa mengarang angka, tawarkan
+  // kembali ke konteks pasar). Kunci verifikasi angka emiten tetap berlaku di jalur model.
   if (classification.intent === 'SCORING_METHOD' && tickers.length === 0) {
     return json({
       role: 'assistant',
