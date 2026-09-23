@@ -913,7 +913,8 @@ textarea {
   .lens-main {
     padding-bottom: 0;
     scroll-padding-bottom: calc(var(--lens-mobile-nav-clearance, 6.5rem) + 0.5rem);
-    overscroll-behavior-y: contain;
+    /* AppShell menangani tarik-turun dan memuat ulang data dari kontainer gulir ini. */
+    overscroll-behavior-y: auto;
   }
 
   /* Real in-flow scroll room. MobileNav measures its own rendered size and

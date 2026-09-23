@@ -43,6 +43,25 @@ function SkipToContent() {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isBareAuthPage = BARE_AUTH_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  const mainRef = React.useRef<HTMLElement>(null);
+  const pullStartY = React.useRef<number | null>(null);
+  const pullReloading = React.useRef(false);
+
+  const handlePullStart = (event: React.TouchEvent<HTMLElement>) => {
+    const target = event.target as Element;
+    if (target.closest('a, button, input, select, textarea, [role="button"]')) return;
+    pullStartY.current = mainRef.current?.scrollTop === 0 ? (event.touches[0]?.clientY ?? null) : null;
+  };
+
+  const handlePullEnd = (event: React.TouchEvent<HTMLElement>) => {
+    const endY = event.changedTouches[0]?.clientY ?? 0;
+    const startedAtTop = mainRef.current?.scrollTop === 0;
+    const pulledFarEnough = pullStartY.current != null && endY - pullStartY.current >= 72;
+    pullStartY.current = null;
+    if (!startedAtTop || !pulledFarEnough || pullReloading.current) return;
+    pullReloading.current = true;
+    window.location.reload();
+  };
 
   // Presence heartbeat dibatasi lintas-tab. Request aplikasi normal sudah menyentuh
   // presence lewat getSession(); heartbeat ini hanya menjaga user yang sedang membaca
@@ -106,8 +125,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <TopMarketBar />
         <main
           id={CONTENT_ID}
+          ref={mainRef}
           tabIndex={-1}
           className="lens-main relative flex min-w-0 flex-1 flex-col overflow-y-auto"
+          onTouchStart={handlePullStart}
+          onTouchEnd={handlePullEnd}
         >
           <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 lens-ambient-bg" />
           <div className="relative z-[1] min-h-full">
