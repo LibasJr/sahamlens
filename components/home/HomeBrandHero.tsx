@@ -11,13 +11,14 @@ import { technicalResearchPath } from '@/shared/navigation/technical-route';
 
 interface HomeBrandHeroProps {
   ihsg: { price: number; changePct: number } | null;
+  ihsgAsOfLabel?: string | null;
   loadingMarket: boolean;
   marketError: boolean;
 }
 
 const POPULAR_SYMBOLS = ['BBCA', 'BBRI', 'BMRI', 'TLKM'];
 
-export default function HomeBrandHero({ ihsg, loadingMarket, marketError }: HomeBrandHeroProps) {
+export default function HomeBrandHero({ ihsg, ihsgAsOfLabel, loadingMarket, marketError }: HomeBrandHeroProps) {
   const router = useRouter();
   const { t, language } = useLanguage();
   const [query, setQuery] = useState('');
@@ -111,6 +112,9 @@ export default function HomeBrandHero({ ihsg, loadingMarket, marketError }: Home
               <div className={`mt-1.5 inline-flex items-center gap-1 font-number text-sm font-bold ${positive ? 'text-tv-green' : 'text-tv-red'}`}>
                 {positive ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
                 {positive ? '+' : ''}{ihsg.changePct.toFixed(2)}%
+                {ihsgAsOfLabel && ihsgAsOfLabel !== 'Live' ? (
+                  <span className="ml-1 font-sans text-xs font-medium text-tv-muted">{ihsgAsOfLabel}</span>
+                ) : null}
               </div>
             </>
           ) : loadingMarket ? (

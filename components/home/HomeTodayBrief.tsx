@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/i18n';
 
 interface HomeTodayBriefProps {
   ihsg: { price: number; changePct: number } | null;
+  ihsgAsOfLabel?: string | null;
   marketPulse: MarketPulse | null;
   dailyPicks: DailyPickCounts | null;
   radarItems: RadarItem[];
@@ -97,6 +98,7 @@ const REGIME_TONE_CLASS: Record<NonNullable<MarketPulse['regime']>['posture'], s
 export default function HomeTodayBrief(props: HomeTodayBriefProps) {
   const {
     ihsg,
+    ihsgAsOfLabel,
     marketPulse,
     dailyPicks,
     radarItems,
@@ -170,7 +172,9 @@ export default function HomeTodayBrief(props: HomeTodayBriefProps) {
                 label: 'IHSG',
                 loading: loadingMarket,
                 value: ihsg ? Math.round(ihsg.price).toLocaleString('id-ID') : null,
-                detail: ihsg ? `${ihsg.changePct >= 0 ? '+' : ''}${ihsg.changePct.toFixed(2)}%` : undefined,
+                detail: ihsg
+                  ? `${ihsg.changePct >= 0 ? '+' : ''}${ihsg.changePct.toFixed(2)}%${ihsgAsOfLabel && ihsgAsOfLabel !== 'Live' ? ` · ${ihsgAsOfLabel}` : ''}`
+                  : undefined,
                 tone: ihsg ? (ihsg.changePct >= 0 ? 'positive' : 'negative') : 'neutral',
                 emptyHint: 'N/A',
               },
