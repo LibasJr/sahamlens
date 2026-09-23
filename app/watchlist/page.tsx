@@ -28,7 +28,7 @@ interface WatchlistItem {
   lot?: number;
   journal_note?: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 }
 
 interface AlertItem {
@@ -109,7 +109,7 @@ function JournalSection({
             <Button variant="bare" size="none" onClick={onCancelEdit} className="p-1 text-tv-muted hover:text-tv-text">
               <X className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="bare" size="none" onClick={() => onSave(journalNote)} disabled={saving || !journalNote.trim()} className="p-1 text-tv-green hover:text-tv-green/80 disabled:opacity-50">
+            <Button variant="bare" size="none" onClick={() => onSave(journalNote)} disabled={saving} className="p-1 text-tv-green hover:text-tv-green/80 disabled:opacity-50" aria-label={journalNote.trim() ? 'Simpan catatan' : 'Hapus catatan'}>
               <Check className="w-3.5 h-3.5" />
             </Button>
           </div>
@@ -131,9 +131,9 @@ function JournalSection({
           </Button>
         </div>
       ) : (
-        <button onClick={onStartEdit} className="text-[11px] text-tv-muted hover:text-tv-blue flex items-center gap-1 transition-colors">
+        <Button variant="bare" size="none" onClick={onStartEdit} className="text-[11px] text-tv-muted hover:text-tv-blue flex items-center gap-1 transition-colors">
           <Pencil className="w-3 h-3" /> Tambah catatan
-        </button>
+        </Button>
       )}
     </div>
   );
@@ -390,7 +390,7 @@ export default function WatchlistPage() {
       void fetchWatchlist();
       setJournalSymbol(null);
       setJournalNote('');
-      showToast('Catatan berhasil disimpan.', 'success');
+      showToast(note.trim() ? 'Catatan berhasil disimpan.' : 'Catatan berhasil dihapus.', 'success');
     } catch (error) {
       showToast(apiErrorMessage(error, 'Gagal menyimpan catatan. Coba lagi.', true), 'error');
     } finally {

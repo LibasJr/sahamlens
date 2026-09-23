@@ -33,8 +33,15 @@ describe('updateJournal', () => {
     expect(mocks.updateJournal).toHaveBeenCalledWith('u1', 'BBCA.JK', 'Beli bertahap di support 8500');
   });
 
+  it('menghapus catatan melalui string kosong tanpa menghapus watchlist item', async () => {
+    mocks.updateJournal.mockResolvedValue({ ...mockItem, journal_note: null });
+    const result = await updateJournal('u1', 'BBCA.JK', { symbol: 'BBCA.JK', journal_note: '' });
+    expect(result.journal_note).toBeNull();
+    expect(mocks.updateJournal).toHaveBeenCalledWith('u1', 'BBCA.JK', '');
+  });
+
   it('meneruskan error dari repository ketika watchlist item tidak ditemukan', async () => {
-    mocks.updateJournal.mockRejectedValue(new Error('Watchlist item not found'));
-    await expect(updateJournal('u1', 'UNKNOWN.JK', { symbol: 'UNKNOWN.JK', journal_note: 'test' })).rejects.toThrow('Watchlist item not found');
+    mocks.updateJournal.mockRejectedValue(new Error('Item watchlist tidak ditemukan'));
+    await expect(updateJournal('u1', 'UNKNOWN.JK', { symbol: 'UNKNOWN.JK', journal_note: 'test' })).rejects.toThrow('Item watchlist tidak ditemukan');
   });
 });

@@ -42,12 +42,13 @@ describe('journalSchema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('menolak catatan kosong', () => {
+  it('mengizinkan string kosong sebagai operasi hapus catatan', () => {
     const result = journalSchema.safeParse({
       symbol: 'BBCA.JK',
       journal_note: '',
     });
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.journal_note).toBe('');
   });
 
   it('menolak catatan melebihi 500 karakter', () => {

@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { pool } from '../../../shared/database/postgres.client';
 import { ensureSharedSchema } from '../../../shared/database/schema.service';
+import { NotFoundError } from '../../../shared/errors/app-error';
 import type { WatchlistItem } from '../types/watchlist.types';
 
 // Queryable = pool biasa (baca di luar transaksi) ATAU PoolClient yang sedang
@@ -70,10 +71,10 @@ export async function updateWatchlistJournal(
      SET journal_note = $1, updated_at = now()
      WHERE user_id = $2 AND symbol = $3
      RETURNING *`,
-    [journalNote, userId, symbol]
+    [journalNote || null, userId, symbol]
   );
   if (rows.length === 0) {
-    throw new Error('Watchlist item not found');
+    throw new NotFoundError('Item watchlist tidak ditemukan');
   }
   return mapRow(rows[0]);
 }

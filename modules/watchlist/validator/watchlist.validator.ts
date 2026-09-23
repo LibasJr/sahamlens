@@ -10,8 +10,10 @@ export const addWatchlistSchema = z.object({
 export type AddWatchlistInput = z.infer<typeof addWatchlistSchema>;
 
 export const journalSchema = z.object({
-  symbol: z.string().min(1),
-  journal_note: z.string().min(1).max(500),
+  symbol: z.string().trim().min(1),
+  // String kosong adalah operasi hapus catatan yang disengaja; UI edit/delete memakai
+  // endpoint sama sehingga tidak perlu jalur mutasi kedua.
+  journal_note: z.string().trim().max(500),
 });
 export type JournalInput = z.infer<typeof journalSchema>;
 

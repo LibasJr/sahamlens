@@ -7,7 +7,7 @@ export interface WatchlistItem {
   lot: number | null;
   journal_note: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 }
 
 export type AlertConditionType =

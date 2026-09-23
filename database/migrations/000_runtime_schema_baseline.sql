@@ -158,15 +158,9 @@ CREATE TABLE IF NOT EXISTS users (
         buy_price NUMERIC,
         alert_price NUMERIC,
         lot NUMERIC,
-        journal_note TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
         UNIQUE (user_id, symbol)
       );
-      -- Decision journal: catatan thesis opsional + timestamp update.
-      -- Nullable supaya seluruh baris watchlist legacy tetap valid tanpa backfill.
-      ALTER TABLE watchlists ADD COLUMN IF NOT EXISTS journal_note TEXT;
-      ALTER TABLE watchlists ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
       -- Index baru: listAllWatchlistsPaginated() (admin, lintas user) ORDER BY
       -- created_at DESC tanpa filter user_id - UNIQUE(user_id, symbol) di atas tidak
       -- membantu query ini karena user_id bukan kolom pertama yang di-filter.
