@@ -391,6 +391,42 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
             <p className="mt-1.5 text-sm leading-relaxed text-tv-muted">{primaryRead}</p>
           </div>
           <div className="rounded-full border border-tv-green/30 bg-tv-green/10 px-3 py-1 text-xs font-semibold text-tv-green">Skor & alasan bisa diaudit</div>
+          {signedIn && <TechnicalExportSection
+            symbol={symbol}
+            finalSuggestion={kategoriLabel}
+            finalSuggestionTone={kategoriTone}
+            summaryId={ringkasan}
+            buyPct={buyPct}
+            sellPct={sellPct}
+            holdPct={holdPct}
+            waitPct={0}
+            agents={analyzers.map((a) => ({
+              name: String(a.label || '-'),
+              signal: sinyalDariAnalyzer(a.decision),
+              value: typeof a.value === 'string' ? a.value : null,
+              confidence: typeof a.confidence === 'number' ? a.confidence : null,
+              dimension: typeof a.dimension === 'string' ? a.dimension : null,
+            }))}
+            score={skor}
+            coveragePct={coveragePct}
+            researchLabel={describeUserResearchLabel(researchLabel)}
+            scoreConfidence={describeUserConfidenceLabel(scoreConfidence)}
+            advisoryStatus={advisoryStatus}
+            freshnessLabel={kesegaran.label}
+            freshnessTone={kesegaran.tone}
+            freshnessDetail={kesegaran.detail}
+            dataTimestamp={data._meta?.dataTimestamp ?? null}
+            provider={data.trust?.data_source ?? data._meta?.liveQuoteSource ?? null}
+            subScores={subSkor}
+            dimensions={dimensi.map((d) => ({
+              dimension: d.dimension,
+              weight: d.weight,
+              direction: d.direction,
+              votedAnalyzers: d.votedAnalyzers,
+              analyzers: d.analyzers ?? [],
+            }))}
+            ringkasan={ringkasan}
+          />}
         </div>
 
         {/* Harga & skor berdampingan: dua angka yang paling dicari, sebelum apa pun. */}
@@ -549,21 +585,6 @@ async function LensConsensusAnalysisDisplay({ symbol }: { symbol: string }) {
           <h2 className="font-heading font-bold text-tv-text">
             Konsensus Teknikal · {total} analyzer
           </h2>
-          {/* GEMBOK TAMU (2026-08-23). Mengunduh hasil analisis adalah fitur yang dibawa
-              pulang - kalau tamu bisa mengekspornya, tidak ada yang tersisa untuk
-              diperoleh dengan mendaftar. */}
-          {signedIn && <TechnicalExportSection
-            symbol={symbol}
-            finalSuggestion={kategoriLabel}
-            finalSuggestionTone={kategoriTone}
-            summaryId={ringkasan}
-            buyPct={buyPct}
-            sellPct={sellPct}
-            holdPct={holdPct}
-            waitPct={0}
-            agents={analyzers.map((a) => ({ name: String(a.label || '-'), signal: sinyalDariAnalyzer(a.decision) }))}
-            score={skor}
-          />}
         </div>
 
         {total > 0 && (
