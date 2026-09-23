@@ -292,6 +292,7 @@ describe('9Router (proxy AI multi-provider)', () => {
 
     const result = await generateAIResult({ prompt: 'test', timeoutMs: 50 });
     expect(result.text).toBe('halo');
+    expect(result).toMatchObject({ provider: '9router', model: 'auto' });
 
     const [url, init] = fetchSpy.mock.calls[0];
     expect(url).toBe('https://router.example.com/v1/chat/completions');

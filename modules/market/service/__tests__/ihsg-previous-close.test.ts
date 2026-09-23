@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { correctIhsgPreviousClose } from '../live-price.service';
+import { applyOfficialIhsgEodAfterClose, correctIhsgPreviousClose } from '../live-price.service';
 import { parseIdxIhsgArtifact } from '../idx-ihsg-eod.service';
 
 // Insiden 2026-09-23: banner -1% saat IHSG live +0,64% - Yahoo previousClose basi
@@ -64,6 +64,38 @@ describe('correctIhsgPreviousClose (^JKSE)', () => {
     const out = correctIhsgPreviousClose('BBCA.JK', [1, 2], [7000, 8000], 8000, '/nonexistent/ihsg.json');
     expect(out.source).toBe('YAHOO');
     expect(out.previousClose).toBe(8000);
+  });
+
+  it('setelah sesi tutup, close dan perubahan resmi BEI mengalahkan Yahoo pada tanggal sama', () => {
+    const official = {
+      price: 6374.912,
+      previousClose: 6277.044,
+      changePct: 1.5591101776,
+      tradeDate: '2026-09-23',
+      sourceTimestamp: '2026-09-23T09:00:00.000Z',
+      source: 'IDX_OFFICIAL_INDEX_SUMMARY' as const,
+    };
+    const out = applyOfficialIhsgEodAfterClose('^JKSE', {
+      price: 6372.932, changePercent: -0.03, previousClose: 6374.912,
+      dataTimestamp: '2026-09-23T08:48:26.000Z',
+    }, official, false);
+    expect(out).toMatchObject({
+      price: 6374.912, previousClose: 6277.044, changePercent: 1.56,
+      source: 'IDX_OFFICIAL_INDEX_SUMMARY',
+    });
+  });
+
+  it('saat bursa buka, harga Yahoo tetap dipakai untuk pergerakan intraday', () => {
+    const official = {
+      price: 6277.044, previousClose: 6384.726, changePct: -1.688,
+      tradeDate: '2026-09-22', sourceTimestamp: '2026-09-22T09:00:00.000Z',
+      source: 'IDX_OFFICIAL_INDEX_SUMMARY' as const,
+    };
+    const out = applyOfficialIhsgEodAfterClose('^JKSE', {
+      price: 6372.932, changePercent: 1.53, previousClose: 6277.044,
+      dataTimestamp: '2026-09-23T08:48:26.000Z',
+    }, official, true);
+    expect(out).toMatchObject({ price: 6372.932, changePercent: 1.53, source: 'YAHOO' });
   });
 
   it('parseIdxIhsgArtifact tetap lolos penjaga jumlah baris (gerbang pemindai)', () => {

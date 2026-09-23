@@ -34,6 +34,38 @@ export interface LivePriceResult {
  * Yahoo yang dijadikan acuan previousClose, pakai close artefak - fail-closed ke
  * data resmi, bukan angka karangan.
  */
+function jakartaDateFromTimestamp(value: string | null): string | null {
+  if (!value) return null;
+  const timestamp = new Date(value).getTime();
+  if (!Number.isFinite(timestamp)) return null;
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(timestamp);
+}
+
+/**
+ * Setelah sesi selesai, artefak Index Summary resmi BEI adalah sumber final IHSG.
+ * Yahoo boleh terlambat/revisi, sehingga tidak boleh menimpa close resmi pada tanggal
+ * yang sama. Saat sesi masih berjalan, Yahoo tetap dipakai agar harga intraday hidup.
+ */
+export function applyOfficialIhsgEodAfterClose(
+  ticker: string,
+  yahoo: { price: number; changePercent: number | null; previousClose: number | null; dataTimestamp: string | null },
+  official: ReturnType<typeof readIdxIhsgEod>,
+  marketOpen: boolean,
+): { price: number; changePercent: number | null; previousClose: number | null; dataTimestamp: string | null; source: 'YAHOO' | 'IDX_OFFICIAL_INDEX_SUMMARY' } {
+  if (ticker !== '^JKSE' || marketOpen || !official) return { ...yahoo, source: 'YAHOO' };
+  const yahooDate = jakartaDateFromTimestamp(yahoo.dataTimestamp);
+  if (yahooDate && official.tradeDate < yahooDate) return { ...yahoo, source: 'YAHOO' };
+  return {
+    price: official.price,
+    changePercent: Number(official.changePct.toFixed(2)),
+    previousClose: official.previousClose,
+    dataTimestamp: official.sourceTimestamp,
+    source: 'IDX_OFFICIAL_INDEX_SUMMARY',
+  };
+}
+
 export function correctIhsgPreviousClose(
   ticker: string,
   timestamps: number[] | undefined,
@@ -106,6 +138,19 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
           console.warn(`[live:${ticker}] previousClose Yahoo basi (${resolved.previousClose}) dikoreksi ke close resmi BEI ${corrected.previousClose}`);
         }
         const previousClose = corrected.previousClose;
+        const fresh = classifyFreshness(meta?.regularMarketTime);
+        const marketOpen = isMarketOpen(new Date());
+        const finalIhsg = applyOfficialIhsgEodAfterClose(
+          ticker,
+          {
+            price: lastPrice,
+            changePercent: previousClose != null ? ((lastPrice - previousClose) / previousClose) * 100 : null,
+            previousClose,
+            dataTimestamp: fresh.dataTimestamp,
+          },
+          readIdxIhsgEod(),
+          marketOpen,
+        );
 
         if (resolved.metaDisagrees) {
           console.warn(
@@ -113,34 +158,32 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
           );
         }
 
-        const changePercent = previousClose != null ? ((lastPrice - previousClose) / previousClose) * 100 : null;
         const volume = isFiniteNonNegative(meta?.regularMarketVolume) ? meta.regularMarketVolume : null;
-        const fresh = classifyFreshness(meta?.regularMarketTime);
         if (process.env.NODE_ENV !== 'test') await recordDataSourceHealth({
-          sourceId: 'YAHOO_CHART', ok: true, latencyMs: Date.now() - startedAt,
-          dataObservedAt: fresh.dataTimestamp,
+          sourceId: finalIhsg.source === 'IDX_OFFICIAL_INDEX_SUMMARY' ? 'IDX_OFFICIAL_INDEX_SUMMARY' : 'YAHOO_CHART',
+          ok: true, latencyMs: Date.now() - startedAt,
+          dataObservedAt: finalIhsg.dataTimestamp,
           detail: { endpoint: 'live-price', freshness: fresh.freshness },
         });
 
         return {
           available: true,
           body: {
-            price: lastPrice,
-            changePercent: changePercent != null ? parseFloat(changePercent.toFixed(2)) : null,
-            previousClose,
+            price: finalIhsg.price,
+            changePercent: finalIhsg.changePercent,
+            previousClose: finalIhsg.previousClose,
             volume,
-            lastUpdate: fresh.dataTimestamp,
-            // Label kejujuran (opsi 2, operator 2026-09-23): saat bursa tutup,
-            // angka ini adalah harga penutupan terakhir - bukan realtime.
-            asOfLabel: fresh.dataTimestamp == null
+            lastUpdate: finalIhsg.dataTimestamp,
+            // Setelah close, nilai resmi BEI menang atas Yahoo yang bisa terlambat.
+            asOfLabel: finalIhsg.dataTimestamp == null
               ? null
-              : isMarketOpen(new Date())
+              : marketOpen
                 ? 'Live'
-                : `per penutupan ${new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short' }).format(new Date(fresh.dataTimestamp))}`,
-            dataTimestamp: fresh.dataTimestamp,
-            ageSeconds: fresh.ageSeconds,
-            freshness: fresh.freshness,
-            source: 'Yahoo Finance',
+                : `per penutupan ${new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short' }).format(new Date(finalIhsg.dataTimestamp))}`,
+            dataTimestamp: finalIhsg.dataTimestamp,
+            ageSeconds: finalIhsg.dataTimestamp == null ? null : Math.max(0, Math.floor((Date.now() - new Date(finalIhsg.dataTimestamp).getTime()) / 1000)),
+            freshness: finalIhsg.source === 'IDX_OFFICIAL_INDEX_SUMMARY' ? 'EOD' : fresh.freshness,
+            source: finalIhsg.source === 'IDX_OFFICIAL_INDEX_SUMMARY' ? 'IDX Official Index Summary' : 'Yahoo Finance',
             delay: null,
           },
           headers: getMarketAwareCacheHeaders(),

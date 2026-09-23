@@ -579,6 +579,9 @@ export interface GenerateAIResult {
   text: string | null;
   errorCode: AIProviderErrorCode | null;
   failureKinds: FailureKind[];
+  /** Provider/model yang benar-benar menyelesaikan request; aman untuk observability. */
+  provider?: string;
+  model?: string;
 }
 
 function aggregateProviderFailure(failures: FailureKind[]): AIProviderErrorCode {
@@ -626,7 +629,7 @@ export async function generateAIResult(opts: { system?: string; prompt: string; 
     if (result.text) {
       markSuccess(combo);
       if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: true, latencyMs: Date.now() - startedAt, detail: { provider: combo.provider.name, model: combo.model } });
-      return { text: result.text, errorCode: null, failureKinds: failures };
+      return { text: result.text, errorCode: null, failureKinds: failures, provider: combo.provider.name, model: combo.model };
     }
 
     const failureKind = result.failureKind ?? 'other';
@@ -835,7 +838,7 @@ export async function generateAIStream(opts: {
     if (result.text) {
       markSuccess(combo);
       if (process.env.NODE_ENV !== 'test') void recordDataSourceHealth({ sourceId: 'AI_COUNCIL', ok: true, latencyMs: Date.now() - startedAt, detail: { provider: combo.provider.name, model: combo.model } });
-      return { text: result.text, errorCode: null, failureKinds: failures };
+      return { text: result.text, errorCode: null, failureKinds: failures, provider: combo.provider.name, model: combo.model };
     }
 
     const failureKind = result.failureKind ?? 'other';

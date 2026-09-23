@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { generateAIStream, generateAIResult } from '@/lib/aiProviders';
+import { recordDataSourceHealth } from '@/modules/observability/service/data-source-health.service';
 import { applyAnonymousTrialCookie, type AnonTrialState } from '@/shared/auth/anonymous-trial';
 import { createStreamGate } from './stream-gate';
 import { verifyAnswerNumbers, verifyStructuredEvidence, unverifiedNumbersNotice } from './verify-numbers';
@@ -53,6 +54,7 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
 
   const body = new ReadableStream<Uint8Array>({
     async start(controller) {
+      const startedAt = Date.now();
       const send = (event: Record<string, unknown>) => {
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       };
@@ -91,10 +93,21 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
         });
 
         if (!result.text) {
+          const detailCode = result.errorCode ?? 'ALL_PROVIDERS_FAILED';
+          const errorCode = detailCode === 'RATE_LIMIT' ? 'RATE_LIMIT' : 'PROVIDER_ERROR';
+          const latencyMs = Date.now() - startedAt;
+          console.warn('[LensAI:stream] provider gagal', {
+            status: 'error', errorCode, detailCode, latencyMs,
+            failureKinds: result.failureKinds,
+          });
+          void recordDataSourceHealth({
+            sourceId: 'AI_CHAT_STREAM', ok: false, latencyMs,
+            detail: { status: 'error', errorCode, detailCode, failureKinds: result.failureKinds },
+          });
           send({
             t: 'error',
-            errorCode: result.errorCode === 'RATE_LIMIT' ? 'RATE_LIMIT' : 'PROVIDER_ERROR',
-            detailCode: result.errorCode ?? 'ALL_PROVIDERS_FAILED',
+            errorCode,
+            detailCode,
             content: 'LensAI belum berhasil menyelesaikan jawaban dari penyedia AI. Silakan ulangi pertanyaan Anda.',
           });
           controller.close();
@@ -176,22 +189,42 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
           send({ t: 'replace', v: finalAnswer });
         }
 
+        const latencyMs = Date.now() - startedAt;
+        console.info('[LensAI:stream] selesai', {
+          status: 'success', latencyMs, provider: result.provider ?? null, model: result.model ?? null,
+          verification: { numbers: numberCheck.ok, evidence: finalEvidenceCheck.ok },
+        });
+        void recordDataSourceHealth({
+          sourceId: 'AI_CHAT_STREAM', ok: true, latencyMs,
+          detail: {
+            status: 'success', provider: result.provider ?? null, model: result.model ?? null,
+            numberCheckOk: numberCheck.ok, evidenceCheckOk: finalEvidenceCheck.ok,
+          },
+        });
         send({
           t: 'done',
           followUps,
           routing: {
             ...args.routing,
             streamed: true,
+            provider: result.provider ?? null,
+            model: result.model ?? null,
             numberCheck: { ok: numberCheck.ok, checked: numberCheck.checked, unverified: numberCheck.unverified },
             evidenceCheck: { ok: evidenceCheck.ok, issues: evidenceCheck.issues },
           },
         });
         controller.close();
       } catch (error) {
-        console.error('[LensAI:stream] gagal', error instanceof Error ? error.message : String(error));
+        const latencyMs = Date.now() - startedAt;
+        const detailCode = 'INTERNAL_ERROR';
+        console.error('[LensAI:stream] gagal', { status: 'error', detailCode, latencyMs, message: error instanceof Error ? error.message : String(error) });
+        void recordDataSourceHealth({
+          sourceId: 'AI_CHAT_STREAM', ok: false, latencyMs,
+          detail: { status: 'error', detailCode },
+        });
         send({
           t: 'error',
-          errorCode: 'INTERNAL_ERROR',
+          errorCode: detailCode,
           content: 'LensAI mengalami kesalahan internal saat menyiapkan jawaban.',
         });
         controller.close();
