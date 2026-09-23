@@ -55,6 +55,8 @@ type ChatMessage = {
   supportRequestId?: string | null;
   /** Parent message for an inline reply branch. */
   replyToId?: string;
+  /** Snapshot shown above reply bubble, so "OK" still has visible source context. */
+  replyPreview?: { role: 'user' | 'assistant'; content: string };
 };
 
 
@@ -345,7 +347,10 @@ export default function AIChat() {
       id: userMessageId,
       role: 'user',
       content: userPrompt,
-      ...(replyTarget ? { replyToId: replyTarget.id } : {}),
+      ...(replyTarget ? {
+        replyToId: replyTarget.id,
+        replyPreview: { role: replyTarget.role, content: replyTarget.content },
+      } : {}),
     }));
     setIsLoading(true);
 
@@ -660,6 +665,14 @@ export default function AIChat() {
                       ? 'max-w-[85%] rounded-2xl rounded-tr-md bg-tv-blue p-4 text-white'
                       : 'w-full max-w-prose text-tv-text'
                   }`}>
+                    {msg.replyPreview && (
+                      <div className={`mb-2 border-l-2 px-2 text-xs leading-snug ${
+                        msg.role === 'user' ? 'border-white/60 text-white/75' : 'border-tv-blue text-tv-muted'
+                      }`}>
+                        <p className="font-semibold">{msg.replyPreview.role === 'user' ? 'Membalas pertanyaanmu' : 'Membalas LensAI'}</p>
+                        <p className="line-clamp-2">{msg.replyPreview.content}</p>
+                      </div>
+                    )}
                     {msg.role === 'assistant' ? (
                       <div className="ai-response">
                         {markdownReady ? (
