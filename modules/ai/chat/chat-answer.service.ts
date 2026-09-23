@@ -15,6 +15,7 @@ import { parseFollowUps, FOLLOWUP_MARKER, buildTickerChips } from './follow-ups'
 import { streamChatAnswer } from './stream-answer';
 import { calculateChatQuestion } from './chat-calculator';
 import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
+import { buildExternalUrlContext } from './external-url-context';
 import { providerErrorResponse } from './provider-error';
 import { getDeterministicProductHelpResponse } from './product-help';
 import { scoringMethodologyBlock } from './blocks/lens-blocks';
@@ -128,6 +129,12 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   // yang masuk ke model + verifikator adalah teks user-facing, jadi ISO lengkap diubah ke
   // WIB di boundary ini. Tanggal as-of polos (YYYY-MM-DD) sengaja tidak disentuh.
   verified.verifiedBlock = formatIsoTimestampsToWib(verified.verifiedBlock);
+  // Link user dibaca hanya di server dengan guard SSRF; kontennya diberi label external/unverified.
+  const externalUrlContext = await buildExternalUrlContext([
+    ...history.filter((message) => message.role === 'user').map((message) => message.content),
+    prompt,
+  ].join('\n'));
+  verified.verifiedBlock += externalUrlContext;
 
   const rawDataProvenance = summarizeChatDataProvenance(verified.verifiedBlock);
   const dataProvenance = rawDataProvenance
@@ -173,6 +180,7 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     classification.intent === 'COMPARE_STOCKS' ? `- Comparison scope: ${classification.compareScope}` : '',
     !issuerProfileOnly && pakaiStrukturAnalisis(classification.intent, classification.dataIntent) ? STRUKTUR_ANALISIS : '',
     '- WAJIB: jelaskan data server yang tersedia; jangan mengisi angka yang tidak ada di Data Terverifikasi Server.',
+    externalUrlContext ? '- LINK EKSTERNAL: jawaban HARUS fokus pada isi link yang berhasil dibaca. Jika gagal dibaca, jelaskan kegagalannya saja; JANGAN mengganti dengan analisis saham/topik lain dari riwayat.' : '',
   ].filter(Boolean).join('\n');
 
   const focusedKnowledge = getFocusedMenuKnowledge(prompt);
