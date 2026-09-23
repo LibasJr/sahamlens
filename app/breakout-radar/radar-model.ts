@@ -20,6 +20,34 @@ export type AiPickItem = {
   // ada (lihat guard `?? fallback` di ai-pick.service.ts rankAiPicks()).
   breakdown?: ScoreBreakdown;
   topReasons?: string[];
+  /** Setup trading long berbasis struktur + ATR. Null kalau belum ada setup RR >= 1.5.
+   * Field tradePlan/tp1/tp2/cl1/cl2/rr berasal dari rankAiPicks() di ai-pick.service.ts. */
+  tp1?: number | null;
+  tp2?: number | null;
+  cl1?: number | null;
+  cl2?: number | null;
+  rr?: number | null;
+  tradePlan?: {
+    version: string;
+    entryReference: string;
+    entry: number;
+    stopLoss: number;
+    cutLoss: number;
+    takeProfit1: number;
+    takeProfit2: number;
+    riskReward: number;
+    riskPercent: number;
+    riskAtr: number;
+    riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+    confidenceScore: number;
+    confidenceLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+    support: { price: number; touches: number } | null;
+    nearestSupport: { price: number; touches: number } | null;
+    resistance: { price: number; touches: number } | null;
+    reasons: string[];
+    missingData: string[];
+    caveats: string[];
+  } | null;
 };
 
 export type HorizonKey = 't1' | 't5' | 't20';

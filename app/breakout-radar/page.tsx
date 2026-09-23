@@ -10,6 +10,7 @@ import { BucketBacktestCard, BucketBacktestPending } from '@/components/radar/Bu
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { trackJourneyEvent } from '@/shared/analytics/product-journey';
 import { Badge, Button, Card, PageContainer, Skeleton, LoadingFact, TickerAvatar, AnimatedNumber, EmptyState } from '@/components/ui';
+import { SetupCard } from '@/components/radar/SetupCard';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { useLanguage } from '@/lib/i18n';
 import {
@@ -50,6 +51,7 @@ export default function AiPickPage() {
   // Technical/Fundamental/Arus Dana + 3 alasan teratas, bukan halaman/modal terpisah
   // (perubahan UI minimal, bukan redesign).
   const [expandedSymbol, setExpandedSymbol] = useState<string | null>(null);
+  const [expandedSetupSymbol, setExpandedSetupSymbol] = useState<string | null>(null);
   const [radarSortKey, setRadarSortKey] = useState<RadarColumnKey | null>(null);
   const [radarSortDir, setRadarSortDir] = useState<'asc' | 'desc'>('asc');
   // BUG FIX (2026-08-06): kegagalan fetch sebelumnya cuma masuk console.error.
@@ -613,6 +615,36 @@ export default function AiPickPage() {
               </>
             )}
           </Card>
+
+          {/* Setup Cards — kartu evidence-first per kandidat.
+              Menampilkan kategori setup (Breakout/Retest/Momentum/Reversal/Teknikal),
+              alasan, entry/stop/TP/RR, support/resistance, dan caveat.
+              Semua data berasal dari tradePlan yang sudah dihitung sistem. */}
+          {!loading && !gated && !loadError && ready && visibleItems.length > 0 && (
+            <section className="mt-6" aria-label={isId ? 'Kartu Setup Teknikal' : 'Technical Setup Cards'}>
+              <h2 className="font-heading text-sm font-bold text-tv-text flex items-center gap-2 mb-3">
+                <Target className="w-4 h-4 text-tv-blue" />
+                {isId ? 'Kartu Setup Teknikal' : 'Technical Setup Cards'}
+              </h2>
+              <div className="space-y-2">
+                {visibleItems.map((it) => (
+                  <SetupCard
+                    key={`setup-${it.symbol}`}
+                    item={it}
+                    isExpanded={expandedSetupSymbol === it.symbol}
+                    onToggle={() => setExpandedSetupSymbol(
+                      expandedSetupSymbol === it.symbol ? null : it.symbol
+                    )}
+                  />
+                ))}
+              </div>
+              <p className="text-[10px] text-tv-muted mt-2">
+                {isId
+                  ? 'Kartu ini menampilkan bukti dari data yang sudah ada — bukan rekomendasi beli/jual. Klik kartu untuk melihat rincian lengkap.'
+                  : 'These cards show evidence from existing data — not buy/sell recommendations. Click a card to view full details.'}
+              </p>
+            </section>
+          )}
 
           <p className="text-[11px] text-tv-muted mt-4 leading-relaxed">
             {isId ? (
