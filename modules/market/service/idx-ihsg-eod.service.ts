@@ -8,6 +8,8 @@ export interface IdxIhsgClose {
 
 export interface IdxIhsgSnapshot {
   price: number;
+  /** Close sesi sebelum `tradeDate`; null hanya bila artefak belum punya dua sesi. */
+  previousClose: number;
   changePct: number;
   tradeDate: string;
   sourceTimestamp: string;
@@ -47,6 +49,7 @@ export function readIdxIhsgEod(dataDir = path.join(process.cwd(), 'data', 'idx-i
   const previous = history.at(-2)!;
   return {
     price: current.close,
+    previousClose: previous.close,
     changePct: ((current.close - previous.close) / previous.close) * 100,
     tradeDate: current.date,
     sourceTimestamp: `${current.date}T09:00:00.000Z`, // 16:00 WIB, penutupan sesi BEI

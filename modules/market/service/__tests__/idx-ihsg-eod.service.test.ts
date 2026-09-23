@@ -27,7 +27,7 @@ describe('IDX official IHSG EOD artifact', () => {
       { date: '2026-08-20', close: 8000 },
       { date: '2026-08-21', close: 8080 },
     ] }));
-    expect(readIdxIhsgEod(dir)).toMatchObject({ price: 8080, changePct: 1, tradeDate: '2026-08-21' });
+    expect(readIdxIhsgEod(dir)).toMatchObject({ price: 8080, previousClose: 8000, changePct: 1, tradeDate: '2026-08-21' });
   });
 
   it('fails closed without two official observations', () => {
