@@ -13,4 +13,5 @@ export const BACKTEST_LIMITATIONS = [
   'Harga Open/Close mentah tanpa penyesuaian dividen - imbal hasil dividen tidak termasuk.',
   'Indikator teknikal yang memakai AdjClose Yahoo dapat terpengaruh restatement historis corporate action (dividen/split). Ini bukan arsip point-in-time murni, sehingga sinyal historis bisa sedikit berbeda dari data yang benar-benar terlihat pada tanggal itu.',
   'Slippage 0,2% + fee beli 0,15% + fee jual 0,25% (perkiraan ritel IDX, bisa beda per broker).',
+  'Posisi tanpa bar pada hari akhir tidak dijual secara fiktif; tetap terbuka, di-mark memakai harga terakhir, dan ditandai stale/suspended pada ledger.',
 ] as const;
