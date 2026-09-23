@@ -66,11 +66,35 @@ export async function GET(
       next: { revalidate: 60 }
     });
 
-    if (!res.ok) throw new Error('Failed to fetch from Yahoo');
-
-    const data = await res.json();
+    // Body dibaca SEBELUM memeriksa `res.ok`, karena Yahoo memakai status non-2xx untuk
+    // hal yang sebenarnya bukan kegagalan server. Terukur 2026-09-24: simbol yang bentuknya
+    // sah tapi tidak terdaftar (AAAA.JK, ZZZZ.JK, TEST.JK) dibalas **HTTP 404** dengan body
+    // yang tetap informatif:
+    //
+    //   {"chart":{"result":null,"error":{"code":"Not Found",
+    //     "description":"No data found, symbol may be delisted"}}}
+    //
+    // Urutan lama (`if (!res.ok) throw`) karena itu menerjemahkan "ticker tidak ada" menjadi
+    // 500 Internal Server Error di /api/public-chart/[ticker], padahal tidak ada yang rusak
+    // di server. Itu juga yang membuat bot pemantau dan alarm error terus menyala.
+    const data = await res.json().catch(() => null);
     const result = data?.chart?.result?.[0];
-    if (!result) throw new Error('No data');
+    const providerError = data?.chart?.error;
+
+    if (!result) {
+      // Simbol tidak dikenal provider -> 404. `chart.error` juga datang bersama HTTP 200
+      // pada sebagian parameter, jadi pemeriksaan ini tidak boleh bergantung pada status.
+      if (providerError) {
+        return {
+          status: 404,
+          body: { error: 'Data chart tidak tersedia untuk ticker ini' },
+        };
+      }
+      // Provider benar-benar tidak bisa dihubungi / membalas non-JSON (tumbang, rate limit,
+      // body terpotong). Itu memang kegagalan server: tetap 500 supaya alarm tidak ikut senyap.
+      if (!res.ok) throw new Error('Failed to fetch from Yahoo');
+      throw new Error('No data');
+    }
 
     const timestamps = result.timestamp || [];
     const quote = result.indicators?.quote?.[0] || {};

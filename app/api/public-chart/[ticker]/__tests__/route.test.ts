@@ -101,4 +101,36 @@ describe('GET /api/public-chart/[ticker]', () => {
     expect(json.error).toContain('Terlalu banyak');
     expect(global.fetch).not.toHaveBeenCalled();
   });
+
+  it('membalas 404, bukan 500, saat provider tidak punya data untuk ticker berbentuk sah', async () => {
+    // Bentuk persis balasan Yahoo untuk simbol yang sah secara format tapi tidak
+    // terdaftar: HTTP 200, `result: null`, `error` terisi. Sebelum perbaikan
+    // 2026-09-24 ini jatuh ke `throw new Error('No data')` lalu menjadi 500.
+    vi.mocked(global.fetch as any).mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        chart: {
+          result: null,
+          error: { code: 'Not Found', description: 'No data found, symbol may be delisted' },
+        },
+      }),
+    });
+
+    const res = await GET(makeRequest(), makeParams());
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(res.headers.get('X-Request-Id')).toBeTruthy();
+    expect(json.error).toBeTruthy();
+  });
+
+  it('tetap membalas 500 saat provider benar-benar gagal (res.ok false)', async () => {
+    // Perbaikan di atas hanya memindahkan "ticker tidak ada" ke 404. Kegagalan provider
+    // yang sesungguhnya harus tetap 500 supaya alarm error tidak ikut senyap.
+    vi.mocked(global.fetch as any).mockResolvedValue({ ok: false, status: 502 });
+
+    const res = await GET(makeRequest(), makeParams());
+
+    expect(res.status).toBe(500);
+  });
 });
