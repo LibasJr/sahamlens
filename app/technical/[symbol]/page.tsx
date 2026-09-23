@@ -69,10 +69,21 @@ export async function generateMetadata({
   const emiten = loadEmitenList().find((item) => item.symbol === code);
 
   if (!emiten) {
-    return {
-      title: 'Emiten tidak ditemukan',
-      robots: { index: false, follow: false },
-    };
+    // notFound() DI SINI, bukan hanya di komponen halaman.
+    //
+    // Halaman ini dirender dinamis (root layout memasang nonce CSP), jadi shell HTML
+    // sudah ter-flush ke klien sebelum komponen halaman selesai menyusun isinya.
+    // `notFound()` yang dilempar di body halaman karena itu hanya MENGGANTI ISINYA
+    // menjadi UI 404 - status HTTP-nya telanjur 200. Terukur 2026-09-24:
+    // /technical/AAAA, /technical/XYZ9999, dan /technical/RANDOMUNKNOWN999 semuanya
+    // membalas 200 sambil menampilkan "Halaman tidak ditemukan", dan crawler
+    // mengindeksnya sebagai halaman emiten yang sah. `robots: noindex` tidak
+    // menyelesaikannya - URL-nya tetap terdaftar sebagai 200 di log dan sitemap pihak
+    // ketiga.
+    //
+    // generateMetadata selesai SEBELUM body mulai mengalir, jadi lemparan di sini masih
+    // bisa menentukan status baris pertama.
+    notFound();
   }
 
   const displayName = emiten.name === code ? code : emiten.name;
@@ -84,17 +95,24 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical },
+    // `images` WAJIB diulang di sini. Next MENGGANTI seluruh objek openGraph/twitter,
+    // bukan menggabungkannya dengan milik root layout - jadi selama baris ini tidak ada,
+    // halaman emiten kehilangan `og:image`/`twitter:image` yang sudah dipasang layout,
+    // dan pratinjau tautan di Telegram/WhatsApp/X tampil tanpa gambar. Terukur
+    // 2026-09-24 pada /technical/BBCA (og:image hilang, sedangkan beranda punya).
     openGraph: {
       title,
       description,
       url: canonical,
       type: 'website',
       siteName: 'SahamLens',
+      images: [{ url: '/og-image.png', width: 1200, height: 630, alt: `SahamLens - ${code}` }],
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
+      images: ['/og-image.png'],
     },
   };
 }

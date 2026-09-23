@@ -83,7 +83,12 @@ export default function ScreenerControls({
             <Sliders className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="lens-page-title">Seleksi Profil Risiko Investor</h1>
+            {/* h2, bukan h1: halaman ini sudah punya SATU h1 dari AppShell
+                ("LensScanner - Filter Saham Multi-Faktor"). Dua h1 di satu dokumen
+                membuat struktur heading tidak lagi menunjuk satu topik utama.
+                Konvensi yang sama sudah dipakai WatchlistHeader dan Corporate
+                Calendar, yang juga memakai <h2 className="lens-page-title">. */}
+            <h2 className="lens-page-title">Seleksi Profil Risiko Investor</h2>
             <p className="text-xs text-tv-muted">Pilih toleransi risiko untuk memfilter 10 saham IDX terbaik berdasarkan skor total dan kualitas datanya.</p>
           </div>
         </div>

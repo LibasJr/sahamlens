@@ -8,6 +8,8 @@ import { checkRateLimitShared } from '@/shared/middleware/rate-limiter';
 import { getTrustedClientIp } from '@/shared/http/client-ip';
 import { isSelfLimitedExpensiveApi } from '@/shared/security/expensive-api-policy';
 import { buildContentSecurityPolicy, createCspNonce } from '@/shared/security/content-security-policy';
+import { getEmitenSymbolSet } from '@/shared/market/emiten-list';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
 
 // Next.js 16 mengganti file convention "middleware" jadi "proxy" (nama fungsi
 // & file berubah, perilaku/matcher sama - lihat node_modules/next/dist/docs/
@@ -326,12 +328,60 @@ export function isProxyExemptPath(pathname: string): boolean {
   );
 }
 
+// Path internal tanpa route. Rewrite ke sini membuat router Next merender
+// `app/not-found.tsx`; status 404-nya sendiri dipaksa di pemanggil (lihat di bawah).
+const TIDAK_DITEMUKAN_PATH = '/__tidak-ditemukan__';
+
+/**
+ * `/technical/[symbol]` adalah SATU-SATUNYA halaman dinamis di aplikasi ini, dan satu-satunya
+ * tempat yang bisa memutuskan "emiten ini tidak ada" - jadi satu-satunya tempat yang bisa
+ * salah menyampaikan status HTTP-nya.
+ *
+ * KENAPA TIDAK CUKUP `notFound()` DI HALAMANNYA. Root layout memasang nonce CSP, jadi seluruh
+ * dokumen dirender dinamis, dan `app/loading.tsx` membuat Next mengirim shell + fallback
+ * lebih dulu. Begitu byte pertama terkirim, status baris pertama sudah terkunci 200.
+ * `notFound()` yang menyusul hanya mengganti ISI body menjadi UI 404 - statusnya tetap 200.
+ * Terukur 2026-09-24 pada build produksi:
+ *
+ *   /technical/AAAA            -> 200 (body: "Halaman tidak ditemukan")
+ *   /technical/XYZ9999         -> 200
+ *   /technical/RANDOMUNKNOWN999 -> 200
+ *
+ * `robots: noindex` tidak memperbaikinya: URL-nya tetap tercatat 200 oleh crawler dan
+ * pemantau uptime. `notFound()` juga sudah dicoba di `generateMetadata` (yang selesai
+ * sebelum body mengalir) dan tetap menghasilkan 200 pada build yang sama.
+ *
+ * Proxy berjalan SEBELUM render dimulai, jadi di sinilah status itu masih bisa ditentukan.
+ */
+function isUnknownEmitenPath(pathname: string): boolean {
+  // Hanya satu segmen: /technical/BBCA. Sub-path lain di bawah /technical tidak dipakai.
+  const match = /^\/technical\/([^/]+)\/?$/.exec(pathname);
+  if (!match) return false;
+  let raw: string;
+  try {
+    raw = decodeURIComponent(match[1]);
+  } catch {
+    return true;
+  }
+  const code = normalizeIdxTickerParam(raw, { allowMarketIndex: true });
+  if (!code) return true;
+  if (code === '^JKSE') return false;
+  return !getEmitenSymbolSet().has(code.replace(/\.JK$/, ''));
+}
+
 export async function proxy(req: NextRequest) {
   const pathname = req.nextUrl.pathname;
 
   // Paling awal, SEBELUM decrypt/verifyAdminToken: pekerjaan kriptografi itu tidak gratis
   // dan tidak satu pun dari path di atas membutuhkannya.
   if (isProxyExemptPath(pathname)) return NextResponse.next();
+
+  if (isUnknownEmitenPath(pathname)) {
+    const url = req.nextUrl.clone();
+    url.pathname = TIDAK_DITEMUKAN_PATH;
+    url.search = '';
+    return NextResponse.rewrite(url, { status: 404 });
+  }
 
   // Matcher diperluas untuk nonce CSP. Halaman yang sebelumnya tidak masuk proxy hanya
   // menerima CSP; jangan diam-diam menambahkan auth, session refresh, atau limiter baru.

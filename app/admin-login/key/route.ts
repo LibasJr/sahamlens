@@ -9,7 +9,21 @@ import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
 export async function POST(req: NextRequest) {
   return runController(async () => {
     assertTrustedSameOrigin(req);
-    const formData = await req.formData();
+    // `req.formData()` MELEMPAR TypeError kalau Content-Type request bukan
+    // multipart/form-data (mis. klien mengirim JSON, atau tanpa Content-Type sama
+    // sekali). Dulu lemparan itu jatuh ke catch runController dan menjadi 500
+    // INTERNAL_ERROR - padahal server tidak sedang bermasalah, hanya bentuk request
+    // klien yang salah. Terukur 2026-09-24: POST JSON apa pun ke endpoint ini 500.
+    //
+    // Bentuk request yang BENAR tidak berubah: key yang salah tetap dibalas 404
+    // "Not found" oleh handleAdminLoginByKey, supaya keberadaan gate admin tidak
+    // terkonfirmasi ke penebak.
+    let formData: FormData;
+    try {
+      formData = await req.formData();
+    } catch {
+      return { status: 400, body: { error: 'Format permintaan tidak didukung' } };
+    }
     const key = formData.get('key');
     return handleAdminLoginByKey(typeof key === 'string' ? key : null);
   }, req);
