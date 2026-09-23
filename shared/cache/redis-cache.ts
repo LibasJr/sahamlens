@@ -201,6 +201,9 @@ export async function getCacheTtlRemaining(key: string): Promise<number | null> 
 }
 
 export async function cacheDel(keyOrPattern: string): Promise<void> {
+  // Invalidasi lokal wajib terjadi walau Redis tidak dikonfigurasi atau sedang gagal.
+  // Tanpa ini, admin dapat "menghapus" cache tetapi proses tetap menyajikan nilai lama.
+  MEMORY_CACHE.delete(keyOrPattern);
   const client = getClient();
   if (!client) return;
   try {
@@ -230,12 +233,15 @@ export async function scanKeys(pattern: string): Promise<string[]> {
 }
 
 export async function cacheMGet<T>(keys: string[]): Promise<(T | null)[]> {
+  if (keys.length === 0) return [];
   const client = getClient();
-  if (!client || keys.length === 0) return [];
+  if (!client) return keys.map((key) => memoryGet<T>(key));
   try {
     return await client.mget<T[]>(...keys);
   } catch {
-    return keys.map(() => null);
+    // Kontrak MGET: panjang dan urutan hasil selalu sama dengan input, termasuk
+    // ketika Redis gagal dan proses jatuh ke cache memori.
+    return keys.map((key) => memoryGet<T>(key));
   }
 }
 

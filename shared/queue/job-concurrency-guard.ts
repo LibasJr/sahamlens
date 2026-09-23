@@ -32,19 +32,24 @@ export async function runWithJobConcurrencyGuard<T>(
   const token = `${Date.now()}:${Math.random().toString(36).slice(2)}`;
 
   if (client) {
+    let acquired: string | null = null;
+    let redisUnavailable = false;
     try {
-      const acquired = await client.set(lockKey, token, { nx: true, ex: ttlSec });
+      // Catch hanya kegagalan infrastruktur saat mengambil lock. Error dari isi job
+      // tidak boleh masuk fallback lokal karena itu akan menjalankan side effect kedua kali.
+      acquired = await client.set(lockKey, token, { nx: true, ex: ttlSec });
+    } catch {
+      redisUnavailable = true;
+    }
+
+    if (!redisUnavailable) {
       if (!acquired) return { executed: false, reason: 'job_already_running' };
       try {
         return { executed: true, value: await fn() };
       } finally {
-        // Delete only our own lock; never release a lock that has expired and
-        // been acquired by a newer invocation.
-        const current = await client.get<string>(lockKey).catch(() => null);
-        if (current === token) await client.del(lockKey).catch(() => 0);
+        // Atomik: lock yang sudah kedaluwarsa lalu diambil worker baru tidak ikut terhapus.
+        await client.compareAndDelete(lockKey, token).catch(() => false);
       }
-    } catch {
-      // Redis unavailable: degrade to per-instance overlap protection.
     }
   }
 
