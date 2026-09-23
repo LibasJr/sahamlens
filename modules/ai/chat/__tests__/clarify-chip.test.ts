@@ -24,3 +24,14 @@ describe('clarify chips', () => {
 function CLARIFICATION_PROMPT_SHORT() {
   return 'Boleh diperjelas sedikit? Saya belum menangkap yang kamu maksud.';
 }
+
+import { buildTickerChips } from '../follow-ups';
+
+describe('buildTickerChips (dipakai jalur TICKER_REQUIRED juga)', () => {
+  it('chips = TICKER - pertanyaan, <= 120 char', () => {
+    const chips = buildTickerChips('bandingkan valuasi dengan kompetitornya, analisis risiko teknikal mendalam, dan breakdown LensScore');
+    expect(chips).toHaveLength(3);
+    expect(chips[0]).toMatch(/^BBCA - bandingkan valuasi/);
+    for (const c of chips) expect(c.length).toBeLessThanOrEqual(120);
+  });
+});

@@ -15,6 +15,15 @@ export const FOLLOWUP_MARKER = '[[FOLLOWUP]]';
 const FOLLOWUP_MARKER_RE = /\[\[FOLLOWUP\]\]/;
 const MAX_FOLLOW_UPS = 3;
 
+/** Chip ticker untuk jawaban klarifikasi (opsi A, 2026-09-23): "TICKER - <pertanyaan
+ * asli>" sehingga satu tap langsung mengirim pertanyaan lengkap. Pertanyaan dinormalisasi
+ * dan dipotong 80 char agar chip tetap <= 120 (batas splitFollowUpList). Ini BUKAN
+ * tebakan emiten - pengguna memilih chip secara eksplisit. */
+export function buildTickerChips(prompt: string): string[] {
+  const topic = prompt.replace(/\s+/g, ' ').trim().slice(0, 80);
+  return ['BBCA', 'ADRO', 'TLKM'].map((ticker) => `${ticker} - ${topic}`);
+}
+
 /** Pecah isi baris marker jadi daftar pertanyaan bersih. */
 export function splitFollowUpList(raw: string): string[] {
   return raw
