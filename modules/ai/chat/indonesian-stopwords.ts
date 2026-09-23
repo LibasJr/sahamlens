@@ -33,6 +33,7 @@ export const INDONESIAN_COMMON_4_LETTER_WORDS: ReadonlySet<string> = new Set([
   // kata kerja & aksi yang sering muncul di pertanyaan saham
   'beli', 'jual', 'naik', 'ikut', 'lihat', 'cari', 'jadi', 'buat', 'pake', 'ambil',
   'tahu', 'mau', 'bisa', 'akan', 'agar', 'ubah', 'raih', 'tuju', 'maju', 'olah',
+  'buka', 'baca',
   // sifat & penilaian
   'baik', 'aman', 'enak', 'kuat', 'muda', 'luas', 'unik', 'utuh', 'erat', 'giat',
   'beda', 'lama', 'baru', 'lain', 'laku', 'rata', 'tiap', 'asal', 'awal', 'wajar',
