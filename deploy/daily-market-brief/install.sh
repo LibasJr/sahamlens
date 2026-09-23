@@ -14,7 +14,8 @@ require_env() {
 
 require_env TELEGRAM_OPS_BOT_TOKEN
 require_env TELEGRAM_OPS_CHAT_ID
-sudo install -m 0644 "$SOURCE/sahamlens-daily-market-brief.service" /etc/systemd/system/
+# Timer memanggil instance @pre/@post, jadi unit harus dipasang sebagai template @.service.
+sudo install -m 0644 "$SOURCE/sahamlens-daily-market-brief.service" /etc/systemd/system/sahamlens-daily-market-brief@.service
 sudo install -m 0644 "$SOURCE/sahamlens-daily-market-brief-pre.timer" /etc/systemd/system/
 sudo install -m 0644 "$SOURCE/sahamlens-daily-market-brief-post.timer" /etc/systemd/system/
 sudo systemctl daemon-reload
