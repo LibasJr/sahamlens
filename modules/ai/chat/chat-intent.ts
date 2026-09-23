@@ -178,7 +178,10 @@ export function asksAboutFuture(normalizedText: string): boolean {
 const PICKS_TERMS = /\b(lensradar|ai pick|aipick|top pick|rekomendasi hari ini|saham apa|saham yg bagus|saham yang bagus|lagi bagus|paling bagus|skor tertinggi|top skor)\b/;
 const MOVERS_TERMS = /\b(top gainer|top loser|gainer|loser|penguat|pelemah|paling naik|paling turun|paling aktif|volume terbesar|transaksi terbesar|teraktif|oversold|overbought|relative strength|kekuatan relatif)\b/;
 const SECTOR_TERMS = /\b(sektor|sektoral|rotasi|breadth|advance decline|regime|rezim|fear|greed|risk on|risk off)\b/;
-const MACRO_TERMS = /\b(makro|macro|inflasi|bi rate|suku bunga|kurs|rupiah|usd\/?idr|the fed|obligasi|yield|cadangan devisa|gdp|pdb)\b/;
+// Keputusan Bank Indonesia sering ditulis ringkas "BI menahan bunga", tanpa frasa
+// "BI Rate" atau "suku bunga". Itu tetap pertanyaan makro/pasar, bukan permintaan
+// rekomendasi emiten hanya karena ada kata "tahan".
+const MACRO_TERMS = /\b(makro|macro|inflasi|bi(?: rate)?|bank indonesia|suku bunga|bunga acuan|kurs|rupiah|usd\/?idr|the fed|obligasi|yield|cadangan devisa|gdp|pdb)\b/;
 const SCREENER_TERMS = /\b(screener|scanner|saring|penyaringan|filter saham|profil risiko|konservatif|moderat|agresif)\b/;
 const BACKTEST_TERMS = /\b(backtest|back test|uji historis|win rate|winrate|bucket|transparansi|transparency|akurasi|hit rate|terbukti|performa model)\b/;
 const DIVIDEND_TERMS = new RegExp(`\\b(dividen|dividend|dps|payout|bagi hasil|cum date|ex date|ex-date)${S}\\b`);

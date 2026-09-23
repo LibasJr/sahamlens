@@ -109,6 +109,12 @@ describe('LensAI intent router', () => {
     expect(classify('apa itu PER?', 0).dataIntent).toBe('UNKNOWN');
   });
 
+  it('pertanyaan keputusan BI tanpa ticker masuk makro, bukan meminta kode emiten', () => {
+    const result = classify('dampak keputusan BI menahan bunga hari ini apa?', 0);
+    expect(result.intent).toBe('MACRO');
+    expect(result.dataIntent).toBe('MACRO');
+  });
+
   it('follow-up periode data mewarisi intent sebelumnya', () => {
     const history = [{ role: 'user', content: 'ADRO fundamentalnya gimana?' }];
     const result = classify('data yang kamu pakai periode kapan?', 1, history);
