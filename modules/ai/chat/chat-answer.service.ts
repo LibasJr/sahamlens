@@ -11,7 +11,7 @@ import { buildSystemPrompt, CAVEMAN_DIRECTIVE, pakaiStrukturAnalisis, STRUKTUR_A
 import { CLARIFICATION_PROMPT } from './out-of-scope';
 import { verifyAnswerNumbers, unverifiedNumbersNotice } from './verify-numbers';
 import { withDyor } from './dyor';
-import { parseFollowUps } from './follow-ups';
+import { parseFollowUps, FOLLOWUP_MARKER } from './follow-ups';
 import { streamChatAnswer } from './stream-answer';
 import { calculateChatQuestion } from './chat-calculator';
 import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
@@ -44,7 +44,22 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   const classification = classifyChatIntent({ prompt, date, tickerCount: tickers.length, hasHistory: history.length > 0, history });
 
   if (classification.needsClarification) {
-    return json({ role: 'assistant', content: CLARIFICATION_PROMPT, routing: { intent: 'CLARIFY', providerUsed: false, dataFetches: 0 } });
+    // Opsi A (operator, 2026-09-23): clarify tidak lagi mengakhiri percakapan -
+    // sertakan chip ticker yang bisa diklik: "TICKER - <pertanyaan asli>" sehingga
+    // satu tap langsung mengirim pertanyaan lengkap. Emiten contoh diambil dari
+    // kumpulan likuid (BBCA/ADRO/TLKM); tetap BUKAN tebakan - chip eksplisit yang
+    // dipilih pengguna sendiri.
+    const clarifyTopic = prompt.replace(/\s+/g, ' ').trim().slice(0, 80);
+    const clarifyChips = ['BBCA', 'ADRO', 'TLKM'].map((ticker) => `${ticker} - ${clarifyTopic}`);
+    const { text: clarifyText, followUps } = parseFollowUps(
+      `${CLARIFICATION_PROMPT}\n${FOLLOWUP_MARKER}${clarifyChips.join(' | ')}`,
+    );
+    return json({
+      role: 'assistant',
+      content: clarifyText,
+      followUps,
+      routing: { intent: 'CLARIFY', providerUsed: false, dataFetches: 0, answerMode: 'CLARIFY_CHIPS' },
+    });
   }
   // Opsi A (keputusan operator 2026-09-23): topik di luar pasar TIDAK ditolak kaku lagi -
   // jatuh ke model dengan aturan rule 36 (jawab singkat, tanpa mengarang angka, tawarkan
