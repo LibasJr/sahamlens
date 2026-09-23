@@ -106,10 +106,10 @@ function JournalSection({
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] text-white/40">{journalNote.length}/500</span>
           <div className="flex items-center gap-1.5">
-            <Button variant="bare" size="none" onClick={onCancelEdit} className="p-1 text-tv-muted hover:text-tv-text">
+            <Button variant="bare" size="none" onClick={onCancelEdit} className="p-1 text-tv-muted hover:text-tv-text" aria-label={`Batalkan edit catatan ${symbol}`}>
               <X className="w-3.5 h-3.5" />
             </Button>
-            <Button variant="bare" size="none" onClick={() => onSave(journalNote)} disabled={saving} className="p-1 text-tv-green hover:text-tv-green/80 disabled:opacity-50" aria-label={journalNote.trim() ? 'Simpan catatan' : 'Hapus catatan'}>
+            <Button variant="bare" size="none" onClick={() => onSave(journalNote)} disabled={saving} className="p-1 text-tv-green hover:text-tv-green/80 disabled:opacity-50" aria-label={journalNote.trim() ? `Simpan catatan ${symbol}` : `Hapus catatan ${symbol}`}>
               <Check className="w-3.5 h-3.5" />
             </Button>
           </div>
@@ -126,7 +126,7 @@ function JournalSection({
             📝 {notePreview}
             {savedDate && <span className="text-white/30 ml-1">— {savedDate}</span>}
           </span>
-          <Button variant="bare" size="none" onClick={onStartEdit} className="p-0.5 text-tv-muted hover:text-tv-blue shrink-0">
+          <Button variant="bare" size="none" onClick={onStartEdit} className="p-0.5 text-tv-muted hover:text-tv-blue shrink-0" aria-label={`Edit catatan ${symbol}`}>
             <Pencil className="w-3 h-3" />
           </Button>
         </div>
