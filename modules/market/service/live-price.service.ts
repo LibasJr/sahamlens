@@ -50,15 +50,19 @@ export function correctIhsgPreviousClose(
   }
   const jakartaDate = (ts: number) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ts * 1000);
-  // Tanggal bar TERAKHIR yang close-nya valid. Yahoo bisa punya bar dengan
-  // close null (kejadian nyata 22 Sep 2026: bar ada, close null) - bar demikian
-  // tidak bisa jadi acuan close-to-close.
+  const todayJakarta = jakartaDate(Date.now() / 1000);
+  // Tanggal bar TERAKHIR dengan close valid yang BUKAN bar sesi berjalan.
+  // (a) Yahoo bisa punya bar dengan close null (nyata 22 Sep 2026);
+  // (b) bar hari ini adalah bar LIVE - close-nya harga berjalan, bukan close
+  //     sesi yang selesai, jadi tidak boleh jadi acuan close-to-close.
   let prevCloseBarDate: string | null = null;
   if (Array.isArray(closes)) {
     for (let i = Math.min(timestamps.length, closes.length) - 1; i >= 0; i--) {
       const c = closes[i];
+      const barDate = jakartaDate(timestamps[i]);
+      if (barDate >= todayJakarta) continue;
       if (typeof c === 'number' && Number.isFinite(c) && c > 0) {
-        prevCloseBarDate = jakartaDate(timestamps[i]);
+        prevCloseBarDate = barDate;
         break;
       }
     }
