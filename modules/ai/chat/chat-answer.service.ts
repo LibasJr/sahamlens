@@ -61,11 +61,16 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
     });
   }
   if (classification.intent === 'SAHAMLENS_PRODUCT_HELP') {
-    return json({
-      role: 'assistant',
-      content: getDeterministicProductHelpResponse(prompt),
-      routing: { intent: classification.intent, providerUsed: false, dataFetches: 0, answerMode: 'PRODUCT_KNOWLEDGE' },
-    });
+    const productAnswer = getDeterministicProductHelpResponse(prompt);
+    // Null = tidak ada jawaban deterministik yang pas (mis. "SahamLens apa legal?"):
+    // teruskan ke model, JANGAN memaksa daftar fitur (insiden 2026-09-23).
+    if (productAnswer) {
+      return json({
+        role: 'assistant',
+        content: productAnswer,
+        routing: { intent: classification.intent, providerUsed: false, dataFetches: 0, answerMode: 'PRODUCT_KNOWLEDGE' },
+      });
+    }
   }
 
   // Profil emiten adalah knowledge domain sendiri. Sebelumnya pertanyaan seperti
