@@ -1,0 +1,19 @@
+[Unit]
+Description=SahamLens private daily market brief (%i)
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+Environment=SAHAMLENS_APP_DIR=/opt/sahamlens/app
+Environment=SAHAMLENS_OPS_STATE_DIR=/var/lib/sahamlens/ops-telegram-bot
+ExecStart=/usr/bin/python3 /opt/sahamlens/scripts/ops-telegram-bot.py daily-brief %i
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=read-only
+ProtectSystem=full
+ReadOnlyPaths=/opt/sahamlens/app
+ReadWritePaths=/var/lib/sahamlens/ops-telegram-bot

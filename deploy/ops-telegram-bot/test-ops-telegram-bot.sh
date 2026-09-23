@@ -46,6 +46,23 @@ printf '%s\n' "$health_output" | grep -q 'POSTGRESQL'
 printf '%s\n' "$health_output" | grep -q 'REDIS'
 printf '%s\n' "$health_output" | grep -q 'DATA SOURCES'
 
+brief_output=$(/usr/bin/python3 -c "
+import importlib.util
+spec = importlib.util.spec_from_file_location('bot', '$ROOT/ops-telegram-bot.py')
+bot = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(bot)
+data = {
+  '/api/market-pulse': {'timestamp': '2026-09-24T01:45:00Z', 'marketRegime': {'regime': {'label': 'Risk-On'}, 'score': 71, 'confidence': 95}},
+  '/api/market-summary': {'marketRegime': {'trend': 'NEUTRAL', 'changePct': -0.15}},
+  '/api/transparency': {'asOfDate': '2026-09-23', 'modelStatus': 'RESEARCH_ONLY', 'validation': {'outOfSampleStatus': 'PENDING', 'totalSamples': 0}},
+}
+bot.local_json = lambda path: data.get(path)
+print(bot.daily_market_brief('pre'))
+")
+printf '%s\n' "$brief_output" | grep -q 'PRE-MARKET'
+printf '%s\n' "$brief_output" | grep -q 'Risk-On'
+printf '%s\n' "$brief_output" | grep -q 'Tidak ada kandidat breakout diterbitkan'
+
 # Implementation must use only Telegram-native sendMessage; the test may mention
 # forbidden transport names as regression assertions, so scan the Python file only.
 ! grep -qE 'sendPhoto|PIL|ImageDraw|render_card|\.png|tempfile' "$ROOT/ops-telegram-bot.py"

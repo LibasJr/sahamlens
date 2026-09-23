@@ -111,6 +111,80 @@ def send_native(chat_id: str, text: str) -> None:
     })
 
 
+def local_json(path: str) -> dict[str, Any] | None:
+    """Baca cache aplikasi lokal; brief gagal tertutup jika datanya tidak bisa dibuktikan."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:3001{path}", timeout=12) as response:
+            payload = json.loads(response.read().decode())
+        return payload if isinstance(payload, dict) else None
+    except Exception:
+        return None
+
+
+def text_at(value: Any) -> str:
+    if not isinstance(value, str) or not value.strip():
+        return "belum tersedia"
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone().strftime("%d %b %H:%M WIB")
+    except ValueError:
+        return value
+
+
+def nested(payload: dict[str, Any] | None, *keys: str) -> Any:
+    value: Any = payload
+    for key in keys:
+        if not isinstance(value, dict):
+            return None
+        value = value.get(key)
+    return value
+
+
+def daily_market_brief(edition: str) -> str:
+    """Brief pribadi, shadow-mode sampai validasi OOS benar-benar lulus."""
+    pulse = local_json("/api/market-pulse")
+    summary = local_json("/api/market-summary")
+    transparency = local_json("/api/transparency")
+
+    regime = nested(pulse, "marketRegime", "regime") or {}
+    regime_label = str(regime.get("label") or regime.get("code") or "belum tersedia") if isinstance(regime, dict) else "belum tersedia"
+    score = nested(pulse, "marketRegime", "score")
+    confidence = nested(pulse, "marketRegime", "confidence")
+    market_as_of = text_at((pulse or {}).get("timestamp") or nested(pulse, "marketRegime", "asOf"))
+    trend = nested(summary, "marketRegime", "trend")
+    change = nested(summary, "marketRegime", "changePct")
+
+    validation = nested(transparency, "validation") or {}
+    model_status = str((transparency or {}).get("modelStatus") or "UNKNOWN")
+    oos_status = str(validation.get("outOfSampleStatus") or "UNKNOWN") if isinstance(validation, dict) else "UNKNOWN"
+    samples = validation.get("totalSamples") if isinstance(validation, dict) else None
+    as_of = str((transparency or {}).get("asOfDate") or "belum tersedia")
+    validation_ok = model_status == "VALIDATED_OUT_OF_SAMPLE" and oos_status == "VALIDATED"
+
+    edition_label = "PRE-MARKET" if edition == "pre" else "POST-MARKET"
+    lines = [
+        f"{'🌅' if edition == 'pre' else '🌇'} <b>SAHAMLENS DAILY MARKET BRIEF</b>",
+        f"<i>{edition_label} · pribadi · shadow mode</i>",
+        "",
+        f"📈 <b>Regime terakhir:</b> {html.escape(regime_label)}",
+        f"    Score {html.escape(str(score if score is not None else '—'))} · confidence {html.escape(str(confidence if confidence is not None else '—'))}%",
+        f"    IHSG {html.escape(str(trend or '—'))} · {html.escape(str(change if change is not None else '—'))}% · as-of {html.escape(market_as_of)}",
+        "",
+        f"🧪 <b>Validasi LensRadar:</b> <code>{html.escape(model_status)}</code>",
+        f"    OOS {html.escape(oos_status)} · sampel T+20 matang {html.escape(str(samples if samples is not None else '—'))} · as-of {html.escape(as_of)}",
+        "",
+    ]
+    if validation_ok:
+        lines.append("🎯 Kandidat tervalidasi belum diaktifkan pada brief pribadi ini; evaluasi kandidat tetap dilakukan dari halaman LensRadar dengan timestamp dan gerbang data lengkap.")
+    else:
+        lines.append("🛡️ <b>Tidak ada kandidat breakout diterbitkan.</b> Gerbang validasi OOS belum lolos; tidak memaksa 3 saham dari sinyal riset.")
+    lines.extend([
+        "",
+        "<i>Ringkasan riset, bukan instruksi transaksi. Cek data terbaru di SahamLens sebelum bertindak.</i>",
+        f"🕒 <i>Dikirim {datetime.now().astimezone().strftime('%d %b · %H:%M WIB')}</i>",
+    ])
+    return "\n".join(lines)
+
+
 def run(command: list[str], timeout: int = 8) -> tuple[int, str]:
     try:
         completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True, timeout=timeout, check=False)
@@ -450,12 +524,17 @@ def main() -> None:
         if len(sys.argv) < 5:
             raise SystemExit("usage: ops-telegram-bot.py alert <OK|WATCH|DOWN|CRITICAL> <title> <detail>")
         alert(sys.argv[2], sys.argv[3], sys.argv[4])
+    elif len(sys.argv) >= 2 and sys.argv[1] == "daily-brief":
+        edition = sys.argv[2] if len(sys.argv) >= 3 else "post"
+        if edition not in {"pre", "post"}:
+            raise SystemExit("usage: ops-telegram-bot.py daily-brief <pre|post>")
+        send_native(config()[1], daily_market_brief(edition))
     elif len(sys.argv) >= 2 and sys.argv[1] == "native-test":
         print(dashboard())
     elif len(sys.argv) >= 2 and sys.argv[1] == "daemon":
         daemon()
     else:
-        raise SystemExit("usage: ops-telegram-bot.py {daemon|alert|native-test}")
+        raise SystemExit("usage: ops-telegram-bot.py {daemon|alert|daily-brief|native-test}")
 
 
 if __name__ == "__main__":
