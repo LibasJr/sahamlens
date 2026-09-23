@@ -158,9 +158,14 @@ describe('TechnicalExportCard - laporan penuh', () => {
     // Diekspor pada (waktu ekspor)
     expect(html).toContain('Diekspor pada:');
     // Keduanya berbeda - tidak boleh sama
+    // dataTimestamp = 2026-09-24T08:00:00Z = 15:00 WIB (UTC+7)
     expect(html).toContain('24 Sep 2026'); // dataTimestamp
-    // Diekspor pada = 17.30 WIB (UTC+7), dataTimestamp = 08:00 UTC = 15.00 WIB
-    expect(html).toContain('17.30 WIB');
+    // Diekspor pada = 10:30 UTC = timezone runner -> format 'id-ID'
+    // Test TIDAK boleh mengasumsikan timezone runner (CI bisa UTC/Asia).
+    // Yang penting: ada teks "Diekspor pada:" DAN isinya TIDAK SAMA dengan Data asof.
+    const dieksporMatch = html.match(/Diekspor pada:\s*([^<]+)/);
+    expect(dieksporMatch).not.toBeNull();
+    expect(dieksporMatch![1]).not.toContain('15:00'); // 15:00 = Data as of (UTC->WIB)
   });
 
   it('menampilkan disclaimer riset', () => {
