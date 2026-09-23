@@ -1501,6 +1501,53 @@ html.lens-battery-saver .sahamlens-signal-track {
   .lensai-pencil { animation: none; }
 }
 
+/* Indikator loading LensAI (permintaan operator 2026-09-23, opsi A): ganti spinner
+   dengan candlestick mini 3 batang (hijau-merah-hijau). Semua lewat class - tanpa
+   inline style (ratchet). Tiap batang bernafas lembut (scaleY) dengan delay bertahap
+   supaya terlihat seperti grafik yang hidup, bukan loncatan acak. */
+.lensai-candles {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 16px;
+}
+
+.lensai-candle {
+  position: relative;
+  display: inline-block;
+  width: 5px;
+  height: 12px;
+  border-radius: 1px;
+  transform-origin: center;
+  animation: lensai-candle-breathe 1.2s ease-in-out infinite;
+}
+
+/* Wick di atas & bawah body candle - lebih tipis dan agak transparan. */
+.lensai-candle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: -3px;
+  bottom: -3px;
+  width: 1px;
+  margin-left: -0.5px;
+  background: inherit;
+  opacity: 0.55;
+}
+
+.lensai-candle-1 { background: #22c55e; }
+.lensai-candle-2 { background: #ef4444; height: 14px; animation-delay: 0.2s; }
+.lensai-candle-3 { background: #22c55e; animation-delay: 0.4s; }
+
+@keyframes lensai-candle-breathe {
+  0%, 100% { transform: scaleY(0.75); opacity: 0.7; }
+  50%      { transform: scaleY(1);    opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lensai-candle { animation: none; }
+}
+
 /* Highlight arah swipe pesan LensAI (geser kanan = forward, kiri = reply).
    Kelas dipasang/lepas via JS (classList), bukan atribut style inline - lihat
    catatan bubbleRefs di AIChat.tsx soal ratchet adopsi & CSP. */

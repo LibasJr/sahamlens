@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
-import { Bot, X, Send, Sparkles, Loader2, Maximize2, Minimize2, ThumbsDown, ThumbsUp, Reply, Forward } from 'lucide-react';
+import { Bot, X, Send, Sparkles, Maximize2, Minimize2, ThumbsDown, ThumbsUp, Reply, Forward } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 /**
@@ -717,16 +717,16 @@ export default function AIChat() {
             {isLoading && (
               <div className="flex justify-start">
                 <div className="flex w-full max-w-prose items-center gap-3 text-base text-tv-muted sm:text-sm">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {/* Sejak 2026-08-13 /api/chat benar-benar mengalirkan teks, jadi
-                      larangan lama memakai kata "menulis" sudah tidak berlaku. Spinner
-                      ini hanya tampil SEBELUM potongan pertama tiba - begitu teks
-                      mengalir, ia dimatikan (lihat consumeStream). Yang dijanjikan kata
-                      di bawah karena itu sesuai dengan yang dilihat pengguna: server
-                      sedang menyiapkan data & memverifikasi angkanya. */}
-                  {/* Permintaan operator (2026-09-22): label jangan "berpikir" tapi
-                      "mengetik" + visual pensil di sebelahnya. Spinner tetap dipakai
-                      sebagai indikator loading sebelum potongan pertama tiba. */}
+                  {/* Sejak 2026-08-13 /api/chat benar-benar mengalirkan teks. Visual ini
+                      hanya tampil SEBELUM potongan pertama tiba - begitu teks mengalir,
+                      ia dimatikan (lihat consumeStream). */}
+                  <span className="lensai-candles" aria-hidden="true">
+                    <i className="lensai-candle lensai-candle-1" />
+                    <i className="lensai-candle lensai-candle-2" />
+                    <i className="lensai-candle lensai-candle-3" />
+                  </span>
+                  {/* Permintaan operator (2026-09-22): label "mengetik" + visual pensil
+                      di sebelahnya; spinner diganti candlestick mini (2026-09-23). */}
                   <span className="lensai-pencil" aria-hidden="true">✏️</span>
                   LensAI sedang mengetik...
                 </div>
