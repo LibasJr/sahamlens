@@ -41,6 +41,17 @@ describe('parseFollowUps (jalur non-streaming)', () => {
       'Yang ketiga',
     ]);
   });
+
+  it('membuang sisa template model agar chip tetap percakapan normal', () => {
+    expect(splitFollowUpList('Bandingkan risiko DGWG ]}> </arg_value> | <arg_value> Cek support DGWG')).toEqual([
+      'Bandingkan risiko DGWG',
+      'Cek support DGWG',
+    ]);
+  });
+
+  it('menolak chip yang masih membawa sintaks terstruktur tidak dikenal', () => {
+    expect(splitFollowUpList('Cek {{data}} | Lanjut analisis DGWG')).toEqual(['Lanjut analisis DGWG']);
+  });
 });
 
 describe('FollowUpStreamStripper (jalur streaming)', () => {
