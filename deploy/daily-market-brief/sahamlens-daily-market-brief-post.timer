@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens private post-market brief at 16:15 WIB weekdays
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 16:15:00 Asia/Jakarta
+Persistent=true
+AccuracySec=1min
+Unit=sahamlens-daily-market-brief@post.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,11 @@
+[Unit]
+Description=SahamLens private pre-market brief at 08:45 WIB weekdays
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 08:45:00 Asia/Jakarta
+Persistent=true
+AccuracySec=1min
+Unit=sahamlens-daily-market-brief@pre.service
+
+[Install]
+WantedBy=timers.target
