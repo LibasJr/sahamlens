@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertCircle, Plus, Activity, Bell, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles, Target, ShieldAlert } from 'lucide-react';
+import { Trash2, AlertCircle, Plus, Activity, Bell, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles, Target, ShieldAlert, Pencil, X, Check } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
@@ -24,8 +24,11 @@ import MenuUsageGuide from '@/components/MenuUsageGuide';
 interface WatchlistItem {
   symbol: string;
   buy_price: number;
+  alert_price?: number;
   lot?: number;
+  journal_note?: string | null;
   created_at: string;
+  updated_at: string;
 }
 
 interface AlertItem {
@@ -47,6 +50,94 @@ const ALERT_OPTIONS = [
   { value: 'CONSENSUS_STRONG_BUY', label: 'Konsensus Sangat Positif', needsValue: false, placeholder: '' },
   { value: 'RSI_OVERSOLD', label: 'RSI Oversold (< 30)', needsValue: false, placeholder: '' },
 ] as const;
+
+function JournalBadge({ item, currentPrice }: { item: WatchlistItem; currentPrice: number }) {
+  if (!item.buy_price && !item.alert_price) return null;
+  if (item.alert_price && currentPrice <= item.alert_price) {
+    return (
+      <span className="lens-chip font-bold px-1.5 py-0.5 rounded border bg-tv-red/15 border-tv-red/50 text-tv-red">
+        ⚠ Stop Terlihat
+      </span>
+    );
+  }
+  if (item.buy_price && currentPrice <= item.buy_price * 0.95) {
+    return (
+      <span className="lens-chip font-bold px-1.5 py-0.5 rounded border bg-tv-yellow/15 border-tv-yellow/50 text-tv-yellow">
+        📉 Di Bawah Entry
+      </span>
+    );
+  }
+  if (item.buy_price && currentPrice >= item.buy_price * 1.1) {
+    return (
+      <span className="lens-chip font-bold px-1.5 py-0.5 rounded border bg-tv-green/15 border-tv-green/50 text-tv-green">
+        📈 Di Atas Entry
+      </span>
+    );
+  }
+  return null;
+}
+
+function JournalSection({
+  item, isEditing, onStartEdit, onCancelEdit, onSave, journalNote, setJournalNote, saving,
+}: {
+  item: WatchlistItem;
+  isEditing: boolean;
+  onStartEdit: () => void;
+  onCancelEdit: () => void;
+  onSave: (note: string) => void;
+  journalNote: string;
+  setJournalNote: (v: string) => void;
+  saving: boolean;
+}) {
+  const notePreview = item.journal_note ? item.journal_note.slice(0, 60) + (item.journal_note.length > 60 ? '…' : '') : null;
+  const savedDate = item.updated_at ? new Date(item.updated_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
+
+  if (isEditing) {
+    return (
+      <div className="mt-1.5 flex flex-col gap-1.5">
+        <textarea
+          value={journalNote}
+          onChange={(e) => setJournalNote(e.target.value)}
+          placeholder="Catatan thesis: alasan beli, target, invalidasi..."
+          maxLength={500}
+          rows={2}
+          className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md px-2 py-1.5 text-xs focus:outline-none focus:border-tv-blue resize-none"
+        />
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] text-white/40">{journalNote.length}/500</span>
+          <div className="flex items-center gap-1.5">
+            <Button variant="bare" size="none" onClick={onCancelEdit} className="p-1 text-tv-muted hover:text-tv-text">
+              <X className="w-3.5 h-3.5" />
+            </Button>
+            <Button variant="bare" size="none" onClick={() => onSave(journalNote)} disabled={saving || !journalNote.trim()} className="p-1 text-tv-green hover:text-tv-green/80 disabled:opacity-50">
+              <Check className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-1.5">
+      {notePreview ? (
+        <div className="flex items-start gap-1.5">
+          <span className="text-[11px] text-white/50 italic leading-snug">
+            📝 {notePreview}
+            {savedDate && <span className="text-white/30 ml-1">— {savedDate}</span>}
+          </span>
+          <Button variant="bare" size="none" onClick={onStartEdit} className="p-0.5 text-tv-muted hover:text-tv-blue shrink-0">
+            <Pencil className="w-3 h-3" />
+          </Button>
+        </div>
+      ) : (
+        <button onClick={onStartEdit} className="text-[11px] text-tv-muted hover:text-tv-blue flex items-center gap-1 transition-colors">
+          <Pencil className="w-3 h-3" /> Tambah catatan
+        </button>
+      )}
+    </div>
+  );
+}
 
 function getAlertOption(conditionType: string) {
   return ALERT_OPTIONS.find((option) => option.value === conditionType);
@@ -90,6 +181,9 @@ export default function WatchlistPage() {
   const [newSymbol, setNewSymbol] = useState('');
   const [buyPrice, setBuyPrice] = useState('');
   const [lotAmount, setLotAmount] = useState('');
+  const [journalSymbol, setJournalSymbol] = useState<string | null>(null);
+  const [journalNote, setJournalNote] = useState('');
+  const [journalSaving, setJournalSaving] = useState(false);
 
   const [alertSymbol, setAlertSymbol] = useState('');
   const [alertCondition, setAlertCondition] = useState('PRICE_BELOW');
@@ -285,6 +379,25 @@ export default function WatchlistPage() {
     }
   };
 
+  const saveJournal = async (symbol: string, note: string) => {
+    setJournalSaving(true);
+    try {
+      await apiRequest('/api/watchlist/journal', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol, journal_note: note }),
+      });
+      void fetchWatchlist();
+      setJournalSymbol(null);
+      setJournalNote('');
+      showToast('Catatan berhasil disimpan.', 'success');
+    } catch (error) {
+      showToast(apiErrorMessage(error, 'Gagal menyimpan catatan. Coba lagi.', true), 'error');
+    } finally {
+      setJournalSaving(false);
+    }
+  };
+
   const triggerCron = async () => {
     try {
       const json = await apiRequest<any>('/api/alerts/check');
@@ -466,7 +579,7 @@ export default function WatchlistPage() {
                     : [];
 
                 return (
-                  <div key={item.symbol} className="group rounded-lg border border-tv-border bg-tv-bg hover:border-tv-blue/40 hover:bg-tv-hover/40 transition-colors p-3.5 flex items-center gap-3">
+                  <div key={item.symbol} className="group rounded-lg border border-tv-border bg-tv-bg hover:border-tv-blue/40 hover:bg-tv-hover/40 transition-colors p-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
                     {/* Avatar lama memakai warna biru yang SAMA untuk setiap emiten -
                         tidak membantu membedakan baris. TickerAvatar memberi warna
                         deterministik per kode, konsisten dengan halaman lain. */}
@@ -480,6 +593,12 @@ export default function WatchlistPage() {
                         >
                           {scoreLabel}
                         </span>
+                        {/* Decision Journal badge: deterministik hanya kalau ada baseline
+                            (buy_price ATAU alert_price sudah diisi). Kalau dua-duanya
+                            null, tidak ada badge — bukan "regime changed" yang dibuat. */}
+                        {currentPrice != null && (item.buy_price || item.alert_price) && (
+                          <JournalBadge item={item} currentPrice={currentPrice} />
+                        )}
                       </div>
                       <div className="lens-meta text-tv-muted truncate">{companyName}</div>
                       {scorePresentation && !scorePresentation.actionable && scorePresentation.statusLabel && (
@@ -543,6 +662,16 @@ export default function WatchlistPage() {
                           <AlertCircle className="w-3 h-3" /> Suggest: Alert Support {supportTarget}
                         </Button>
                       )}
+                      <JournalSection
+                        item={item}
+                        isEditing={journalSymbol === item.symbol}
+                        onStartEdit={() => { setJournalSymbol(item.symbol); setJournalNote(item.journal_note || ''); }}
+                        onCancelEdit={() => { setJournalSymbol(null); setJournalNote(''); }}
+                        onSave={(note) => saveJournal(item.symbol, note)}
+                        journalNote={journalNote}
+                        setJournalNote={setJournalNote}
+                        saving={journalSaving}
+                      />
                     </div>
 
                     <div className="hidden sm:flex flex-col items-end text-right shrink-0 w-28">

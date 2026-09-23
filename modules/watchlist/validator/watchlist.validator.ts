@@ -5,8 +5,15 @@ export const addWatchlistSchema = z.object({
   buy_price: z.number().finite().positive().optional().nullable(),
   alert_price: z.number().finite().positive().optional().nullable(),
   lot: z.number().int().positive().optional().nullable(),
+  journal_note: z.string().max(500).optional().nullable(),
 });
 export type AddWatchlistInput = z.infer<typeof addWatchlistSchema>;
+
+export const journalSchema = z.object({
+  symbol: z.string().min(1),
+  journal_note: z.string().min(1).max(500),
+});
+export type JournalInput = z.infer<typeof journalSchema>;
 
 const thresholdAlertTypes = new Set([
   'PRICE_BELOW',

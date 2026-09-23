@@ -17,7 +17,12 @@ function toNumberOrNull(v: unknown): number | null {
 }
 
 function mapRow(row: any): WatchlistItem {
-  return { ...row, buy_price: toNumberOrNull(row.buy_price), alert_price: toNumberOrNull(row.alert_price) };
+  return {
+    ...row,
+    buy_price: toNumberOrNull(row.buy_price),
+    alert_price: toNumberOrNull(row.alert_price),
+    lot: toNumberOrNull(row.lot),
+  };
 }
 
 export async function listWatchlist(userId: string, db: Queryable = pool): Promise<WatchlistItem[]> {
@@ -34,17 +39,17 @@ export async function countWatchlist(userId: string, db: Queryable = pool): Prom
 
 export async function upsertWatchlistItem(
   userId: string,
-  input: { symbol: string; buy_price?: number | null; alert_price?: number | null; lot?: number | null },
+  input: { symbol: string; buy_price?: number | null; alert_price?: number | null; lot?: number | null; journal_note?: string | null },
   db: Queryable = pool
 ): Promise<WatchlistItem> {
   await ensureSharedSchema();
   const { rows } = await db.query(
-    `INSERT INTO watchlists (id, user_id, symbol, buy_price, alert_price, lot)
-     VALUES ($1,$2,$3,$4,$5,$6)
+    `INSERT INTO watchlists (id, user_id, symbol, buy_price, alert_price, lot, journal_note)
+     VALUES ($1,$2,$3,$4,$5,$6,$7)
      ON CONFLICT (user_id, symbol) DO UPDATE SET
-       buy_price = EXCLUDED.buy_price, alert_price = EXCLUDED.alert_price, lot = EXCLUDED.lot
+       buy_price = EXCLUDED.buy_price, alert_price = EXCLUDED.alert_price, lot = EXCLUDED.lot, journal_note = EXCLUDED.journal_note
      RETURNING *`,
-    [crypto.randomUUID(), userId, input.symbol, input.buy_price ?? null, input.alert_price ?? null, input.lot ?? null]
+    [crypto.randomUUID(), userId, input.symbol, input.buy_price ?? null, input.alert_price ?? null, input.lot ?? null, input.journal_note ?? null]
   );
   return mapRow(rows[0]);
 }
@@ -52,6 +57,25 @@ export async function upsertWatchlistItem(
 export async function deleteWatchlistItem(userId: string, symbol: string): Promise<void> {
   await ensureSharedSchema();
   await pool.query('DELETE FROM watchlists WHERE user_id = $1 AND symbol = $2', [userId, symbol]);
+}
+
+export async function updateWatchlistJournal(
+  userId: string,
+  symbol: string,
+  journalNote: string
+): Promise<WatchlistItem> {
+  await ensureSharedSchema();
+  const { rows } = await pool.query(
+    `UPDATE watchlists
+     SET journal_note = $1, updated_at = now()
+     WHERE user_id = $2 AND symbol = $3
+     RETURNING *`,
+    [journalNote, userId, symbol]
+  );
+  if (rows.length === 0) {
+    throw new Error('Watchlist item not found');
+  }
+  return mapRow(rows[0]);
 }
 
 export interface PaginatedWatchlists {

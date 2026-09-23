@@ -6,8 +6,8 @@ import { parseOrThrow } from '../../../shared/validation/parse-or-throw';
 // -> user) akan bikin circular dependency antar-module. checkProAccess memang
 // aslinya didefinisikan di shared/auth/session, modules/user cuma re-export.
 import { checkProAccess, checkProAccessLive } from '../../../shared/auth/session';
-import { getWatchlist, addToWatchlist, removeFromWatchlist } from '../service/watchlist.service';
-import { addWatchlistSchema } from '../validator/watchlist.validator';
+import { getWatchlist, addToWatchlist, removeFromWatchlist, updateJournal } from '../service/watchlist.service';
+import { addWatchlistSchema, journalSchema } from '../validator/watchlist.validator';
 import type { HttpResult } from '../../../shared/types/http-result.types';
 
 export async function handleListWatchlist(): Promise<HttpResult> {
@@ -28,4 +28,12 @@ export async function handleRemoveWatchlist(symbol: string | null): Promise<Http
   if (!symbol) throw new ValidationError('symbol wajib diisi');
   await removeFromWatchlist(session.id, symbol);
   return { status: 200, body: { success: true } };
+}
+
+export async function handleUpdateJournal(rawBody: unknown): Promise<HttpResult> {
+  const session = await requireUser();
+  const input = parseOrThrow(journalSchema, rawBody);
+  if (!input.symbol) throw new ValidationError('symbol wajib diisi');
+  const item = await updateJournal(session.id, input.symbol, input);
+  return { status: 200, body: { success: true, item } };
 }

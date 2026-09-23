@@ -1,9 +1,9 @@
 import { pool } from '../../../shared/database/postgres.client';
-import { listWatchlist, countWatchlist, upsertWatchlistItem, deleteWatchlistItem } from '../repository/watchlist.repository';
+import { listWatchlist, countWatchlist, upsertWatchlistItem, deleteWatchlistItem, updateWatchlistJournal } from '../repository/watchlist.repository';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { WatchlistLimitReachedError } from '../types/watchlist.errors';
 import type { WatchlistItem } from '../types/watchlist.types';
-import type { AddWatchlistInput } from '../validator/watchlist.validator';
+import type { AddWatchlistInput, JournalInput } from '../validator/watchlist.validator';
 
 export async function getWatchlist(userId: string): Promise<WatchlistItem[]> {
   return listWatchlist(userId);
@@ -48,4 +48,8 @@ export async function addToWatchlist(userId: string, hasPro: boolean, input: Add
 
 export async function removeFromWatchlist(userId: string, symbol: string): Promise<void> {
   await deleteWatchlistItem(userId, symbol);
+}
+
+export async function updateJournal(userId: string, symbol: string, input: JournalInput): Promise<WatchlistItem> {
+  return updateWatchlistJournal(userId, symbol, input.journal_note);
 }
