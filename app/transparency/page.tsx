@@ -95,6 +95,75 @@ export default async function PublicTransparencyPage() {
           </dl>
         </Card>
 
+        <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mb-6 border-tv-border p-5">
+          <h2 className="font-heading text-lg font-bold">{isEn ? 'Bucket results: the average is not enough' : 'Hasil per bucket: rata-rata saja tidak cukup'}</h2>
+          <p className="mt-2 text-xs leading-relaxed text-tv-muted">
+            {isEn
+              ? 'A right-skewed return distribution makes the average look better than the trade that is typically experienced. Median, win-rate, and excess versus the same-day market average are shown so the difference is visible.'
+              : 'Distribusi return yang miring ke kanan membuat rata-rata terlihat lebih baik daripada trade yang biasanya dialami. Median, win-rate, dan excess terhadap rata-rata pasar di tanggal yang sama ikut ditampilkan supaya bedanya terlihat.'}
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[460px] text-xs">
+              <thead className="text-tv-muted">
+                <tr>
+                  <th className="py-1 text-left font-medium">Bucket</th>
+                  <th className="py-1 text-right font-medium">{isEn ? 'Samples' : 'Sampel'}</th>
+                  <th className="py-1 text-right font-medium">Avg T+20</th>
+                  <th className="py-1 text-right font-medium">Median T+20</th>
+                  <th className="py-1 text-right font-medium">Win</th>
+                  <th className="py-1 text-right font-medium">Excess</th>
+                </tr>
+              </thead>
+              <tbody className="font-number">
+                {data.validation.buckets.map((bucket) => (
+                  <tr key={bucket.bucket} className="border-t border-tv-border">
+                    <td className="py-1">{bucket.bucket}</td>
+                    <td className="py-1 text-right">{fmt(bucket.samples, '', isEn)}</td>
+                    <td className="py-1 text-right">{fmt(bucket.avgT20, '%', isEn)}</td>
+                    <td className="py-1 text-right">{fmt(bucket.medianT20, '%', isEn)}</td>
+                    <td className="py-1 text-right">{fmt(bucket.winRateT20, '%', isEn)}</td>
+                    <td className="py-1 text-right">{fmt(bucket.excessT20, '%', isEn)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <h3 className="mt-5 font-semibold text-tv-text">{isEn ? 'Score deciles (equal sample size per row)' : 'Desil skor (jumlah sampel setara per baris)'}</h3>
+          <p className="mt-1 text-xs leading-relaxed text-tv-muted">
+            {isEn
+              ? 'The official buckets are heavily unbalanced, so the top bucket has little statistical power. Deciles use an equal denominator and are not affected by one large bucket.'
+              : 'Bucket resmi sangat tidak seimbang sehingga bucket teratas nyaris tidak punya daya statistik. Desil memakai penyebut yang setara dan tidak bisa dibentuk oleh satu bucket besar.'}
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full min-w-[460px] text-xs">
+              <thead className="text-tv-muted">
+                <tr>
+                  <th className="py-1 text-left font-medium">{isEn ? 'Decile' : 'Desil'}</th>
+                  <th className="py-1 text-right font-medium">{isEn ? 'Score range' : 'Rentang skor'}</th>
+                  <th className="py-1 text-right font-medium">{isEn ? 'Samples' : 'Sampel'}</th>
+                  <th className="py-1 text-right font-medium">Avg T+20</th>
+                  <th className="py-1 text-right font-medium">Median T+20</th>
+                  <th className="py-1 text-right font-medium">Win</th>
+                  <th className="py-1 text-right font-medium">Excess</th>
+                </tr>
+              </thead>
+              <tbody className="font-number">
+                {data.validation.deciles.map((row) => (
+                  <tr key={row.decile} className="border-t border-tv-border">
+                    <td className="py-1">{row.decile}</td>
+                    <td className="py-1 text-right">{row.scoreMin}&ndash;{row.scoreMax}</td>
+                    <td className="py-1 text-right">{fmt(row.samples, '', isEn)}</td>
+                    <td className="py-1 text-right">{fmt(row.avgT20, '%', isEn)}</td>
+                    <td className="py-1 text-right">{fmt(row.medianT20, '%', isEn)}</td>
+                    <td className="py-1 text-right">{fmt(row.winRateT20, '%', isEn)}</td>
+                    <td className="py-1 text-right">{fmt(row.excessT20, '%', isEn)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+
         <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5">
           <h2 className="flex items-center gap-2 font-heading text-lg font-bold"><Info className="h-4 w-4" /> {isEn ? 'Known limitations' : 'Batasan yang diketahui'}</h2>
           <ul className="mt-3 space-y-2 text-sm leading-relaxed text-tv-muted">
