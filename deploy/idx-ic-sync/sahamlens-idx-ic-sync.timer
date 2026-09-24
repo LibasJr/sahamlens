@@ -1,0 +1,24 @@
+# /etc/systemd/system/sahamlens-idx-ic-sync.timer
+#
+# MINGGUAN Senin 07:30 WIB - di luar jam pasar dan jauh dari gerombolan job yang memanggil
+# idx.co.id (idx-flow-sync 17:30, idx-financial-sync 20:00, emiten-sync bulanan 09:15), karena
+# Cloudflare BEI bisa membalas 403 bila dipanggil berdekatan.
+#
+# Kenapa mingguan: klasifikasi IDX-IC (sektor/subsektor/industri) berubah saat ada emiten baru,
+# delisting, atau reklasifikasi. Sebelum ini impornya MANUAL (unggah CSV di panel admin
+# decision-lab) sehingga data bisa beku berbulan-bulan; sekarang ditarik dari endpoint resmi BEI
+# dan diimpor otomatis dengan ON CONFLICT(ticker) - idempoten.
+#
+# Persistent=true: kalau VPS mati saat jadwalnya, job dikejar setelah menyala.
+# RandomizedDelaySec: menghindari tabrakan dengan timer lain di menit yang sama.
+
+[Unit]
+Description=Jadwal SahamLens - sinkron klasifikasi IDX-IC dari daftar resmi BEI
+
+[Timer]
+OnCalendar=Mon *-*-* 07:30:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

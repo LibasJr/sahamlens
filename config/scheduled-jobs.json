@@ -163,6 +163,13 @@
       "schedule": "*/15 9-16 * * 1-5",
       "scheduleStatus": "known",
       "source": "PERUBAHAN DIMINTA 2026-08-14 (audit delay Yahoo 15 menit - interval lama sama persis dengan delay Yahoo, worst-case lag alert bisa ~30 menit). Diubah manual oleh pengguna di dashboard QStash dari */15 9-15 * * 1-5 ke */5 9-15 * * 1-5 (sama dengan breakout-scan/market-pulse/market-summary/news), dikonfirmasi 2026-08-14."
+    },
+    {
+      "path": "/api/cron/idx-ic-sync",
+      "provider": "systemd",
+      "schedule": "30 7 * * 1",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-09-25. Impor klasifikasi IDX-IC sebelumnya MANUAL (unggah CSV di panel admin decision-lab) sehingga tabel idx_ic_classifications beku sejak 2026-08-25. Sekarang scripts/sync-idx-ic.py menarik klasifikasi resmi BEI lalu rute ini mengimpornya otomatis (ON CONFLICT(ticker), idempoten). Timer systemd mingguan Senin 07:30 WIB, di luar jam pasar dan jauh dari job lain yang memanggil idx.co.id agar tidak kena 403 Cloudflare."
     }
   ]
 }

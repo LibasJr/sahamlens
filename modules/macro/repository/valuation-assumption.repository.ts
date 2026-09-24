@@ -171,3 +171,64 @@ export async function getValuationMacroAssumptionAsOf(asOfDate?: string): Promis
     throw error;
   }
 }
+
+/** Bukti resmi terbaru untuk satu kunci input (tanpa batas tanggal). */
+export async function getLatestMacroInputEvidence(inputKey: MacroInputKey): Promise<MacroInputEvidence | null> {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, input_key, value_pct, market_date, observed_date, usable_from_date,
+              evidence_type, source_tier, source_name, source_url, methodology,
+              notes, created_at
+         FROM macro_input_evidence
+        WHERE input_key = $1
+        ORDER BY usable_from_date DESC, observed_date DESC, id DESC
+        LIMIT 1`,
+      [inputKey],
+    );
+    return rows[0] ? mapEvidenceRow(rows[0]) : null;
+  } catch (error) {
+    if ((error as { code?: string } | null)?.code === '42P01') return null;
+    throw error;
+  }
+}
+
+/**
+ * Catat bukti resmi baru. TIDAK ada nilai yang dikarang di sini: pemanggil harus sudah
+ * mengamati nilai dari sumber resmi, dan menyertakan URL sumber + tanggal observasi.
+ */
+export async function insertMacroInputEvidence(input: {
+  inputKey: MacroInputKey;
+  valuePct: number;
+  marketDate: string | null;
+  observedDate: string;
+  usableFromDate: string;
+  evidenceType: MacroEvidenceType;
+  sourceTier: MacroSourceTier;
+  sourceName: string;
+  sourceUrl: string | null;
+  methodology: string;
+  notes?: string | null;
+}): Promise<number> {
+  if (!Number.isFinite(input.valuePct)) throw new Error('valuePct bukti makro tidak valid');
+  const { rows } = await pool.query(
+    `INSERT INTO macro_input_evidence
+       (input_key, value_pct, market_date, observed_date, usable_from_date,
+        evidence_type, source_tier, source_name, source_url, methodology, notes)
+     VALUES ($1,$2,$3::date,$4::date,$5::date,$6,$7,$8,$9,$10,$11)
+     RETURNING id`,
+    [
+      input.inputKey,
+      input.valuePct,
+      input.marketDate,
+      input.observedDate,
+      input.usableFromDate,
+      input.evidenceType,
+      input.sourceTier,
+      input.sourceName,
+      input.sourceUrl,
+      input.methodology,
+      input.notes ?? null,
+    ],
+  );
+  return Number(rows[0]?.id);
+}

@@ -1,6 +1,10 @@
 import YahooFinanceClass from 'yahoo-finance2';
 
-import { getMacroInputEvidenceAsOf } from '../repository/valuation-assumption.repository';
+import {
+  getLatestMacroInputEvidence,
+  getMacroInputEvidenceAsOf,
+  insertMacroInputEvidence,
+} from '../repository/valuation-assumption.repository';
 
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
@@ -557,3 +561,86 @@ export async function fetchPublicMacroDashboard(): Promise<PublicMacroDashboard>
 }
 
 export { WORLD_BANK_SOURCE_URL };
+
+/**
+ * Tanggal hari ini menurut kalender WIB (bukan UTC) - dipakai sebagai tanggal observasi bukti.
+ */
+function jakartaDateIso(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+}
+
+/**
+ * Apakah nilai BI-Rate yang diamati hari ini layak dicatat sebagai bukti resmi baru?
+ * Fungsi murni supaya bisa diuji: mencatat HANYA saat nilainya berbeda dari bukti terakhir,
+ * jadi tabel bukti tidak dipenuhi baris "observasi" palsu tiap hari untuk keputusan yang sama.
+ */
+export function shouldCaptureBiRateEvidence(input: {
+  liveValuePct: number;
+  latestValuePct: number | null;
+}): boolean {
+  if (!Number.isFinite(input.liveValuePct)) return false;
+  if (input.latestValuePct == null) return true;
+  return Math.abs(input.liveValuePct - input.latestValuePct) > 0.005;
+}
+
+export interface BiRateEvidenceCaptureResult {
+  captured: boolean;
+  reason:
+    | 'KEPUTUSAN_BARU_DICATAT'
+    | 'TIDAK_ADA_KEPUTUSAN_BARU'
+    | 'LAMAN_BI_TIDAK_TERBACA'
+    | 'BUKTI_TERAKHIR_TIDAK_TERBACA';
+  valuePct?: number;
+  evidenceId?: number;
+}
+
+/**
+ * Tangkap keputusan BI-Rate dari laman resmi BI lalu simpan sebagai bukti resmi di
+ * macro_input_evidence - TANPA nilai karangan:
+ *   - kalau laman resmi tidak terbaca (ECONNRESET dsb) -> tidak menulis apa pun,
+ *     cukup melaporkan alasannya supaya pengawas kebasian makro yang memperingatkan;
+ *   - kalau nilai sama dengan bukti resmi terakhir -> tidak menulis baris baru
+ *     (mencegah "kesegaran palsu": tanggal baru untuk keputusan yang sama);
+ *   - kalau nilainya berbeda -> dicatat sebagai POLICY_RATE tier GOVERNMENT_OFFICIAL
+ *     dengan URL sumber + metode pengambilan.
+ */
+export async function captureBiRateEvidenceFromOfficial(): Promise<BiRateEvidenceCaptureResult> {
+  const live = await fetchLiveBiRate();
+  if (!live) return { captured: false, reason: 'LAMAN_BI_TIDAK_TERBACA' };
+
+  let latest: Awaited<ReturnType<typeof getLatestMacroInputEvidence>> = null;
+  try {
+    latest = await getLatestMacroInputEvidence(BI_RATE_EVIDENCE_KEY);
+  } catch {
+    return { captured: false, reason: 'BUKTI_TERAKHIR_TIDAK_TERBACA', valuePct: live.value };
+  }
+
+  if (!shouldCaptureBiRateEvidence({ liveValuePct: live.value, latestValuePct: latest?.valuePct ?? null })) {
+    return { captured: false, reason: 'TIDAK_ADA_KEPUTUSAN_BARU', valuePct: live.value };
+  }
+
+  const today = jakartaDateIso();
+  const evidenceId = await insertMacroInputEvidence({
+    inputKey: BI_RATE_EVIDENCE_KEY,
+    valuePct: live.value,
+    marketDate: today,
+    observedDate: today,
+    usableFromDate: today,
+    evidenceType: 'POLICY_RATE',
+    sourceTier: 'GOVERNMENT_OFFICIAL',
+    sourceName: 'Bank Indonesia - laman resmi keputusan BI-Rate (penangkapan otomatis)',
+    sourceUrl: BI_NEWS_URL,
+    methodology:
+      'Dibaca otomatis oleh job cron makro dari halaman resmi BI (ruang media news release) dan ' +
+      'dicatat hanya ketika nilainya berbeda dari bukti resmi terakhir. Judul halaman BI tidak ' +
+      'memaparkan tanggal RDG, jadi tanggal berlaku = tanggal observasi.',
+    notes: 'Penangkapan otomatis; verifikasi manual tetap disarankan saat fitur ini masih beta.',
+  });
+
+  return { captured: true, reason: 'KEPUTUSAN_BARU_DICATAT', valuePct: live.value, evidenceId };
+}
