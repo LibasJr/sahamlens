@@ -288,12 +288,12 @@ export async function getDailyMapData(query: DailyMapQuery = defaultQuery): Prom
               count(*) filter (
                 where coalesce(finished_at, started_at) >= now() - interval '7 days'
               )::int as runs_last_7_days,
-              min(coalesce(finished_at, started_at)) filter (
+              min(extract(hour from coalesce(finished_at, started_at) at time zone 'Asia/Jakarta')) filter (
                 where coalesce(finished_at, started_at) >= now() - interval '7 days'
-              ) as window_first,
-              max(coalesce(finished_at, started_at)) filter (
+              )::numeric as hour_wib_min,
+              max(extract(hour from coalesce(finished_at, started_at) at time zone 'Asia/Jakarta')) filter (
                 where coalesce(finished_at, started_at) >= now() - interval '7 days'
-              ) as window_last
+              )::numeric as hour_wib_max
          from job_run_log
         group by job_name
      )
@@ -302,8 +302,8 @@ export async function getDailyMapData(query: DailyMapQuery = defaultQuery): Prom
             coalesce(last_run.finished_at, last_run.started_at)::text as last_run_at,
             coalesce(window_count.runs_last_7_days, 0) as runs_last_7_days,
             to_char(coalesce(last_run.finished_at, last_run.started_at) at time zone 'Asia/Jakarta', 'HH24')::int as hour_wib,
-            to_char(window_count.window_first at time zone 'Asia/Jakarta', 'HH24')::int as hour_wib_min,
-            to_char(window_count.window_last at time zone 'Asia/Jakarta', 'HH24')::int as hour_wib_max
+            window_count.hour_wib_min::int as hour_wib_min,
+            window_count.hour_wib_max::int as hour_wib_max
        from last_run
        left join window_count on window_count.job_name = last_run.job_name`
   );
