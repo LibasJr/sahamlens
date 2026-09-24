@@ -568,4 +568,100 @@ export const en: TranslationDictionary = {
     channelEmail: 'Email',
     channelEmailDesc: 'support@sahamlens.id — for technical support and feedback',
   },
+  privacyPage: {
+    lastUpdated: 'Last updated {date}',
+    canonical: '/privacy',
+    badge: 'Data and account transparency',
+    heroTitle: 'Privacy Policy',
+    heroDescription:
+      'This page explains what data SahamLens stores, how it is processed, and your options regarding your account. Content reflects actual implementation — not legal boilerplate.',
+    summaryTitle: 'Summary',
+    summaryBody:
+      'SahamLens stores only data needed to run the service: your account, authentication events, watchlists, alerts, virtual portfolio, and explicit LensAI feedback. Data older than the retention window is deleted automatically. You can request account deletion at any time via support@sahamlens.id.',
+    sectionAccountTitle: 'Account and authentication',
+    sectionAccountBody:
+      'Account data stored: email, password hash (not plaintext), role, verification status, and timestamps for creation, trial, Pro access, last login, and last activity. Authentication events (signup, login, verification) record email, event time, ip hash, ip prefix, and user agent. Auth event history has a default retention of 90 days.',
+    sectionProductTitle: 'Service data',
+    sectionProductBody:
+      'Watchlist entries (symbol, buy price, alert price, lot size, optional journal note), alerts (symbol and trigger condition), virtual portfolio (cash, holdings, transactions), and LensAI feedback (prompt + answer that you explicitly rated up or down). LensAI feedback default retention is 180 days; payment orders that never reached PAID status are deleted after 180 days.',
+    sectionProcessingTitle: 'Purpose of processing',
+    sectionProcessingBody:
+      'Data is processed solely to provide and secure the service: authentication, delivering watchlist and alert features, maintaining your virtual portfolio, running the decision journal, evaluating LensAI quality from explicit feedback, and reconciling payments. There is no sale of data to third parties and no automated profiling for advertising.',
+    sectionMetadataTitle: 'Security metadata',
+    sectionMetadataBody:
+      'SahamLens records limited authentication metadata to detect abuse and protect accounts: event time, hashed IP, network prefix, and user agent. Funnel and journey event IDs are anonymous UUIDs — not email or IP.',
+    sectionRetentionTitle: 'Retention and automatic cleanup',
+    sectionRetentionBody:
+      'A scheduled cleanup job deletes data that passes the retention window. Defaults: authentication events, funnel, and journey events 90 days; LensAI feedback 180 days; unpaid orders 180 days; admin audit logs 365 days. Exact values are configurable via environment variables.',
+    sectionDeletionTitle: 'Account deletion',
+    sectionDeletionBody:
+      'Account deletion removes your user record, portfolio, holdings, transactions, alerts, watchlists, LensAI feedback, and authentication event history. Payment records needed for reconciliation are retained but de-identified (user_id and email nulled). You can request deletion by contacting support@sahamlens.id.',
+    sectionSourcesTitle: 'Third-party data sources',
+    sectionSourcesBody:
+      'Market and fundamental data comes from third-party providers (notably Yahoo Finance). Provenance and observation date are preserved so financial data is never presented as fresher or more certain than its source. The use of third-party data is factual description, not a transfer of your data to them.',
+    sectionSecurityTitle: 'Security boundaries',
+    sectionSecurityBody:
+      'We implement reasonable security measures appropriate to a small team and the sensitivity of the data. No system is breach-proof — we do not promise absolute security. What we promise: limited collection, bounded retention, and automatic cleanup.',
+    sectionRightsTitle: 'Your options',
+    sectionRightsBody:
+      'You can request data export or account deletion, or ask privacy questions by emailing support@sahamlens.id from your registered address. We respond within 1 business day.',
+    sensitiveWarningTitle: 'Do not share sensitive data',
+    sensitiveWarningBody:
+      'Never send your password, OTP, PIN, API key, or identity documents via prompt or email. SahamLens staff will never ask for your password.',
+    noteDisclaimer:
+      'This is operational documentation of our actual practices, not a substitute for legal review.',
+  },
+  termsPage: {
+    lastUpdated: 'Last updated {date}',
+    canonical: '/terms',
+    badge: 'Usage and limitations',
+    heroTitle: 'Terms of Use',
+    heroDescription:
+      'Using SahamLens means you agree to these terms. They reflect what the product actually is — a research tool, not an investment advisor.',
+    summaryTitle: 'Summary',
+    summaryBody:
+      'SahamLens is research and analysis software. All scores, signals, valuations, target prices, cut-loss levels, ownership flow, and LensAI outputs are informational — not guarantees of investment outcomes. You are responsible for your own trading decisions.',
+    sectionToolTitle: 'Research tool, not advisor',
+    sectionToolBody:
+      'SahamLens provides analytical outputs (LensScore, technical consensus, fundamental metrics, ownership flow, valuations). None of these constitute investment advice or a recommendation to buy, sell, or hold any security.',
+    sectionResponsibilityTitle: 'Your responsibility',
+    sectionResponsibilityBody:
+      'You are responsible for verifying price, liquidity, corporate actions, data delay, and market conditions before making any transaction. Do not treat research-only status or unvalidated models as certainty.',
+    sectionDataTitle: 'Market data limitations',
+    sectionDataBody:
+      'Market and fundamental data comes from third parties, may be delayed, incomplete, or change without notice. Fail-closed logic means features may show data as unavailable rather than serve unreliable numbers.',
+    sectionSignalsTitle: 'No guarantee of outcomes',
+    sectionSignalsBody:
+      'Scores, models, signals, valuations, TP/CL projections, ownership flow, and LensAI explanations are based on historical or publicly available data. They are not probabilities of future results and do not guarantee profit or loss avoidance.',
+    sectionSecurityTitle: 'Account security',
+    sectionSecurityBody:
+      'You are responsible for maintaining the security of your account credentials. SahamLens stores only password hashes, not plaintext passwords, and recommends you do not reuse passwords across services.',
+    sectionAllowedTitle: 'Permitted use',
+    sectionAllowedBody:
+      'You may use SahamLens for personal or internal research, subject to rate limits designed to keep the service stable for all users.',
+    sectionProhibitedTitle: 'Prohibited use',
+    sectionProhibitedBody:
+      'You may not: bypass access controls, scrape or flood endpoints, abuse rate limits, access other users data, or use the service to disrupt its operation or integrity.',
+    sectionAvailabilityTitle: 'Availability and changes',
+    sectionAvailabilityBody:
+      'Features and data sources may change if the integrity, legality, or availability of a source no longer meets SahamLens standards. We may maintain, modify, or discontinue features with proportionate notice where feasible.',
+    sectionAccountRestrictionTitle: 'Account restrictions',
+    sectionAccountRestrictionBody:
+      'Access may be restricted for abuse, ToS violation, or non-payment where subscription terms apply.',
+    sectionSubscriptionTitle: 'Subscription (if applicable)',
+    sectionSubscriptionBody:
+      'Where a paid plan exists, its terms (plan code, duration, amount) are presented before purchase. Specific cancellation and billing mechanics are governed by the payment flow at the time of purchase — we do not promise refunds or renewals that are not part of that documented flow.',
+    sectionIpTitle: 'Intellectual property',
+    sectionIpBody:
+      'SahamLens content (text, design, scoring methodology, software) is protected by copyright. Third-party data remains the property of its providers. You may quote or reference SahamLens content under fair use with attribution.',
+    sectionLiabilityTitle: 'Limitation of liability',
+    sectionLiabilityBody:
+      'To the maximum extent permitted by applicable law, SahamLens is provided as-is without warranties of any kind. Our liability is limited to the extent allowed by law and never exceeds what you actually paid for the service in the 12 months preceding the claim.',
+    sectionChangesTitle: 'Changes to these terms',
+    sectionChangesBody:
+      'We may update these terms as the product evolves. Continued use after changes means you accept the updated terms. Material changes will be announced via the service or support contact.',
+    contactNote: 'Questions? Contact support@sahamlens.id.',
+    noteDisclaimer:
+      'These terms describe the operational reality of the service. They are not a substitute for independent legal review.',
+  },
 };

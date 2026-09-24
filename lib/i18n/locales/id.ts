@@ -566,6 +566,102 @@ export const id = {
     channelEmail: 'Email',
     channelEmailDesc: 'support@sahamlens.id — untuk bantuan teknis dan masukan',
   },
+  privacyPage: {
+    lastUpdated: 'Terakhir diperbarui {date}',
+    canonical: '/privacy',
+    badge: 'Transparansi data dan akun',
+    heroTitle: 'Kebijakan Privasi',
+    heroDescription:
+      'Halaman ini menjelaskan data apa yang disimpan SahamLens, bagaimana diproses, dan opsi Anda terkait akun. Isinya mencerminkan implementasi nyata — bukan boilerplate hukum.',
+    summaryTitle: 'Ringkasan',
+    summaryBody:
+      'SahamLens hanya menyimpan data yang diperlukan untuk menjalankan layanan: akun, kejadian autentikasi, watchlist, alert, portofolio virtual, dan feedback LensAI eksplisit Anda. Data yang lebih lama dari jendela retensi dihapus otomatis. Anda dapat meminta penghapusan akun kapan saja via support@sahamlens.id.',
+    sectionAccountTitle: 'Akun dan autentikasi',
+    sectionAccountBody:
+      'Data akun yang disimpan: email, hash password (bukan plaintext), peran, status verifikasi, dan waktu untuk pembuatan, trial, akses Pro, login terakhir, dan aktivitas terakhir. Kejadian autentikasi (signup, login, verifikasi) mencatat email, waktu kejadian, hash IP, prefix IP, dan user agent. Riwayat kejadian autentikasi memiliki retensi default 90 hari.',
+    sectionProductTitle: 'Data layanan',
+    sectionProductBody:
+      'Entri watchlist (kode saham, harga beli, harga alert, jumlah lot, catatan jurnal opsional), alert (kode saham dan kondisi pemicu), portofolio virtual (kas, kepemilikan, transaksi), dan feedback LensAI (prompt + jawaban yang secara eksplisit Anda nilai naik/turun). Retensi default feedback LensAI 180 hari; pesanan pembayaran yang tidak pernah mencapai status PAID dihapus setelah 180 hari.',
+    sectionProcessingTitle: 'Tujuan pemrosesan',
+    sectionProcessingBody:
+      'Data diprosen semata-mata untuk menyediakan dan mengamankan layanan: autentikasi, menyajikan fitur watchlist dan alert, memelihara portofolio virtual Anda, menjalankan jurnal keputusan, mengevaluasi kualitas LensAI dari feedback eksplisit, dan rekonsiliasi pembayaran. Tidak ada penjualan data ke pihak ketiga dan tidak ada profiling otomatis untuk iklan.',
+    sectionMetadataTitle: 'Metadata keamanan',
+    sectionMetadataBody:
+      'SahamLens mencatat metadata autentikasi terbatas untuk mendeteksi penyalahgunaan dan melindungi akun: waktu kejadian, hash IP, prefix jaringan, dan user agent. ID kejadian funnel dan journey adalah UUID anonim — bukan email atau IP.',
+    sectionRetentionTitle: 'Retensi dan pembersihan otomatis',
+    sectionRetentionBody:
+      'Job pembersihan terjadwal menghapus data yang melewati jendela retensi. Default: kejadian autentikasi, funnel, dan journey 90 hari; feedback LensAI 180 hari; pesanan belum dibayar 180 hari; log audit admin 365 hari. Nilai pastinya dapat dikonfigurasi melalui environment variable.',
+    sectionDeletionTitle: 'Penghapusan akun',
+    sectionDeletionBody:
+      'Penghapusan akun menghapus catatan pengguna, portofolio, kepemilikan, transaksi, alert, watchlist, feedback LensAI, dan riwayat kejadian autentikasi Anda. Catatan pembayaran yang diperlukan untuk rekonsiliasi dipertahankan tapi dide-identifikasi (user_id dan email dinolkan). Anda dapat meminta penghapusan dengan menghubungi support@sahamlens.id.',
+    sectionSourcesTitle: 'Sumber data pihak ketiga',
+    sectionSourcesBody:
+      'Data pasar dan fundamental berasal dari penyedia pihak ketiga (terutama Yahoo Finance). Provenansi dan tanggal observasi dipertahankan agar data finansial tidak disajikan seolah lebih baru atau lebih pasti dari sumbernya. Penggunaan data pihak ketiga ini adalah deskripsi faktual, bukan transfer data Anda kepada mereka.',
+    sectionSecurityTitle: 'Batasan keamanan',
+    sectionSecurityBody:
+      'Kami menerapkan langkah keamanan yang wajar sesuai ukuran tim dan sensitivitas data. Tidak ada sistem yang kebal pelanggaran — kami tidak menjanjikan keamanan mutlak. Yang kami jamin: pengumpulan terbatas, retensi terbatas, dan pembersihan otomatis.',
+    sectionRightsTitle: 'Opsi Anda',
+    sectionRightsBody:
+      'Anda dapat meminta ekspor data atau penghapusan akun, atau bertanya soal privasi dengan mengirim email ke support@sahamlens.id dari alamat terdaftar. Kami merespons dalam 1 hari kerja.',
+    sensitiveWarningTitle: 'Jangan bagikan data sensitif',
+    sensitiveWarningBody:
+      'Jangan pernah mengirim password, OTP, PIN, API key, atau dokumen identitas melalui prompt atau email. Staf SahamLens tidak akan pernah menanyakan password Anda.',
+    noteDisclaimer:
+      'Ini adalah dokumentasi operasional dari praktik nyata kami, bukan pengganti tinjauan hukum.',
+  },
+  termsPage: {
+    lastUpdated: 'Terakhir diperbarui {date}',
+    canonical: '/terms',
+    badge: 'Penggunaan dan batasan',
+    heroTitle: 'Ketentuan Penggunaan',
+    heroDescription:
+      'Menggunakan SahamLens berarti Anda menyetujui ketentuan ini. Isinya mencerminkan apa produk ini sebenarnya — alat riset, bukan penasihat investasi.',
+    summaryTitle: 'Ringkasan',
+    summaryBody:
+      'SahamLens adalah perangkat lunak riset dan analisis. Semua skor, sinyal, valuasi, target price, batas cut-loss, ownership flow, dan output LensAI bersifat informatif — bukan jaminan hasil investasi. Anda bertanggung jawab atas keputusan transaksi Anda sendiri.',
+    sectionToolTitle: 'Alat riset, bukan penasihat',
+    sectionToolBody:
+      'SahamLens menyajikan output analitis (LensScore, konsensus teknikal, metrik fundamental, ownership flow, valuasi). Tidak satupun merupakan nasihat investasi atau rekomendasi untuk membeli, menjual, atau menahan efek apa pun.',
+    sectionResponsibilityTitle: 'Tanggung jawab Anda',
+    sectionResponsibilityBody:
+      'Anda bertanggung jawab memeriksa harga, likuiditas, aksi korporasi, keterlambatan data, dan kondisi pasar sebelum melakukan transaksi. Jangan memperlakukan status research-only atau model yang belum tervalidasi sebagai kepastian.',
+    sectionDataTitle: 'Keterbatasan data pasar',
+    sectionDataBody:
+      'Data pasar dan fundamental berasal dari pihak ketiga, mungkin terlambat, tidak lengkap, atau berubah tanpa pemberitahuan. Logika fail-closed berarti fitur dapat menampilkan data sebagai tidak tersedia daripada menyajikan angka yang tidak dapat diandalkan.',
+    sectionSignalsTitle: 'Tidak ada jaminan hasil',
+    sectionSignalsBody:
+      'Skor, model, sinyal, valuasi, proyeksi TP/CL, ownership flow, dan penjelasan LensAI didasarkan pada data historis atau yang tersedia secara publik. Ini bukan probabilitas hasil di masa depan dan tidak menjamin keuntungan atau penghindaran kerugian.',
+    sectionSecurityTitle: 'Keamanan akun',
+    sectionSecurityBody:
+      'Anda bertanggung jawab menjaga keamanan kredensial akun Anda. SahamLens hanya menyimpan hash password, bukan password plaintext, dan merekomendasikan Anda tidak menggunakan password yang sama di berbagai layanan.',
+    sectionAllowedTitle: 'Penggunaan yang diizinkan',
+    sectionAllowedBody:
+      'Anda dapat menggunakan SahamLens untuk riset pribadi atau internal, dengan tunduk pada rate limit yang dirancang untuk menjaga layanan tetap stabil bagi semua pengguna.',
+    sectionProhibitedTitle: 'Penggunaan yang dilarang',
+    sectionProhibitedBody:
+      'Anda tidak boleh: melewati kontrol akses, mengikis atau membanjiri endpoint, menyalahgunakan rate limit, mengakses data pengguna lain, atau menggunakan layanan untuk mengganggu operasi atau integritasnya.',
+    sectionAvailabilityTitle: 'Ketersediaan dan perubahan',
+    sectionAvailabilityBody:
+      'Fitur dan sumber data dapat berubah jika integritas, legalitas, atau ketersediaan sumber tidak lagi memenuhi standar SahamLens. Kami dapat memelihara, mengubah, atau menghentikan fitur dengan pemberitahuan yang proporsional apabila memungkinkan.',
+    sectionAccountRestrictionTitle: 'Pembatasan akun',
+    sectionAccountRestrictionBody:
+      'Akses dapat dibatasi karena penyalahgunaan, pelanggaran Ketentuan Layanan, atau tidak membayar apabila ketentuan berlangganan berlaku.',
+    sectionSubscriptionTitle: 'Langganan (jika berlaku)',
+    sectionSubscriptionBody:
+      'Apabila ada rencana berbayar, ketentuannya (kode rencana, durasi, jumlah) disajikan sebelum pembelian. Mekanisme pembatalan dan penagihan spesifik diatur oleh flow pembayaran pada saat pembelian — kami tidak menjanjikan pengembalian dana atau perpanjangan yang bukan bagian dari flow terdokumentasi tersebut.',
+    sectionIpTitle: 'Hak cipta',
+    sectionIpBody:
+      'Konten SahamLens (teks, desain, metodologi skor, perangkat lunak) dilindungi hak cipta. Data pihak ketiga tetap menjadi milik penyedianya. Anda dapat mengutip atau merujuk konten SahamLens di bawah penggunaan wajar dengan atribusi.',
+    sectionLiabilityTitle: 'Batasan tanggung jawab',
+    sectionLiabilityBody:
+      'Sejauh yang diizinkan oleh hukum yang berlaku, SahamLens disediakan apa adanya tanpa jaminan apa pun. Tanggung jawab kami dibatasi sejauh yang diizinkan oleh hukum dan tidak pernah melebihi apa yang benar-benar Anda bayarkan untuk layanan dalam 12 bulan sebelum klaim.',
+    sectionChangesTitle: 'Perubahan ketentuan ini',
+    sectionChangesBody:
+      'Kami dapat memperbarui ketentuan ini seiring perkembangan produk. Penggunaan berkelanjutan setelah perubahan berarti Anda menerima ketentuan yang diperbarui. Perubahan material akan diumumkan melalui layanan atau kontak dukungan.',
+    contactNote: 'Pertanyaan? Hubungi support@sahamlens.id.',
+    noteDisclaimer:
+      'Ketentuan ini menggambarkan realitas operasional layanan. Ini bukan pengganti tinjauan hukum independen.',
+  },
 };
 
 export type TranslationDictionary = typeof id;
