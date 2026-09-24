@@ -1,19 +1,22 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { ArrowLeft, CalendarClock, CheckCircle2, Clock, HelpCircle, ShieldAlert, XCircle } from 'lucide-react';
 
 import { Card } from '@/components/ui/Card';
 import { getDailyMapData, type DailyMapJobRow } from '@/modules/confirmation/service/daily-map.service';
+import { isAdminServer } from '@/modules/user';
 import { LANG_COOKIE } from '@/shared/constants/cookie-names';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export const metadata = {
-  title: 'Peta Alur Harian — SahamLens',
+  robots: { index: false, follow: false },
+  title: 'Peta Alur Harian — Admin SahamLens',
   description:
     'Kapan setiap data SahamLens benar-benar diperbarui: jam jalan, status terakhir, dan bukti riwayat dari log tugas — bukan jadwal yang ditulis tangan.',
-  alternates: { canonical: '/panduan-harian' },
+  alternates: { canonical: '/admin/panduan-harian' },
 };
 
 function formatWib(timestamp: string | null): string {
@@ -50,14 +53,15 @@ function StatusBadge({ job, isEn }: { job: DailyMapJobRow; isEn: boolean }) {
 }
 
 export default async function DailyMapPage() {
+  if (!(await isAdminServer())) redirect('/admin-login');
   const data = await getDailyMapData();
   const isEn = (await cookies()).get(LANG_COOKIE)?.value === 'en';
 
   return (
     <main className="min-h-screen bg-tv-bg p-4 text-tv-text sm:p-8">
       <div className="mx-auto max-w-5xl">
-        <Link href="/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text">
-          <ArrowLeft className="h-4 w-4" /> {isEn ? 'Back' : 'Kembali'}
+        <Link href="/admin" className="mb-4 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text">
+          <ArrowLeft className="h-4 w-4" /> {isEn ? 'Back to Admin' : 'Kembali ke Admin'}
         </Link>
 
         <h1 className="flex items-center gap-2 font-heading text-2xl font-bold">
