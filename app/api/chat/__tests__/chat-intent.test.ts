@@ -122,4 +122,32 @@ describe('LensAI intent router', () => {
     expect(result.dataIntent).toBe('FUNDAMENTAL_CURRENT');
   });
 
+  describe('presisi intent: tidak tersapu all-features atau workflow (insiden 2026-09-24)', () => {
+    it('pertanyaan kalender / RUPS dengan frasa "apa saja" tetap masuk CALENDAR', () => {
+      const result = classify('Cek jadwal Rups dan corporate action untuk Minggu depan apa saja', 0);
+      expect(result.intent).toBe('CALENDAR');
+      expect(result.dataIntent).toBe('CALENDAR');
+    });
+
+    it('pertanyaan data pasar dengan "apa saja" tetap masuk intent data', () => {
+      expect(classify('saham apa saja yang bagus hari ini', 0).intent).toBe('LENSRADAR_PICKS');
+      expect(classify('ada dividen apa saja minggu ini', 0).intent).toBe('DIVIDEND');
+      expect(classify('top gainer apa saja', 0).intent).toBe('MARKET_MOVERS');
+      expect(classify('sektor apa saja yang naik', 0).intent).toBe('SECTOR_ROTATION');
+    });
+
+    it('analisis emiten spesifik dengan kata "lengkap" atau "riset" tidak tersapu product help', () => {
+      expect(classify('analisis lengkap BBCA', 1).intent).toBe('STOCK_GENERAL');
+      expect(classify('Saya mau riset BBCA', 1).intent).toBe('STOCK_GENERAL');
+    });
+
+    it('pertanyaan fitur / menu lengkap tetap dikenali sebagai SAHAMLENS_PRODUCT_HELP', () => {
+      expect(classify('SahamLens bisa apa saja?', 0).intent).toBe('SAHAMLENS_PRODUCT_HELP');
+      expect(classify('fitur apa saja yang ada di sahamlens', 0).intent).toBe('SAHAMLENS_PRODUCT_HELP');
+      expect(classify('apa saja fitur sahamlens', 0).intent).toBe('SAHAMLENS_PRODUCT_HELP');
+      expect(classify('menunya apa saja', 0).intent).toBe('SAHAMLENS_PRODUCT_HELP');
+      expect(classify('jelaskan semua fitur', 0).intent).toBe('SAHAMLENS_PRODUCT_HELP');
+      expect(classify('alur riset saham di SahamLens', 0).intent).toBe('SAHAMLENS_PRODUCT_HELP');
+    });
+  });
 });

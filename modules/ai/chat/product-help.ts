@@ -41,14 +41,16 @@ const PRODUCT_FEATURES: ProductFeature[] = [
 ];
 
 const ADMIN_FEATURE_START_NAME = 'Bukti Validasi & Integritas Harga';
-const ALL_FEATURES_QUERY = /\b(semua|seluruh|lengkap|apa saja|bisa apa|fitur(?:nya)? apa|menu(?:nya)? apa|tour|jelaskan fitur)\b/;
+const ALL_FEATURES_QUERY =
+  /\b(?:(?:daftar|list|jelaskan|sebutkan|rangkum|uraikan)?\s*(?:semua|seluruh|lengkap)\s+(?:fitur|menu|modul|kemampuan)|(?:fitur|menu|modul)(?:nya)?\s+(?:apa(?:\s+saja)?|lengkap|semua|seluruh)|apa(?:\s+saja)?\s+(?:fitur|menu|modul)(?:nya)?|(?:ada\s+)?(?:fitur|menu|modul)\s+apa(?:\s+saja)?|tour\s+(?:fitur|menu|aplikasi)|jelaskan\s+(?:semua\s+)?fitur|daftar\s+(?:semua\s+)?fitur|(?:sahamlens|aplikasi(?: ini)?|platform(?: ini)?|tools?(?: ini)?|lensai|kamu|bot(?: ini)?)\s+bisa\s+apa(?:\s+saja)?|bisa\s+apa(?:\s+saja)?|kemampuan(?:nya| kamu| aplikasi)?\s+apa(?:\s+saja)?)\b/i;
 
 /**
  * Pertanyaan workflow lintas fitur — "alur riset", "dari cek data sampai watchlist",
  * "cara pakai SahamLens untuk riset", dll. Harus dikenali sebagai product help,
  * bukan UNKNOWN atau STOCK_GENERAL.
  */
-const WORKFLOW_QUERY = /\b(alur|workflow|riset|research|dari.*sampai|dari.*ke\b.*\b(watchlist|analisis|market|radar|technical|fundamental|screener)|cara pakai.*sahamlens|cara riset|langkah riset|step.*riset|pengenalan.*sahamlens|panduan.*riset|tutorial.*riset)\b/i;
+const WORKFLOW_QUERY =
+  /\b(?:(?:alur|workflow|langkah|tahapan|proses|step|panduan|tutorial)\s+(?:riset|analisis|kerja)|alur\s+kerja|workflow|dari\s+\w+.*\s+(?:sampai|hingga|ke)\s+(?:watchlist|analisis|market|radar|technical|fundamental|screener)|cara\s+pakai\s+(?:\w+\s+)?sahamlens|cara\s+riset\s+(?:di\s+)?sahamlens|pengenalan\s+(?:\w+\s+)?sahamlens)\b/i;
 
 function featureAnswer(feature: ProductFeature): string {
   return `**${feature.name}** berfungsi untuk ${feature.function}.\n\n- **Cara pakai:** ${feature.usage}.\n- **Hasil yang dibaca:** ${feature.result}.\n- **Batasan:** ${feature.limitation}.`;
@@ -100,6 +102,15 @@ const COMPLIANCE_ANSWER = [
   '- **Keputusan tetap milikmu:** seluruh risiko keputusan beli/jual ada pada pengguna.',
 ].join('\n');
 
+const PRODUCT_DEFINITION_QUERY =
+  /\b(apa itu|itu apa|apa artinya|artinya apa|maksudnya|definisi|fungsi(?:nya)?|cara kerja(?:nya)?|cara pakai(?:nya)?|bagaimana pakai|gimana pakai|tutorial|panduan|buat apa|guna(?:nya)?|bedanya|beda|jelaskan|jelasin|terangkan|uraikan|menu|fitur|modul)\b/i;
+
+const BRANDED_FEATURE_QUERY =
+  /\b(lensmarket|lensradar|lenstechnical|lensscanner|lensfundamental|lenswatch|lensconsensus|lensai|sahamlens)\b/i;
+
+const TPCL_METHODOLOGY_QUERY =
+  /\b(cara|bagaimana|gimana|maksud(?:nya| nya)?|menentukan|nentuin|penentuan|menghitung|hitung)\b[\s\S]*\b(tp\s*\/?\s*cl|take profit|cut loss|stop loss)\b|\b(tp\s*\/?\s*cl|take profit|cut loss|stop loss)\b[\s\S]*\b(cara|bagaimana|gimana|maksud(?:nya| nya)?|menentukan|nentuin|penentuan|menghitung|hitung)\b/i;
+
 /** Jawaban product-help deterministik agar bantuan fitur tetap tersedia ketika provider AI
  * sedang timeout/rate-limit. Data emiten dan pasar tetap melewati jalur terverifikasi.
  * Mengembalikan null bila tidak ada jawaban deterministik yang pas - pemanggil WAJIB
@@ -109,6 +120,13 @@ export function getDeterministicProductHelpResponse(prompt: string): string | nu
   if (PRODUCT_SELF_QUERY.test(text) && COMPLIANCE_QUERY.test(text)) return COMPLIANCE_ANSWER;
   if (ALL_FEATURES_QUERY.test(text)) return allFeaturesAnswer();
   if (WORKFLOW_QUERY.test(text)) return WORKFLOW_ANSWER;
+
+  const hasDefinitionFraming =
+    PRODUCT_DEFINITION_QUERY.test(text) ||
+    BRANDED_FEATURE_QUERY.test(text) ||
+    TPCL_METHODOLOGY_QUERY.test(text);
+  if (!hasDefinitionFraming) return null;
+
   const adminStart = PRODUCT_FEATURES.findIndex((item) => item.name === ADMIN_FEATURE_START_NAME);
   const feature = /\b(validation|lab|backfill|integrity|adoption|operational|kesehatan operasional|uji akurasi|uji target|uji intraday|uji arus|pemeriksaan data|bukti data|bukti fundamental|masukan lensai|feedback lensai)\b/.test(text)
     ? PRODUCT_FEATURES.slice(adminStart).find((item) => item.pattern.test(text)) ?? PRODUCT_FEATURES.find((item) => item.pattern.test(text))
@@ -116,10 +134,12 @@ export function getDeterministicProductHelpResponse(prompt: string): string | nu
   return feature ? featureAnswer(feature) : null;
 }
 
-export function isAllFeaturesProductQuery(prompt: string): boolean {
+export function isAllFeaturesProductQuery(prompt: string, tickerCount = 0): boolean {
+  if (tickerCount > 0) return false;
   return ALL_FEATURES_QUERY.test(normalizeChatText(prompt));
 }
 
-export function isWorkflowQuery(prompt: string): boolean {
+export function isWorkflowQuery(prompt: string, tickerCount = 0): boolean {
+  if (tickerCount > 0) return false;
   return WORKFLOW_QUERY.test(normalizeChatText(prompt));
 }

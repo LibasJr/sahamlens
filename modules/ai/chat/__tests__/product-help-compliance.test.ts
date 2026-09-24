@@ -30,4 +30,12 @@ describe('product-help: pertanyaan kepatuhan (insiden "SahamLens apa legal?" 202
     const answer = getDeterministicProductHelpResponse('LensRadar itu apa?');
     expect(answer).toContain('**LensRadar**');
   });
+
+  it('pertanyaan data pasar yang mengandung "apa saja" atau "riset" mengembalikan null agar diteruskan ke data router', () => {
+    expect(getDeterministicProductHelpResponse('Cek jadwal Rups dan corporate action untuk Minggu depan apa saja')).toBeNull();
+    expect(getDeterministicProductHelpResponse('saham apa saja yang bagus hari ini')).toBeNull();
+    expect(getDeterministicProductHelpResponse('ada dividen apa saja minggu ini')).toBeNull();
+    expect(getDeterministicProductHelpResponse('Saya mau riset BBCA')).toBeNull();
+    expect(getDeterministicProductHelpResponse('analisis lengkap BBCA')).toBeNull();
+  });
 });
