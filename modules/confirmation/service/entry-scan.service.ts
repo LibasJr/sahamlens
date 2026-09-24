@@ -23,7 +23,7 @@ export const ENTRY_SCAN_OPTIONS = {
   levelWindow: 20,
   /** Jendela untuk menghitung volatilitas harian. */
   volatilityWindow: 20,
-  /** Jarak Cutloss diukur dalam kelipatan volatilitas harian. */
+  /** Jarak Stop Loss diukur dalam kelipatan volatilitas harian. */
   stopVolatilityMultiple: 2,
   /**
    * Ambang likuiditas: rata-rata nilai transaksi 20 hari pada sesi terakhir. Emiten di
@@ -129,14 +129,14 @@ export function buildEntryScan(ticker: string, closes: number[], dates: string[]
   let riskReward: number | null = null;
   let note: string;
   if (stop <= 0) {
-    note = `Volatilitas ${ENTRY_SCAN_OPTIONS.volatilityWindow} sesi terlalu besar untuk emiten ini: batas Cutloss jatuh di bawah nol, jadi levelnya tidak dapat dipakai dan rasionya tidak dihitung.`;
+    note = `Volatilitas ${ENTRY_SCAN_OPTIONS.volatilityWindow} sesi terlalu besar untuk emiten ini: batas Stop Loss jatuh di bawah nol, jadi levelnya tidak dapat dipakai dan rasionya tidak dihitung.`;
   } else if (risk <= 0) {
-    note = 'Harga Cutloss tidak berada di bawah level masuk, jadi rasio risiko/imbal tidak dapat dihitung.';
+    note = 'Harga Stop Loss tidak berada di bawah level masuk, jadi rasio risiko/imbal tidak dapat dihitung.';
   } else if (reward <= 0) {
     note = 'Level penutupan tertinggi jendela tidak berada di atas level masuk, jadi rasio risiko/imbal tidak dapat dihitung.';
   } else {
     riskReward = reward / risk;
-    note = `Level dari penutupan terendah/tertinggi ${ENTRY_SCAN_OPTIONS.levelWindow} sesi; Cutloss ${ENTRY_SCAN_OPTIONS.stopVolatilityMultiple} kali volatilitas harian.`;
+    note = `Level dari penutupan terendah/tertinggi ${ENTRY_SCAN_OPTIONS.levelWindow} sesi; Stop Loss ${ENTRY_SCAN_OPTIONS.stopVolatilityMultiple} kali volatilitas harian.`;
   }
 
   return {
