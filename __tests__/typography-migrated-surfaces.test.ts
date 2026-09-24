@@ -34,15 +34,34 @@ describe('permukaan yang sudah dimigrasikan tidak menerima ukuran piksel lagi', 
   });
 
   it('pengecualian tetap memakai alasan yang menyebabkannya dikecualikan', () => {
-    for (const { file, ukuran } of DAFTAR.pengecualian as { file: string; ukuran: string[] }[]) {
+    type Pengecualian = { file: string; ukuran: string[]; wajibMengandung: string[]; wajibDiBaris?: boolean };
+    for (const { file, ukuran, wajibMengandung, wajibDiBaris } of DAFTAR.pengecualian as Pengecualian[]) {
       const isi = baca(file);
       const dipakai = [...isi.matchAll(ARBITRARY_RE)].map((m) => m[0]).sort();
       // Isinya boleh bergeser, tapi tidak boleh bertambah: pengecualian yang tumbuh
       // diam-diam adalah cara paling rapi menghapus sebuah gerbang.
       expect(dipakai, `${file} menambah ukuran piksel di luar pengecualian`).toEqual([...ukuran].sort());
-      // Tanpa leading-none, alasan pengecualiannya hilang: kotak avatar tetap, tinggi
-      // baris warisan body membuat teksnya mendesak keluar lingkaran.
-      expect(isi, `${file} kehilangan leading-none - alasan pengecualiannya tidak berlaku lagi`).toContain('leading-none');
+      // Syarat yang membuat pengecualian itu sah harus masih ada. Untuk sebagian besar
+      // entri ia harus ada DI BARIS YANG SAMA: alasan pengecualiannya berlaku untuk elemen
+      // tertentu, bukan untuk berkasnya. `wajibDiBaris: false` dipakai hanya kalau
+      // ukurannya memang tinggal di peta varian yang terpisah dari elemennya.
+      const diBaris = wajibDiBaris !== false;
+      const barisPengecualian = isi
+        .split('\n')
+        .filter((baris) => ukuran.some((uk) => baris.includes(uk)));
+      expect(barisPengecualian.length, `${file}: ukuran yang dikecualikan tidak ditemukan di baris mana pun`).toBeGreaterThan(0);
+      for (const token of wajibMengandung) {
+        if (!diBaris) {
+          expect(isi, `${file} kehilangan "${token}" - alasan pengecualiannya tidak berlaku lagi`).toContain(token);
+          continue;
+        }
+        for (const baris of barisPengecualian) {
+          expect(
+            baris,
+            `${file} kehilangan "${token}" di baris pengecualiannya - alasan pengecualiannya tidak berlaku lagi`,
+          ).toContain(token);
+        }
+      }
     }
   });
 });

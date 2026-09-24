@@ -3,7 +3,9 @@
     "Permukaan yang sudah dimigrasikan ke skala peran: tidak boleh mengandung ukuran piksel acak.",
     "Gerbangnya ada di __tests__/typography-migrated-surfaces.test.ts; berkas ini hanya daftarnya.",
     "Kalau sebuah berkas dipindah, pindahkan juga barisnya di sini - daftar yang menunjuk path lama",
-    "akan lulus tanpa memeriksa apa pun (scripts/audit-typography-ratchet.mjs tetap menjaga angka totalnya)."
+    "akan lulus tanpa memeriksa apa pun (scripts/audit-typography-ratchet.mjs tetap menjaga angka totalnya).",
+    "Isi `wajibMengandung` harus ada di baris yang memuat ukuran yang dikecualikan - tanpa itu,",
+    "pengecualian tetap hijau meski alasan yang mendasarinya sudah lama hilang."
   ],
   "bersih": [
     "app/calendar/page.tsx",
@@ -46,7 +48,15 @@
     {
       "file": "components/ui/TickerAvatar.tsx",
       "ukuran": ["text-[10px]"],
-      "alasan": "Kotak avatar berukuran TETAP (w-7/h-7 dst.) dan inisialnya memakai leading-none. Peran semantik justru salah di sini: lantai keterbacaan menaikkan ukuran huruf (text-[10px] dan text-xs di varian lain) menjadi 13px dan tinggi baris warisan body 1,6 membuat kotak teks 20,8px lebih tinggi daripada avatar 20px - inisialnya mendesak keluar lingkaran."
+      "wajibMengandung": ["leading-none"],
+      "wajibDiBaris": false,
+      "alasan": "Kotak avatar berukuran TETAP (w-7/h-7 dst.) dan inisialnya memakai leading-none. Peran semantik justru salah di sini: lantai keterbacaan menaikkan ukuran huruf (text-[10px] dan text-xs di varian lain) menjadi 13px dan tinggi baris warisan body 1,6 membuat kotak teks 20,8px lebih tinggi daripada avatar 20px - inisialnya mendesak keluar lingkaran. `wajibDiBaris: false` karena ukurannya ada di peta varian (SIZES) sementara leading-none menempel di elemen - keduanya di berkas yang sama, tidak di baris yang sama."
+    },
+    {
+      "file": "components/Dashboard.tsx",
+      "ukuran": ["text-[14px]"],
+      "wajibMengandung": ["font-number"],
+      "alasan": "Harga IHSG di baris ringkas ponsel (`flex md:hidden`), satu-satunya angka mono yang tidak punya peran setara. lens-metric 18px akan memperbesar baris ringkas itu, sedangkan peran ukuran lain memaksa keluarga Inter dan menghapus mono. Baris ini menunggu peran angka 14px; 29 ukuran lain di berkas yang sama sudah dimigrasikan."
     }
   ]
 }

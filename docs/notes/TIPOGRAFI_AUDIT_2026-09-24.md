@@ -335,3 +335,52 @@ Duplikasi ikut ditutup: salinan lokal `stripComments()` di
 `__tests__/typography-font-loading.test.ts` dihapus, memakai `scripts/lib/strip-comments.mjs`
 yang sama dengan ratchet. Menyalin regex itu per gerbang adalah cara paling rapi membuat
 salah satu gerbang kelak menghitung prosa sebagai kode - persis kelas kegagalan §2.
+
+## 12. Fase 5a — Dashboard (30 titik, 29 dimigrasikan)
+
+Sasaran pertama fase 5 adalah berkas dengan ukuran acak terbanyak: `components/Dashboard.tsx`
+(30 titik, terbanyak di repo). Hasilnya 29 penggantian, 1 sengaja dikecualikan.
+
+**Aturan yang dipakai, dan kenapa.** Acuan penggantian bukan angka yang TERTULIS, melainkan
+ukuran yang DIRENDER hari ini. Lantai kompatibilitas di §4 (`html .text-\[10px\]` … )
+membuat `text-[10px]`, `text-[11px]`, `text-[12px]`, dan `text-xs` semuanya dirender 13px.
+Jadi:
+
+| Hari ini | Jadi | Alasan |
+|---|---|---|
+| `text-[10px]`/`[11px]`/`[12px]` pada label, pil, badge, `kbd` | `lens-label` (13px/1.25/650) | ukuran ter-render sama, tidak ada perubahan tata letak |
+| sama, pada teks mengalir | `lens-body-sm` (13px/1.5/500) | idem, tinggi baris tetap 1.5 |
+| `text-[13px]` pada `h3`/`h4` | `lens-card-title` (15px/1.35/650) | peran judul kartu; **satu-satunya kenaikan yang disengaja** |
+| `text-[16px]` wordmark | `lens-card-title` | 16px ponsel, 15px desktop |
+| `text-[18px]` angka mono | `lens-metric` (18px/1.2/700 mono) | sama persis |
+
+**Angka mono tidak boleh diberi peran ukuran.** Peran ukuran menyetel `font-family: Inter`,
+jadi memasangnya di elemen angka akan menghapus mono dan mengubah kolom angka jadi
+proporsional. Karena itu `lens-number` (mono + `tabular-nums`, TANPA `font-size`) dipasang
+di elemennya, dan **ukuran baris** dipindahkan ke peran pada pembungkusnya - di Dashboard,
+baris kalender (`Link`) yang mendapat `lens-body-sm`, lalu simbol dan tanggal mewarisi 13px
+dari situ. Aturan yang sama berlaku untuk setiap migrasi angka berikutnya.
+
+**Satu pengecualian, dengan alasan yang diuji.** Harga IHSG di baris ringkas ponsel
+(`flex md:hidden`) memakai `text-[14px] font-number`. Tidak ada peran angka mono 14px:
+`lens-metric` 18px akan memperbesar baris ringkas itu, sedangkan peran ukuran lain memaksa
+keluarga Inter dan menghapus mono. Baris itu masuk `config/typography-migrated.json` sebagai
+`pengecualian` bersama syarat `wajibMengandung: ["font-number"]` - gerbang akan merah kalau
+baris itu kehilangan `font-number`, karena alasan pengecualiannya saat itu sudah tidak
+berlaku. Sisa berkasnya masuk daftar `bersih`.
+
+**Divergensi yang disadari dari fase 2-4.** Fase-fase sebelumnya mengganti teks yang
+dirender 13px dengan `lens-meta` (12px) - turun 1px, mengikuti skala peran. Fase 5a memilih
+peran 13px supaya tidak ada satu pun perubahan tata letak. Akibatnya label di Dashboard
+13px sementara label di halaman finansial 12px. Itu bukan kelalaian, tapi utang yang
+memang harus dibayar di langkah "penyederhanaan lantai": begitu lantai dihapus, hanya
+ukuran peran yang tersisa, dan penyatuannya (12px vs 13px) jadi keputusan desain tersendiri
+yang disengaja - bukan efek samping migrasi.
+
+**Kontrol negatif, dua arah.** Menambahkan `text-[9px]` ke berkas yang sudah bersih →
+gerbang merah (`expected [ 'text-[14px]', 'text-[9px]' ] to deeply equal [ 'text-[14px]' ]`).
+Melepas `font-number` dari baris yang dikecualikan → gerbang merah menyebut alasan
+pengecualiannya. Keduanya dipulihkan → hijau.
+
+Ratchet: **646 → 617** ukuran acak (sub-13px 584 → 560), berkas 92 tetap - Dashboard
+menyumbang 29 dari angka pertama.
