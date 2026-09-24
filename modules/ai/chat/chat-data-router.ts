@@ -694,8 +694,29 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
   }
 
   if (request.intent === 'FLOW_BROKER') {
-    const blocks = await Promise.all(tickers.map(flowBlock));
-    return { verifiedBlock: `${verifiedHeader('ARUS DANA & BROKER')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
+    // Pertanyaan "sedang akumulasi atau distribusi?" tidak selalu bisa dijawab data
+    // broker (periode broker summary kerap belum tersedia). Karena itu blok ini
+    // sengaja MEMBAWA juga bukti komposisi kepemilikan KSEI (bulanan, data nyata)
+    // sebagai pendukung - tetap di bawah header terpisah supaya model tidak
+    // menyilangkan "komposisi bulanan" dengan "transaksi broker".
+    const [flows, ownerships] = await Promise.all([
+      Promise.all(tickers.map(flowBlock)),
+      Promise.all(tickers.map(ownershipFlowBlock)),
+    ]);
+    const ownershipNote =
+      'Catatan pemakaian: bukti komposisi kepemilikan di bawah ini adalah potret BULANAN (KSEI), ' +
+      'bukan transaksi harian. Pakai sebagai pendukung jawaban akumulasi/distribusi, ' +
+      'dan sebutkan periodenya. Bila baris "Broker summary" berbunyi tidak ada periode tersimpan, ' +
+      'katakan data transaksi broker belum tersedia untuk emiten itu - jangan menggantinya dengan ' +
+      'kesimpulan dari komposisi kepemilikan.';
+    const combined = [
+      verifiedHeader('ARUS DANA & BROKER'),
+      flows.join('\n\n'),
+      ownershipNote,
+      verifiedHeader('KOMPOSISI KEPEMILIKAN (BUKTI PENDUKUNG - BUKAN TRANSAKSI BROKER)'),
+      ownerships.join('\n\n'),
+    ].join('\n');
+    return { verifiedBlock: combined, directResponse: null, dataError: null };
   }
 
   // Blok TERPISAH dari ARUS DANA & BROKER di atas, dan itu disengaja. Menyatukan
