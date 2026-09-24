@@ -70,22 +70,22 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 {/* Logo header halaman depan - `priority` karena ia di atas lipatan dan
                     ikut dinilai sebagai kandidat LCP di mobile. */}
                 <Image src="/sahamlens-logo.png" alt="SahamLens" width={32} height={32} priority className="h-8 w-8 rounded-xl object-contain shadow-sm" />
-                <span className="font-bold text-[16px] tracking-tight font-heading">SahamLens</span>
+                <span className="font-bold lens-card-title tracking-tight font-heading">SahamLens</span>
               </div>
               <div className="hidden md:flex items-center gap-3 pl-6 border-l border-white/15">
                 <div className="flex items-center gap-2">
-                  <span className="text-[11px] uppercase tracking-widest text-white/60 font-semibold">{t('hero.ihsgTitle')}</span>
+                  <span className="lens-label uppercase tracking-widest text-white/60 font-semibold">{t('hero.ihsgTitle')}</span>
                   <span className="h-1 w-1 rounded-full bg-tv-green animate-pulse" />
                 </div>
                 {ihsg ? (
                   <div className="flex items-baseline gap-2">
-                    <span className="text-[18px] font-bold tracking-tight font-number">{ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-semibold ${ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'}`}>
+                    <span className="lens-metric font-bold tracking-tight font-number">{ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                    <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 lens-label font-semibold ${ihsg.change >= 0 ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-red/15 text-tv-red'}`}>
                       {ihsg.change >= 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />} {ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}% ({ihsg.change >= 0 ? '+' : ''}{ihsg.pointChange.toFixed(1)})
                     </span>
                   </div>
                 ) : ihsgFailed ? (
-                  <span className="text-[12px] font-medium text-white/50">{t('common.noData')}</span>
+                  <span className="lens-body-sm font-medium text-white/50">{t('common.noData')}</span>
                 ) : (
                   <Skeleton variant="text" className="w-32 h-4" />
                 )}
@@ -101,9 +101,9 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
               </div>
               <div className="hidden lg:flex items-center gap-2 rounded-full bg-white/10 border border-white/10 px-2.5 py-1">
                 <span className={`h-2 w-2 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />
-                <span className="text-[11px] font-medium text-white">{marketOpen ? t('common.live') : t('common.closed')}</span>
+                <span className="lens-body-sm font-medium text-white">{marketOpen ? t('common.live') : t('common.closed')}</span>
               </div>
-              <div className="flex items-center gap-2 text-[11px] font-medium text-white/50">
+              <div className="flex items-center gap-2 lens-body-sm font-medium text-white/50">
                 <span className="hidden sm:inline">{jakartaDate && jakartaTime ? `${jakartaDate} • ${jakartaTime}` : t('common.jakartaTime')}</span>
                 <span className="sm:hidden">{jakartaTime || t('common.wibTime')}</span>
               </div>
@@ -112,19 +112,19 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           {/* mobile IHSG */}
           <div className="flex md:hidden items-center justify-between pb-3 -mt-1">
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase tracking-widest text-white/50 font-semibold">IHSG</span>
+              <span className="lens-label uppercase tracking-widest text-white/50 font-semibold">IHSG</span>
               {ihsg ? (
                 <>
                   <span className="text-[14px] font-bold font-number">{ihsg.price.toLocaleString(language === 'id' ? 'id-ID' : 'en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
-                  <span className={`text-[11px] font-semibold ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%</span>
+                  <span className={`lens-label font-semibold ${ihsg.change >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{ihsg.change >= 0 ? '+' : ''}{ihsg.change.toFixed(2)}%</span>
                 </>
               ) : ihsgFailed ? (
-                <span className="text-[12px] text-white/50">{t('common.noData')}</span>
+                <span className="lens-body-sm text-white/50">{t('common.noData')}</span>
               ) : (
                 <Skeleton variant="text" className="w-24 h-3.5" />
               )}
             </div>
-            <span className={`text-[10px] flex items-center gap-1 ${marketOpen ? 'text-tv-green' : 'text-white/40'}`}><span className={`h-1.5 w-1.5 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />{marketOpen ? t('common.marketOpen') : t('common.marketClosed')}</span>
+            <span className={`lens-label flex items-center gap-1 ${marketOpen ? 'text-tv-green' : 'text-white/40'}`}><span className={`h-1.5 w-1.5 rounded-full animate-pulse ${marketOpen ? 'bg-tv-green' : 'bg-white/30'}`} />{marketOpen ? t('common.marketOpen') : t('common.marketClosed')}</span>
           </div>
         </div>
       </header>
@@ -176,7 +176,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
 
             <div className="relative grid gap-8 lg:grid-cols-[1.2fr_1fr] lg:items-stretch">
               <div className="min-w-0">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 text-[11px] font-semibold text-tv-blue">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 lens-label font-semibold text-tv-blue">
                   <Sparkles className="h-3 w-3" /> {t('hero.badge')}
                 </span>
                 <h2 className="mt-3.5 font-heading text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-tv-text leading-[1.15]">
@@ -196,7 +196,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                     showSearchIcon
                     maxSuggestions={5}
                     endAdornment={
-                      <kbd className="rounded-md border border-tv-border bg-tv-bg/80 px-1.5 py-0.5 font-mono text-[10px] font-bold text-tv-muted shadow-inner">Ctrl K</kbd>
+                      <kbd className="rounded-md border border-tv-border bg-tv-bg/80 px-1.5 py-0.5 font-mono lens-label font-bold text-tv-muted shadow-inner">Ctrl K</kbd>
                     }
                     containerClassName="relative flex-1 group"
                     className="w-full pl-10 pr-16 py-3 rounded-2xl bg-tv-card/95 border border-tv-border text-tv-text placeholder:text-tv-muted/70 text-sm font-semibold focus:outline-none focus:border-tv-blue focus:ring-4 focus:ring-tv-blue/15 transition-all shadow-sm"
@@ -270,7 +270,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                         <span className="h-2 w-2 rounded-full bg-tv-green animate-pulse" />
                         {t('hero.ihsgTitle')}
                       </div>
-                      <span className="text-[11px] font-semibold text-tv-muted bg-tv-card px-2 py-0.5 rounded-lg border border-tv-border shadow-2xs">
+                      <span className="lens-label font-semibold text-tv-muted bg-tv-card px-2 py-0.5 rounded-lg border border-tv-border shadow-2xs">
                         {t('hero.ihsgDelay')}
                       </span>
                     </div>
@@ -350,17 +350,17 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                 </span>
                 {t('radar.title')}
               </h2>
-              <p className="mt-1 text-[13px] text-tv-muted max-w-2xl">
+              <p className="mt-1 lens-body-sm text-tv-muted max-w-2xl">
                 {t('radar.subtitle')}
               </p>
             </div>
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-tv-muted">
+              <span className="lens-body-sm text-tv-muted">
                 {aiPicksUpdatedAt ? t('radar.updateTime', { time: aiPicksUpdatedAt }) : t('radar.waitingSnapshot')}
               </span>
               <Link
                 href="/breakout-radar"
-                className="rounded-lg border border-tv-border bg-tv-card px-3 py-1.5 text-[12px] font-semibold text-tv-text transition-colors hover:border-tv-borderLight shadow-sm"
+                className="rounded-lg border border-tv-border bg-tv-card px-3 py-1.5 lens-label font-semibold text-tv-text transition-colors hover:border-tv-borderLight shadow-sm"
               >
                 {t('radar.viewAllRadar')}
               </Link>
@@ -368,7 +368,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           </div>
 
           {aiPicksNote && (
-            <p className={`mb-3 text-[11px] rounded-md border px-3 py-2 leading-relaxed ${
+            <p className={`mb-3 lens-body-sm rounded-md border px-3 py-2 leading-relaxed ${
               aiPicksAdvisoryEnabled
                 ? 'border-tv-border bg-tv-card/60 text-tv-muted'
                 : 'border-tv-yellow/30 bg-tv-yellow/10 text-tv-yellow'
@@ -396,7 +396,7 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
             <StockSignalRunningText items={aiPicks} advisoryEnabled={aiPicksAdvisoryEnabled} />
           )}
 
-          <p className="mt-2 text-[10px] leading-relaxed text-tv-muted">
+          <p className="mt-2 lens-body-sm leading-relaxed text-tv-muted">
             {t('radar.footerNote')}
           </p>
         </motion.section>
@@ -464,8 +464,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           <motion.div variants={fadeUp}>
               <Card padding="md" className="h-full">
                 <div className="flex items-center justify-between gap-3">
-                  <h3 className="font-heading text-[13px] font-bold text-tv-text">{t('news.title')}</h3>
-                  <Link href="/news" className="inline-flex min-h-6 items-center text-[11px] font-bold text-tv-blue transition hover:text-tv-text">{t('news.viewAll')}</Link>
+                  <h3 className="font-heading lens-card-title font-bold text-tv-text">{t('news.title')}</h3>
+                  <Link href="/news" className="inline-flex min-h-6 items-center lens-label font-bold text-tv-blue transition hover:text-tv-text">{t('news.viewAll')}</Link>
                 </div>
                 <div className="mt-3 divide-y divide-tv-border/60">
                   {loadingNews ? (
@@ -481,8 +481,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                   ) : (
                     newsItems.map((n) => (
                       <a key={n.link || n.title} href={n.link} target="_blank" rel="noopener noreferrer" className="block py-2.5 first:pt-0 last:pb-0 hover:opacity-80 transition-opacity">
-                        <p className="text-[12px] font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
-                        <p className="text-[10px] text-tv-muted mt-1 flex items-center gap-1.5">
+                        <p className="lens-body-sm font-medium text-tv-text leading-snug line-clamp-2">{n.title}</p>
+                        <p className="lens-body-sm text-tv-muted mt-1 flex items-center gap-1.5">
                           {n.source}
                           {n.sentiment && (
                             <span className={`lens-chip rounded px-1.5 py-px font-bold ${
@@ -503,8 +503,8 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
           <motion.div variants={fadeUp}>
               <Card padding="md" className="h-full">
                 <div className="flex items-center justify-between gap-3">
-                  <h4 className="font-heading text-[13px] font-bold text-tv-text">{t('calendar.title')}</h4>
-                  <Link href="/calendar" className="inline-flex min-h-6 items-center text-[11px] font-bold text-tv-blue transition hover:text-tv-text">{t('calendar.viewAll')}</Link>
+                  <h4 className="font-heading lens-card-title font-bold text-tv-text">{t('calendar.title')}</h4>
+                  <Link href="/calendar" className="inline-flex min-h-6 items-center lens-label font-bold text-tv-blue transition hover:text-tv-text">{t('calendar.viewAll')}</Link>
                 </div>
                 <div className="mt-3">
                   {calendarEvents === null ? (
@@ -523,18 +523,18 @@ export default function Dashboard({ initialIhsg = null, initialRenderedAt, initi
                         <Link
                           key={`${e.symbol}-${e.date}-${i}`}
                           href={`/technical/${e.symbol}.JK`}
-                          className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors"
+                          className="flex items-center justify-between gap-2 bg-tv-bg/50 border border-tv-border rounded-md px-3 py-2 hover:border-tv-borderLight transition-colors lens-body-sm"
                         >
                           <div className="min-w-0">
                             <div className="flex items-center gap-2">
-                              <span className="font-number text-[12px] font-bold text-tv-text">{e.symbol}</span>
-                              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${e.type === 'DIVIDEND' ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-blue/15 text-tv-blue'}`}>
+                              <span className="lens-number font-bold text-tv-text">{e.symbol}</span>
+                              <span className={`lens-label font-semibold px-1.5 py-0.5 rounded ${e.type === 'DIVIDEND' ? 'bg-tv-green/15 text-tv-green' : 'bg-tv-blue/15 text-tv-blue'}`}>
                                 {e.type === 'DIVIDEND' ? t('calendar.dividendType') : t('calendar.earningsType')}
                               </span>
                             </div>
-                            <div className="text-[10px] text-tv-muted truncate">{e.title}</div>
+                            <div className="lens-body-sm text-tv-muted truncate">{e.title}</div>
                           </div>
-                          <span className="text-[11px] text-tv-muted font-number shrink-0">
+                          <span className="lens-number shrink-0">
                             {new Date(e.date).toLocaleDateString(language === 'id' ? 'id-ID' : 'en-US', { day: 'numeric', month: 'short' })}
                           </span>
                         </Link>
