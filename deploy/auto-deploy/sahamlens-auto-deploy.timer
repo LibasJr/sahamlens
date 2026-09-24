@@ -1,0 +1,14 @@
+[Unit]
+Description=Jadwal SahamLens - deploy otomatis berbasis tarik (pull) dari main
+
+[Timer]
+# Tiap 5 menit. Skripnya sendiri yang memutuskan: kalau SHA ter-deploy sudah sama dengan
+# origin/main, ia keluar tanpa tindakan (satu `git fetch` + satu panggilan API GitHub).
+# Persistent=true tidak dipakai: ketinggalan tik tidak berarti apa-apa karena keadaan yang
+# diperiksa adalah keadaan sekarang, bukan peristiwa yang terlewat.
+OnCalendar=*:0/5
+AccuracySec=30s
+Unit=sahamlens-auto-deploy.service
+
+[Install]
+WantedBy=timers.target
