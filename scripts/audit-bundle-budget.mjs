@@ -47,7 +47,14 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // dependensi baru, dan 1 KB pertumbuhan adalah kontrak data yang terlihat pengguna.
 // Dinaikkan 6.072 -> 6.076 KB pada 2026-09-05 untuk pembersihan string hardcoded
 // dwibahasa (i18n) di pencarian, modal emiten, dan kartu pantauan pasar.
-const TOTAL_BUDGET_KB = 6_076;
+// Dinaikkan 6.076 -> 6.080 KB pada 2026-09-24 karena tiga halaman publik baru yang
+// seluruhnya server-rendered: /cross-check (konfirmasi ganda), /panduan-harian (peta alur
+// dari log tugas), dan /pemindai-harga (level dari arsip harga). Build lokal terukur
+// 6.077 KB, jadi +1 KB untuk tiga halaman; tidak ada dependensi baru, tidak ada impor
+// berat yang berpindah, dan muatan awal halaman lama tidak berubah. Batas diberi kepala
+// ruang 3 KB agar tetap ratchet - kalau kepala ruang ini habis lagi, yang benar adalah
+// membuat dinamis satu impor berat lagi, bukan menaikkan angka ini tanpa sebab tertulis.
+const TOTAL_BUDGET_KB = 6_080;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri

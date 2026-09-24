@@ -16,6 +16,7 @@ import {
   Building2,
   CalendarDays,
   ChevronRight,
+  Crosshair,
   CircleDollarSign,
   FileSpreadsheet,
   Filter,
@@ -96,6 +97,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'compare', name: 'Compare', subtitle: 'Bandingkan beberapa emiten berdampingan', path: '/compare', icon: GitCompare },
       { id: 'cross-check', name: 'Konfirmasi Ganda', subtitle: 'Sinyal berbeda yang menunjuk emiten sama', path: '/cross-check', icon: Layers, guest: true },
       { id: 'panduan-harian', name: 'Peta Alur Harian', subtitle: 'Kapan setiap data diperbarui', path: '/panduan-harian', icon: CalendarDays, guest: true },
+      { id: 'pemindai-harga', name: 'Pemindai Harga Masuk', subtitle: 'Level masuk, henti rugi, dan sasaran dari arsip harga', path: '/pemindai-harga', icon: Crosshair, guest: true },
     ],
   },
   {
