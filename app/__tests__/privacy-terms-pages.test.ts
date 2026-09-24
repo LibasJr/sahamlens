@@ -86,12 +86,23 @@ describe('halaman /privacy', () => {
     expect(privacyTermsEn.toLowerCase()).not.toContain('dispute resolution');
   });
 
-  it('footer memuat link /privacy yang tidak duplikat', () => {
+  it('footer hanya memuat empat tautan legal dan kontak', () => {
     const source = stripComments(
       fs.readFileSync(path.join(process.cwd(), 'components', 'SiteFooter.tsx'), 'utf8'),
     );
-    const matches = source.match(/href="\/privacy"/g) ?? [];
-    expect(matches.length).toBe(1);
+    const hrefs = [...source.matchAll(/<Link href="([^"]+)"/g)].map((match) => match[1]);
+    expect(hrefs).toEqual(['/privacy', '/terms', '/disclaimer', '/contact']);
+    expect(source).not.toContain('href="/status"');
+    expect(source).not.toContain("t('footer.status')");
+  });
+
+  it('CTA email responsif tidak menyusut atau menumpuk dengan catatan', () => {
+    const source = read('privacy/page.tsx');
+    expect(source).toContain('min-h-11 w-full shrink-0');
+    expect(source).toContain('sm:w-auto');
+    expect(source).toContain('<Mail className="h-4 w-4 shrink-0" />');
+    expect(source).toMatch(/<p className="[^"]*leading-relaxed[^"]*">\s*\{t\('privacyPage\.sectionRightsBody'\)\}\s*<\/p>/);
+    expect(source).not.toContain('sm:flex-row');
   });
 });
 
@@ -163,12 +174,13 @@ describe('halaman /terms', () => {
     expect(termsEn.toLowerCase()).not.toContain('dispute');
   });
 
-  it('footer memuat link /terms yang tidak duplikat', () => {
-    const source = stripComments(
-      fs.readFileSync(path.join(process.cwd(), 'components', 'SiteFooter.tsx'), 'utf8'),
-    );
-    const matches = source.match(/href="\/terms"/g) ?? [];
-    expect(matches.length).toBe(1);
+  it('CTA email memakai struktur responsif yang sama dengan halaman privasi', () => {
+    const source = read('terms/page.tsx');
+    expect(source).toContain('min-h-11 w-full shrink-0');
+    expect(source).toContain('sm:w-auto');
+    expect(source).toContain('<Mail className="h-4 w-4 shrink-0" />');
+    expect(source).toMatch(/<p className="[^"]*leading-relaxed[^"]*">\{t\('termsPage\.contactNote'\)\}<\/p>/);
+    expect(source).not.toContain('sm:flex-row');
   });
 });
 
