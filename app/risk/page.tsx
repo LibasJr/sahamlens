@@ -199,13 +199,13 @@ export default function RiskPage() {
             const totalWeight = portfolio.reduce((sum, item) => sum + item.weight, 0);
             const isBalanced = Math.abs(totalWeight - 100) < 0.5;
             return (
-              <div className="flex items-center justify-between rounded-md bg-tv-bg/60 border border-tv-border px-2.5 py-1.5 text-[11px]">
+              <div className="flex items-center justify-between rounded-md bg-tv-bg/60 border border-tv-border px-2.5 py-1.5 lens-meta">
                 <span className="text-tv-muted">Total bobot diisi</span>
                 <span className={`font-bold font-number ${isBalanced ? 'text-tv-text' : 'text-tv-yellow'}`}>{totalWeight}%</span>
               </div>
             );
           })()}
-          <p className="text-[10px] leading-relaxed text-tv-muted">
+          <p className="lens-body-sm text-tv-muted">
             Bobot tidak wajib berjumlah 100% - kalkulator memakainya sebagai proporsi relatif antar-posisi.
             Kalau beta salah satu saham gagal dihitung (data tidak tersedia), saham itu dikeluarkan dan bobot sisanya
             dinormalisasi ulang di antara saham yang berhasil, bukan diperlakukan sebagai kas.
@@ -223,7 +223,7 @@ export default function RiskPage() {
               {importing ? 'Mengimpor...' : 'Impor dari Portofolio saya'}
             </Button>
             {importNote && (
-              <p className="mb-2 rounded-md border border-tv-border bg-tv-bg/60 px-2.5 py-1.5 text-[11px] leading-relaxed text-tv-muted">
+              <p className="mb-2 rounded-md border border-tv-border bg-tv-bg/60 px-2.5 py-1.5 lens-body-sm text-tv-muted">
                 {importNote}
               </p>
             )}
@@ -289,19 +289,19 @@ export default function RiskPage() {
           ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
-              <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Drops -5%</div>
+              <div className="lens-meta text-tv-muted font-semibold tracking-wide">IHSG Drops -5%</div>
               {loading ? <Skeleton className="h-6 w-16 mt-0.5" /> : <div className="text-lg font-bold text-tv-red font-number">{fmtPct(analysis?.scenarios.ihsgDrop5Pct ?? null)}</div>}
-              <div className="text-[10px] text-tv-muted mt-1">Beta portofolio x -5%</div>
+              <div className="lens-meta text-tv-muted mt-1">Beta portofolio x -5%</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
-              <div className="text-[10px] text-tv-muted font-semibold tracking-wide">IHSG Crash -10%</div>
+              <div className="lens-meta text-tv-muted font-semibold tracking-wide">IHSG Crash -10%</div>
               {loading ? <Skeleton className="h-6 w-16 mt-0.5" /> : <div className="text-lg font-bold text-tv-red font-number">{fmtPct(analysis?.scenarios.ihsgDrop10Pct ?? null)}</div>}
-              <div className="text-[10px] text-tv-muted mt-1">Beta portofolio x -10%</div>
+              <div className="lens-meta text-tv-muted mt-1">Beta portofolio x -10%</div>
             </div>
             <div className="p-3.5 rounded-md bg-tv-bg border border-tv-border">
-              <div className="text-[10px] text-tv-muted font-semibold tracking-wide">USD/IDR Melemah 1%</div>
+              <div className="lens-meta text-tv-muted font-semibold tracking-wide">USD/IDR Melemah 1%</div>
               {loading ? <Skeleton className="h-6 w-16 mt-0.5" /> : <div className="text-lg font-bold text-tv-yellow font-number">{fmtPct(analysis?.scenarios.usdIdrWeaken1Pct ?? null)}</div>}
-              <div className="text-[10px] text-tv-muted mt-1">Beta portofolio vs USDIDR=X</div>
+              <div className="lens-meta text-tv-muted mt-1">Beta portofolio vs USDIDR=X</div>
             </div>
           </div>
           )}
@@ -315,13 +315,13 @@ export default function RiskPage() {
 
           <div className="grid grid-cols-2 gap-4 text-xs">
             <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
-              <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs IHSG</div>
+              <div className="lens-meta text-tv-muted uppercase">Beta Portofolio vs IHSG</div>
               {loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaIhsg ?? 'N/A'}</div>}
               {/* Angka beta tidak berarti apa-apa bagi yang belum tahu beta - dan itulah
                   mayoritas pengguna. Diterjemahkan ke kalimat yang bisa langsung dipakai,
                   memakai angka portofolionya sendiri, bukan contoh umum. */}
               {!loading && typeof analysis?.portfolioBetaIhsg === 'number' && (
-                <p className="mt-1 text-[10px] leading-relaxed text-tv-muted">
+                <p className="mt-1 lens-body-sm text-tv-muted">
                   Artinya: kalau IHSG turun 10%, portofolio ini secara historis bergerak
                   sekitar <span className="font-bold text-tv-text">{(analysis.portfolioBetaIhsg * 10).toFixed(1)}%</span>.
                   {analysis.portfolioBetaIhsg > 1
@@ -333,7 +333,7 @@ export default function RiskPage() {
               )}
             </div>
             <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
-              <div className="text-[10px] text-tv-muted uppercase">Beta Portofolio vs USD/IDR</div>
+              <div className="lens-meta text-tv-muted uppercase">Beta Portofolio vs USD/IDR</div>
               {lockForGuest ? (
                 <Link
                   href="/login?next=/risk"
@@ -344,7 +344,7 @@ export default function RiskPage() {
                 </Link>
               ) : loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaUsdIdr ?? 'N/A'}</div>}
               {!lockForGuest && !loading && typeof analysis?.portfolioBetaUsdIdr === 'number' && (
-                <p className="mt-1 text-[10px] leading-relaxed text-tv-muted">
+                <p className="mt-1 lens-body-sm text-tv-muted">
                   {analysis.portfolioBetaUsdIdr < 0
                     ? 'Bernilai negatif: portofolio ini cenderung melemah saat Rupiah melemah.'
                     : 'Bernilai positif: portofolio ini cenderung menguat saat Rupiah melemah.'}

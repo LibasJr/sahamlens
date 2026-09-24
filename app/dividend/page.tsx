@@ -99,7 +99,7 @@ export default function DividendPage() {
       tickerSearch={isTickerMode}
       headerExtra={
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-0.5 text-[11px]">
+          <div className="flex items-center gap-1 rounded-xl border border-white/[0.06] bg-white/[0.03] p-0.5 lens-meta">
             <PrimitiveButton
               variant="bare"
               size="none"
@@ -196,41 +196,41 @@ export default function DividendPage() {
       {quant && (
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-4 gap-4 mb-6">
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Yield ' + activeTickerLabel : 'Rata-rata Yield Universe'}</div>
+            <div className="lens-meta text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Yield ' + activeTickerLabel : 'Rata-rata Yield Universe'}</div>
             <div className="text-2xl font-bold text-tv-yellow font-number mt-1">
               {quant.average_portfolio_yield}%
             </div>
-            <div className="text-[11px] text-tv-muted mt-0.5">{isTickerResponse ? 'Snapshot ticker dari provider' : 'Equal-weight snapshot universe - ' + stocks.length + ' saham tampil'}</div>
+            <div className="lens-meta text-tv-muted mt-0.5">{isTickerResponse ? 'Snapshot ticker dari provider' : 'Equal-weight snapshot universe - ' + stocks.length + ' saham tampil'}</div>
           </Card>
 
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Income / Bulan ' + activeTickerLabel : 'Skenario Income / Bulan'}</div>
+            <div className="lens-meta text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Income / Bulan ' + activeTickerLabel : 'Skenario Income / Bulan'}</div>
             <div className="text-2xl font-bold text-tv-green font-number mt-1">
               Rp {quant.est_monthly_income_now?.toLocaleString('id-ID')}
             </div>
-            <div className="text-[11px] text-tv-muted mt-0.5">Modal Rp {capital.toLocaleString('id-ID')}</div>
+            <div className="lens-meta text-tv-muted mt-0.5">Modal Rp {capital.toLocaleString('id-ID')}</div>
           </Card>
 
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Income / Tahun ' + activeTickerLabel : 'Skenario Income / Tahun'}</div>
+            <div className="lens-meta text-tv-muted uppercase font-semibold">{isTickerResponse ? 'Income / Tahun ' + activeTickerLabel : 'Skenario Income / Tahun'}</div>
             <div className="text-2xl font-bold text-tv-blue font-number mt-1">
               Rp {quant.est_annual_income_now?.toLocaleString('id-ID')}
             </div>
-            <div className="text-[11px] text-tv-muted mt-0.5">{isTickerResponse ? 'Yield ticker diasumsikan konstan' : 'Yield snapshot diasumsikan konstan'}</div>
+            <div className="lens-meta text-tv-muted mt-0.5">{isTickerResponse ? 'Yield ticker diasumsikan konstan' : 'Yield snapshot diasumsikan konstan'}</div>
           </Card>
 
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-4">
-            <div className="text-[11px] text-tv-muted uppercase font-semibold">Modal Teoretis Untuk Target</div>
+            <div className="lens-meta text-tv-muted uppercase font-semibold">Modal Teoretis Untuk Target</div>
             <div className="text-2xl font-bold text-tv-text font-number mt-1">
               Rp {quant.required_capital_for_target?.toLocaleString('id-ID')}
             </div>
-            <div className="text-[11px] text-tv-muted mt-0.5">Untuk Rp {targetMonthly.toLocaleString('id-ID')}/bln</div>
+            <div className="lens-meta text-tv-muted mt-0.5">Untuk Rp {targetMonthly.toLocaleString('id-ID')}/bln</div>
           </Card>
         </div>
       )}
 
       {viewMode === 'full' && quant && (
-        <div className="mb-6 rounded-lg border border-tv-blue/20 bg-tv-blue/[0.04] px-3.5 py-3 text-[11px] leading-relaxed text-tv-muted">
+        <div className="mb-6 rounded-lg border border-tv-blue/20 bg-tv-blue/[0.04] px-3.5 py-3 lens-body-sm text-tv-muted">
           <span className="font-semibold text-tv-text">Metodologi:</span>{' '}
           {isTickerResponse ? 'yield memakai ticker yang dipilih di header. Safety 1-10 tetap skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.' : 'rata-rata yield adalah equal-weight snapshot dari universe yang berhasil dibaca provider, bukan yield portofolio aktual. Safety 1-10 adalah skor heuristik dari payout ratio + konsistensi pembayaran. Proyeksi DRIP mengasumsikan yield tetap dan bukan forecast harga/dividen.'}
         </div>
@@ -246,7 +246,7 @@ export default function DividendPage() {
             </h3>
 
             {/* Filter Toggle */}
-            <div className={['flex items-center gap-1 bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.06] text-[11px]', isTickerResponse ? 'hidden' : ''].join(' ')}>
+            <div className={['flex items-center gap-1 bg-white/[0.03] p-0.5 rounded-lg border border-white/[0.06] lens-meta', isTickerResponse ? 'hidden' : ''].join(' ')}>
               <PrimitiveButton variant="bare" size="none"
                 type="button"
                 onClick={() => setAristocratFilter('all')}
@@ -283,7 +283,7 @@ export default function DividendPage() {
           <div className="lens-table-sticky-col overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-tv-border text-tv-muted uppercase text-[10px] font-semibold tracking-wide">
+                <tr className="border-b border-tv-border text-tv-muted uppercase lens-meta font-semibold tracking-wide">
                   <th className="p-2.5">Ticker</th>
                   <th className="p-2.5 text-right">Yield</th>
                   <th className="p-2.5 text-right">Safety heuristik (1-10)</th>
@@ -327,7 +327,7 @@ export default function DividendPage() {
           <div className="lens-table-sticky-col overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-tv-border text-tv-muted uppercase text-[10px] font-semibold tracking-wide">
+                <tr className="border-b border-tv-border text-tv-muted uppercase lens-meta font-semibold tracking-wide">
                   <th className="p-2.5">Tahun</th>
                   <th className="p-2.5 text-right">Nilai Portofolio Akhir</th>
                   <th className="p-2.5 text-right">Passive Income / Bln</th>

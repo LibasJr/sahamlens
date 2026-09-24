@@ -23,6 +23,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import { stripComments } from './lib/strip-comments.mjs';
 
 const ROOT = process.cwd();
 const BASELINE_PATH = path.join(ROOT, 'config', 'typography-baseline.json');
@@ -50,19 +51,12 @@ function walk(dir) {
   });
 }
 
-/**
- * Buang komentar sebelum mencocokkan pola.
- *
- * Berkas ini sendiri menjelaskan dirinya dengan menulis `text-[10px]` di komentar, dan
- * globals.css menyebut ukuran piksel sebagai kunci selektor lantai kompatibilitas.
- * Menghitung prosa sebagai utang migrasi akan menghukum justru berkas yang
- * mendokumentasikan pola yang harus ditinggalkan - kesalahan yang sudah pernah terjadi
- * di ratchet adopsi (lihat scripts/audit-adoption-ratchet.mjs).
- */
-function stripComments(source) {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-}
-
+// Kenapa komentar dibuang sebelum mencocokkan pola (detail di scripts/lib/strip-comments.mjs):
+// berkas ini sendiri menjelaskan dirinya dengan menulis `text-[10px]` di komentar, dan
+// globals.css menyebut ukuran piksel sebagai kunci selektor lantai kompatibilitas.
+// Menghitung prosa sebagai utang migrasi akan menghukum justru berkas yang
+// mendokumentasikan pola yang harus ditinggalkan - kesalahan yang sudah pernah terjadi
+// di ratchet adopsi (lihat scripts/audit-adoption-ratchet.mjs).
 const ARBITRARY_RE = /text-\[(\d+(?:\.\d+)?)px\]/g;
 
 const files = SCAN_DIRS.flatMap((dir) => walk(path.join(ROOT, dir)));
