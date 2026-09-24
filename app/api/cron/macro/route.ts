@@ -3,7 +3,7 @@ import { verifyQStashSignature } from '@/shared/queue/qstash-signature';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { logger } from '@/shared/logger/logger';
 import { refreshUsdIdr } from '@/modules/macro';
-import { fetchPublicMacroDashboard } from '@/modules/macro/service/public-macro-dashboard.service';
+import { captureBiRateEvidenceFromOfficial, fetchPublicMacroDashboard } from '@/modules/macro/service/public-macro-dashboard.service';
 import { cacheSet } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
 import { COMPUTED_CACHE_KEY } from '@/shared/cache/computed-keys';
@@ -48,7 +48,18 @@ async function handlePOST(req: NextRequest) {
       logger.warn('Pre-warm cache dashboard makro gagal (job utama tetap sukses)', { warmErr });
     }
 
-    return NextResponse.json({ success: true, result });
+    // Penangkapan bukti resmi BI-Rate: input makro yang sebelumnya MANUAL (unggah CSV ke
+    // macro_input_evidence) kini ditarik dari laman resmi BI. Kegagalan langkah ini TIDAK
+    // menggagalkan job utama - pengawas kebasian makro tetap yang memperingatkan.
+    let biRateEvidence: Awaited<ReturnType<typeof captureBiRateEvidenceFromOfficial>> | null = null;
+    try {
+      biRateEvidence = await captureBiRateEvidenceFromOfficial();
+      if (biRateEvidence.captured) logger.info('Bukti BI-Rate baru dicatat otomatis', { ...biRateEvidence });
+    } catch (captureErr) {
+      logger.warn('Penangkapan bukti BI-Rate gagal (job utama tetap sukses)', { captureErr });
+    }
+
+    return NextResponse.json({ success: true, result, biRateEvidence });
   } catch (err) {
     logger.error('Job macro gagal', { err });
     return NextResponse.json({ error: 'Job gagal' }, { status: 500 });
