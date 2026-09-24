@@ -632,7 +632,7 @@ export default function AIChat() {
                 <h4 className="font-heading text-lg font-bold text-tv-text">
                   {activeSymbol ? `Tanyakan tentang ${activeSymbol}` : 'LensAI Research'}
                 </h4>
-                <p className="max-w-xs text-base leading-relaxed text-tv-muted sm:text-sm">
+                <p className="max-w-xs lens-body text-tv-muted">
                   {activeSymbol
                     ? `Konteks, risiko, dan alasan di balik angka ${activeSymbol} — beserta sumber data yang dipakai untuk menjawabnya.`
                     : 'Tanyakan kondisi pasar, kandidat LensRadar, atau cara sebuah skor dihitung. LensAI menjelaskan konteks dan risikonya, lalu menunjukkan sumber data yang dipakai.'}
@@ -660,7 +660,7 @@ export default function AIChat() {
                   onTouchEnd={onMessageTouchEnd(msg)}
                   className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start border-t border-tv-border/50 pt-4 first:border-t-0 first:pt-0'}`}
                 >
-                  <div className={`text-base leading-relaxed sm:text-sm ${
+                  <div className={`lens-body ${
                     msg.role === 'user'
                       ? 'max-w-[85%] rounded-2xl rounded-tr-md bg-tv-blue p-4 text-white'
                       : 'w-full max-w-prose text-tv-text'
@@ -755,7 +755,7 @@ export default function AIChat() {
             
             {isLoading && (
               <div className="flex justify-start">
-                <div className="flex w-full max-w-prose items-center gap-3 text-base text-tv-muted sm:text-sm">
+                <div className="flex w-full max-w-prose items-center gap-3 lens-body text-tv-muted">
                   {/* Sejak 2026-08-13 /api/chat benar-benar mengalirkan teks. Visual ini
                       hanya tampil SEBELUM potongan pertama tiba - begitu teks mengalir,
                       ia dimatikan (lihat consumeStream). */}
