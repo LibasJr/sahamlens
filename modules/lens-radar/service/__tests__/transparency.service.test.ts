@@ -3,6 +3,7 @@ import {
   TRANSPARENCY_CACHE_KEY,
   TRANSPARENCY_CACHE_VERSION,
   buildBucketRows,
+  buildDecileRows,
   buildTop5EquityCurve,
   buildTransparencyBanner,
 } from '../transparency.service';
@@ -125,6 +126,48 @@ describe('transparency.service', () => {
     // exit 15 Feb; hanya sinyal tepat pada tanggal exit yang boleh memulai window baru.
     expect(curve).toHaveLength(2);
     expect(curve.map((point) => point.date)).toEqual(['2026-01-01', '2026-02-15']);
+  });
+
+  // AUDIT KUANTITATIF 2026-09-24: rata-rata naik mengikuti skor, tetapi median dan korelasi
+  // peringkat tidak. Halaman publik wajib membawa keduanya supaya distribusi miring ke kanan
+  // tidak terbaca sebagai daya pisah skor.
+  it('menghitung median dan excess-vs-pasar per bucket dari sampel kalibrasi', () => {
+    const result = buildBucketRows([], [
+      obs({ returnT20: 10 }),
+      obs({ ticker: 'BBBB.JK', returnT20: -4 }),
+    ]);
+
+    const high = result.rows.find((row) => row.bucket === '80-100')!;
+    // Rata-rata lintas-emiten di tanggal yang sama = (10 + -4) / 2 = 3.
+    expect(high.avgT20).toBe(3);
+    expect(high.medianT20).toBe(3);
+    // Excess harus dihitung terhadap pembanding tanggal yang sama, bukan nol.
+    expect(high.excessT20).toBe(0);
+    expect(result.rows.find((row) => row.bucket === '<60')!.medianT20).toBeNull();
+  });
+
+  it('membangun desil dengan jumlah sampel setara dan urutan skor yang benar', () => {
+    const observations = Array.from({ length: 20 }, (_, index) =>
+      obs({
+        ticker: `D${String(index).padStart(2, '0')}.JK`,
+        signalDate: '2026-03-02',
+        lensScore: index + 1,
+        returnT20: index + 1,
+      })
+    );
+
+    const deciles = buildDecileRows(observations);
+
+    expect(deciles).toHaveLength(10);
+    expect(deciles.every((row) => row.samples === 2)).toBe(true);
+    expect(deciles[0].scoreMin).toBe(1);
+    expect(deciles[9].scoreMax).toBe(20);
+    // Desil 1 memuat skor 1 & 2 -> rata-rata 1,5%; desil 10 memuat 19 & 20 -> 19,5%.
+    expect(deciles[0].avgT20).toBe(1.5);
+    expect(deciles[9].avgT20).toBe(19.5);
+    // Rata-rata lintas-emiten = 10,5% sehingga desil bawah negatif dan desil atas positif.
+    expect(deciles[0].excessT20!).toBeLessThan(0);
+    expect(deciles[9].excessT20!).toBeGreaterThan(0);
   });
 
   // FASE 0 - banner publik tidak boleh mengklaim validasi selama syaratnya belum dipenuhi.

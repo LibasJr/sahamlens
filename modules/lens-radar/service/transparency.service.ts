@@ -38,7 +38,10 @@ const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 // v2: payload sekarang membedakan observasi mentah, sampel efektif per bucket edge,
 // dan hari sinyal yang benar-benar lolos populasi validasi. Cache lama tidak boleh
 // membuat UI terus menampilkan penyebut yang sudah tidak tepat.
-export const TRANSPARENCY_CACHE_VERSION = 'audit-v3-pit-universe';
+// v4: payload publik sekarang membawa median, win-rate, dan excess-vs-pasar per bucket
+// serta distribusi desil. Cache v3 hanya memuat rata-rata, yang pada distribusi miring ke
+// kanan terbaca seolah skor punya edge (temuan audit kuantitatif 2026-09-24).
+export const TRANSPARENCY_CACHE_VERSION = 'audit-v4-skew-metrics';
 // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
 // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
 // tampak sehat tetapi audit trail versi tidak terbawa.
@@ -80,6 +83,24 @@ export interface TransparencyBucketRow {
   /** Return T+20 sebelum fee + slippage. `avgT20` adalah angka bersihnya. */
   avgT20Gross: number | null;
   winRateT20: number | null;
+  /**
+   * Median return T+20: hasil trade yang TIPIKAL, bukan rata-ratanya.
+   *
+   * AUDIT KUANTITATIF 2026-09-24: rata-rata T+20 naik mengikuti skor di seluruh horizon dan
+   * di kedua periode (in-sample & out-of-sample), TETAPI median justru turun (bucket 80-100
+   * T+20: -1,15%) dan korelasi peringkat (Spearman) ~0. Kenaikan rata-rata karena itu
+   * digerakkan ekor kanan yang jarang, bukan perbaikan hasil yang biasa dialami. Mengklaim
+   * kualitas model dari rata-rata saja menyesatkan, jadi median wajib ikut tampil.
+   * Sumber: sampel kalibrasi terdekorrelasi (lens_bucket_stats belum menyimpan kolom median).
+   */
+  medianT20: number | null;
+  /**
+   * Excess T+20 terhadap rata-rata seluruh emiten pada tanggal sinyal yang sama (proxy pasar
+   * ekuivalen-bobot). Angka absolut bucket ikut terangkat oleh rezim pasar - periode
+   * out-of-sample mencatat rata-rata T+120 +38,7% vs +5,8% in-sample - sehingga hanya excess
+   * yang boleh dibaca sebagai daya pisah skor.
+   */
+  excessT20: number | null;
   provenance: {
     avgT20: ProvenancedFinancialValue;
     winRateT20: ProvenancedFinancialValue;
@@ -91,6 +112,26 @@ export interface TransparencyBucketRow {
   worstMaeT20: number | null;
   avgWinT20: number | null;
   avgLossT20: number | null;
+}
+
+/**
+ * Distribusi desil skor -> return T+20 (jumlah sampel setara per baris).
+ *
+ * Bucket resmi (80-100 / 70-79 / 60-69 / <60) sangat tidak seimbang: pada arsip 2026-09-24
+ * bucket <60 memuat 45.723 sampel sementara 80-100 hanya 1.157, sehingga bucket atas nyaris
+ * tidak punya daya statistik dan urutannya rapuh. Desil memakai penyebut yang sama, jadi
+ * kesimpulannya tidak bisa dibentuk oleh satu bucket besar.
+ */
+export interface TransparencyDecileRow {
+  /** 1 = skor terendah, 10 = tertinggi. */
+  decile: number;
+  samples: number;
+  scoreMin: number;
+  scoreMax: number;
+  avgT20: number | null;
+  medianT20: number | null;
+  winRateT20: number | null;
+  excessT20: number | null;
 }
 
 export interface TransparencyEquityPoint {
@@ -141,6 +182,8 @@ export interface TransparencyData {
   limitationsReviewedOn: string;
   banner: TransparencyBanner;
   buckets: TransparencyBucketRow[];
+  /** Pembanding bucket resmi yang tidak seimbang; sumber daya pisah skor yang lebih adil. */
+  deciles: TransparencyDecileRow[];
   equityCurve: TransparencyEquityPoint[];
 }
 
@@ -181,6 +224,77 @@ function winRate(values: number[]): number | null {
   return (values.filter((value) => value > 0).length / values.length) * 100;
 }
 
+/**
+ * Median = hasil tipikal. Rata-rata saja menyembunyikan distribusi yang miring ke kanan,
+ * dan justru itu bentuk distribusi return LensScore (lihat catatan medianT20).
+ */
+function median(values: number[]): number | null {
+  const finite = values.filter((value) => Number.isFinite(value));
+  if (finite.length === 0) return null;
+  const sorted = [...finite].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 1 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+/**
+ * Excess return T+20 terhadap rata-rata seluruh sinyal pada tanggal yang sama.
+ * Seluruh emiten pada tanggal itu memakai pembanding yang sama, jadi rezim pasar terbagi
+ * rata dan yang tersisa adalah daya pisah skor itu sendiri.
+ */
+function excessReturnByObservation(
+  observations: CalibrationObservation[]
+): Map<CalibrationObservation, number> {
+  const returnsByDate = new Map<string, number[]>();
+  for (const observation of observations) {
+    if (typeof observation.returnT20 !== 'number') continue;
+    const bucket = returnsByDate.get(observation.signalDate);
+    if (bucket) bucket.push(observation.returnT20);
+    else returnsByDate.set(observation.signalDate, [observation.returnT20]);
+  }
+  const meanByDate = new Map<string, number>();
+  for (const [date, values] of returnsByDate) {
+    meanByDate.set(date, values.reduce((sum, value) => sum + value, 0) / values.length);
+  }
+  const excess = new Map<CalibrationObservation, number>();
+  for (const observation of observations) {
+    if (typeof observation.returnT20 !== 'number') continue;
+    const mean = meanByDate.get(observation.signalDate);
+    if (mean == null) continue;
+    excess.set(observation, observation.returnT20 - mean);
+  }
+  return excess;
+}
+
+export function buildDecileRows(observations: CalibrationObservation[]): TransparencyDecileRow[] {
+  const scored = observations
+    .filter((observation) => typeof observation.returnT20 === 'number')
+    .sort((a, b) => a.lensScore - b.lensScore);
+  if (scored.length === 0) return [];
+  const excess = excessReturnByObservation(observations);
+  const rows: TransparencyDecileRow[] = [];
+  for (let index = 0; index < 10; index += 1) {
+    const start = Math.floor((index * scored.length) / 10);
+    const end = Math.floor(((index + 1) * scored.length) / 10);
+    const slice = scored.slice(start, end);
+    if (slice.length === 0) continue;
+    const returns = slice.map((observation) => observation.returnT20 as number);
+    const excessValues = slice
+      .map((observation) => excess.get(observation))
+      .filter((value): value is number => typeof value === 'number');
+    rows.push({
+      decile: index + 1,
+      samples: slice.length,
+      scoreMin: slice[0].lensScore,
+      scoreMax: slice[slice.length - 1].lensScore,
+      avgT20: roundPct(average(returns)),
+      medianT20: roundPct(median(returns)),
+      winRateT20: roundPct(winRate(returns)),
+      excessT20: roundPct(average(excessValues)),
+    });
+  }
+  return rows;
+}
+
 function deriveBucketFallback(observations: CalibrationObservation[], bucket: LensScoreBucket): Partial<TransparencyBucketRow> {
   const t20 = observations
     .filter((obs) => obs.bucket === bucket && typeof obs.returnT20 === 'number')
@@ -212,6 +326,26 @@ export function buildBucketRows(
   const latestStatsRunDate = dateKey(statsRows[0]?.run_date ?? '') ?? null;
   let totalSamples = 0;
 
+  // lens_bucket_stats menyimpan rata-rata, bukan median, dan tidak menyimpan excess
+  // terhadap pasar. Keduanya dihitung dari sampel kalibrasi terdekorrelasi yang sama,
+  // supaya penyebutnya konsisten dengan bucket yang ditampilkan.
+  const returnsByBucket = new Map<LensScoreBucket, number[]>();
+  for (const observation of observations) {
+    if (typeof observation.returnT20 !== 'number') continue;
+    const list = returnsByBucket.get(observation.bucket);
+    if (list) list.push(observation.returnT20);
+    else returnsByBucket.set(observation.bucket, [observation.returnT20]);
+  }
+  const excess = excessReturnByObservation(observations);
+  const excessByBucket = new Map<LensScoreBucket, number[]>();
+  for (const observation of observations) {
+    const value = excess.get(observation);
+    if (value == null) continue;
+    const list = excessByBucket.get(observation.bucket);
+    if (list) list.push(value);
+    else excessByBucket.set(observation.bucket, [value]);
+  }
+
   const rows = BUCKETS.map((bucket): TransparencyBucketRow => {
     const stat = statsByBucket.get(bucket);
     const fallback = deriveBucketFallback(observations, bucket);
@@ -233,6 +367,8 @@ export function buildBucketRows(
       avgT20,
       avgT20Gross: roundPct(finiteNumber(stat?.avg_t20_gross ?? null) ?? fallback.avgT20Gross ?? null),
       winRateT20,
+      medianT20: roundPct(median(returnsByBucket.get(bucket) ?? [])),
+      excessT20: roundPct(average(excessByBucket.get(bucket) ?? [])),
       provenance: {
         avgT20: provenancedValue(avgT20, provenanceBase),
         winRateT20: provenancedValue(winRateT20, provenanceBase),
@@ -504,6 +640,7 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     limitationsReviewedOn: VALIDATION_LIMITATIONS_REVIEWED_ON,
     banner: buildTransparencyBanner(validationStatus),
     buckets: bucketResult.rows,
+    deciles: buildDecileRows(observations),
     equityCurve: buildTop5EquityCurve(observations, ihsgBars),
   };
 }
@@ -531,6 +668,21 @@ export interface PublicTransparencyData {
     effectiveLowBucketSamples: number;
     pValue80VsLt60: number | null;
     significant: boolean;
+    /**
+     * Ringkasan bucket resmi LENGKAP dengan median, win-rate, dan excess-vs-pasar.
+     * Halaman ini dibaca sebagai bukti kualitas model, jadi rata-rata sendirian tidak cukup:
+     * tanpa median dan excess, distribusi yang miring ke kanan akan terbaca sebagai edge.
+     */
+    buckets: Array<{
+      bucket: LensScoreBucket;
+      samples: number;
+      avgT20: number | null;
+      medianT20: number | null;
+      winRateT20: number | null;
+      excessT20: number | null;
+    }>;
+    /** Pembanding bucket resmi yang tidak seimbang (1.157 vs 45.723 sampel). */
+    deciles: TransparencyDecileRow[];
     outOfSampleStatus: 'PENDING';
     returnBasis: string;
   };
@@ -579,6 +731,15 @@ export function toPublicTransparencyData(data: TransparencyData): PublicTranspar
       effectiveLowBucketSamples: data.effectiveLowBucketSamples,
       pValue80VsLt60: data.pValue80VsLt60,
       significant: data.significant,
+      buckets: data.buckets.map((bucket) => ({
+        bucket: bucket.bucket,
+        samples: bucket.totalSamples,
+        avgT20: bucket.avgT20,
+        medianT20: bucket.medianT20,
+        winRateT20: bucket.winRateT20,
+        excessT20: bucket.excessT20,
+      })),
+      deciles: data.deciles,
       outOfSampleStatus: 'PENDING',
       returnBasis: 'Entry Open H+1, exit T+N hari bursa, return T+20 bersih setelah fee 0,4% + slippage 0,1%',
     },
