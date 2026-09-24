@@ -1,0 +1,11 @@
+[Unit]
+Description=Jadwal SahamLens - pengawas kebasian bukti input makro (mingguan)
+
+[Timer]
+# Mingguan Senin pagi: RDG BI biasanya pekan ke-3, jadi jeda deteksi maksimal 7 hari.
+OnCalendar=Mon 06:30 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-macro-evidence-watchdog.service
+
+[Install]
+WantedBy=timers.target

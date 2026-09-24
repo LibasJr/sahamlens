@@ -1,0 +1,19 @@
+[Unit]
+Description=SahamLens - pengawas kebasian bukti input makro (BI-Rate, SBN, ERP, inflasi)
+After=network-online.target sahamlens.service
+Wants=network-online.target
+# Kegagalan = bukti makro kritis sudah terlalu tua -> pakai jalur peringatan cron yang sudah ada.
+OnFailure=sahamlens-cron-alert@%n.service
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+WorkingDirectory=/opt/sahamlens/app
+EnvironmentFile=-/opt/sahamlens/app/.env.production
+TimeoutStartSec=300
+# Dijalankan dari checkout aplikasi, BUKAN dari /opt/sahamlens/scripts: skrip ini
+# mengimpor `pg` dan resolusi modul mengikuti lokasi berkas, sehingga salinan di luar
+# /opt/sahamlens/app gagal dengan ERR_MODULE_NOT_FOUND (terbukti 2026-09-24 22:08 saat
+# unit pertama kali dijalankan).
+ExecStart=/usr/bin/node /opt/sahamlens/app/scripts/macro-evidence-watchdog.mjs
