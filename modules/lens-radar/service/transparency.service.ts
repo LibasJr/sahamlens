@@ -617,6 +617,17 @@ function normalizeTicker(value: string | null | undefined): string {
 }
 
 /**
+ * Kode dasar tanpa sufiks pasar. Arsip menyimpan ticker berformat "AALI.JK", sedangkan
+ * katalog emiten menyimpan kode polos "AALI" - membandingkan keduanya apa adanya membuat
+ * SEMUA emiten katalog terbaca "belum punya data arsip" (temuan 24 Sep 2026: halaman
+ * menampilkan 962, bukan 45).
+ */
+export function tickerBaseCode(value: string | null | undefined): string {
+  const normalized = normalizeTicker(value);
+  return normalized.endsWith('.JK') ? normalized.slice(0, -3) : normalized;
+}
+
+/**
  * Bandingkan lapisan emiten: katalog resmi, arsip, dan populasi validasi. Dihitung dari
  * baris yang SUDAH dibaca halaman ini (tanpa query tambahan) supaya tidak menambah beban
  * baca arsip yang sudah berat.
@@ -627,10 +638,14 @@ export function buildEmitenCoverage(
   scoreVersion: string | null
 ): TransparencyEmitenCoverage {
   const archiveTickers = new Set<string>();
+  const archiveBaseCodes = new Set<string>();
   for (const row of historyRows) {
     if (scoreVersion && row.score_version !== scoreVersion) continue;
     const ticker = normalizeTicker(row.ticker);
-    if (ticker) archiveTickers.add(ticker);
+    if (ticker) {
+      archiveTickers.add(ticker);
+      archiveBaseCodes.add(tickerBaseCode(ticker));
+    }
   }
 
   const validationTickers = new Set<string>();
@@ -660,7 +675,7 @@ export function buildEmitenCoverage(
     const catalog = loadEmitenList();
     if (catalog.length > 0) {
       catalogEmiten = catalog.length;
-      catalogWithoutArchiveData = catalog.filter((item) => !archiveTickers.has(normalizeTicker(item.symbol))).length;
+      catalogWithoutArchiveData = catalog.filter((item) => !archiveBaseCodes.has(tickerBaseCode(item.symbol))).length;
     }
   } catch {
     // Katalog bersifat opsional: halaman transparansi tetap tayang walau berkas katalog
