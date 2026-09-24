@@ -113,7 +113,6 @@ export default function TermsPage() {
         <span className="text-[12px] text-tv-muted">{t('termsPage.contactNote')}</span>
       </div>
 
-      <p className="mt-4 text-[11px] text-tv-muted italic">{t('termsPage.noteDisclaimer')}</p>
     </PageContainer>
   );
 }

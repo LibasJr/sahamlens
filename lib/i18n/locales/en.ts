@@ -601,15 +601,13 @@ export const en: TranslationDictionary = {
       'Market and fundamental data comes from third-party providers (notably Yahoo Finance). Provenance and observation date are preserved so financial data is never presented as fresher or more certain than its source. The use of third-party data is factual description, not a transfer of your data to them.',
     sectionSecurityTitle: 'Security boundaries',
     sectionSecurityBody:
-      'We implement reasonable security measures appropriate to a small team and the sensitivity of the data. No system is breach-proof — we do not promise absolute security. What we promise: limited collection, bounded retention, and automatic cleanup.',
+      'We implement reasonable security measures appropriate to a small team and the sensitivity of the data. No system is breach-proof — we do not promise absolute security. We limit collection, enforce retention schedules, and run automatic cleanup.',
     sectionRightsTitle: 'Your options',
     sectionRightsBody:
-      'You can request data export or account deletion, or ask privacy questions by emailing support@sahamlens.id from your registered address. We respond within 1 business day.',
+      'You can request data export or account deletion, or ask privacy questions by emailing support@sahamlens.id from your registered address. We target an initial response within 1 business day.',
     sensitiveWarningTitle: 'Do not share sensitive data',
     sensitiveWarningBody:
       'Never send your password, OTP, PIN, API key, or identity documents via prompt or email. SahamLens staff will never ask for your password.',
-    noteDisclaimer:
-      'This is operational documentation of our actual practices, not a substitute for legal review.',
   },
   termsPage: {
     lastUpdated: 'Last updated {date}',
@@ -650,18 +648,16 @@ export const en: TranslationDictionary = {
       'Access may be restricted for abuse, ToS violation, or non-payment where subscription terms apply.',
     sectionSubscriptionTitle: 'Subscription (if applicable)',
     sectionSubscriptionBody:
-      'Where a paid plan exists, its terms (plan code, duration, amount) are presented before purchase. Specific cancellation and billing mechanics are governed by the payment flow at the time of purchase — we do not promise refunds or renewals that are not part of that documented flow.',
+      'Where a paid plan exists, its terms (plan code, duration, amount) are presented before purchase. Pricing, duration, billing, cancellation, and refund details (if any) follow the information displayed before you purchase.',
     sectionIpTitle: 'Intellectual property',
     sectionIpBody:
       'SahamLens content (text, design, scoring methodology, software) is protected by copyright. Third-party data remains the property of its providers. You may quote or reference SahamLens content under fair use with attribution.',
     sectionLiabilityTitle: 'Limitation of liability',
     sectionLiabilityBody:
-      'To the maximum extent permitted by applicable law, SahamLens is provided as-is without warranties of any kind. Our liability is limited to the extent allowed by law and never exceeds what you actually paid for the service in the 12 months preceding the claim.',
+      'To the maximum extent permitted by applicable law, SahamLens is provided on an as-available basis, without warranties of uninterrupted or error-free operation. Your statutory rights are not affected by these terms.',
     sectionChangesTitle: 'Changes to these terms',
     sectionChangesBody:
-      'We may update these terms as the product evolves. Continued use after changes means you accept the updated terms. Material changes will be announced via the service or support contact.',
+      'We may update these terms as the product evolves. Material changes will be announced via the service or support contact. The latest version is always available on this page — please read it before continuing to use the service.',
     contactNote: 'Questions? Contact support@sahamlens.id.',
-    noteDisclaimer:
-      'These terms describe the operational reality of the service. They are not a substitute for independent legal review.',
   },
 };
