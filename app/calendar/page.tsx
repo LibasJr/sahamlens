@@ -299,7 +299,7 @@ export default function CalendarPage() {
                   </h3>
                   {/* Ringkasan bulan: tanpa ini, satu-satunya cara mengetahui bulan ini
                       ramai atau kosong adalah memindai 30 kotak dengan mata. */}
-                  <p className="text-[11px] text-tv-muted mt-0.5">
+                  <p className="lens-meta text-tv-muted mt-0.5">
                     {loading ? 'memuat agenda…' : monthSummary}
                   </p>
                 </div>
@@ -333,7 +333,7 @@ export default function CalendarPage() {
                   {renderCalendarGrid()}
                   {/* Legenda warna titik - tanpa ini, dua warna baru di grid tidak
                       punya keterangan apa pun. */}
-                  <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-tv-border pt-3 text-[11px] text-tv-muted">
+                  <div className="mt-4 flex flex-wrap items-center gap-4 border-t border-tv-border pt-3 lens-meta text-tv-muted">
                     <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-tv-purple" /> RUPS</span>
                     <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-tv-yellow" /> RUPSLB</span>
                     <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-tv-green" /> Dividen</span>
@@ -374,13 +374,13 @@ export default function CalendarPage() {
                             dengan satu warna ungu untuk keduanya. Sekarang berlabel
                             Indonesia dan berwarna sesuai jenisnya, konsisten dengan
                             titik penanda di grid. */}
-                        <span className={`shrink-0 text-[10px] font-bold px-2 py-1 rounded border ${TYPE_BADGE[event.type]}`}>
+                        <span className={`shrink-0 lens-meta font-bold px-2 py-1 rounded border ${TYPE_BADGE[event.type]}`}>
                           {TYPE_LABEL[event.type]}
                         </span>
                       </div>
                       <h4 className="text-sm text-tv-text font-bold mb-1">{event.title}</h4>
                       <p className="text-xs text-tv-muted">{event.description}{event.timeWib ? ` Pukul ${event.timeWib} WIB.` : ''}</p>
-                      <p className="mt-2 text-[10px] text-tv-muted">
+                      <p className="mt-2 lens-meta text-tv-muted">
                         {event.source === 'KSEI_OFFICIAL' ? 'Sumber primer resmi KSEI' : 'Sumber pihak ketiga Yahoo Finance'} · {event.verification === 'VERIFIED_PRIMARY_SOURCE' ? 'Terverifikasi' : event.verification === 'THIRD_PARTY_ESTIMATE' ? 'Estimasi' : 'Tercatat pihak ketiga'}
                         {event.sourceUrl && <> · <span className="underline">Dokumen sumber</span></>}
                       </p>

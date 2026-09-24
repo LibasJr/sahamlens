@@ -104,15 +104,15 @@ function DcfContent() {
         ]}
       />
           <div>
-            <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Harga Pasar Saat Ini</div>
+            <div className="lens-meta text-tv-muted uppercase font-semibold tracking-wide">Harga Pasar Saat Ini</div>
             <div className="text-xl font-bold text-tv-text font-number">Rp {quant.current_price?.toLocaleString('id-ID') || '-'}</div>
           </div>
           <div>
-            <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Nilai Wajar (Model DCF)</div>
+            <div className="lens-meta text-tv-muted uppercase font-semibold tracking-wide">Nilai Wajar (Model DCF)</div>
             <div className="text-xl font-extrabold text-tv-green font-number">Rp {quant.fair_value?.toLocaleString('id-ID') || '-'}</div>
           </div>
           <div className="pl-4 border-l border-tv-border">
-            <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">Status Valuasi</div>
+            <div className="lens-meta text-tv-muted uppercase font-semibold tracking-wide">Status Valuasi</div>
             <div className={`text-lg font-extrabold px-3 py-1 rounded border ${
               quant.valuation_status === 'UNDERVALUED'
                 ? 'bg-tv-green/20 text-tv-green border-tv-green'
@@ -174,7 +174,7 @@ function DcfContent() {
           <div className="lens-table-sticky-col overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead>
-                <tr className="border-b border-tv-border text-tv-muted uppercase text-[10px] font-semibold tracking-wide">
+                <tr className="border-b border-tv-border text-tv-muted uppercase lens-meta font-semibold tracking-wide">
                   <th className="p-3">Periode</th>
                   <th className="p-3 text-right">Proyeksi FCF (IDR/Lbr)</th>
                   <th className="p-3 text-right">Present Value (PV @ Discount Rate)</th>
@@ -210,7 +210,7 @@ function DcfContent() {
                   <td className="p-3 text-right text-tv-blue font-number">Rp {quant.equity_value_per_share?.toLocaleString('id-ID')}</td>
                 </tr>
                 <tr>
-                  <td className="p-3 text-tv-muted">Utang Bersih / Saham <span className="text-[10px]">(konteks neraca, tidak dikurangkan)</span></td>
+                  <td className="p-3 text-tv-muted">Utang Bersih / Saham <span className="lens-meta">(konteks neraca, tidak dikurangkan)</span></td>
                   <td className="p-3 text-right text-tv-muted">-</td>
                   <td className="p-3 text-right text-tv-muted font-number">Rp {quant.net_debt_per_share?.toLocaleString('id-ID')}</td>
                 </tr>
@@ -267,7 +267,7 @@ function DcfContent() {
             <div className="overflow-x-auto">
               <table className="w-full text-center text-xs border-collapse">
                 <thead>
-                  <tr className="border-b border-tv-border bg-tv-bg text-tv-muted text-[10px] font-semibold tracking-wide">
+                  <tr className="border-b border-tv-border bg-tv-bg text-tv-muted lens-meta font-semibold tracking-wide">
                     <th className="p-3">Discount Rate \ g</th>
                     <th className="p-3">Growth 3.0%</th>
                     <th className="p-3">Growth 3.5% (Base)</th>

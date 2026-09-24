@@ -104,8 +104,8 @@ ke 12px). Tebalnya diturunkan 700 → 600 agar tidak tampak berat pada ukuran ya
 |---|---|---|
 | 2 | `Sidebar` (sisa utility), kartu/form/tabel/primitif bersama, `TickerAnalysisShell` | **selesai** — lihat §7 |
 | 3 | `AIChat` (LensAI), `app/news`, teks metodologi panjang | **selesai** (kecuali angka mono di jawaban) — lihat §8 |
-| 4 | DCF, Risk, Dividend, Watchlist, Screener, Calendar | `app/dcf`: 6 · `app/risk`: 13 · `app/dividend`: 13 · `app/calendar`: 4 |
-| 5 | `text-[Npx]` sisanya, klasifikasi pengecualian, penyederhanaan lantai kompatibilitas | 718 tersebar di 111 berkas |
+| 4 | DCF, Risk, Dividend, Watchlist, Screener, Calendar | **selesai** (Watchlist & Screener sudah bersih sebelumnya) — lihat §9 |
+| 5 | `text-[Npx]` sisanya, klasifikasi pengecualian, penyederhanaan lantai kompatibilitas | 646 tersebar di 92 berkas (per 25 Sep 2026) |
 
 Offender terbesar (kandidat PR berikutnya, di luar kartu ekspor): `components/Dashboard.tsx`
 (30), `app/breakout-radar/page.tsx` (23), `components/radar/SetupCard.tsx` (21),
@@ -207,3 +207,54 @@ tetap 16px di ponsel.
 
 **Belum:** angka di dalam jawaban LensAI belum dipaksa mono — itu butuh penandaan di
 Markdown/backend, bukan sekadar CSS, dan berada di luar scope tipografi murni.
+
+## 9. Fase 4 — halaman finansial (PR keempat)
+
+36 ukuran arbitrer di `app/dcf`, `app/risk`, `app/dividend`, dan `app/calendar`
+(`app/watchlist` dan `app/screener` sudah nol sejak awal).
+
+Pemetaannya mengikuti satu aturan: **label pendek** (huruf besar, tebal, `tracking-wide`)
+memakai `lens-meta` = 12px; **teks bacaan** (kalimat penjelasan, catatan skenario) memakai
+`lens-body-sm` = 13px. Jadi tidak ada teks mengalir yang mengecil — yang berubah hanya
+label.
+
+**Ukuran yang benar-benar dirender berubah, dan itu disengaja.** Lantai kompatibilitas
+mengangkat `text-[10px]`/`text-[11px]` ke 13px, jadi label-label itu hari ini tampil 13px
+sementara sumbernya menulis 10px. Setelah migrasi mereka tampil **12px** — sejalan dengan
+pengecualian `lens-chip` yang lebih dulu turun ke 12px dengan alasan yang sama: isinya kata
+pendek, tebal, huruf besar semua, kontras tinggi, jadi terbaca pada ukuran lebih kecil
+daripada teks mengalir.
+
+Kasus terdokumentasi `lens-chip` di elemen tabel dihindari bukan dengan ingatan: header
+tabel memakai `lens-meta`, yang **tidak** menyetel `display`. `lens-chip` menyetel
+`display: inline-flex` dan pernah membuat satu `<tr>` header membengkak ~1654px.
+
+| Berkas | Perubahan |
+|---|---|
+| `app/dcf/page.tsx` | 3 label kartu metrik + 2 baris header tabel `text-[10px]` → `lens-meta`; catatan "(konteks neraca…)" → `lens-meta` |
+| `app/risk/page.tsx` | label skenario + label beta `text-[10px]` → `lens-meta`; 3 paragraf penjelasan `text-[10px] leading-relaxed` → `lens-body-sm`; kotak info `text-[11px] leading-relaxed` → `lens-body-sm`; grup nilai ringkas `text-[11px]` → `lens-meta` |
+| `app/dividend/page.tsx` | 4 label KPI + 4 sub-catatan `text-[11px]` → `lens-meta`; kotak penjelasan `text-[11px] leading-relaxed` → `lens-body-sm`; 2 toggle `text-[11px]` → `lens-meta`; 2 baris header tabel `text-[10px]` → `lens-meta` |
+| `app/calendar/page.tsx` | meta + legenda + lencana tipe `text-[10px]`/`text-[11px]` → `lens-meta` |
+
+Ratchet turun **682/620 → 646/584**, berkas yang masih memakai ukuran acak 92 (dari 479
+diperiksa).
+
+### Gerbang baru: permukaan yang sudah bersih tidak boleh kotor lagi
+
+`config/typography-migrated.json` menyimpan daftar 35 berkas yang sudah nol ukuran
+arbitrer plus satu pengecualian yang beralasan (`components/ui/TickerAvatar.tsx`: kotak
+avatar berukuran tetap, `leading-none` yang membuat inisialnya muat). Dijaga
+`__tests__/typography-migrated-surfaces.test.ts`:
+
+- daftar wajib ≥ 30 berkas (penjaga pemindai: daftar yang rusak tidak boleh lulus);
+- setiap berkas wajib **ada** di path itu — gerbang yang menunjuk path lama akan lulus
+  tanpa memeriksa apa pun, dan itu sudah pernah terjadi di repo ini;
+- pengecualian tidak boleh bertambah ukurannya dan wajib masih memakai `leading-none`
+  (tanpa itu alasan pengecualiannya hilang);
+- tidak ada elemen struktur tabel (`tr`/`td`/`th`/`thead`/`tbody`) yang memakai
+  `lens-chip`, dipindai dari seluruh `app/` + `components/`.
+
+Pencocokan pola tetap membuang komentar lebih dulu. Kali ini salinannya dijadikan satu:
+`scripts/lib/strip-comments.mjs`, dipakai bersama oleh ratchet dan gerbang baru — menyalin
+regex itu per gerbang adalah cara paling rapi membuat salah satu gerbang kelak menghitung
+prosa sebagai kode.

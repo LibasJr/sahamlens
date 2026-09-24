@@ -1,0 +1,52 @@
+{
+  "catatan": [
+    "Permukaan yang sudah dimigrasikan ke skala peran: tidak boleh mengandung ukuran piksel acak.",
+    "Gerbangnya ada di __tests__/typography-migrated-surfaces.test.ts; berkas ini hanya daftarnya.",
+    "Kalau sebuah berkas dipindah, pindahkan juga barisnya di sini - daftar yang menunjuk path lama",
+    "akan lulus tanpa memeriksa apa pun (scripts/audit-typography-ratchet.mjs tetap menjaga angka totalnya)."
+  ],
+  "bersih": [
+    "app/calendar/page.tsx",
+    "app/dcf/page.tsx",
+    "app/dividend/page.tsx",
+    "app/news/page.tsx",
+    "app/risk/page.tsx",
+    "components/AIChat.tsx",
+    "components/Header.tsx",
+    "components/Sidebar.tsx",
+    "components/news/StructuredNewsCard.tsx",
+    "components/ui/AnimatedNumber.tsx",
+    "components/ui/ApiErrorHint.tsx",
+    "components/ui/Button.tsx",
+    "components/ui/Card.tsx",
+    "components/ui/EmptyState.tsx",
+    "components/ui/Input.tsx",
+    "components/ui/InsightRow.tsx",
+    "components/ui/LanguageSwitcher.tsx",
+    "components/ui/LoadingFact.tsx",
+    "components/ui/MetricBand.tsx",
+    "components/ui/MetricCard.tsx",
+    "components/ui/NotificationCenter.tsx",
+    "components/ui/PageContainer.tsx",
+    "components/ui/PasswordToggle.tsx",
+    "components/ui/PriceRangeSlider.tsx",
+    "components/ui/RadialScoreGauge.tsx",
+    "components/ui/ResearchProvenanceDetails.tsx",
+    "components/ui/ResearchTabs.tsx",
+    "components/ui/SectionHeader.tsx",
+    "components/ui/SegmentedControl.tsx",
+    "components/ui/Select.tsx",
+    "components/ui/Skeleton.tsx",
+    "components/ui/StatusMeta.tsx",
+    "components/ui/Table.tsx",
+    "components/ui/Textarea.tsx",
+    "components/ui/Toast.tsx"
+  ],
+  "pengecualian": [
+    {
+      "file": "components/ui/TickerAvatar.tsx",
+      "ukuran": ["text-[10px]"],
+      "alasan": "Kotak avatar berukuran TETAP (w-7/h-7 dst.) dan inisialnya memakai leading-none. Peran semantik justru salah di sini: lantai keterbacaan menaikkan ukuran huruf (text-[10px] dan text-xs di varian lain) menjadi 13px dan tinggi baris warisan body 1,6 membuat kotak teks 20,8px lebih tinggi daripada avatar 20px - inisialnya mendesak keluar lingkaran."
+    }
+  ]
+}
