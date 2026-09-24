@@ -119,7 +119,7 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
                       key={n.link || `${n.title}-${idx}`}
                       className="border border-tv-border rounded-lg p-3 hover:border-tv-borderLight transition-colors"
                     >
-                      <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold mb-2 ${s.kelas}`}>
+                      <span className={`inline-block px-2 py-0.5 rounded lens-label font-bold mb-2 ${s.kelas}`}>
                         {s.label}
                       </span>
                       {n.link ? (
@@ -144,7 +144,7 @@ export default function StockNewsModal({ open, onClose, symbol, items }: StockNe
               </div>
             )}
 
-            <p className="text-[10px] text-tv-muted mt-5">
+            <p className="lens-caption text-tv-muted mt-5">
               {t('stockNewsModal.sentimentDisclaimer')}
             </p>
           </motion.div>

@@ -267,7 +267,7 @@ export default function BacktestPage() {
               <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-1 border-b border-tv-border pb-3">
                 <Target className="w-5 h-5 text-tv-blue" /> Presets
               </h3>
-              <p className="text-[10px] text-tv-muted mb-3">Win rate dihitung live dari data historis tiap kombinasi - bisa berubah, bukan angka tetap.</p>
+              <p className="lens-label text-tv-muted mb-3">Win rate dihitung live dari data historis tiap kombinasi - bisa berubah, bukan angka tetap.</p>
               <div className="flex flex-col gap-2">
                 {presets.map((p, idx) => {
                   const locked = isPresetLocked(idx);
@@ -288,10 +288,10 @@ export default function BacktestPage() {
                     >
                       <div>
                         <div className="font-semibold">{p.label}</div>
-                        <span className="block text-[10px] text-tv-muted font-normal">{p.filters.length} filter</span>
+                        <span className="block lens-label text-tv-muted font-normal">{p.filters.length} filter</span>
                       </div>
                       {locked && (
-                        <span className="shrink-0 flex items-center gap-1 text-[10px] font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-0.5 rounded-full">
+                        <span className="shrink-0 flex items-center gap-1 lens-chip font-bold text-tv-yellow bg-tv-yellow/10 border border-tv-yellow/40 px-2 py-0.5 rounded-full">
                           <Lock className="w-3 h-3" /> Masuk
                         </span>
                       )}
@@ -388,7 +388,7 @@ export default function BacktestPage() {
                   {!liveLoading && <Zap className="w-5 h-5" />}
                   Live Filter Check
                 </Button>
-                <p className="text-[10px] text-tv-muted -mt-2">
+                <p className="lens-label text-tv-muted -mt-2">
                   Cek saham mana di universe yang memenuhi kombinasi filter ini SEKARANG (data live, bukan simulasi historis).
                 </p>
               </div>

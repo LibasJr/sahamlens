@@ -78,13 +78,13 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
 
         <div className="flex items-center gap-2 flex-wrap">
           {data.bestMonth && (
-            <Badge variant="success" className="gap-1 text-[11px] py-1 px-2.5">
+            <Badge variant="success" className="gap-1 lens-chip py-1 px-2.5">
               <TrendingUp className="h-3 w-3" />
               Bulan Terbaik: <strong>{data.bestMonth.monthName} (+{data.bestMonth.avgReturn.toFixed(1)}%)</strong>
             </Badge>
           )}
           {data.worstMonth && (
-            <Badge variant="danger" className="gap-1 text-[11px] py-1 px-2.5">
+            <Badge variant="danger" className="gap-1 lens-chip py-1 px-2.5">
               <TrendingDown className="h-3 w-3" />
               Bulan Terlemah: <strong>{data.worstMonth.monthName} ({data.worstMonth.avgReturn.toFixed(1)}%)</strong>
             </Badge>
@@ -113,7 +113,7 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
                 {row.months.map((val, idx) => (
                   <td key={idx} className="py-2 px-1">
                     <div
-                      className={`h-7 flex items-center justify-center rounded-lg font-number text-[11px] transition-all ${getCellColor(val)}`}
+                      className={`h-7 flex items-center justify-center rounded-lg font-number lens-number transition-all ${getCellColor(val)}`}
                       title={val !== null ? `${MONTH_NAMES_SHORT[idx]} ${row.year}: ${val >= 0 ? '+' : ''}${val.toFixed(2)}%` : 'Tidak ada data'}
                     >
                       {val !== null ? `${val >= 0 ? '+' : ''}${val.toFixed(1)}%` : '—'}
@@ -129,7 +129,7 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
                 Rata-rata
               </td>
               {data.monthAverages.map((avg, idx) => (
-                <td key={idx} className="py-2.5 px-1 font-number font-bold text-[11px]">
+                <td key={idx} className="py-2.5 px-1 font-number font-bold lens-number">
                   {avg !== null ? (
                     <span className={avg >= 0 ? 'text-tv-green' : 'text-tv-red'}>
                       {avg >= 0 ? '+' : ''}{avg.toFixed(1)}%
@@ -145,7 +145,7 @@ export function SeasonalityMatrix({ candles, ticker }: SeasonalityMatrixProps) {
                 Win Rate
               </td>
               {data.monthWinRates.map((wr, idx) => (
-                <td key={idx} className="py-2.5 px-1 font-number font-bold text-[11px]">
+                <td key={idx} className="py-2.5 px-1 font-number font-bold lens-number">
                   {wr !== null ? (
                     <span className={wr >= 60 ? 'text-tv-green font-bold' : wr <= 40 ? 'text-tv-red' : 'text-tv-muted'}>
                       {wr.toFixed(0)}%

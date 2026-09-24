@@ -68,11 +68,11 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${categoryBadgeClass}`}>
+              <span className={`inline-flex items-center rounded-full border px-2 py-0.5 lens-chip font-semibold ${categoryBadgeClass}`}>
                 {categoryColor}
               </span>
               {item.flagged && (
-                <span className="inline-flex items-center gap-1 text-[10px] text-tv-red">
+                <span className="inline-flex items-center gap-1 lens-label text-tv-red">
                   <AlertTriangle className="w-3 h-3" />
                   {item.flagReason}
                 </span>
@@ -90,7 +90,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
               </span>
             </div>
             {reasons.length > 0 && !isExpanded && (
-              <p className="text-[11px] text-tv-muted mt-1 line-clamp-2">
+              <p className="lens-body-sm text-tv-muted mt-1 line-clamp-2">
                 {reasons[0]}
               </p>
             )}
@@ -98,7 +98,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
           <div className="text-right shrink-0">
             <div className="text-lg font-bold font-number text-tv-text">{item.finalScore}</div>
             {typeof item.coverage === 'number' && (
-              <div className="text-[10px] text-tv-muted">
+              <div className="lens-label text-tv-muted">
                 {isId ? 'data' : 'data'} {item.coverage}%
               </div>
             )}
@@ -111,12 +111,12 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
           {/* Alasan / Evidence */}
           {reasons.length > 0 && (
             <div>
-              <div className="text-[10px] uppercase tracking-wide text-tv-muted mb-1">
+              <div className="lens-label uppercase tracking-wide text-tv-muted mb-1">
                 {isId ? 'Alasan Utama' : 'Key Drivers'}
               </div>
               <ul className="space-y-0.5">
                 {reasons.map((r, i) => (
-                  <li key={i} className="text-[11px] text-tv-text">✓ {r}</li>
+                  <li key={i} className="lens-body-sm text-tv-text">✓ {r}</li>
                 ))}
               </ul>
             </div>
@@ -127,14 +127,14 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
             <div className="grid grid-cols-2 gap-2">
               {entry != null && (
                 <div className="rounded-md bg-tv-bg/60 border border-tv-border px-3 py-2">
-                  <div className="text-[10px] text-tv-muted uppercase tracking-wide flex items-center gap-1">
+                  <div className="lens-label text-tv-muted uppercase tracking-wide flex items-center gap-1">
                     <ArrowUpDown className="w-3 h-3" />
                     {isId ? 'Entry Ref' : 'Entry Ref'}
                   </div>
                   <div className="text-sm font-bold font-number text-tv-text mt-0.5">
                     {entry.toLocaleString(isId ? 'id-ID' : 'en-US')}
                   </div>
-                  <div className="text-[10px] text-tv-muted">
+                  <div className="lens-label text-tv-muted">
                     {item.tradePlan?.entryReference === 'OPEN_H_PLUS_1'
                       ? (isId ? 'Open H+1' : 'Open H+1')
                       : (isId ? 'Harga saat ini' : 'Current price')}
@@ -143,7 +143,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
               )}
               {stopLoss != null && (
                 <div className="rounded-md bg-tv-red/5 border border-tv-red/20 px-3 py-2">
-                  <div className="text-[10px] text-tv-muted uppercase tracking-wide flex items-center gap-1">
+                  <div className="lens-label text-tv-muted uppercase tracking-wide flex items-center gap-1">
                     <Shield className="w-3 h-3" />
                     {isId ? 'Stop / Inval' : 'Stop / Invalid'}
                   </div>
@@ -151,7 +151,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
                     {stopLoss.toLocaleString(isId ? 'id-ID' : 'en-US')}
                   </div>
                   {riskPct != null && (
-                    <div className="text-[10px] text-tv-muted">
+                    <div className="lens-label text-tv-muted">
                       -{riskPct.toFixed(1)}% {isId ? 'dari entry' : 'from entry'}
                     </div>
                   )}
@@ -159,7 +159,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
               )}
               {takeProfit1 != null && (
                 <div className="rounded-md bg-tv-green/5 border border-tv-green/20 px-3 py-2">
-                  <div className="text-[10px] text-tv-muted uppercase tracking-wide flex items-center gap-1">
+                  <div className="lens-label text-tv-muted uppercase tracking-wide flex items-center gap-1">
                     <Target className="w-3 h-3" />
                     {isId ? 'Target 1' : 'Target 1'}
                   </div>
@@ -170,7 +170,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
               )}
               {takeProfit2 != null && (
                 <div className="rounded-md bg-tv-green/5 border border-tv-green/15 px-3 py-2">
-                  <div className="text-[10px] text-tv-muted uppercase tracking-wide flex items-center gap-1">
+                  <div className="lens-label text-tv-muted uppercase tracking-wide flex items-center gap-1">
                     <Target className="w-3 h-3" />
                     {isId ? 'Target 2' : 'Target 2'}
                   </div>
@@ -182,7 +182,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
             </div>
           ) : (
             <div className="rounded-md bg-tv-bg/40 border border-tv-border px-3 py-2">
-              <p className="text-[11px] text-tv-muted flex items-center gap-1">
+              <p className="lens-body-sm text-tv-muted flex items-center gap-1">
                 <Info className="w-3 h-3" />
                 {isId
                   ? 'Setup entry/stop/target belum tersedia untuk saham ini — bukan berarti tidak ada peluang.'
@@ -194,7 +194,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
           {/* Risk/Reward */}
           {rr != null && rr >= 1.5 && (
             <div className="flex items-center justify-between rounded-md bg-tv-bg/60 border border-tv-border px-3 py-2">
-              <span className="text-[11px] text-tv-muted">
+              <span className="lens-body-sm text-tv-muted">
                 {isId ? 'Risk/Reward' : 'Risk/Reward'}
               </span>
               <span className="text-sm font-bold font-number text-tv-text">
@@ -207,7 +207,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
           {(riskLevel != null || confidenceLevel != null) && (
             <div className="flex items-center gap-2">
               {riskLevel != null && (
-                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 lens-chip font-semibold ${
                   riskLevel === 'LOW' ? 'text-tv-green bg-tv-green/10 border-tv-green/25' :
                   riskLevel === 'MEDIUM' ? 'text-tv-yellow bg-tv-yellow/10 border-tv-yellow/25' :
                   'text-tv-red bg-tv-red/10 border-tv-red/25'
@@ -216,7 +216,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
                 </span>
               )}
               {confidenceLevel != null && (
-                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${
+                <span className={`inline-flex items-center rounded-full border px-2 py-0.5 lens-chip font-semibold ${
                   confidenceLevel === 'HIGH' ? 'text-tv-green bg-tv-green/10 border-tv-green/25' :
                   confidenceLevel === 'MEDIUM' ? 'text-tv-blue bg-tv-blue/10 border-tv-blue/25' :
                   'text-tv-muted bg-tv-hover/30 border-tv-border'
@@ -229,7 +229,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
 
           {/* Support / Resistance */}
           {(supportPrice != null || resistancePrice != null) && (
-            <div className="flex items-center gap-4 text-[11px]">
+            <div className="flex items-center gap-4 lens-body-sm">
               {supportPrice != null && (
                 <div>
                   <span className="text-tv-muted">{isId ? 'Support' : 'Support'}: </span>
@@ -248,10 +248,10 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
           {/* Missing Data */}
           {missingData.length > 0 && (
             <div className="rounded-md bg-tv-yellow/5 border border-tv-yellow/20 px-3 py-2">
-              <div className="text-[10px] uppercase tracking-wide text-tv-yellow mb-0.5">
+              <div className="lens-label uppercase tracking-wide text-tv-yellow mb-0.5">
                 {isId ? 'Data Belum Tersedia' : 'Data Not Yet Available'}
               </div>
-              <p className="text-[11px] text-tv-muted">
+              <p className="lens-body-sm text-tv-muted">
                 {missingData.join(', ')}
               </p>
             </div>
@@ -261,7 +261,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
           {caveats.length > 0 && (
             <div className="space-y-0.5">
               {caveats.map((c, i) => (
-                <p key={i} className="text-[10px] text-tv-muted leading-relaxed">
+                <p key={i} className="lens-label text-tv-muted leading-relaxed">
                   ⚠ {c}
                 </p>
               ))}
@@ -269,7 +269,7 @@ export function SetupCard({ item, isExpanded, onToggle }: SetupCardProps) {
           )}
 
           {/* Coverage & Freshness */}
-          <div className="flex items-center gap-3 text-[10px] text-tv-muted pt-1 border-t border-tv-border/50">
+          <div className="flex items-center gap-3 lens-label text-tv-muted pt-1 border-t border-tv-border/50">
             {typeof item.coverage === 'number' && (
               <span>{isId ? 'Cakupan data' : 'Data coverage'}: {item.coverage}%</span>
             )}

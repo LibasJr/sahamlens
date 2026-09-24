@@ -674,9 +674,9 @@ export default function TradingViewChart({
       <div className="flex min-w-0 flex-col gap-2 border-b border-tv-border px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
         <div className="flex min-w-0 items-center gap-2.5">
           <span className="shrink-0 font-mono text-sm font-bold tracking-wide text-white">{displayedSymbol}</span>
-          <span className="shrink-0 rounded-md bg-tv-hover px-2 py-1 text-[12px] font-semibold text-tv-muted sm:text-[10px]">{timeframe === 'ALL' ? 'MAX' : timeframe}</span>
-          <span className="hidden truncate text-[12px] text-tv-muted md:inline">{chartTypeLabel(chartType)}{chartType === 'heikin-ashi' ? ' · derived visual' : ''}</span>
-          <span className={`hidden shrink-0 rounded-md border px-2 py-1 text-[10px] font-semibold sm:inline ${
+          <span className="shrink-0 rounded-md bg-tv-hover px-2 py-1 lens-chip font-semibold text-tv-muted">{timeframe === 'ALL' ? 'MAX' : timeframe}</span>
+          <span className="hidden truncate lens-body-sm text-tv-muted md:inline">{chartTypeLabel(chartType)}{chartType === 'heikin-ashi' ? ' · derived visual' : ''}</span>
+          <span className={`hidden shrink-0 rounded-md border px-2 py-1 lens-chip font-semibold sm:inline ${
             !technical.cross_status
               ? 'border-tv-border bg-tv-hover text-tv-muted'
               : technical.cross_status.includes('BULLISH')
@@ -690,7 +690,7 @@ export default function TradingViewChart({
         </div>
 
         <div className="min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="flex w-max items-center gap-3 text-[12px] font-mono text-tv-muted sm:text-[10px]">
+          <div className="flex w-max items-center gap-3 lens-body-sm lens-number text-tv-muted">
             <span>MA50 <strong className="text-tv-text">{technical.ma50 != null ? formatNumber(technical.ma50, isIndexSymbol ? 2 : 0) : 'N/A'}</strong></span>
             <span>MA200 <strong className="text-tv-text">{technical.ma200 != null ? formatNumber(technical.ma200, isIndexSymbol ? 2 : 0) : 'N/A'}</strong></span>
             <span>CMF20 <strong className="text-tv-text">{technical.money_flow_status || 'N/A'}</strong></span>
@@ -706,11 +706,11 @@ export default function TradingViewChart({
 
         {hoverOhlc && (
           <Card padding="none" radius="lg" elevation="none" highlight={false} surface="90" className="pointer-events-none absolute left-2 top-2 z-20 max-w-[calc(100%-1rem)] overflow-hidden border-tv-border/70 px-2.5 py-2 shadow-lg backdrop-blur-sm sm:left-3 sm:top-3">
-            <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-mono sm:text-[10px]">
+            <div className="mb-1 flex flex-wrap items-center gap-x-2 gap-y-1 lens-body-sm lens-number">
               <span className="text-tv-muted">{hoverTime ? hoverTime.replace('T', ' ').replace('.000Z', ' UTC') : ''}</span>
               <span className={change >= 0 ? 'text-tv-green' : 'text-tv-red'}>{change >= 0 ? '+' : ''}{changePct.toFixed(2)}%</span>
             </div>
-            <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-[12px] font-mono sm:text-[10px] sm:text-[11px]">
+            <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 lens-body-sm lens-number">
               <span className="text-tv-muted">O <strong className="text-tv-text">{formatNumber(hoverOhlc.open, isIndexSymbol ? 2 : 0)}</strong></span>
               <span className="text-tv-muted">H <strong className="text-tv-green">{formatNumber(hoverOhlc.high, isIndexSymbol ? 2 : 0)}</strong></span>
               <span className="text-tv-muted">L <strong className="text-tv-red">{formatNumber(hoverOhlc.low, isIndexSymbol ? 2 : 0)}</strong></span>
@@ -724,14 +724,14 @@ export default function TradingViewChart({
 
         {paneLabels.map((pane) => (
           <div key={pane.id} className="pointer-events-none absolute left-0 right-0 z-10 border-t border-tv-border/70" style={{ top: pane.top }}>
-            <span className="absolute left-2 top-1 rounded bg-tv-card/85 px-1.5 py-0.5 text-[11px] font-mono font-semibold text-tv-muted sm:left-3 sm:text-[10px]">
+            <span className="absolute left-2 top-1 rounded bg-tv-card/85 px-1.5 py-0.5 lens-label lens-number font-semibold text-tv-muted sm:left-3">
               {pane.label}{pane.latest != null ? `  ${pane.latest}` : ''}
             </span>
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between gap-3 border-t border-tv-border bg-tv-bg/70 px-3 py-2 text-[12px] text-tv-muted sm:text-[10px] sm:px-4">
+      <div className="flex items-center justify-between gap-3 border-t border-tv-border bg-tv-bg/70 px-3 py-2 lens-body-sm text-tv-muted sm:px-4">
         <span className="truncate">Mouse/touch: pan · wheel/pinch: zoom · crosshair: OHLC + indikator</span>
         {chartType === 'heikin-ashi' && <span className="shrink-0 text-tv-yellow">HA hanya visual turunan OHLC</span>}
       </div>

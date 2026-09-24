@@ -113,7 +113,7 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
   return (
     <Card>
       <div className="flex items-start justify-between gap-2">
-        <h3 className="flex items-center gap-1.5 font-heading text-[13px] font-bold uppercase tracking-wide text-tv-text">
+        <h3 className="flex items-center gap-1.5 font-heading lens-card-title font-bold uppercase tracking-wide text-tv-text">
           <Users className="h-3.5 w-3.5 text-tv-blue" />
           Ownership Flow
         </h3>
@@ -121,7 +121,7 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
       </div>
 
       {!hasObservation ? (
-        <p className="mt-3 text-[12.5px] leading-relaxed text-tv-muted">
+        <p className="mt-3 lens-body-sm leading-relaxed text-tv-muted">
           Belum ada observasi kepemilikan tersimpan untuk emiten ini. Histori mulai terkumpul
           setelah verifikasi sumber selesai &mdash; data sintetis sengaja tidak dibuat untuk
           mengisi kekosongan ini.
@@ -129,19 +129,19 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
       ) : (
         <>
           <div className="mt-3">
-            <p className="text-[10.5px] uppercase tracking-wide text-tv-muted">Kepemilikan asing</p>
-            <p className="font-heading text-[28px] font-bold leading-tight tabular-nums text-tv-text">
+            <p className="lens-label uppercase tracking-wide text-tv-muted">Kepemilikan asing</p>
+            <p className="font-heading lens-display font-bold leading-tight tabular-nums text-tv-text">
               {formatPercent(data.foreignPct)}
             </p>
             {data.localPct !== null && (
-              <p className="text-[12px] text-tv-muted">Lokal {formatPercent(data.localPct)}</p>
+              <p className="lens-body-sm text-tv-muted">Lokal {formatPercent(data.localPct)}</p>
             )}
           </div>
 
           {data.previous.structuralBreak ? (
             <div className="mt-3 rounded-lg border border-tv-warning/25 bg-tv-warning/[0.05] px-3 py-2">
-              <p className="text-[11px] font-semibold text-tv-warning">Structural break — delta ditahan</p>
-              <p className="mt-1 text-[11px] leading-relaxed text-tv-muted">
+              <p className="lens-body-sm font-semibold text-tv-warning">Structural break — delta ditahan</p>
+              <p className="mt-1 lens-body-sm leading-relaxed text-tv-muted">
                 Jumlah efek berubah dari {formatShares(data.previous.basisTotalSecurities)} menjadi {formatShares(data.previous.currentTotalSecurities)}.
                 Perubahan asing/lokal tidak diperlakukan sebagai Ownership Flow normal karena dapat dipengaruhi corporate action atau perubahan denominator.
               </p>
@@ -153,7 +153,7 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
             </div>
           )}
           {data.previous.basisObservedDate && (
-            <p className="mt-2 text-[11px] leading-relaxed text-tv-muted">
+            <p className="mt-2 lens-body-sm leading-relaxed text-tv-muted">
               Pembanding {formatObservedDate(data.previous.basisObservedDate)} · jarak aktual {data.previous.actualGapDays} hari.
             </p>
           )}
@@ -163,7 +163,7 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
             <Badge variant={freshness.variant} size="sm">{freshness.label}</Badge>
           </div>
 
-          <p className="mt-2 text-[11.5px] leading-relaxed text-tv-muted">{data.trendReason}</p>
+          <p className="mt-2 lens-body-sm leading-relaxed text-tv-muted">{data.trendReason}</p>
 
           {/* Grafik hanya muncul kalau ada histori yang cukup. Komponennya
               sendiri sudah menolak menggambar di bawah 2 observasi, tapi
@@ -171,7 +171,7 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
               pada hari-hari awal ketika histori memang baru mulai terkumpul. */}
           {(data.series?.length ?? 0) >= 2 && (
             <div className="mt-3 border-t border-white/[0.06] pt-3">
-              <p className="mb-1.5 text-[10.5px] uppercase tracking-wide text-tv-muted">
+              <p className="mb-1.5 lens-label uppercase tracking-wide text-tv-muted">
                 Kepemilikan asing &mdash; {data.series!.length} observasi
               </p>
               <OwnershipFlowChart series={data.series!} height={180} />
@@ -180,7 +180,7 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
         </>
       )}
 
-      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/[0.06] pt-2.5 text-[11px] text-tv-muted">
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-white/[0.06] pt-2.5 lens-body-sm text-tv-muted">
         <span>Data per <strong className="text-tv-text">{formatObservedDate(data.observedDate)}</strong></span>
         <span className="inline-flex items-center gap-1">
           <Globe className="h-3 w-3" />
@@ -192,7 +192,7 @@ export function OwnershipFlowCard({ ticker }: { ticker: string }) {
           dokumentasi: pembaca yang melihat "kepemilikan asing naik" paling mudah
           menyimpulkan "broker asing beli" - kesimpulan yang tidak punya dasar
           tanpa data broker-level. */}
-      <p className="mt-2 text-[10.5px] leading-relaxed text-tv-muted/80">
+      <p className="mt-2 lens-caption leading-relaxed text-tv-muted/80">
         Perubahan komposisi kepemilikan, bukan data transaksi broker. Δ dalam percentage point (pp).
         Tidak ikut menghitung LensScore.
       </p>
@@ -209,9 +209,9 @@ function formatShares(value: number | null): string {
 function ChangeBox({ label, value }: { label: string; value: number | null }) {
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
-      <p className="text-[10px] uppercase tracking-wide text-tv-muted">{label}</p>
+      <p className="lens-label uppercase tracking-wide text-tv-muted">{label}</p>
       <p
-        className={`text-[12.5px] font-bold tabular-nums ${
+        className={`lens-number lens-body-sm font-bold tabular-nums ${
           value === null ? 'text-tv-muted' : value > 0 ? 'text-tv-green' : value < 0 ? 'text-tv-red' : 'text-tv-text'
         }`}
       >

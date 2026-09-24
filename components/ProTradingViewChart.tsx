@@ -617,13 +617,13 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
             <span className="font-heading font-bold text-tv-text tracking-wide">
               {ticker.replace('.JK', '')}
             </span>
-            <span className="text-[10px] text-tv-muted font-mono uppercase bg-tv-hover px-1.5 py-0.5 rounded border border-tv-border">
+            <span className="lens-label text-tv-muted font-mono uppercase bg-tv-hover px-1.5 py-0.5 rounded border border-tv-border">
               Daily
             </span>
           </div>
 
           {displayData && (
-            <div className="flex items-center gap-2.5 font-number text-[11px] text-tv-muted flex-wrap">
+            <div className="flex items-center gap-2.5 font-number lens-body-sm lens-number text-tv-muted flex-wrap">
               <span className="text-tv-muted font-mono">{displayData.dateStr}</span>
               <span>O: <strong className="text-tv-text">{displayData.open.toLocaleString('id-ID')}</strong></span>
               <span>H: <strong className="text-tv-green">{displayData.high.toLocaleString('id-ID')}</strong></span>
@@ -649,7 +649,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               type="button"
               onClick={() => setShowEMA20(!showEMA20)}
               title="Toggle EMA 20 (Trend Jangka Pendek)"
-              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
+              className={`px-2 py-0.5 rounded lens-label font-bold font-mono transition-all ${
                 showEMA20
                   ? 'bg-cyan-500/20 text-cyan-500 dark:text-cyan-400 border border-cyan-500/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]'
                   : 'bg-tv-hover text-tv-muted/40 line-through'
@@ -662,7 +662,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               type="button"
               onClick={() => setShowEMA50(!showEMA50)}
               title="Toggle EMA 50 (Trend Jangka Menengah)"
-              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
+              className={`px-2 py-0.5 rounded lens-label font-bold font-mono transition-all ${
                 showEMA50
                   ? 'bg-orange-500/20 text-orange-500 dark:text-orange-400 border border-orange-500/40 shadow-[0_0_8px_rgba(249,115,22,0.2)]'
                   : 'bg-tv-hover text-tv-muted/40 line-through'
@@ -675,7 +675,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               type="button"
               onClick={() => setShowEMA200(!showEMA200)}
               title="Toggle EMA 200 (Garis Batas Bullish/Bearish Mayor)"
-              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
+              className={`px-2 py-0.5 rounded lens-label font-bold font-mono transition-all ${
                 showEMA200
                   ? 'bg-purple-500/20 text-purple-500 dark:text-purple-400 border border-purple-500/40 shadow-[0_0_8px_rgba(168,85,247,0.2)]'
                   : 'bg-tv-hover text-tv-muted/40 line-through'
@@ -688,7 +688,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               type="button"
               onClick={() => setShowBB(!showBB)}
               title="Toggle Bollinger Bands (20,2)"
-              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
+              className={`px-2 py-0.5 rounded lens-label font-bold font-mono transition-all ${
                 showBB
                   ? 'bg-sky-500/20 text-sky-500 dark:text-sky-400 border border-sky-500/40 shadow-[0_0_8px_rgba(56,189,248,0.2)]'
                   : 'bg-tv-hover text-tv-muted/40 line-through'
@@ -701,7 +701,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               type="button"
               onClick={() => setShowVPVR(!showVPVR)}
               title="Toggle Volume Profile (VPVR & POC)"
-              className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono transition-all ${
+              className={`px-2 py-0.5 rounded lens-label font-bold font-mono transition-all ${
                 showVPVR
                   ? 'bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40 shadow-[0_0_8px_rgba(245,158,11,0.2)]'
                   : 'bg-tv-hover text-tv-muted/40 line-through'
@@ -715,7 +715,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               onClick={() => setShowVolume(!showVolume)}
               title="Toggle Volume Bar"
               aria-label={showVolume ? 'Sembunyikan bar volume' : 'Tampilkan bar volume'}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-all ${
+              className={`px-1.5 py-0.5 rounded lens-label font-medium transition-all ${
                 showVolume ? 'bg-tv-hover text-tv-text' : 'bg-transparent text-tv-muted/40'
               }`}
             >
@@ -749,7 +749,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
                   title={obvUnavailable
                     ? 'OBV tidak tersedia: ada bar tanpa data volume, dan OBV menjumlahkan volume secara kumulatif'
                     : opt.value === 'NONE' ? 'Sembunyikan sub-panel oscillator' : `Tampilkan ${opt.label} di sub-panel bawah`}
-                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                  className={`px-2 py-0.5 rounded lens-label font-bold transition-all ${
                     obvUnavailable
                       ? 'text-tv-muted/30 cursor-not-allowed line-through'
                       : oscillator === opt.value
@@ -770,7 +770,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
                 key={r}
                 type="button"
                 onClick={() => handleRangeChange(r)}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-all ${
+                className={`px-2 py-0.5 rounded lens-label font-bold transition-all ${
                   activeRange === r
                     ? 'bg-tv-blue text-white shadow-sm'
                     : 'text-tv-muted hover:text-tv-text'
@@ -798,11 +798,11 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         {/* Floating VPVR / POC Legend Badge */}
         {showVPVR && volumeProfile && (
           <div className="absolute top-3 left-4 z-10 flex items-center gap-2 flex-wrap pointer-events-none">
-            <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2.5 py-1 border border-amber-500/30 text-[10px] font-number text-amber-500 dark:text-amber-300 shadow-md">
+            <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2.5 py-1 border border-amber-500/30 lens-label lens-number text-amber-500 dark:text-amber-300 shadow-md">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
               <span>POC (Point of Control): <strong>Rp {volumeProfile.pocPrice.toLocaleString('id-ID')}</strong></span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2 py-1 border border-tv-border text-[10px] font-number text-tv-muted">
+            <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2 py-1 border border-tv-border lens-label lens-number text-tv-muted">
               <span>Value Area (70% Vol): <strong className="text-tv-text">Rp {volumeProfile.valPrice.toLocaleString('id-ID')} - {volumeProfile.vahPrice.toLocaleString('id-ID')}</strong></span>
             </div>
           </div>
