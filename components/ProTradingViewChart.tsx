@@ -793,21 +793,23 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         </div>
       </div>
 
-      {/* Floating VPVR / POC Legend Badge */}
-      {showVPVR && volumeProfile && (
-        <div className="absolute top-12 left-4 z-10 flex items-center gap-2 flex-wrap pointer-events-none">
-          <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2.5 py-1 border border-amber-500/30 text-[10px] font-number text-amber-500 dark:text-amber-300 shadow-md">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-            <span>POC (Point of Control): <strong>Rp {volumeProfile.pocPrice.toLocaleString('id-ID')}</strong></span>
-          </div>
-          <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2 py-1 border border-tv-border text-[10px] font-number text-tv-muted">
-            <span>Value Area (70% Vol): <strong className="text-tv-text">Rp {volumeProfile.valPrice.toLocaleString('id-ID')} - {volumeProfile.vahPrice.toLocaleString('id-ID')}</strong></span>
-          </div>
-        </div>
-      )}
-
       {/* Chart Canvas Area */}
-      <div ref={chartContainerRef} className="h-[420px] w-full" />
+      <div className="relative h-[420px] w-full">
+        {/* Floating VPVR / POC Legend Badge */}
+        {showVPVR && volumeProfile && (
+          <div className="absolute top-3 left-4 z-10 flex items-center gap-2 flex-wrap pointer-events-none">
+            <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2.5 py-1 border border-amber-500/30 text-[10px] font-number text-amber-500 dark:text-amber-300 shadow-md">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span>POC (Point of Control): <strong>Rp {volumeProfile.pocPrice.toLocaleString('id-ID')}</strong></span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2 py-1 border border-tv-border text-[10px] font-number text-tv-muted">
+              <span>Value Area (70% Vol): <strong className="text-tv-text">Rp {volumeProfile.valPrice.toLocaleString('id-ID')} - {volumeProfile.vahPrice.toLocaleString('id-ID')}</strong></span>
+            </div>
+          </div>
+        )}
+
+        <div ref={chartContainerRef} className="h-full w-full" />
+      </div>
     </div>
   );
 }
