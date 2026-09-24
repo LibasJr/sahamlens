@@ -109,17 +109,17 @@ export default function PrivacyPage() {
         </p>
       </Card>
 
-      <div className="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center">
+      <Card className="mt-6 flex flex-col items-start gap-4">
         <a
           href={`mailto:support@sahamlens.id?subject=${encodeURIComponent('Pertanyaan Privasi SahamLens')}`}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-tv-blue/80 bg-tv-blue px-4 font-semibold text-white shadow-[0_10px_28px_rgba(79,140,255,0.18)] transition-all duration-150 ease-snap hover:bg-tv-blueHover hover:shadow-[0_14px_34px_rgba(79,140,255,0.24)] active:scale-[0.985]"
+          className="inline-flex min-h-11 w-full shrink-0 items-center justify-center gap-2 rounded-xl border border-tv-blue/80 bg-tv-blue px-4 text-sm font-semibold text-white shadow-[0_10px_28px_rgba(79,140,255,0.18)] transition-all duration-150 ease-snap hover:bg-tv-blueHover hover:shadow-[0_14px_34px_rgba(79,140,255,0.24)] active:scale-[0.985] sm:w-auto"
         >
-          <Mail className="h-4 w-4" /> support@sahamlens.id
+          <Mail className="h-4 w-4 shrink-0" /> support@sahamlens.id
         </a>
-        <span className="text-[12px] text-tv-muted">
+        <p className="min-w-0 text-[12px] leading-relaxed text-tv-muted">
           {t('privacyPage.sectionRightsBody')}
-        </span>
-      </div>
+        </p>
+      </Card>
 
     </PageContainer>
   );
