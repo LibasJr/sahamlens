@@ -65,8 +65,8 @@ export function StructuredNewsIntro({ itemCount }: { itemCount: number }) {
     <div className="mb-5 rounded-lg border border-tv-blue/25 bg-tv-blue/[0.055] p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="font-heading text-sm font-bold text-tv-text">{t('newsPage.introTitle')}</h2>
-          <p className="mt-1 text-[11px] leading-relaxed text-tv-muted">
+          <h2 className="font-heading lens-card-title text-tv-text">{t('newsPage.introTitle')}</h2>
+          <p className="mt-1 lens-body-sm text-tv-muted">
             {t('newsPage.introDesc', { count: itemCount })}
           </p>
         </div>
@@ -75,14 +75,14 @@ export function StructuredNewsIntro({ itemCount }: { itemCount: number }) {
       <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:items-center">
         {stages.map((stage, index) => (
           <div key={stage} className="contents">
-            <span className="rounded-md border border-tv-border bg-tv-card px-2.5 py-1.5 text-center text-[10px] font-semibold text-tv-text">
+            <span className="rounded-md border border-tv-border bg-tv-card px-2.5 py-1.5 text-center lens-meta font-semibold text-tv-text">
               {stage}
             </span>
             {index < stages.length - 1 && <FlowArrow />}
           </div>
         ))}
       </div>
-      <p className="mt-3 text-[10px] leading-relaxed text-tv-muted/75">
+      <p className="mt-3 lens-meta text-tv-muted/75">
         {t('newsPage.introConfidenceNote')}
       </p>
     </div>
@@ -143,8 +143,8 @@ export function StructuredNewsCard({
               {t('newsCard.sentimentPrefix', { sentiment: sentimentLabel.toLowerCase() })}
             </Badge>
           </div>
-          <p className="text-sm font-semibold leading-snug text-tv-text">{item.title}</p>
-          <p className="mt-1 text-xs text-tv-muted">
+          <p className="lens-card-title text-tv-text">{item.title}</p>
+          <p className="mt-1 lens-meta text-tv-muted">
             {meta.join(' · ')}
             {absoluteDate && <span className="text-tv-muted/60"> · {absoluteDate}</span>}
           </p>
@@ -184,20 +184,20 @@ export function StructuredNewsCard({
                     className={`${confidence >= 65 ? 'h-full bg-tv-green' : confidence >= 45 ? 'h-full bg-tv-warning' : 'h-full bg-tv-muted'} ${percentageWidthClass(confidence)}`}
                   />
                 </div>
-                <span className="font-number text-xs font-bold text-tv-text">{confidence}/100</span>
+                <span className="lens-number lens-meta font-bold text-tv-text">{confidence}/100</span>
               </div>
             </Step>
           </div>
-          <p className="mt-3 border-t border-tv-border pt-2 text-[11px] leading-relaxed text-tv-muted">
+          <p className="mt-3 border-t border-tv-border pt-2 lens-body-sm text-tv-muted">
             {intelligence.expectedImpact.summary}
           </p>
         </div>
       ) : (
-        <p className="mt-3 text-[11px] text-tv-muted">{t('newsCard.pendingIntelligence')}</p>
+        <p className="mt-3 lens-meta text-tv-muted">{t('newsCard.pendingIntelligence')}</p>
       )}
 
       <div className="mt-2 flex items-start justify-between gap-3">
-        {item.reason && <p className="text-[10px] leading-relaxed text-tv-muted/70">{t('newsCard.sentimentReason', { reason: item.reason })}</p>}
+        {item.reason && <p className="lens-body-sm text-tv-muted/70">{t('newsCard.sentimentReason', { reason: item.reason })}</p>}
         <p className="ml-auto shrink-0 lens-meta font-medium uppercase tracking-wide text-tv-muted/50">
           {t('newsCard.rssInference')}
         </p>

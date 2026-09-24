@@ -190,3 +190,81 @@ describe('penjaga struktural yang tidak boleh hilang', () => {
     expect(CSS).toMatch(/\.lens-main :where\(\.text-\\\[9px\\\], \.text-\\\[10px\\\], \.text-\\\[11px\\\]\)/);
   });
 });
+
+describe('jawaban LensAI nyaman dibaca, bukan microcopy', () => {
+  /**
+   * Blok deklarasi yang benar-benar menyetel `font-size` untuk sebuah selector.
+   *
+   * Selector `.ai-response h1` muncul dua kali: sekali di aturan bersama
+   * (h1/h2/h3 => warna + margin) dan sekali di aturan ukurannya sendiri. Yang dicari
+   * adalah blok yang memuat `font-size` - kalau aturan ukurannya dihapus, test ini
+   * gagal menyebut selector-nya, bukan diam-diam membaca aturan warna.
+   */
+  function blokAi(selector: string): string {
+    const blok: string[] = [];
+    let dari = CSS.indexOf(selector);
+    expect(dari, `${selector} tidak ditemukan di globals.css`).toBeGreaterThanOrEqual(0);
+    while (dari >= 0) {
+      const buka = CSS.indexOf('{', dari);
+      if (buka < 0) break;
+      blok.push(CSS.slice(buka, CSS.indexOf('}', buka)));
+      dari = CSS.indexOf(selector, dari + 1);
+    }
+    const denganUkuran = blok.find((isi) => /font-size:/.test(isi));
+    expect(denganUkuran, `${selector} tidak punya aturan font-size sendiri`).toBeDefined();
+    return denganUkuran!;
+  }
+
+  /**
+   * Ukuran dalam px dari blok deklarasi. globals.css menulis sebagian besar peran
+   * dalam rem, jadi keduanya diterima dan dinormalkan ke px (akar 16px).
+   */
+  const px = (blok: string, apa: string): number => {
+    const pxLangsung = blok.match(new RegExp(`${apa}:\\s*([\\d.]+)px`));
+    if (pxLangsung) return Number.parseFloat(pxLangsung[1]);
+    const rem = blok.match(new RegExp(`${apa}:\\s*([\\d.]+)rem`));
+    if (rem) return Number.parseFloat(rem[1]) * 16;
+    throw new Error(`${apa} tidak ditemukan pada blok: ${blok.slice(0, 120)}`);
+  };
+
+  it('.ai-response memakai ukuran bacaan, bukan 13px', () => {
+    // 13px adalah ukuran yang brief audit larang sebagai default jawaban AI panjang -
+    // 13px = ambang "tidak gagal", sedangkan jawaban LensAI bisa berhalaman-halaman.
+    const blok = blokAi('.ai-response');
+    expect(px(blok, 'font-size')).toBeGreaterThanOrEqual(15);
+  });
+
+  it('tinggi barisnya di rentang nyaman baca (1.6-1.7)', () => {
+    const lh = Number.parseFloat(blokAi('.ai-response').match(/line-height:\s*([\d.]+);/)?.[1] ?? '0');
+    expect(lh).toBeGreaterThanOrEqual(1.6);
+    expect(lh).toBeLessThanOrEqual(1.7);
+  });
+
+  it('hierarki heading Markdown tetap berjenjang', () => {
+    const h1 = px(blokAi('.ai-response h1'), 'font-size');
+    const h2 = px(blokAi('.ai-response h2'), 'font-size');
+    const h3 = px(blokAi('.ai-response h3'), 'font-size');
+    expect(h1).toBeGreaterThan(h2);
+    expect(h2).toBeGreaterThan(h3);
+    // Sasaran audit: heading besar 20px, sub-bagian 15px.
+    expect(h1).toBeGreaterThanOrEqual(20);
+    expect(h3).toBeGreaterThanOrEqual(15);
+  });
+
+  it('kolom jawaban dibatasi lebar baca dan tidak memakai ukuran responsif yang turun', () => {
+    const chat = fs.readFileSync(path.join(ROOT, 'components', 'AIChat.tsx'), 'utf8');
+    // max-w-prose = 65ch - di dalam rentang 65-70ch yang diminta audit.
+    expect(chat, 'kolom jawaban kehilangan batas lebar baca').toContain('max-w-prose');
+    // Pesan LensAI dulu `text-base leading-relaxed sm:text-sm`: 16px di ponsel lalu
+    // 14px di desktop. Peran `lens-body` (15px/1.6) membuat ukuran yang dideklarasikan
+    // sama dengan yang dirender.
+    expect(chat, 'pesan LensAI kembali memakai ukuran responsif yang mengecil').not.toContain(
+      'text-base leading-relaxed sm:text-sm',
+    );
+    expect(chat).toContain('lens-body');
+    // Input TETAP 16px di ponsel dengan sengaja: di bawah 16px, Safari iOS memperbesar
+    // halaman saat papan ketik terbuka. Itu bukan kelalaian migrasi.
+    expect(chat, 'input LensAI kehilangan 16px ponsel - papan ketik iOS akan memperbesar halaman')
+      .toMatch(/text-base text-tv-text sm:min-h-0 sm:text-sm/);
+  });
+});

@@ -103,7 +103,7 @@ ke 12px). Tebalnya diturunkan 700 → 600 agar tidak tampak berat pada ukuran ya
 | Fase | Target | Ukuran arbitrer saat ini |
 |---|---|---|
 | 2 | `Sidebar` (sisa utility), kartu/form/tabel/primitif bersama, `TickerAnalysisShell` | **selesai** — lihat §7 |
-| 3 | `AIChat` (LensAI), `app/news`, teks metodologi panjang | `app/news`: 1 |
+| 3 | `AIChat` (LensAI), `app/news`, teks metodologi panjang | **selesai** (kecuali angka mono di jawaban) — lihat §8 |
 | 4 | DCF, Risk, Dividend, Watchlist, Screener, Calendar | `app/dcf`: 6 · `app/risk`: 13 · `app/dividend`: 13 · `app/calendar`: 4 |
 | 5 | `text-[Npx]` sisanya, klasifikasi pengecualian, penyederhanaan lantai kompatibilitas | 718 tersebar di 111 berkas |
 
@@ -168,3 +168,42 @@ tidak bertambah.
 
 `TickerAnalysisShell.tsx` sendiri sudah bersih (0 ukuran arbitrer); isinya yang menentukan
 harga utama di halaman analisis masuk fase 4 bersama halaman finansial.
+
+## 8. Fase 3 — nilai baca: LensAI dan News (PR ketiga)
+
+Fase ini menyerang temuan brief yang paling langsung terasa pengguna: jawaban panjang
+LensAI dirender **13px**.
+
+```css
+/* sebelum */
+.ai-response { font-size: 13px; line-height: 1.75; }
+/* sesudah */
+.ai-response { font-size: 15px; line-height: 1.65; }
+```
+
+13px adalah ambang "tidak gagal", bukan ambang "nyaman" — dan jawaban LensAI bisa
+berhalaman-halaman, jauh lebih panjang daripada satu kalimat metadata. Hierarki heading
+Markdown-nya juga dinaikkan supaya tetap berjenjang di ukuran baru: h1 18→20px,
+h2 16→17px, h3 14→15px.
+
+| Berkas | Perubahan |
+|---|---|
+| `app/globals.css` | `.ai-response` 13px/1.75 → **15px/1.65**; h1 20px, h2 17px, h3 15px |
+| `components/AIChat.tsx` | pesan dan baris "sedang berpikir": `text-base leading-relaxed sm:text-sm` (16px ponsel → 14px desktop) → `lens-body` (15px/1.6) |
+| `app/news/page.tsx` | subtitle → `lens-ui`; judul kartu nada → `lens-card-title`; penjelasan nada `text-[11px]` → `lens-body-sm`; pil filter → `lens-meta font-semibold` |
+| `components/news/StructuredNewsCard.tsx` | judul artikel → `lens-card-title`; chip tahap `text-[10px]` → `lens-meta`; skor keyakinan → `lens-number lens-meta`; ringkasan dampak, alasan sentimen, dan catatan keyakinan (`text-[11px]`/`text-[10px]`) → `lens-body-sm` |
+
+Input LensAI **sengaja tetap 16px di ponsel** (`text-base … sm:text-sm`): di bawah 16px,
+Safari iOS memperbesar halaman begitu papan ketik terbuka. Perilaku itu sekarang dikunci
+test supaya tidak "dirapikan" orang berikutnya.
+
+Ratchet turun **689/627 → 682/620**. `app/news` dan `components/news` kini **nol** ukuran
+arbitrer, begitu juga `components/AIChat.tsx`.
+
+Gerbang baru di `__tests__/typography-font-loading.test.ts` (describe "jawaban LensAI
+nyaman dibaca"): ukuran `.ai-response` ≥ 15px, line-height 1.6–1.7, hierarki h1 > h2 > h3
+dengan h1 ≥ 20px dan h3 ≥ 15px, `max-w-prose` (65ch) tetap ada di kolom jawaban, dan input
+tetap 16px di ponsel.
+
+**Belum:** angka di dalam jawaban LensAI belum dipaksa mono — itu butuh penandaan di
+Markdown/backend, bukan sekadar CSS, dan berada di luar scope tipografi murni.

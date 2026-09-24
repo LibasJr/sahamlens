@@ -116,7 +116,7 @@ export default function NewsPage() {
           </div>
           <div>
             <h1 className="lens-page-title">{t('newsPage.pageTitle')}</h1>
-            <p className="text-xs text-tv-muted">{t('newsPage.pageSubtitle')}</p>
+            <p className="lens-ui text-tv-muted">{t('newsPage.pageSubtitle')}</p>
           </div>
         </div>
       </header>
@@ -140,7 +140,7 @@ export default function NewsPage() {
           <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="mb-5 border-tv-border p-4">
             <div className="flex items-center gap-2 mb-3">
               <Newspaper className="w-4 h-4 text-tv-muted" />
-              <h2 className="font-heading text-sm font-bold text-tv-text">
+              <h2 className="font-heading lens-card-title text-tv-text">
                 {t('newsPage.toneTitle', { count: newsItems.length })}
               </h2>
               <Badge variant="info">LensAI</Badge>
@@ -166,7 +166,7 @@ export default function NewsPage() {
               />
             </div>
 
-            <p className="mt-2.5 text-[11px] leading-relaxed text-tv-muted">
+            <p className="mt-2.5 lens-body-sm text-tv-muted">
               {(() => {
                 const { POSITIF: pos, NEGATIF: neg, NETRAL: net } = counts;
                 const berbobot = pos + neg;
@@ -189,7 +189,7 @@ export default function NewsPage() {
                 key={f.id}
                 type="button"
                 onClick={() => setFilter(f.id)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                className={`rounded-full border px-3 py-1.5 lens-meta font-semibold transition-colors ${
                   filter === f.id ? f.tone : 'border-tv-border text-tv-muted hover:text-tv-text'
                 }`}
               >

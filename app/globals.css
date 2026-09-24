@@ -348,8 +348,8 @@ h3 {
 /* ====== AI Chat Response Typography ====== */
 .ai-response {
   color: #dbeafe;
-  font-size: 13px;
-  line-height: 1.75;
+  font-size: 15px;
+  line-height: 1.65;
   max-width: 100%;
   word-wrap: break-word;
 }
@@ -372,17 +372,17 @@ h3 {
 }
 
 .ai-response h1 {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .ai-response h2 {
-  font-size: 16px;
+  font-size: 17px;
   border-bottom: 1px solid #2563EB;
   padding-bottom: 4px;
 }
 
 .ai-response h3 {
-  font-size: 14px;
+  font-size: 15px;
   color: #93c5fd;
 }
 
