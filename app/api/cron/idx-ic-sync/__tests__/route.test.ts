@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { jakartaTodayIso, pickNewestCsv } from '../route';
+import { jakartaTodayIso, pickNewestCsv } from '../helpers';
 
 describe('idx-ic-sync helpers', () => {
   it('memilih CSV hari ini bila ada', () => {
@@ -17,10 +17,12 @@ describe('idx-ic-sync helpers', () => {
     expect(pickNewestCsv([], '2026-09-25')).toBeNull();
   });
 
-  it('menghitung tanggal WIB, bukan UTC (00:30 WIB masih hari yang sama)', () => {
+  it('menghitung tanggal WIB, bukan UTC', () => {
     // 2026-09-24T17:30:00Z === 2026-09-25T00:30 WIB
     expect(jakartaTodayIso(new Date('2026-09-24T17:30:00Z'))).toBe('2026-09-25');
     // 2026-09-25T16:59:00Z === 2026-09-25T23:59 WIB
     expect(jakartaTodayIso(new Date('2026-09-25T16:59:00Z'))).toBe('2026-09-25');
+    // 2026-09-25T17:00:00Z === 2026-09-26T00:00 WIB
+    expect(jakartaTodayIso(new Date('2026-09-25T17:00:00Z'))).toBe('2026-09-26');
   });
 });

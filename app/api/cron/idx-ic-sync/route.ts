@@ -10,6 +10,7 @@ import { runWithJobConcurrencyGuard } from '@/shared/queue/job-concurrency-guard
 import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 import { withJobRunLog } from '@/shared/scheduler/job-run-log.repository';
 import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
+import { jakartaTodayIso, pickNewestCsv } from './helpers';
 
 export const runtime = 'nodejs';
 export const maxDuration = 900;
@@ -23,28 +24,6 @@ interface IdxIcSyncResult {
   status: 'SUCCESS';
   imported: number;
   file: string;
-}
-
-/** Tanggal hari ini menurut kalender pasar (WIB), bukan UTC. */
-export function jakartaTodayIso(now: Date = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Asia/Jakarta',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(now);
-}
-
-/**
- * Pilih CSV terbaru dari daftar berkas. Fungsi murni supaya bisa diuji tanpa sistem berkas.
- * Nama berkas mengikuti pola idx-ic-YYYY-MM-DD.csv, jadi urutan nama = urutan waktu.
- */
-export function pickNewestCsv(files: string[], todayIso: string): string | null {
-  const candidates = files.filter((file) => /^idx-ic-\d{4}-\d{2}-\d{2}\.csv$/.test(file));
-  if (!candidates.length) return null;
-  const sameDay = candidates.find((file) => file === `idx-ic-${todayIso}.csv`);
-  if (sameDay) return sameDay;
-  return [...candidates].sort().reverse()[0];
 }
 
 async function isAuthorized(req: NextRequest) {
@@ -86,7 +65,9 @@ async function handleGET(req: NextRequest) {
   try {
     const result = await withJobRunLog('idx-ic-sync', async () => {
       const guarded = await runWithJobConcurrencyGuard('idx-ic-sync', runSync, 20 * 60);
-      return guarded.executed ? guarded.value : ({ status: 'SUCCESS', imported: 0, file: 'SKIPPED' } satisfies IdxIcSyncResult);
+      return guarded.executed
+        ? guarded.value
+        : ({ status: 'SUCCESS', imported: 0, file: 'SKIPPED' } satisfies IdxIcSyncResult);
     });
     await recordDataSourceHealth({
       sourceId: 'IDX_COMPANY_PROFILES',
