@@ -209,6 +209,8 @@ describe('transparency.service', () => {
       [
         historyRow('aaaa.jk', SCORE_VERSION),
         historyRow('AAAA.JK', SCORE_VERSION),
+        // Kode asli katalog: arsip menyimpan "AALI.JK", katalog menyimpan "AALI".
+        historyRow('AALI.JK', SCORE_VERSION),
         // Versi model lain tidak boleh membesarkan hitungan arsip versi yang ditampilkan.
         historyRow('ZZZZ.JK', 'v0-legacy'),
       ] as never,
@@ -223,7 +225,7 @@ describe('transparency.service', () => {
       SCORE_VERSION
     );
 
-    expect(coverage.archiveEmiten).toBe(1);
+    expect(coverage.archiveEmiten).toBe(2);
     expect(coverage.validationEmiten).toBe(3);
     expect(coverage.validationRows).toBe(6);
     // Satu emiten boleh muncul beberapa kali per tanggal, tetapi dihitung sekali per hari.
@@ -237,8 +239,9 @@ describe('transparency.service', () => {
     // Katalog resmi opsional: kalau terbaca, jumlahnya harus realistis (ratusan emiten).
     if (coverage.catalogEmiten != null) {
       expect(coverage.catalogEmiten).toBeGreaterThan(500);
-      expect(coverage.catalogWithoutArchiveData).not.toBeNull();
-      expect(coverage.catalogWithoutArchiveData!).toBeGreaterThanOrEqual(0);
+      // AALI ada di katalog dan ada di arsip, jadi tepat satu emiten katalog punya data.
+      // Tanpa penjembatan sufiks ".JK" angka ini akan sama dengan jumlah katalog (bug 962).
+      expect(coverage.catalogWithoutArchiveData).toBe(coverage.catalogEmiten - 1);
     }
   });
 
