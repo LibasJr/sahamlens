@@ -93,7 +93,7 @@ export default function FundamentalHealthSuite({
                 )}
                 <div>
                   <p className="font-semibold text-tv-text">{check.label}</p>
-                  <p className="text-[10px] text-tv-muted">{check.detail}</p>
+                  <p className="lens-caption text-tv-muted">{check.detail}</p>
                 </div>
               </div>
             ))}
@@ -127,7 +127,7 @@ export default function FundamentalHealthSuite({
           <div className="p-3.5 rounded-xl bg-tv-bg/60 border border-tv-border space-y-2">
             <p className="text-xs text-tv-muted leading-relaxed">{altmanZ.explanation}</p>
             {!altmanZ.isFinancialSector && (
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-tv-border/60 text-center text-[10px]">
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-tv-border/60 text-center lens-caption">
                 {/* Ambang Z'' (temuan M-02). Angka lama 1.8/2.9 milik Z klasik untuk
                     manufaktur - dan bahkan itu pun salah tulis (Altman: 1.81). */}
                 <div className={`p-1.5 rounded ${altmanZ.zone === 'SAFE' ? 'bg-tv-green/15 text-tv-green font-bold' : 'text-tv-muted'}`}>
@@ -150,13 +150,13 @@ export default function FundamentalHealthSuite({
                 <Percent className="h-3.5 w-3.5 text-tv-yellow" />
                 {t('fundamentalEnhance.valuationPercentileTitle')}
               </span>
-              <span className="text-[10px] text-tv-muted">
+              <span className="lens-caption text-tv-muted">
                 {valuationPercentile.pePercentile != null ? `P/E: ${valuationPercentile.pePercentile}th percentile` : 'P/E: N/A'}
               </span>
             </div>
 
             {valuationPercentile.pePercentile == null && (
-              <p className="text-[10px] text-tv-muted">{isEn ? 'Historical P/E series is not available; no percentile is estimated.' : 'Seri historis P/E belum tersedia; persentil tidak diestimasi.'}</p>
+              <p className="lens-caption text-tv-muted">{isEn ? 'Historical P/E series is not available; no percentile is estimated.' : 'Seri historis P/E belum tersedia; persentil tidak diestimasi.'}</p>
             )}
             {valuationPercentile.pePercentile != null && (
               <div className="space-y-1">
@@ -165,7 +165,7 @@ export default function FundamentalHealthSuite({
                     className={`h-full rounded-full bg-gradient-to-r from-tv-green via-tv-yellow to-tv-purple transition-all duration-700 ${percentageWidthClass(valuationPercentile.pePercentile)}`}
                   />
                 </div>
-                <div className="flex justify-between text-[10px] text-tv-muted">
+                <div className="flex justify-between lens-caption text-tv-muted">
                   <span>{isEn ? 'Low vs history (<35%)' : 'Rendah vs histori (<35%)'}</span>
                   <span>{isEn ? 'Median area (50%)' : 'Area median (50%)'}</span>
                   <span>{isEn ? 'High vs history (>75%)' : 'Tinggi vs histori (>75%)'}</span>
@@ -203,12 +203,12 @@ export default function FundamentalHealthSuite({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/70 border-tv-border">
-              <span className="text-[11px] text-tv-muted">P/E vs Sektor</span>
+              <span className="lens-label text-tv-muted">P/E vs Sektor</span>
               <div className="text-base font-bold font-number text-white mt-1">
                 {sectorBenchmark.emitenPE != null ? `${sectorBenchmark.emitenPE.toFixed(1)}x` : 'N/A'}
                 <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianPE != null ? `${sectorBenchmark.sectorMedianPE.toFixed(1)}x` : 'N/A'}</span>
               </div>
-              <span className={`text-[10px] font-bold ${
+              <span className={`lens-number lens-label font-bold ${
                 sectorBenchmark.peDiscountPct == null ? false : sectorBenchmark.peDiscountPct <= 0 ? 'text-tv-green' : 'text-tv-red'
               }`}>
                 {sectorBenchmark.peDiscountPct != null
@@ -218,12 +218,12 @@ export default function FundamentalHealthSuite({
             </Card>
 
             <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/70 border-tv-border">
-              <span className="text-[11px] text-tv-muted">PBV vs Sektor</span>
+              <span className="lens-label text-tv-muted">PBV vs Sektor</span>
               <div className="text-base font-bold font-number text-white mt-1">
                 {sectorBenchmark.emitenPBV != null ? `${sectorBenchmark.emitenPBV.toFixed(2)}x` : 'N/A'}
                 <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianPBV != null ? `${sectorBenchmark.sectorMedianPBV.toFixed(2)}x` : 'N/A'}</span>
               </div>
-              <span className={`text-[10px] font-bold ${
+              <span className={`lens-number lens-label font-bold ${
                 sectorBenchmark.pbvDiscountPct == null ? false : sectorBenchmark.pbvDiscountPct <= 0 ? 'text-tv-green' : 'text-tv-red'
               }`}>
                 {sectorBenchmark.pbvDiscountPct != null
@@ -233,12 +233,12 @@ export default function FundamentalHealthSuite({
             </Card>
 
             <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/70 border-tv-border">
-              <span className="text-[11px] text-tv-muted">ROE vs Sektor</span>
+              <span className="lens-label text-tv-muted">ROE vs Sektor</span>
               <div className="text-base font-bold font-number text-white mt-1">
                 {sectorBenchmark.emitenROE != null ? `${sectorBenchmark.emitenROE.toFixed(1)}%` : 'N/A'}
                 <span className="text-xs font-normal text-tv-muted ml-1.5">vs {sectorBenchmark.sectorMedianROE != null ? `${sectorBenchmark.sectorMedianROE.toFixed(1)}%` : 'N/A'}</span>
               </div>
-              <span className={`text-[10px] font-bold ${
+              <span className={`lens-number lens-label font-bold ${
                 sectorBenchmark.roeSpreadPct == null ? false : sectorBenchmark.roeSpreadPct >= 0 ? 'text-tv-green' : 'text-tv-red'
               }`}>
                 {sectorBenchmark.roeSpreadPct != null
@@ -247,7 +247,7 @@ export default function FundamentalHealthSuite({
               </span>
             </Card>
           </div>
-          <p className="text-[10px] text-tv-muted">{sectorBenchmark.source ? `Sumber median: ${sectorBenchmark.source}` : (isEn ? 'No real peer median source is wired; benchmark stays unavailable.' : 'Belum ada sumber median peer nyata; benchmark tetap N/A.')}</p>
+          <p className="lens-caption text-tv-muted">{sectorBenchmark.source ? `Sumber median: ${sectorBenchmark.source}` : (isEn ? 'No real peer median source is wired; benchmark stays unavailable.' : 'Belum ada sumber median peer nyata; benchmark tetap N/A.')}</p>
         </Card>
 
         {/* Dividend Safety & Coverage Card */}
@@ -277,7 +277,7 @@ export default function FundamentalHealthSuite({
 
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/70 border-tv-border">
-              <span className="text-[11px] text-tv-muted">{t('fundamentalEnhance.dividendYield')}</span>
+              <span className="lens-label text-tv-muted">{t('fundamentalEnhance.dividendYield')}</span>
               <div className="text-base font-bold font-number text-tv-gold mt-1">
                 {dividendSafety.dividendYieldPct != null ? `${dividendSafety.dividendYieldPct.toFixed(2)}%` : 'N/A'}
               </div>
@@ -286,23 +286,23 @@ export default function FundamentalHealthSuite({
                   diumumkan) - BUKAN realisasi 12 bulan ke belakang; field trailing punya
                   provider adalah trailingAnnualDividendYield. Label lama "Trailing 12M"
                   mengklaim hal yang tidak dihitung di sini. */}
-              <span className="text-[10px] text-tv-muted">{isEn ? 'Annualized yield' : 'Imbal hasil tahunan'}</span>
+              <span className="lens-caption text-tv-muted">{isEn ? 'Annualized yield' : 'Imbal hasil tahunan'}</span>
             </Card>
 
             <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/70 border-tv-border">
-              <span className="text-[11px] text-tv-muted">{t('fundamentalEnhance.payoutRatio')}</span>
+              <span className="lens-label text-tv-muted">{t('fundamentalEnhance.payoutRatio')}</span>
               <div className="text-base font-bold font-number text-white mt-1">
                 {dividendSafety.payoutRatioPct != null ? `${dividendSafety.payoutRatioPct.toFixed(1)}%` : 'N/A'}
               </div>
-              <span className="text-[10px] text-tv-muted">{isEn ? 'of Net Income' : 'dari Laba Bersih'}</span>
+              <span className="lens-caption text-tv-muted">{isEn ? 'of Net Income' : 'dari Laba Bersih'}</span>
             </Card>
 
             <Card padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="p-3 bg-tv-card/70 border-tv-border">
-              <span className="text-[11px] text-tv-muted">{t('fundamentalEnhance.fcfCoverage')}</span>
+              <span className="lens-label text-tv-muted">{t('fundamentalEnhance.fcfCoverage')}</span>
               <div className={`text-sm font-bold font-number mt-1 ${dividendSafety.fcfPositive == null ? 'text-tv-muted' : dividendSafety.fcfPositive ? 'text-tv-green' : 'text-tv-yellow'}`}>
                 {dividendSafety.fcfPositive == null ? 'N/A' : dividendSafety.fcfPositive ? (isEn ? 'FCF POSITIVE' : 'FCF POSITIF') : (isEn ? 'FCF NEGATIVE' : 'FCF NEGATIF')}
               </div>
-              <span className="text-[10px] text-tv-muted">{isEn ? 'FCF sign; not dividend cash-coverage proof' : 'Tanda FCF; bukan bukti coverage pembayaran dividen'}</span>
+              <span className="lens-caption text-tv-muted">{isEn ? 'FCF sign; not dividend cash-coverage proof' : 'Tanda FCF; bukan bukti coverage pembayaran dividen'}</span>
             </Card>
           </div>
 

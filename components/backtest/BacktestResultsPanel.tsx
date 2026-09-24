@@ -55,7 +55,7 @@ function EquityTooltip({ active, payload, label, initialCapital }: EquityTooltip
         <div className="flex items-center justify-between gap-4 text-xs"><span className="flex items-center gap-1.5 text-tv-text"><span className="h-2 w-2 rounded-sm bg-tv-green" /> Strategi</span><span className="font-number font-semibold text-tv-text">{typeof strategy === 'number' ? fmtRupiah(strategy) : 'N/A'}</span></div>
         <div className="flex items-center justify-between gap-4 text-xs"><span className="flex items-center gap-1.5 text-tv-muted"><span className="h-2 w-2 rounded-sm bg-tv-muted" /> IHSG</span><span className="font-number text-tv-muted">{typeof ihsg === 'number' ? fmtRupiah(ihsg) : 'N/A'}</span></div>
       </div>
-      {gap != null && <div className="mt-2 border-t border-tv-border pt-1.5 text-[11px]"><span className="text-tv-muted">Selisih: </span><span className={`font-number font-semibold ${gap >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{gap >= 0 ? '+' : '-'}{fmtRupiah(Math.abs(gap))}</span>{growthPct != null && <span className="text-tv-muted"> · modal {growthPct >= 0 ? '+' : ''}{growthPct.toFixed(1)}%</span>}</div>}
+      {gap != null && <div className="mt-2 border-t border-tv-border pt-1.5 lens-body-sm"><span className="text-tv-muted">Selisih: </span><span className={`font-number font-semibold ${gap >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>{gap >= 0 ? '+' : '-'}{fmtRupiah(Math.abs(gap))}</span>{growthPct != null && <span className="text-tv-muted"> · modal {growthPct >= 0 ? '+' : ''}{growthPct.toFixed(1)}%</span>}</div>}
     </Card>
   );
 }
@@ -101,7 +101,7 @@ export default function BacktestResultsPanel({
               <Zap className="w-4 h-4 text-tv-green" /> Live Filter Check
             </h3>
             {liveResults?.matches?.[0]?.freshness && (
-              <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-tv-green/10 text-tv-green border border-tv-green/30">
+              <span className="lens-label font-bold uppercase tracking-wide px-2 py-0.5 rounded bg-tv-green/10 text-tv-green border border-tv-green/30">
                 {liveResults.matches[0].freshness === 'DELAYED' ? 'Data ~15-20 menit' : liveResults.matches[0].freshness === 'EOD' ? 'Data Penutupan (EOD)' : 'Data Basi'}
               </span>
             )}
@@ -226,7 +226,7 @@ export default function BacktestResultsPanel({
       {results && !loading && (
         <>
           {dataAsOfLabel && (
-            <p className="text-[11px] text-tv-muted">Data per {dataAsOfLabel} (diperbarui otomatis tiap hari, bukan real-time).</p>
+            <p className="lens-body-sm text-tv-muted">Data per {dataAsOfLabel} (diperbarui otomatis tiap hari, bukan real-time).</p>
           )}
           {results.message && (
             <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-yellow/30 p-4 text-sm text-tv-yellow">
@@ -285,7 +285,7 @@ export default function BacktestResultsPanel({
             <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
                 <div className="text-sm font-semibold text-tv-text">Risiko &amp; kualitas hasil</div>
-                <div className="text-[11px] text-tv-muted">
+                <div className="lens-body-sm text-tv-muted">
                   Sharpe/Sortino memakai risk-free {results.performance.riskFreeRatePct}%
                   (asumsi statis, ditinjau {results.performance.riskFreeSetOn})
                 </div>
@@ -302,14 +302,14 @@ export default function BacktestResultsPanel({
                   { label: 'Trade / tahun', value: metricNum(results.performance.tradesPerYear), hint: `${results.performance.returnObservations} hari bursa` },
                 ].map((metric) => (
                   <div key={metric.label} className="bg-tv-bg border border-tv-border rounded-lg p-3">
-                    <div className="text-[11px] text-tv-muted">{metric.label}</div>
+                    <div className="lens-body-sm text-tv-muted">{metric.label}</div>
                     <div className="text-lg font-bold font-number text-tv-text mt-0.5">{metric.value}</div>
-                    <div className="text-[10px] text-tv-muted mt-0.5">{metric.hint}</div>
+                    <div className="lens-label text-tv-muted mt-0.5">{metric.hint}</div>
                   </div>
                 ))}
               </div>
               {results.performance.note && (
-                <p className="text-[11px] leading-relaxed text-tv-yellow mt-3">{results.performance.note}</p>
+                <p className="lens-body-sm leading-relaxed text-tv-yellow mt-3">{results.performance.note}</p>
               )}
             </Card>
           )}
@@ -326,7 +326,7 @@ export default function BacktestResultsPanel({
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-3">
                 <div className="text-sm font-semibold text-tv-text">Signifikansi statistik</div>
                 {results.significance.bootstrap.status !== 'INSUFFICIENT_DATA' && (
-                  <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded border ${
+                  <span className={`lens-label font-bold uppercase tracking-wide px-2 py-0.5 rounded border ${
                     results.significance.bootstrap.status === 'SUPPORTIVE'
                       ? 'bg-tv-green/10 text-tv-green border-tv-green/30'
                       : results.significance.bootstrap.status === 'NEGATIVE'
@@ -343,7 +343,7 @@ export default function BacktestResultsPanel({
               </div>
 
               {results.significance.bootstrap.status === 'INSUFFICIENT_DATA' ? (
-                <p className="text-[11px] leading-relaxed text-tv-muted">{results.significance.note}</p>
+                <p className="lens-body-sm leading-relaxed text-tv-muted">{results.significance.note}</p>
               ) : (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -360,13 +360,13 @@ export default function BacktestResultsPanel({
                       { label: 'Iterasi', value: String(results.significance.permutation.iterations || 0), hint: 'resample per uji' },
                     ].map((metric) => (
                       <div key={metric.label} className="bg-tv-bg border border-tv-border rounded-lg p-3">
-                        <div className="text-[11px] text-tv-muted">{metric.label}</div>
+                        <div className="lens-body-sm text-tv-muted">{metric.label}</div>
                         <div className="text-lg font-bold font-number text-tv-text mt-0.5">{metric.value}</div>
-                        <div className="text-[10px] text-tv-muted mt-0.5">{metric.hint}</div>
+                        <div className="lens-label text-tv-muted mt-0.5">{metric.hint}</div>
                       </div>
                     ))}
                   </div>
-                  <p className="text-[11px] leading-relaxed text-tv-muted mt-3">{results.significance.note}</p>
+                  <p className="lens-body-sm leading-relaxed text-tv-muted mt-3">{results.significance.note}</p>
                 </>
               )}
             </Card>
@@ -393,7 +393,7 @@ export default function BacktestResultsPanel({
             return (
               <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4 space-y-2">
                 {notes.map((n, i) => (
-                  <p key={i} className="text-[11px] leading-relaxed text-tv-muted">{n}</p>
+                  <p key={i} className="lens-body-sm leading-relaxed text-tv-muted">{n}</p>
                 ))}
               </Card>
             );
@@ -522,7 +522,7 @@ export default function BacktestResultsPanel({
               terbaca bersama angkanya, bukan cuma tercatat di komentar kode. */}
           <Card padding="none" radius="lg" elevation="sm" overflow="visible" highlight={false} className="border-tv-yellow/30 p-4">
             <h3 className="font-heading text-sm font-bold text-tv-yellow mb-2">Batasan simulasi ini</h3>
-            <ul className="text-[11px] text-tv-muted leading-relaxed list-disc pl-4 space-y-1">
+            <ul className="lens-body-sm text-tv-muted leading-relaxed list-disc pl-4 space-y-1">
               {BACKTEST_LIMITATIONS.map((l) => <li key={l}>{l}</li>)}
               <li>Hasil masa lalu bukan jaminan hasil di masa depan.</li>
             </ul>

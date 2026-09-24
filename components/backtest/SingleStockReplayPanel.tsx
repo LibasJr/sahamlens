@@ -42,7 +42,7 @@ export default function SingleStockReplayPanel({
       <h3 className="font-heading font-bold text-tv-text flex items-center gap-2 mb-1">
         <Activity className="w-5 h-5 text-tv-blue" /> Backtest Saham Tunggal
       </h3>
-      <p className="text-[11px] text-tv-muted mb-4">Pilih emiten dan periode, lalu lihat histori harganya sebagai animasi candle - pratinjau visual, bukan simulasi strategi.</p>
+      <p className="lens-body-sm text-tv-muted mb-4">Pilih emiten dan periode, lalu lihat histori harganya sebagai animasi candle - pratinjau visual, bukan simulasi strategi.</p>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
         <div className="flex-1">
           <SymbolAutocomplete
