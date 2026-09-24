@@ -166,7 +166,7 @@ export default async function DailyMapPage() {
             </li>
             <li>
               • {isEn ? 'After the close: ' : 'Setelah penutupan: '}
-              <Link href="/cross-check" className="hover:underline">{isEn ? 'Double confirmation' : 'Konfirmasi Ganda'}</Link>
+              <Link href="/admin/konfirmasi-ganda" className="hover:underline">{isEn ? 'Double confirmation' : 'Konfirmasi Ganda'}</Link>
               {isEn ? ' to see which issuers independent sources agree on.' : ' untuk melihat emiten mana yang disepakati sumber berbeda.'}
             </li>
             <li>

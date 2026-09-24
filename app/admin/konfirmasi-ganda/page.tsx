@@ -1,19 +1,22 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { ArrowLeft, Info, Link2, ShieldAlert } from 'lucide-react';
 
 import { Card } from '@/components/ui/Card';
 import { getCrossCheckData, type CrossCheckRow, type CrossCheckSignal } from '@/modules/confirmation/service/cross-check.service';
+import { isAdminServer } from '@/modules/user';
 import { LANG_COOKIE } from '@/shared/constants/cookie-names';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export const metadata = {
-  title: 'Konfirmasi Ganda — SahamLens',
+  robots: { index: false, follow: false },
+  title: 'Konfirmasi Ganda — Admin SahamLens',
   description:
     'Tabel silang sinyal SahamLens per emiten: skor, rekomendasi, kepemilikan asing, dan likuiditas, dengan sumber dan status ketersediaan apa adanya.',
-  alternates: { canonical: '/cross-check' },
+  alternates: { canonical: '/admin/konfirmasi-ganda' },
 };
 
 function formatValue(signal: CrossCheckSignal, isEn: boolean): string {
@@ -57,6 +60,8 @@ function Row({ row, isEn }: { row: CrossCheckRow; isEn: boolean }) {
 }
 
 export default async function CrossCheckPage() {
+  if (!(await isAdminServer())) redirect('/admin-login');
+
   const data = await getCrossCheckData();
   const isEn = (await cookies()).get(LANG_COOKIE)?.value === 'en';
   const signalKeys = data.rows[0]?.signals.map((signal) => signal.key) ?? [
@@ -75,8 +80,8 @@ export default async function CrossCheckPage() {
   return (
     <main className="min-h-screen bg-tv-bg p-4 text-tv-text sm:p-8">
       <div className="mx-auto max-w-6xl">
-        <Link href="/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text">
-          <ArrowLeft className="h-4 w-4" /> {isEn ? 'Back' : 'Kembali'}
+        <Link href="/admin" className="mb-4 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text">
+          <ArrowLeft className="h-4 w-4" /> {isEn ? 'Back to Admin' : 'Kembali ke Admin'}
         </Link>
 
         <h1 className="flex items-center gap-2 font-heading text-2xl font-bold">

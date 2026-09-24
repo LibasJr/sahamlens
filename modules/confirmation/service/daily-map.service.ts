@@ -57,7 +57,7 @@ export const DAILY_MAP_JOB_META: DailyMapJobMeta[] = [
     jobName: 'recommendation-scan',
     label: 'Pemindaian rekomendasi',
     whatItRefreshes: 'Kategori rekomendasi per emiten untuk sesi berjalan.',
-    page: '/cross-check',
+    page: '/admin/konfirmasi-ganda',
   },
   {
     jobName: 'watchlist-alert',
