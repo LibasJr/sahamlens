@@ -23,6 +23,7 @@ import {
   History,
   Info,
   LayoutDashboard,
+  Layers,
   LineChart,
   LockKeyhole,
   LogIn,
@@ -93,6 +94,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'fundamental', name: 'LensFundamental', subtitle: 'Kualitas bisnis, pertumbuhan, neraca, dan profitabilitas', path: '/fundamental', icon: Building2 },
       { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Komposisi kepemilikan lokal dan asing', path: '/ownership-flow', icon: Users, guest: true },
       { id: 'compare', name: 'Compare', subtitle: 'Bandingkan beberapa emiten berdampingan', path: '/compare', icon: GitCompare },
+      { id: 'cross-check', name: 'Konfirmasi Ganda', subtitle: 'Sinyal berbeda yang menunjuk emiten sama', path: '/cross-check', icon: Layers, guest: true },
     ],
   },
   {
