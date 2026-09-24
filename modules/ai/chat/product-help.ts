@@ -12,7 +12,7 @@ interface ProductFeature {
 const PRODUCT_FEATURES: ProductFeature[] = [
   { pattern: /\b(beranda|home|dashboard)\b/, name: 'Beranda', function: 'snapshot awal kondisi pasar dan akses cepat ke riset emiten', usage: 'cari kode atau nama emiten, lalu buka ringkasan pasar, peluang, kalender, atau watchlist', result: 'konteks pasar dan pintasan ke modul analisis', limitation: 'ringkasan bukan rekomendasi transaksi' },
   { pattern: /\b(lensmarket|market pulse|ihsg|breadth|sektor|regime|heatmap)\b/, name: 'LensMarket', function: 'membaca IHSG, breadth universe terpantau, regime pasar, dan kekuatan sektor', usage: 'buka LensMarket lalu periksa status sesi, breadth, regime, heatmap sektor, dan umur data', result: 'gambaran apakah gerak pasar luas atau hanya terkonsentrasi', limitation: 'breadth memakai universe terpantau SahamLens, bukan indeks resmi Kompas100/IDX80, dan bukan prediksi indeks' },
-  { pattern: /\b(lensradar|breakout radar|ai pick|daily picks|peluang hari ini|scanner peluang|bucket backtest)\b/, name: 'LensRadar', function: 'memindai kandidat momentum, breakout, dan peluang harian dari universe likuid', usage: 'buka LensRadar atau Peluang Hari Ini, baca LensScore, alasan kandidat, freshness, coverage, dan bukti backtest/bucket jika tersedia, lalu lanjutkan ke halaman emiten', result: 'daftar kandidat beserta sinyal model, alasan, status riset, dan kesegaran data', limitation: 'statusnya research-only sampai decision advisory tervalidasi; bukan instruksi beli' },
+  { pattern: /\b(lensradar|breakout radar|ai pick|daily picks|peluang hari ini|scanner peluang|bucket backtest)\b/, name: 'LensRadar', function: 'memindai kandidat momentum, breakout, dan peluang harian dari universe likuid', usage: 'buka LensRadar atau Peluang Hari Ini, baca LensScore, alasan kandidat, freshness, coverage, dan bukti backtest/bucket jika tersedia, lalu lanjutkan ke halaman emiten', result: 'daftar kandidat beserta sinyal model, alasan, status riset, dan kesegaran data', limitation: 'statusnya research-only till decision advisory tervalidasi; bukan instruksi beli' },
   { pattern: /\b(tp\s*\/?\s*cl|take profit|cut loss|stop loss)\b/, name: 'Penentuan TP/CL', function: 'menyusun skenario Take Profit dan Cut Loss dari struktur harga, support/resistance, volatilitas Wilder ATR, serta pembulatan tick IDX', usage: 'untuk memahami metodenya tidak perlu ticker; untuk level aktual, buka LensTechnical atau sebutkan kode emiten agar data harga terbarunya dapat dihitung', result: 'Entry, TP1, TP2, dan CL beserta jarak risiko yang tersedia', limitation: 'level ini adalah skenario berbasis data, bukan jaminan harga akan tercapai atau rekomendasi transaksi' },
   { pattern: /\b(lenstechnical|teknikal|technical|lensconsensus|tp\/?cl)\b/, name: 'LensTechnical', function: 'menganalisis tren, momentum, volume, volatilitas, support/resistance, dan voting LensConsensus', usage: 'pilih emiten lalu baca indikator, breakdown voting, serta level Entry/TP/CL yang tersedia', result: 'evidence teknikal dan skenario risiko', limitation: 'indikator dan level model tidak menjamin hasil' },
   { pattern: /\b(lensscanner|screener|scanner|profil risiko)\b/, name: 'LensScanner', function: 'menyaring saham dengan profil risiko dan filter multi-faktor', usage: 'pilih Konservatif, Moderat, atau Agresif; atur sektor, harga, market cap, dan likuiditas', result: 'daftar saham yang lolos kriteria dan dapat diekspor ke CSV', limitation: 'hasil penyaringan bukan rekomendasi beli' },
@@ -43,9 +43,29 @@ const PRODUCT_FEATURES: ProductFeature[] = [
 const ADMIN_FEATURE_START_NAME = 'Bukti Validasi & Integritas Harga';
 const ALL_FEATURES_QUERY = /\b(semua|seluruh|lengkap|apa saja|bisa apa|fitur(?:nya)? apa|menu(?:nya)? apa|tour|jelaskan fitur)\b/;
 
+/**
+ * Pertanyaan workflow lintas fitur — "alur riset", "dari cek data sampai watchlist",
+ * "cara pakai SahamLens untuk riset", dll. Harus dikenali sebagai product help,
+ * bukan UNKNOWN atau STOCK_GENERAL.
+ */
+const WORKFLOW_QUERY = /\b(alur|workflow|riset|research|dari.*sampai|dari.*ke\b.*\b(watchlist|analisis|market|radar|technical|fundamental|screener)|cara pakai.*sahamlens|cara riset|langkah riset|step.*riset|pengenalan.*sahamlens|panduan.*riset|tutorial.*riset)\b/i;
+
 function featureAnswer(feature: ProductFeature): string {
   return `**${feature.name}** berfungsi untuk ${feature.function}.\n\n- **Cara pakai:** ${feature.usage}.\n- **Hasil yang dibaca:** ${feature.result}.\n- **Batasan:** ${feature.limitation}.`;
 }
+
+const WORKFLOW_ANSWER = [
+  '**Alur riset SahamLens** — dari cek data sampai pantau watchlist:',
+  '',
+  '1. **Cek kualitas & ketersediaan data** — buka menu Transparansi untuk membaca status model, as-of data, basis harga, coverage, dan provenance.',
+  '2. **Lihat kondisi pasar** — buka LensMarket untuk IHSG, breadth, regime, dan heatmap sektor.',
+  '3. **Cari kandidat** — buka LensRadar atau Peluang Hari Ini untuk skor, alasan, dan bukti backtest; atau pakai LensScanner untuk filter multi-faktor.',
+  '4. **Analisis emiten** — buka LensTechnical untuk tren/momentum/support-resistance, lalu LensFundamental untuk kualitas laba dan valuasi.',
+  '5. **Cek risiko & kalender** — buka Risk Matrix/Calculator, News & Sentiment, dan Corporate Calendar sesuai kebutuhan.',
+  '6. **Masukkan watchlist** — tambahkan ticker ke LensWatch untuk pantauan dan alert; Akun Demo opsional untuk simulasi transaksi.',
+  '',
+  'Setiap tahap hanya membaca data yang tersedia dan terverifikasi. Aplikasi tidak mengeksekusi transaksi nyata.',
+].join('\n');
 
 function allFeaturesAnswer(): string {
   const adminStart = PRODUCT_FEATURES.findIndex((feature) => feature.name === ADMIN_FEATURE_START_NAME);
@@ -64,14 +84,14 @@ function allFeaturesAnswer(): string {
   ].join('\n');
 }
 
-/** Jawaban kepatuhan (temuan operator 2026-09-23: "SahamLens apa legal?" sempat dijawab
+/** Jawaban kepatuhan (temuan operator 2026-09-23: "SahamLens apa legal?" sempat jawab
  * daftar fitur). Semua klaim di sini harus tetap benar kapan pun: tidak ada pernyataan
  * tentang izin/regulator yang tidak bisa dipertanggungjawabkan - fokus pada fakta produk. */
 const COMPLIANCE_QUERY = /\b(legal|legalitas|resmi|izinkah|halal|terdaftar|bohong|abal|penipuan|scam|aman(?:kah|nya)?)\b/;
 const PRODUCT_SELF_QUERY = /\b(sahamlens|saham lens|lensai|lens ai|aplikasi (?:ini|saham(?:lens)?)|tools? ini|platform ini)\b/;
 
 const COMPLIANCE_ANSWER = [
-  '**SahamLens adalah alat riset pribadi - bukan perantara transaksi.** Poin pentingnya:',
+  '**SahamLens adalah alat riset pribadi — bukan perantara transaksi.** Poin pentingnya:',
   '',
   '- **Bukan sekuritas/broker:** SahamLens tidak menerima order dan tidak bisa mengeksekusi transaksi; jual-beli tetap lewat sekuritas tempat kamu terdaftar.',
   '- **Bukan pengelola dana:** tidak ada setoran uang nyata ke SahamLens - fitur transaksi di aplikasi adalah simulasi dengan saldo virtual.',
@@ -88,6 +108,7 @@ export function getDeterministicProductHelpResponse(prompt: string): string | nu
   const text = normalizeChatText(prompt);
   if (PRODUCT_SELF_QUERY.test(text) && COMPLIANCE_QUERY.test(text)) return COMPLIANCE_ANSWER;
   if (ALL_FEATURES_QUERY.test(text)) return allFeaturesAnswer();
+  if (WORKFLOW_QUERY.test(text)) return WORKFLOW_ANSWER;
   const adminStart = PRODUCT_FEATURES.findIndex((item) => item.name === ADMIN_FEATURE_START_NAME);
   const feature = /\b(validation|lab|backfill|integrity|adoption|operational|kesehatan operasional|uji akurasi|uji target|uji intraday|uji arus|pemeriksaan data|bukti data|bukti fundamental|masukan lensai|feedback lensai)\b/.test(text)
     ? PRODUCT_FEATURES.slice(adminStart).find((item) => item.pattern.test(text)) ?? PRODUCT_FEATURES.find((item) => item.pattern.test(text))
@@ -97,4 +118,8 @@ export function getDeterministicProductHelpResponse(prompt: string): string | nu
 
 export function isAllFeaturesProductQuery(prompt: string): boolean {
   return ALL_FEATURES_QUERY.test(normalizeChatText(prompt));
+}
+
+export function isWorkflowQuery(prompt: string): boolean {
+  return WORKFLOW_QUERY.test(normalizeChatText(prompt));
 }
