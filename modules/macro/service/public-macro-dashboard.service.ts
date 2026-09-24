@@ -1,5 +1,7 @@
 import YahooFinanceClass from 'yahoo-finance2';
 
+import { getMacroInputEvidenceAsOf } from '../repository/valuation-assumption.repository';
+
 const yahooFinance = new (YahooFinanceClass as any)({ suppressNotices: ['yahooSurvey'] });
 
 export type MacroTrend = 'UP' | 'DOWN' | 'FLAT' | 'NA';
@@ -125,23 +127,69 @@ const WORLD_BANK_DEFINITIONS = [
 
 const WORLD_BANK_SOURCE_URL = 'https://data.worldbank.org/country/indonesia';
 const BI_NEWS_URL = 'https://www.bi.go.id/id/publikasi/ruang-media/news-release/default.aspx';
-const BI_LAST_VERIFIED_URL = 'https://www.bi.go.id/id/publikasi/ruang-media/news-release/Pages/sp_2814226.aspx';
+// Siaran pers RDG 22-23 September 2026 (BI-Rate tetap 5,75%) - snapshot resmi terakhir terverifikasi.
+const BI_LAST_VERIFIED_URL = 'https://www.bi.go.id/id/publikasi/ruang-media/news-release/Pages/sp_2819326.aspx';
+const BI_RATE_EVIDENCE_KEY = 'BI_RATE_PCT';
+const MONTHS_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember',
+];
 
 const LAST_VERIFIED_BI_RATE: MacroOfficialIndicator = {
   key: 'BI_RATE',
   label: 'BI-Rate',
   value: 5.75,
   unit: '%',
-  period: '22 Juli 2026',
-  previousValue: null,
-  previousPeriod: null,
-  trend: 'NA',
+  period: '22-23 September 2026',
+  previousValue: 5.75,
+  previousPeriod: '19 Agustus 2026',
+  trend: 'FLAT',
   frequency: 'Keputusan RDG',
   source: 'Bank Indonesia',
   sourceUrl: BI_LAST_VERIFIED_URL,
   retrievalStatus: 'LAST_VERIFIED',
-  note: 'Snapshot resmi terakhir terverifikasi; halaman publik BI tidak dapat dibaca saat refresh.',
+  note: 'Snapshot resmi terakhir terverifikasi (siaran pers RDG 22-23 September 2026); dipakai hanya bila laman publik BI tidak terbaca.',
 };
+
+/** Periode bukti (YYYY-MM-DD) -> label Indonesia, mis. 2026-09-23 -> '23 September 2026'. */
+export function formatBiRatePeriod(isoDate: string): string {
+  const [year, month, day] = isoDate.split('-').map(Number);
+  if (!year || !month || !day || month < 1 || month > 12) return isoDate;
+  return day + ' ' + MONTHS_ID[month - 1] + ' ' + year;
+}
+
+/**
+ * Jaring kedua: nilai dari bukti resmi terkurasi di basis data (macro_input_evidence).
+ * Dipakai ketika laman publik BI tidak terbaca, sehingga aplikasi tidak menampilkan keputusan basi.
+ */
+export function biRateFromCuratedEvidence(
+  evidence: {
+    valuePct: number;
+    usableFromDate: string;
+    sourceName: string;
+    sourceUrl: string | null;
+  } | null,
+): MacroOfficialIndicator | null {
+  if (!evidence || !Number.isFinite(evidence.valuePct)) return null;
+  const period = formatBiRatePeriod(evidence.usableFromDate);
+  return {
+    key: 'BI_RATE',
+    label: 'BI-Rate',
+    value: evidence.valuePct,
+    unit: '%',
+    period,
+    previousValue: null,
+    previousPeriod: null,
+    trend: 'NA',
+    frequency: 'Keputusan RDG',
+    source: evidence.sourceName,
+    sourceUrl: evidence.sourceUrl ?? BI_NEWS_URL,
+    retrievalStatus: 'LAST_VERIFIED',
+    note:
+      'Laman resmi BI tidak terbaca saat refresh; nilai diambil dari bukti resmi terkurasi ' +
+      period + ' (siaran pers BI) yang tersimpan di basis data.',
+  };
+}
 
 function finiteNumber(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value) ? value : null;
@@ -456,19 +504,42 @@ async function fetchWorldBankIndicators(): Promise<MacroOfficialIndicator[]> {
   return results.filter((item): item is MacroOfficialIndicator => item !== null);
 }
 
-async function fetchBiRate(): Promise<MacroOfficialIndicator> {
-  try {
-    const response = await fetch(BI_NEWS_URL, {
-      headers: { 'user-agent': 'Mozilla/5.0 SahamLens/1.0' },
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (response.ok) {
-      const live = normalizeBiRateHtml(await response.text());
-      if (live) return live;
+async function fetchLiveBiRate(): Promise<MacroOfficialIndicator | null> {
+  // Laman BI kerap memutus koneksi (ECONNRESET) dari VPS: tiga percobaan, tanpa cache.
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      const response = await fetch(BI_NEWS_URL, {
+        headers: { 'user-agent': 'Mozilla/5.0 SahamLens/1.0' },
+        signal: AbortSignal.timeout(10_000),
+        cache: 'no-store',
+      });
+      if (response.ok) {
+        const live = normalizeBiRateHtml(await response.text());
+        if (live) return live;
+      }
+    } catch {
+      // percobaan berikutnya
     }
-  } catch {
-    // Gunakan snapshot resmi terakhir terverifikasi di bawah.
+    await new Promise((resolve) => setTimeout(resolve, attempt * 400));
   }
+  return null;
+}
+
+async function loadCuratedBiRateEvidence() {
+  try {
+    return await getMacroInputEvidenceAsOf(BI_RATE_EVIDENCE_KEY, new Date().toISOString().slice(0, 10));
+  } catch {
+    return null;
+  }
+}
+
+async function fetchBiRate(): Promise<MacroOfficialIndicator> {
+  const live = await fetchLiveBiRate();
+  if (live) return live;
+
+  const curated = biRateFromCuratedEvidence(await loadCuratedBiRateEvidence());
+  if (curated) return curated;
+
   return { ...LAST_VERIFIED_BI_RATE };
 }
 

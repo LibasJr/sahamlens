@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   assemblePublicMacroDashboard,
+  biRateFromCuratedEvidence,
+  formatBiRatePeriod,
   normalizeBiRateHtml,
   normalizeMarketQuotes,
   normalizeWorldBankIndicator,
@@ -142,5 +144,35 @@ describe('public macro dashboard', () => {
       biRate: null,
     });
     expect(dashboard.health).toBeUndefined();
+  });
+});
+
+describe('BI-Rate dari bukti terkurasi (saat laman BI tidak terbaca)', () => {
+  it('memformat periode bukti menjadi tanggal Indonesia', () => {
+    expect(formatBiRatePeriod('2026-09-23')).toBe('23 September 2026');
+    expect(formatBiRatePeriod('2026-08-19')).toBe('19 Agustus 2026');
+    expect(formatBiRatePeriod('bukan-tanggal')).toBe('bukan-tanggal');
+  });
+
+  it('memakai nilai dan sumber bukti resmi apa adanya', () => {
+    const indicator = biRateFromCuratedEvidence({
+      valuePct: 5.75,
+      usableFromDate: '2026-09-23',
+      sourceName: 'Bank Indonesia - Siaran Pers RDG 22-23 September 2026',
+      sourceUrl: 'https://www.bi.go.id/id/publikasi/ruang-media/news-release/Pages/sp_2819326.aspx',
+    });
+
+    expect(indicator).toMatchObject({
+      key: 'BI_RATE',
+      value: 5.75,
+      period: '23 September 2026',
+      retrievalStatus: 'LAST_VERIFIED',
+    });
+    expect(indicator?.source).toBe('Bank Indonesia - Siaran Pers RDG 22-23 September 2026');
+  });
+
+  it('mengembalikan null bila bukti tidak ada, bukan angka karangan', () => {
+    expect(biRateFromCuratedEvidence(null)).toBeNull();
+    expect(biRateFromCuratedEvidence({ valuePct: Number.NaN, usableFromDate: '2026-09-23', sourceName: 'x', sourceUrl: null })).toBeNull();
   });
 });
