@@ -61,7 +61,8 @@
     "maintain:weekly": "node scripts/weekly-maintenance.mjs",
     "maintain:weekly:audit": "node scripts/weekly-maintenance.mjs --no-data",
     "maintain:weekly:dry": "node scripts/weekly-maintenance.mjs --dry-run --sync",
-    "dissect:intraday": "node scripts/intraday-oos-dissection.mjs"
+    "dissect:intraday": "node scripts/intraday-oos-dissection.mjs",
+    "backtest:entry-rules": "node scripts/entry-rule-backtest.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.66",
