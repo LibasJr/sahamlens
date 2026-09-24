@@ -303,6 +303,11 @@ async function fetchWithRetry(url,{asBuffer=false}={}){
 }
 
 async function pdfToText(buffer,tmpDir,name){
+  // Sumber resmi kadang mengembalikan halaman HTML (blokir/login/error gateway) dengan
+  // ekstensi .pdf. pdftotext tetap mengeluarkan teks dan angka sampah, dan angka sampah itu
+  // akhirnya ditolak constraint database sehingga SELURUH run gagal (insiden 2026-09-23/24).
+  // Tolak di pintu masuk: hitung sebagai source error, jangan pernah ditafsirkan.
+  if(buffer.subarray(0,5).toString('latin1')!=='%PDF-') throw new Error(`bukan berkas PDF (kemungkinan halaman blokir/HTML, ${buffer.length} byte, content-type bukan application/pdf)`);
   const pdf=path.join(tmpDir,`${name}.pdf`), txt=path.join(tmpDir,`${name}.txt`); await fs.writeFile(pdf,buffer);
   try{await execFileAsync('pdftotext',['-layout','-enc','UTF-8',pdf,txt],{timeout:60_000,maxBuffer:4*1024*1024});}
   catch(e){if(e?.code==='ENOENT') throw new Error('pdftotext tidak ditemukan. Install: sudo apt-get install -y poppler-utils'); throw e;}
@@ -363,6 +368,11 @@ function reconcileCandidates(candidates){
     if(values.length>1){for(const x of arr) quarantine.push({...x,status:'QUARANTINED',reason:`conflicting_official_values:${values.join('/')}`});continue;}
     const best=[...arr].sort((a,b)=>(basisPriority[b.basis]??0)-(basisPriority[a.basis]??0)||b.confidence-a.confidence)[0];
     if(best.confidence<0.94){quarantine.push({...best,status:'QUARANTINED',reason:'confidence_below_threshold'});continue;}
+    // Invariant tabel bank_metric_evidence (CHECK observed_date >= period_end) dijaga di sini
+    // supaya baris cacat masuk karantina dengan alasan yang terbaca, bukan menjatuhkan run.
+    if(best.periodEnd && best.observedDate && String(best.observedDate)<String(best.periodEnd)){
+      quarantine.push({...best,status:'QUARANTINED',reason:'observed_before_period_end'});continue;
+    }
     accepted.push(best);
   }
   return {accepted,quarantine};
