@@ -111,3 +111,4 @@ data/idx-index/
 # Laporan job perawatan mingguan (scripts/weekly-maintenance.mjs). Artefak runtime di
 # VPS, di-rotate otomatis (keepReports), tidak untuk di-commit.
 /reports/
+node_modules
