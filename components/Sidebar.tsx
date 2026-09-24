@@ -95,6 +95,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Komposisi kepemilikan lokal dan asing', path: '/ownership-flow', icon: Users, guest: true },
       { id: 'compare', name: 'Compare', subtitle: 'Bandingkan beberapa emiten berdampingan', path: '/compare', icon: GitCompare },
       { id: 'cross-check', name: 'Konfirmasi Ganda', subtitle: 'Sinyal berbeda yang menunjuk emiten sama', path: '/cross-check', icon: Layers, guest: true },
+      { id: 'panduan-harian', name: 'Peta Alur Harian', subtitle: 'Kapan setiap data diperbarui', path: '/panduan-harian', icon: CalendarDays, guest: true },
     ],
   },
   {
