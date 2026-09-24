@@ -1,0 +1,12 @@
+[Unit]
+Description=Jadwal SahamLens - pengawas pengumpulan bar intraday
+
+[Timer]
+# 18:30 WIB, sesudah sahamlens-intraday-collect.timer (17:30 WIB). Persistent=true supaya
+# hari yang terlewat karena VPS mati tetap diperiksa saat VPS hidup lagi, bukan dilewati diam-diam.
+OnCalendar=Mon..Fri 18:30 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-intraday-watchdog.service
+
+[Install]
+WantedBy=timers.target

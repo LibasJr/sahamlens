@@ -157,6 +157,19 @@ $SUDO /usr/bin/install -m 0644 deploy/emiten-sync/sahamlens-emiten-sync.timer \
 $SUDO /usr/bin/systemctl daemon-reload
 $SUDO /usr/bin/systemctl enable sahamlens-emiten-sync.timer
 
+echo "Installing intraday-watchdog systemd units..."
+# Gerbang "hari bursa OOS >= 60" hanya bisa dikejar dengan data baru tiap hari bursa, dan
+# timer collect yang gagal tidak memberi tahu siapa pun. Unit ini melaporkan hari bursa yang
+# terlewat + progres gerbang apa adanya; ia tidak mengubah kriteria validasi.
+$SUDO /usr/bin/install -m 0755 deploy/intraday-watchdog/intraday-collect-watchdog.sh \
+  /opt/sahamlens/scripts/intraday-collect-watchdog.sh
+$SUDO /usr/bin/install -m 0644 deploy/intraday-watchdog/sahamlens-intraday-watchdog.service \
+  /etc/systemd/system/sahamlens-intraday-watchdog.service
+$SUDO /usr/bin/install -m 0644 deploy/intraday-watchdog/sahamlens-intraday-watchdog.timer \
+  /etc/systemd/system/sahamlens-intraday-watchdog.timer
+$SUDO /usr/bin/systemctl daemon-reload
+$SUDO /usr/bin/systemctl enable sahamlens-intraday-watchdog.timer
+
 echo "Restarting SahamLens..."
 $SUDO /usr/bin/systemctl restart sahamlens
 

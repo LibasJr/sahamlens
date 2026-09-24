@@ -1,0 +1,15 @@
+[Unit]
+Description=SahamLens - pengawas pengumpulan bar intraday
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+WorkingDirectory=/opt/sahamlens/app
+# DATABASE_URL dibaca dari env produksi. Kalau berkas ini tidak ada, skrip berhenti dengan
+# kode 2 dan alasannya jelas di journal - bukan diam-diam melaporkan "sehat".
+EnvironmentFile=-/opt/sahamlens/app/.env.production
+ExecStart=/opt/sahamlens/scripts/intraday-collect-watchdog.sh
+NoNewPrivileges=true
