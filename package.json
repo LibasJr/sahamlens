@@ -63,7 +63,8 @@
     "maintain:weekly:dry": "node scripts/weekly-maintenance.mjs --dry-run --sync",
     "dissect:intraday": "node scripts/intraday-oos-dissection.mjs",
     "backtest:entry-rules": "node scripts/entry-rule-backtest.mjs",
-    "factor:scan": "node scripts/factor-research.mjs"
+    "factor:scan": "node scripts/factor-research.mjs",
+    "snapshot:scores": "node scripts/snapshot-lens-scores.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.66",

@@ -1,0 +1,12 @@
+[Unit]
+Description=Jadwal SahamLens - pengawas bukti faktor risiko (bulanan)
+
+[Timer]
+# Tanggal 1 tiap bulan, 07:00 WIB. Persistent=true supaya bulan yang terlewat (VPS mati)
+# tetap diperiksa begitu VPS hidup, bukan dilewati diam-diam.
+OnCalendar=*-*-01 07:00 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-factor-watchdog.service
+
+[Install]
+WantedBy=timers.target

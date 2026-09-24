@@ -91,10 +91,10 @@ const FACTORS = [
   { id: 'dist_high_52w', label: 'Jarak dari puncak 52 minggu', group: 'tren' },
   { id: 'liquidity', label: 'Likuiditas (log nilai transaksi 20 hari)', group: 'likuiditas' },
   { id: 'max_ret_20', label: 'Puncak imbal hasil harian 20 sesi (dibalik: hindari lotere)', group: 'risiko' },
-  { id: 'score_total', label: 'LensScore total (produksi)', group: 'skor', pointInTimeRequired: true },
-  { id: 'score_technical', label: 'Skor teknikal (produksi)', group: 'skor', pointInTimeRequired: true },
-  { id: 'score_fundamental', label: 'Skor fundamental (produksi)', group: 'skor', pointInTimeRequired: true },
-  { id: 'score_flow', label: 'Skor arus (produksi)', group: 'skor', pointInTimeRequired: true },
+  { id: 'score_total', label: 'LensScore total (produksi, materialisasi terakhir)', group: 'skor', excludeFromComposite: true },
+  { id: 'score_technical', label: 'Skor teknikal (produksi, materialisasi terakhir)', group: 'skor', excludeFromComposite: true },
+  { id: 'score_fundamental', label: 'Skor fundamental (produksi, materialisasi terakhir)', group: 'skor', excludeFromComposite: true },
+  { id: 'score_flow', label: 'Skor arus (produksi, materialisasi terakhir)', group: 'skor', excludeFromComposite: true },
 ];
 
 // --- Utilitas -------------------------------------------------------------------------------
@@ -158,6 +158,7 @@ function pctQuantile(sortedValues, q) {
 const args = process.argv.slice(2);
 const mdIndex = args.indexOf('--markdown');
 const markdownPath = mdIndex >= 0 ? args[mdIndex + 1] : null;
+const watchMode = args.includes('--watch');
 
 async function main() {
   const restore = installTypeScriptRequireHook();
@@ -177,21 +178,25 @@ async function main() {
   // Tanggal -> daftar observasi (faktor + imbal hasil depan)
   const byDate = new Map(calendar.map((d) => [d, []]));
   const factorUsable = new Map(FACTORS.map((f) => [f.id, 0]));
+  let coverageSum = 0;
+  let coverageN = 0;
+  let coverageFull = 0;
   let observed = 0;
 
   for (const ticker of tickers) {
     const res = await queryReadWithRetry(
-      `select date::text as date,
+      `select distinct on (date)
+              date::text as date,
               coalesce(adjusted_close_price, close_price)::float8 as close,
               avg_value_20d::float8 as liquidity,
-              case when updated_at <= lens_radar_history.date + interval '2 days' then true else false end as pit,
+              coverage_pct::float8 as coverage,
               lens_score::float8 as score_total,
               technical_score::float8 as score_technical,
               fundamental_score::float8 as score_fundamental,
               flow_score::float8 as score_flow
          from lens_radar_history
         where ticker = $1 and coalesce(adjusted_close_price, close_price) is not null
-        order by date asc`,
+        order by date asc, calculation_timestamp desc nulls last, updated_at desc`,
       [ticker]
     );
     const rows = res.rows;
@@ -304,12 +309,18 @@ async function main() {
         dist_high_52w: -(1 - closes[i] / max52),
         liquidity: Math.log10(liquidity),
         max_ret_20: -maxRet20,
-        score_total: rows[i].pit ? Number(rows[i].score_total) : Number.NaN,
-        score_technical: rows[i].pit ? Number(rows[i].score_technical) : Number.NaN,
-        score_fundamental: rows[i].pit ? Number(rows[i].score_fundamental) : Number.NaN,
-        score_flow: rows[i].pit ? Number(rows[i].score_flow) : Number.NaN,
+        score_total: Number(rows[i].score_total),
+        score_technical: Number(rows[i].score_technical),
+        score_fundamental: Number(rows[i].score_fundamental),
+        score_flow: Number(rows[i].score_flow),
       };
 
+      const coverage = Number(rows[i].coverage);
+      if (Number.isFinite(coverage)) {
+        coverageSum += coverage;
+        coverageN += 1;
+        if (coverage >= 99) coverageFull += 1;
+      }
       for (const factor of FACTORS) factorUsable.set(factor.id, (factorUsable.get(factor.id) ?? 0) + (Number.isFinite(factors[factor.id]) ? 1 : 0));
 
       const bucket = byDate.get(rows[i].date);
@@ -320,15 +331,30 @@ async function main() {
   }
   console.log(`observasi terpakai: ${observed.toLocaleString('id-ID')}`);
 
-  // Audit: apakah kolom skor ditulis pada hari sesinya, atau ditulis ulang belakangan?
+  // Audit 1: keterisian waktu arsip skor (berapa materialisasi per pasangan sesi-emiten)
   const auditRes = await queryReadWithRetry(
     `select to_char(date,'YYYY') as tahun,
             count(*)::int as baris,
+            count(distinct (date, ticker))::int as pasangan_unik,
             count(*) filter (where updated_at <= lens_radar_history.date + interval '2 days')::int as tepat_waktu,
-            min(updated_at)::text as tulisan_terawal,
-            max(updated_at)::text as tulisan_terakhir
+            count(distinct score_version)::int as versi_skor,
+            min(calculation_timestamp)::text as hitung_terawal,
+            max(calculation_timestamp)::text as hitung_terakhir
        from lens_radar_history
       group by 1 order by 1`
+  );
+
+  // Audit 2: apakah fundamental yang dipakai skor historis benar-benar sudah terbit saat itu?
+  const pitRes = await queryReadWithRetry(
+    `select count(*)::int as baris,
+            count(distinct ticker)::int as emiten,
+            min(observed_date)::text as observasi_awal,
+            max(observed_date)::text as observasi_akhir,
+            min(observed_date - period_end)::int as lag_terpendek_hari,
+            round(percentile_cont(0.5) within group (order by (observed_date - period_end)))::int as lag_tengah_hari,
+            count(distinct period_end)::int as periode_laporan
+       from fundamental_history
+      where period_end is not null`
   );
 
   // --- IC lintas-emiten per tanggal ---
@@ -472,9 +498,10 @@ async function main() {
     };
   };
 
-  // komposit dibentuk HANYA dari faktor non-skor yang IC train-nya positif
-  // (faktor skor dikeluarkan karena nilainya ditulis ulang, bukan point-in-time)
-  const decisiveFactors = factorRows.filter((r) => !r.factor.pointInTimeRequired);
+  // komposit dibentuk HANYA dari faktor harga/risiko/tren yang IC train-nya positif.
+  // Faktor skor dikeluarkan karena cakupan fundamental historis hanya sebagian (coverage_pct < 100
+  // untuk hampir semua sesi 2021-2025), sehingga bukan ukuran yang sebanding lintas emiten.
+  const decisiveFactors = factorRows.filter((r) => !r.factor.excludeFromComposite);
   const compositeFactors = decisiveFactors.filter((r) => r.train.mean !== null && r.train.mean > 0).map((r) => r.factor.id);
   const compositeScore = (row) => {
     if (!compositeFactors.length) return null;
@@ -517,30 +544,62 @@ async function main() {
   L.push('| --- | --- | --- | --- | --- | --- | --- | --- | --- |');
   for (const r of factorRows) {
     const usable = factorUsable.get(r.factor.id) ?? 0;
-    const mark = r.factor.pointInTimeRequired ? ' ⚠️' : '';
+    const mark = r.factor.excludeFromComposite ? ' ※' : '';
     L.push(
       `| ${r.factor.label}${mark} | ${r.factor.group} | ${usable.toLocaleString('id-ID')} | ${f(r.train.mean, 4)} | ${f(r.oos.mean, 4)} | ${f(r.oos.nonOverlapMean, 4)} | ${f(r.oos.t, 2)} | ${pc(r.oos.positiveShare, 1)} | ${pc(r.spread)} |`
     );
   }
+  L.push('※ = faktor skor produksi: ditampilkan sebagai catatan, tidak ikut membentuk komposit (lihat audit arsip di bawah).');
   L.push('');
-  L.push('⚠️ = kolom skor produksi. Nilainya **tidak boleh dipakai untuk periode sebelum Agustus 2026** karena ditulis');
-  L.push('ulang, bukan dihitung pada hari sesinya — lihat audit di bawah. Baris ber-tanda ini hanya ditampilkan sebagai');
-  L.push('catatan, bukan sebagai temuan.');
+  L.push('## Audit arsip skor (penting dibaca)');
   L.push('');
-  L.push('## Audit keterisian waktu kolom skor (penting)');
+  L.push('### 1. Arsip menyimpan beberapa materialisasi untuk satu sesi yang sama');
   L.push('');
-  L.push('| tahun sesi | baris | ditulis tepat waktu (≤2 hari) | tulisan terawal | tulisan terakhir |');
-  L.push('| --- | --- | --- | --- | --- |');
+  L.push('| tahun sesi | baris | pasangan sesi-emiten unik | materialisasi berlebih | versi skor | dihitung pertama | dihitung terakhir |');
+  L.push('| --- | --- | --- | --- | --- | --- | --- |');
+  let totalRows = 0;
+  let totalPairs = 0;
   for (const row of auditRes.rows) {
+    totalRows += row.baris;
+    totalPairs += row.pasangan_unik;
+    const excess = row.baris - row.pasangan_unik;
     L.push(
-      `| ${row.tahun} | ${row.baris.toLocaleString('id-ID')} | ${row.tepat_waktu.toLocaleString('id-ID')} (${((row.tepat_waktu / row.baris) * 100).toFixed(1)}%) | ${row.tulisan_terawal?.slice(0, 16)} | ${row.tulisan_terakhir?.slice(0, 16)} |`
+      `| ${row.tahun} | ${row.baris.toLocaleString('id-ID')} | ${row.pasangan_unik.toLocaleString('id-ID')} | ${excess.toLocaleString('id-ID')} | ${row.versi_skor} | ${row.hitung_terawal?.slice(0, 10)} | ${row.hitung_terakhir?.slice(0, 10)} |`
     );
   }
   L.push('');
-  L.push('Kolom skor pada arsip ini ditulis ulang pada Agustus–September 2026, bukan dihitung saat sesinya berlalu.');
-  L.push('Akibatnya informasi masa depan bisa ikut masuk ke nilai skor historis, sehingga IC skor untuk periode');
-  L.push('2021–2025 **tidak sah** sebagai bukti keunggulan. Faktor harga/risiko/tren tidak terkena masalah ini karena');
-  L.push('diukur dari deret harga itu sendiri. Karena itu kesimpulan hanya memakai faktor non-skor.');
+  L.push(`Total: ${totalRows.toLocaleString('id-ID')} baris untuk ${totalPairs.toLocaleString('id-ID')} pasangan sesi-emiten unik — ` +
+    `**${(totalRows / totalPairs).toFixed(1)}× lipat**. Kunci utama arsip memuat hash konfigurasi, sehingga setiap kali skor`);
+  L.push('dihitung ulang dengan konfigurasi berbeda, baris baru ditambahkan, bukan menimpa. Tanpa menyaring satu materialisasi');
+  L.push('saja, satu emiten bisa terwakili sampai 6 kali di dalam satu tanggal — itu akan mengacaukan peringkat lintas-emiten.');
+  L.push('Karena itu skrip ini mengambil **satu** materialisasi per pasangan (perhitungan terbaru).');
+  L.push('');
+  L.push('### 2. Skor historis dihitung ulang, tetapi dirancang point-in-time');
+  L.push('');
+  L.push('Seluruh baris 2021–2025 dihitung pada Agustus–September 2026, bukan saat sesinya berlalu. Itu **tidak otomatis**');
+  L.push('berarti ada kebocoran masa depan: skrip pembentuk arsip (`scripts/backfill-lens-history.mjs`) mengambil fundamental');
+  L.push('hanya dengan syarat `observed_date <= tanggal sinyal`, dan `observed_date` di `fundamental_history` adalah');
+  L.push('tanggal terbit berkas resmi IDX (XBRL), bukan akhir periode laporan.');
+  L.push('');
+  if (pitRes.rows.length) {
+    const pit = pitRes.rows[0];
+    L.push(`Bukti data: ${pit.baris.toLocaleString('id-ID')} baris fundamental, ${pit.emiten} emiten, observasi ${pit.observasi_awal} → ${pit.observasi_akhir}, ` +
+      `${pit.periode_laporan} periode laporan. Jarak terbit dari akhir periode: **terpendek ${pit.lag_terpendek_hari} hari**, tengah **${pit.lag_tengah_hari} hari** ` +
+      '(tidak ada baris dengan observasi = akhir periode, jadi memang tanggal terbit).');
+    L.push('');
+  }
+  L.push('Sisa keterbatasan yang tetap berlaku (dan tidak bisa ditutup dari arsip ini):');
+  L.push('');
+  L.push('- **Cakupan fundamental tipis.** `fundamental_history` hanya 200 emiten; untuk sesi 2021–2025 hanya 45–51 emiten');
+  L.push('  punya fundamental terbit. Sisanya dinilai dengan komponen yang tersedia sebagian (`coverage_pct` < 100).');
+  L.push('- **Cakupan penuh hampir tidak ada di periode uji.** Baris dengan `coverage_pct` ≥ 99: **0%** untuk 2021–2025 dan');
+  L.push('  hanya 2,2% untuk 2026. Jadi skor historis di sini adalah skor sebagian, bukan skor lengkap.');
+  L.push('- **Arsip tidak menyimpan apa yang benar-benar ditampilkan produk pada hari itu.** Karena baris ditimpa/ditambah,');
+  L.push('  yang bisa diuji adalah hitungan ulang, bukan perilaku produk saat itu. Untuk itu diperlukan snapshot harian yang');
+  L.push('  tidak bisa diubah (usulan perbaikan, belum dikerjakan).');
+  L.push('');
+  L.push('Karena dua keterbatasan pertama, faktor skor tetap ditampilkan di tabel di atas sebagai catatan, tetapi **tidak** ikut');
+  L.push('membentuk komposit — komposit hanya memakai faktor yang bisa dihitung penuh dari harga.');
   L.push('');
   L.push('## Desil imbal hasil depan 20 sesi (rata-rata, seluruh periode)');
   L.push('');
@@ -596,12 +655,50 @@ async function main() {
   L.push('  dihitung dari tanggal non-tumpang-tindih saja.');
   L.push('- Portofolio di sini **long-only** dan dibandingkan dengan patokan timbang sama yang juga turut menanggung emiten yang');
   L.push('  sedang turun; keunggulan kecil belum berarti layak dipakai.');
-  L.push('- Data yang tidak dipakai karena memang tidak lengkap: fundamental per emiten (200 emiten, praktis hanya Agustus 2026),');
-  L.push('  kepemilikan asing bulanan (sejak Jan 2025), ringkasan broker (kosong). Tidak ada faktor karangan.');
+  L.push('- Data yang tidak dipakai karena memang tidak lengkap: fundamental per emiten (hanya 200 emiten; 45–51 emiten');
+  L.push('  untuk periode uji 2021–2025), kepemilikan asing bulanan (sejak Jan 2025), ringkasan broker (kosong).');
+  L.push('  Tidak ada faktor karangan, dan skor produksi tidak dinaikkan menjadi portofolio karena cakupannya sebagian.');
   L.push('');
 
   const report = L.join('\n');
   console.log('\n' + report);
+
+  if (watchMode) {
+    // Pengawas bulanan: ciri yang dipakai halaman /admin/profil-risiko harus tetap positif di
+    // luar sampel. Kalau tidak, alarm - halaman tidak diubah otomatis, keputusan di operator.
+    const watchIds = ['vol_60', 'vol_20', 'dist_high_52w', 'max_ret_20'];
+    const alarms = [];
+    for (const id of watchIds) {
+      const row = factorRows.find((r) => r.factor.id === id);
+      if (!row) {
+        alarms.push(`${id}: tidak ada di hasil (faktor hilang)`);
+        continue;
+      }
+      if (!Number.isFinite(row.oos.mean) || row.oos.mean <= 0) {
+        alarms.push(`${id} (${row.factor.label}): IC luar sampel ${f(row.oos.mean, 4)} - tidak lagi positif`);
+      }
+      if (!Number.isFinite(row.oos.t) || row.oos.t <= 0) {
+        alarms.push(`${id} (${row.factor.label}): t luar sampel ${f(row.oos.t, 2)} - tidak lagi positif`);
+      }
+    }
+    L.push('');
+    L.push('## Pengawas (mode --watch)');
+    L.push('');
+    if (alarms.length) {
+      L.push('ALARM FAKTOR: bukti ciri yang dipakai halaman Profil Risiko tidak lagi bertahan.');
+      for (const alarm of alarms) L.push(`- ${alarm}`);
+    } else {
+      L.push('Semua ciri kokoh masih positif di luar sampel (IC dan t-statistik > 0).');
+    }
+    if (markdownPath) fs.writeFileSync(markdownPath, L.join('\n'));
+    if (alarms.length) {
+      console.error('ALARM FAKTOR: bukti ciri yang dipakai halaman Profil Risiko tidak lagi bertahan:');
+      for (const alarm of alarms) console.error(`  - ${alarm}`);
+      process.exitCode = 1;
+    } else {
+      console.log('Pengawas faktor: 4 ciri kokoh masih positif di luar sampel (IC dan t > 0).');
+    }
+  }
   if (markdownPath) {
     fs.mkdirSync(path.dirname(markdownPath), { recursive: true });
     fs.writeFileSync(markdownPath, report);

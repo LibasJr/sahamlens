@@ -1,0 +1,14 @@
+[Unit]
+Description=Jadwal SahamLens - snapshot skor LensRadar (append-only)
+
+[Timer]
+# 09:30 WIB Mon..Fri: sesudah pemindaian pagi (09:00) yang menuliskan skor sesi sebelumnya.
+# Yang terekam adalah nilai skor sebagaimana ditampilkan produk, dan karena snapshot tidak
+# pernah ditimpa, nilai pertama yang terekam itulah yang tersimpan seterusnya.
+# Persistent=true supaya sesi yang terlewat (VPS mati) tetap terekam saat VPS hidup lagi.
+OnCalendar=Mon..Fri 09:30 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-lens-score-snapshot.service
+
+[Install]
+WantedBy=timers.target
