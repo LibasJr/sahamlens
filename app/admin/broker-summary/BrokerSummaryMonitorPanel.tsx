@@ -258,11 +258,11 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                         >
                           <div className="flex items-center gap-2">
                             <span className="font-mono font-bold">{item.symbol}</span>
-                            <span className="truncate max-w-[280px] text-[11px] text-tv-muted">
+                            <span className="truncate max-w-[280px] lens-caption text-tv-muted">
                               {item.name}
                             </span>
                           </div>
-                          <span className="text-[10px] text-tv-muted uppercase font-mono">Pilih</span>
+                          <span className="lens-number text-tv-muted uppercase font-mono">Pilih</span>
                         </Button>
                       ))}
                     </div>
@@ -309,14 +309,14 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                         <Card as="div" key={row.brokerCode} className='flex items-center justify-between rounded-lg border border-tv-border/50 bg-tv-card/60 p-3 text-xs' padding="none" radius="lg" surface="60" elevation="none" overflow="visible" highlight={false}>
                           <div>
                             <span className='font-mono font-bold text-white'>{row.brokerCode}</span>
-                            <p className='mt-0.5 text-[11px] text-tv-muted'>
+                            <p className='mt-0.5 lens-caption text-tv-muted'>
                               Beli {compactIdr(row.buyValue)} · {integer(row.buyFrequency)}x
                             </p>
                           </div>
                           <div className='text-right'>
                             <span className='font-number font-bold text-tv-green'>+{compactIdr(row.netValue)}</span>
                             {row.avgBuyValuePerTrade ? (
-                              <p className='mt-0.5 text-[11px] text-tv-muted'>~{compactIdr(row.avgBuyValuePerTrade)}/trade</p>
+                              <p className='mt-0.5 lens-caption text-tv-muted'>~{compactIdr(row.avgBuyValuePerTrade)}/trade</p>
                             ) : null}
                           </div>
                         </Card>
@@ -340,14 +340,14 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
                         <Card as="div" key={row.brokerCode} className='flex items-center justify-between rounded-lg border border-tv-border/50 bg-tv-card/60 p-3 text-xs' padding="none" radius="lg" surface="60" elevation="none" overflow="visible" highlight={false}>
                           <div>
                             <span className='font-mono font-bold text-white'>{row.brokerCode}</span>
-                            <p className='mt-0.5 text-[11px] text-tv-muted'>
+                            <p className='mt-0.5 lens-caption text-tv-muted'>
                               Jual {compactIdr(row.sellValue)} · {integer(row.sellFrequency)}x
                             </p>
                           </div>
                           <div className='text-right'>
                             <span className='font-number font-bold text-tv-red'>{compactIdr(row.netValue)}</span>
                             {row.avgSellValuePerTrade ? (
-                              <p className='mt-0.5 text-[11px] text-tv-muted'>~{compactIdr(row.avgSellValuePerTrade)}/trade</p>
+                              <p className='mt-0.5 lens-caption text-tv-muted'>~{compactIdr(row.avgSellValuePerTrade)}/trade</p>
                             ) : null}
                           </div>
                         </Card>
@@ -360,7 +360,7 @@ export default function BrokerSummaryMonitorPanel({ monitor, error, invalidTicke
               <div className='mt-5 overflow-x-auto rounded-lg border border-tv-border'>
                 <table className='w-full min-w-[560px] text-sm'>
                   <caption className='border-b border-tv-border bg-tv-bg px-4 py-3 text-left text-sm font-bold text-white'>Riwayat sinkronisasi data</caption>
-                  <thead className='bg-tv-bg text-left text-[10px] uppercase tracking-wider text-tv-muted'>
+                  <thead className='bg-tv-bg text-left lens-meta uppercase tracking-wider text-tv-muted'>
                     <tr>
                       <th className='px-4 py-2'>Tanggal</th>
                       <th className='px-4 py-2 text-right'>Emiten</th>

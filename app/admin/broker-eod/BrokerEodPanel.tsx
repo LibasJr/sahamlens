@@ -94,7 +94,7 @@ node --env-file=.env.production scripts/import-broker-market-daily.mjs --confirm
               }`}
             >
               {item.tradeDate}
-              <span className="ml-1.5 text-[10px] opacity-70">{item.brokerCount}</span>
+              <span className="ml-1.5 lens-meta opacity-70">{item.brokerCount}</span>
             </Link>
           );
         })}
@@ -103,21 +103,21 @@ node --env-file=.env.production scripts/import-broker-market-daily.mjs --confirm
       {/* Cakupan hari terpilih */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-tv-muted">
+          <div className="flex items-center gap-1.5 lens-meta font-bold uppercase tracking-wide text-tv-muted">
             <Layers className="h-3.5 w-3.5" /> Broker tercatat
           </div>
           <div className="mt-1 font-mono text-2xl font-bold text-tv-text">{data.coverage.brokerCount}</div>
         </Card>
         <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
-          <div className="text-[10px] font-bold uppercase tracking-wide text-tv-muted">Total nilai transaksi</div>
+          <div className="lens-meta font-bold uppercase tracking-wide text-tv-muted">Total nilai transaksi</div>
           <div className="mt-1 font-mono text-2xl font-bold text-tv-text">{compactIdr(data.coverage.totalValue)}</div>
         </Card>
         <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
-          <div className="text-[10px] font-bold uppercase tracking-wide text-tv-muted">Total volume (lembar)</div>
+          <div className="lens-meta font-bold uppercase tracking-wide text-tv-muted">Total volume (lembar)</div>
           <div className="mt-1 font-mono text-2xl font-bold text-tv-text">{compactNumber(data.coverage.totalVolume)}</div>
         </Card>
         <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
-          <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-tv-muted">
+          <div className="flex items-center gap-1.5 lens-meta font-bold uppercase tracking-wide text-tv-muted">
             <Receipt className="h-3.5 w-3.5" /> Total frekuensi
           </div>
           <div className="mt-1 font-mono text-2xl font-bold text-tv-text">{compactNumber(data.coverage.totalFrequency)}</div>
@@ -128,7 +128,7 @@ node --env-file=.env.production scripts/import-broker-market-daily.mjs --confirm
       <Card as="div" className="overflow-x-auto border-tv-border" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <table className="w-full min-w-[720px] text-sm">
           <thead>
-            <tr className="border-b border-tv-border text-left text-[11px] uppercase tracking-wide text-tv-muted">
+            <tr className="border-b border-tv-border text-left lens-caption uppercase tracking-wide text-tv-muted">
               <th className="px-4 py-3 font-bold">#</th>
               <th className="px-4 py-3 font-bold">Kode</th>
               <th className="px-4 py-3 font-bold">Nama Anggota Bursa</th>

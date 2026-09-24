@@ -42,7 +42,7 @@ export default function CreateTestUserForm() {
   return (
     <Card as="div" className="border-tv-border p-6 mb-8" padding="none" radius="lg" surface="solid" elevation="none" overflow="visible" highlight={false}>
       <h2 className="font-heading text-lg font-bold text-tv-text mb-1">Buat Akun Tes</h2>
-      <p className="text-[11px] text-tv-muted mb-4">
+      <p className="lens-caption text-tv-muted mb-4">
         Akun langsung terverifikasi (tanpa kode OTP email) - role selalu user biasa, BUKAN admin.
       </p>
 

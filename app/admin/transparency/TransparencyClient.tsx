@@ -135,7 +135,7 @@ function CollectingPanel({ data }: { data: TransparencyData }) {
       />
       <div className="px-6 pb-6 -mt-2">
         <div className="mx-auto max-w-xs">
-          <div className="flex items-baseline justify-between text-[11px] mb-1.5">
+          <div className="flex items-baseline justify-between lens-caption mb-1.5">
             <span className="text-tv-muted">Syarat 2 - sampel efektif per bucket edge</span>
             <span className="font-number font-semibold text-tv-text tabular-nums">
               80-100: {effectiveHigh}/{MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION} · &lt;60: {effectiveLow}/{MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION}
@@ -152,7 +152,7 @@ function CollectingPanel({ data }: { data: TransparencyData }) {
               className={`h-full rounded-full bg-gradient-accent transition-[width] duration-700 ease-settle ${percentageWidthClass((Math.min(effectiveHigh, effectiveLow) / MIN_EFFECTIVE_SAMPLES_FOR_VALIDATION) * 100)}`}
             />
           </div>
-          <p className="mt-2 text-center text-[10px] leading-relaxed text-tv-muted">
+          <p className="mt-2 text-center lens-meta leading-relaxed text-tv-muted">
             Sampel efektif dihitung per emiten dengan jendela tidak tumpang tindih, jadi ia
             bertambah jauh lebih lambat daripada jumlah baris mentah dan kedua sisi pembanding harus cukup.
           </p>
@@ -176,7 +176,7 @@ function EquityCurveTooltip({ active, payload, label }: any) {
 
   return (
     <Card as="div" padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-card/95 px-3 py-2.5 shadow-2 backdrop-blur-sm">
-      <div className="text-[10px] uppercase tracking-wide text-tv-muted">Tanggal sinyal {label}</div>
+      <div className="lens-meta uppercase tracking-wide text-tv-muted">Tanggal sinyal {label}</div>
       <div className="mt-1.5 space-y-1">
         <div className="flex items-center justify-between gap-4 text-xs">
           <span className="flex items-center gap-1.5 text-tv-text">
@@ -191,7 +191,7 @@ function EquityCurveTooltip({ active, payload, label }: any) {
           <span className="font-number text-tv-muted">{typeof ihsg === 'number' ? ihsg.toFixed(2) : 'belum ada'}</span>
         </div>
       </div>
-      <div className="mt-2 border-t border-tv-border pt-1.5 text-[11px] space-y-0.5">
+      <div className="mt-2 border-t border-tv-border pt-1.5 lens-caption space-y-0.5">
         {gap != null && (
           <div>
             <span className="text-tv-muted">Selisih: </span>
@@ -312,7 +312,7 @@ export default function TransparencyClient() {
         <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4">
           <div className="text-xs text-tv-muted uppercase">Sampel T+20 Mentah</div>
           <div className="font-number text-xl font-bold mt-1">{data.totalSamples.toLocaleString('id-ID')}</div>
-          <div className="text-[10px] text-tv-muted mt-0.5">
+          <div className="lens-meta text-tv-muted mt-0.5">
             bukan penyebut uji signifikansi
           </div>
         </Card>
@@ -323,7 +323,7 @@ export default function TransparencyClient() {
         <p className="mt-1 text-xs text-tv-muted">Versi dan baris yang dikeluarkan ditampilkan agar hasil tidak dibaca sebagai campuran model lama.</p>
         <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-4">
           <div><dt className="text-tv-muted">Versi skor</dt><dd className="mt-1 font-number text-tv-text">{data.scoreVersion || data.requestedScoreVersion}</dd></div>
-          <div><dt className="text-tv-muted">Hash konfigurasi</dt><dd className="mt-1 break-all font-mono text-[11px] text-tv-text">{data.scoreConfigHash}</dd></div>
+          <div><dt className="text-tv-muted">Hash konfigurasi</dt><dd className="mt-1 break-all font-mono lens-number text-tv-text">{data.scoreConfigHash}</dd></div>
           <div><dt className="text-tv-muted">Ditolak karena konfigurasi</dt><dd className="mt-1 font-number text-tv-text">{data.configRejectedRows.toLocaleString('id-ID')} baris</dd></div>
           <div><dt className="text-tv-muted">Basis harga</dt><dd className="mt-1 font-number text-tv-text">{data.priceBasis}</dd></div>
           <div><dt className="text-tv-muted">Versi data harga</dt><dd className="mt-1 font-number text-tv-text">{data.priceDataVersion}</dd></div>
@@ -405,23 +405,23 @@ export default function TransparencyClient() {
                 <div key={row.bucket} className={`rounded-lg border border-tv-border bg-tv-bg/40 p-3 ${row.totalSamples === 0 ? 'opacity-55' : ''}`}>
                   <div className="flex items-center justify-between">
                     <span className="font-number font-bold text-tv-text">Bucket {row.bucket}</span>
-                    <span className="text-[11px] text-tv-muted font-number">{num(row.totalSamples)} sampel</span>
+                    <span className="lens-caption text-tv-muted font-number">{num(row.totalSamples)} sampel</span>
                   </div>
                   <div className="mt-2 grid grid-cols-3 gap-2">
                     {([['T+1', row.avgT1], ['T+5', row.avgT5], ['T+20', row.avgT20]] as const).map(([label, v]) => (
                       <div key={label}>
-                        <div className="text-[10px] uppercase tracking-wide text-tv-muted">Avg {label}</div>
+                        <div className="lens-meta uppercase tracking-wide text-tv-muted">Avg {label}</div>
                         <Cell value={v} tone="up" className="text-sm font-bold" />
                       </div>
                     ))}
                   </div>
                   <div className="mt-2 grid grid-cols-2 gap-2 border-t border-tv-border pt-2">
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-tv-muted">Win Rate</div>
+                      <div className="lens-meta uppercase tracking-wide text-tv-muted">Win Rate</div>
                       <Cell value={row.winRateT20} className="text-sm" />
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase tracking-wide text-tv-muted">Max DD (P95)</div>
+                      <div className="lens-meta uppercase tracking-wide text-tv-muted">Max DD (P95)</div>
                       <Cell value={row.maxDdP95T20} tone="fixed-red" className="text-sm" />
                     </div>
                   </div>
@@ -440,7 +440,7 @@ export default function TransparencyClient() {
               const gap = high.winRateT20 - low.winRateT20;
               return (
                 <div className="mt-4 rounded-lg border border-tv-border bg-tv-bg/40 px-4 py-3">
-                  <p className="text-[11px] leading-relaxed text-tv-text">
+                  <p className="lens-caption leading-relaxed text-tv-text">
                     Bucket <span className="font-number font-semibold">80-100</span> punya win rate T+20{' '}
                     <span className={`font-number font-semibold ${gap >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                       {gap >= 0 ? '+' : ''}{gap.toFixed(0)} poin persen

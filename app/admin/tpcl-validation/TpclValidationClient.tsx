@@ -123,9 +123,9 @@ function oosBadgeClass(status: string) {
 function MetricCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <div className="rounded-xl border border-tv-border bg-tv-bg/60 p-4">
-      <div className="text-[11px] uppercase tracking-wide text-tv-muted">{label}</div>
+      <div className="lens-caption uppercase tracking-wide text-tv-muted">{label}</div>
       <div className="mt-1 font-number text-xl font-bold text-tv-text">{value}</div>
-      {sub && <div className="mt-1 text-[10px] text-tv-muted">{sub}</div>}
+      {sub && <div className="mt-1 lens-meta text-tv-muted">{sub}</div>}
     </div>
   );
 }
@@ -334,12 +334,12 @@ export default function TpclValidationClient() {
               Tekan “Jalankan validasi ulang” untuk menghitung range baru.
             </p>
           ) : (
-            <p className="mt-3 text-[11px] text-tv-muted">Hasil aktif: {historyRangeLabel(data.historyRange)}.</p>
+            <p className="mt-3 lens-caption text-tv-muted">Hasil aktif: {historyRangeLabel(data.historyRange)}.</p>
           )}
           {actionMessage ? (
             <p className="mt-3 rounded-md border border-tv-border bg-tv-bg p-2.5 text-xs text-tv-text">{actionMessage}</p>
           ) : null}
-          <p className="mt-3 text-[11px] text-tv-muted">
+          <p className="mt-3 lens-caption text-tv-muted">
             TP/CL berbeda dari Uji Intraday: candle riset tidak disimpan sebagai dataset terpisah. Range 1/3/5/10 tahun menentukan
             jendela observasi sinyal dan cache hasil. Backend boleh mengambil OHLC warm-up tambahan untuk ATR/structure; default tetap 5 tahun. Freeze OOS tidak dapat diubah dari browser.
           </p>
@@ -398,7 +398,7 @@ export default function TpclValidationClient() {
               yang boleh masuk. Histori lama tidak pernah di-backfill sebagai OOS.
             </p>
           </div>
-          <div className={`rounded-full border px-3 py-1 text-[10px] font-semibold ${oosBadgeClass(data.forwardOos.allBaseline.status)}`}>
+          <div className={`rounded-full border px-3 py-1 lens-label font-semibold ${oosBadgeClass(data.forwardOos.allBaseline.status)}`}>
             {data.forwardOos.allBaseline.status}
           </div>
         </div>
@@ -419,7 +419,7 @@ export default function TpclValidationClient() {
             <div key={protocol.protocolId} className="rounded-xl border border-tv-border bg-tv-bg/50 p-4">
               <div className="flex items-center justify-between gap-2">
                 <div className="font-bold">{protocol.label}</div>
-                <span className={`rounded-full border px-2 py-1 text-[10px] font-semibold ${oosBadgeClass(protocol.status)}`}>
+                <span className={`rounded-full border px-2 py-1 lens-label font-semibold ${oosBadgeClass(protocol.status)}`}>
                   {protocol.status}
                 </span>
               </div>
@@ -434,12 +434,12 @@ export default function TpclValidationClient() {
                 <div><span className="text-tv-muted">Median</span><div className="font-number">{pct(protocol.metrics.medianReturnPct)}</div></div>
                 <div><span className="text-tv-muted">MAE P95</span><div className="font-number">{pct(protocol.metrics.p95MaePct)}</div></div>
               </div>
-              <div className="mt-3 text-[10px] text-tv-muted">{protocol.note}</div>
+              <div className="mt-3 lens-meta text-tv-muted">{protocol.note}</div>
             </div>
           ))}
         </div>
 
-        <div className="mt-4 rounded-lg border border-tv-border p-3 text-[10px] text-tv-muted">
+        <div className="mt-4 rounded-lg border border-tv-border p-3 lens-meta text-tv-muted">
           Minimum executable sample per protocol: {data.forwardOos.minimumExecutableSamples}. Status POSITIVE/NEGATIVE
           tetap hanya diagnostic; tidak ada auto-apply ke production.
         </div>
@@ -457,7 +457,7 @@ export default function TpclValidationClient() {
               TP1 {b.parameters.tp1R}R · TP2 {b.parameters.tp2R}R
             </p>
           </div>
-          <span className="rounded-full border border-tv-green/30 bg-tv-green/10 px-3 py-1 text-[10px] font-semibold text-tv-green">
+          <span className="rounded-full border border-tv-green/30 bg-tv-green/10 px-3 py-1 lens-meta font-semibold text-tv-green">
             SINGLE SOURCE OF TRUTH
           </span>
         </div>
@@ -485,7 +485,7 @@ export default function TpclValidationClient() {
                   <div><span className="text-tv-muted">SL hit</span><div className="font-number">{pct(mm.slHitRatePct)}</div></div>
                   <div><span className="text-tv-muted">MAE P95 worst</span><div className="font-number">{pct(mm.p95MaePct)}</div></div>
                 </div>
-                {!mm.sufficient && <div className="mt-3 text-[10px] text-tv-yellow">Sampel belum cukup untuk kesimpulan kuat.</div>}
+                {!mm.sufficient && <div className="mt-3 lens-meta text-tv-yellow">Sampel belum cukup untuk kesimpulan kuat.</div>}
               </div>
             );
           })}
@@ -512,7 +512,7 @@ export default function TpclValidationClient() {
               <tr key={row.parameters.id} className="border-b border-tv-border/70">
                 <td className="py-3">
                   <div className="font-semibold text-tv-text">{row.parameters.label}</div>
-                  <div className="text-[10px] text-tv-muted">
+                  <div className="lens-meta text-tv-muted">
                     {row.parameters.supportBufferAtr}/{row.parameters.minStopDistanceAtr}/{row.parameters.fallbackStopAtr} ATR ·
                     RR {row.parameters.minLongRr} · {row.parameters.tp1R}R/{row.parameters.tp2R}R
                   </div>
@@ -578,7 +578,7 @@ export default function TpclValidationClient() {
             );
           })}
         </div>
-        <div className="mt-3 text-[10px] text-tv-muted">{data.bearFilterDiagnostic.note}</div>
+        <div className="mt-3 lens-meta text-tv-muted">{data.bearFilterDiagnostic.note}</div>
       </Card>
 
       <Card as="section" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-5">

@@ -241,7 +241,7 @@ export default function JobsMonitorClient() {
         <Card as="div" className="border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
           <div className="text-xs text-tv-muted">Deploy production</div>
           <div className="mt-1 text-sm font-bold text-tv-muted">Verifikasi di GitHub Actions</div>
-          <div className="mt-1 text-[11px] leading-relaxed text-tv-muted">Riwayat deploy tidak direka dari data aplikasi.</div>
+          <div className="mt-1 lens-caption leading-relaxed text-tv-muted">Riwayat deploy tidak direka dari data aplikasi.</div>
         </Card>
       </div>
 
@@ -286,12 +286,12 @@ export default function JobsMonitorClient() {
               <div className="rounded-lg border border-tv-border p-3">
                 <div className="text-tv-muted">Laporan terakhir</div>
                 <div className="mt-1 font-bold text-tv-text">{dateTime(report?.finishedAt ?? null)}</div>
-                <div className="mt-1 text-[11px] text-tv-muted">Durasi {report ? duration(report.durationMs / 1_000) : 'belum tersedia'}</div>
+                <div className="mt-1 lens-caption text-tv-muted">Durasi {report ? duration(report.durationMs / 1_000) : 'belum tersedia'}</div>
               </div>
               <div className="rounded-lg border border-tv-border p-3">
                 <div className="text-tv-muted">Versi yang diaudit</div>
                 <div className="mt-1 font-mono font-bold text-tv-text">{report?.commit ?? 'belum tersedia'}</div>
-                <div className="mt-1 text-[11px] text-tv-muted">systemd: {weeklyMaintenance.serviceResult ?? 'belum tersedia'}</div>
+                <div className="mt-1 lens-caption text-tv-muted">systemd: {weeklyMaintenance.serviceResult ?? 'belum tersedia'}</div>
               </div>
             </div>
 
@@ -301,7 +301,7 @@ export default function JobsMonitorClient() {
                   {(['PASS', 'WARN', 'FAIL', 'SKIP'] as const).map((status) => (
                     <div key={status} className="rounded-lg border border-tv-border p-3 text-center">
                       <div className="font-number text-lg font-bold text-tv-text">{report.counts[status]}</div>
-                      <div className="text-[10px] font-bold text-tv-muted">{status}</div>
+                      <div className="lens-meta font-bold text-tv-muted">{status}</div>
                     </div>
                   ))}
                 </div>
@@ -335,9 +335,9 @@ export default function JobsMonitorClient() {
             {sourceHealth.map((source) => (
               <div key={source.sourceId} className="rounded-lg border border-tv-border p-3">
                 <div className="flex items-center justify-between gap-2"><span className="text-sm font-bold text-tv-text">{source.sourceId}</span><span className={`text-xs font-bold ${source.status === 'HEALTHY' ? 'text-tv-green' : 'text-tv-red'}`}>{source.status}</span></div>
-                <div className="mt-2 text-[11px] text-tv-muted">Sukses: {timeAgo(source.lastSuccessAt)} · gagal: {timeAgo(source.lastFailureAt)}</div>
-                <div className="mt-1 text-[11px] text-tv-muted">Latency terakhir: {source.lastLatencyMs == null ? '—' : `${source.lastLatencyMs} ms`} · kegagalan beruntun: {source.consecutiveFailures}</div>
-                {source.dataObservedAt && <div className="mt-1 text-[11px] text-tv-muted">Data observed: {timeAgo(source.dataObservedAt)}</div>}
+                <div className="mt-2 lens-caption text-tv-muted">Sukses: {timeAgo(source.lastSuccessAt)} · gagal: {timeAgo(source.lastFailureAt)}</div>
+                <div className="mt-1 lens-caption text-tv-muted">Latency terakhir: {source.lastLatencyMs == null ? '—' : `${source.lastLatencyMs} ms`} · kegagalan beruntun: {source.consecutiveFailures}</div>
+                {source.dataObservedAt && <div className="mt-1 lens-caption text-tv-muted">Data observed: {timeAgo(source.dataObservedAt)}</div>}
               </div>
             ))}
           </div>
@@ -352,7 +352,7 @@ export default function JobsMonitorClient() {
               Cache Redis untuk sumber data besar. Umur dihitung dari TTL penulis cache; waktu cron menunjukkan worker terakhir yang berhasil.
             </p>
           </div>
-          <span className="text-[11px] text-tv-muted">Cache akun pribadi tidak ditampilkan atau dibagikan.</span>
+          <span className="lens-caption text-tv-muted">Cache akun pribadi tidak ditampilkan atau dibagikan.</span>
         </div>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -362,7 +362,7 @@ export default function JobsMonitorClient() {
               <div key={cache.id} className={`rounded-lg border p-3 ${style.card}`}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="text-sm font-bold text-tv-text">{cache.label}</div>
-                  <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${style.badge}`}>
+                  <span className={`rounded-full border px-2 py-0.5 lens-label ${style.badge}`}>
                     {cache.state}
                   </span>
                 </div>
@@ -370,14 +370,14 @@ export default function JobsMonitorClient() {
                   <>
                     <div className="mt-3 text-xs text-tv-muted">{cache.state === 'SNAPSHOT' ? 'Umur snapshot' : 'Umur cache'}</div>
                     <div className="font-number text-sm font-bold text-tv-text">{duration(cache.cacheAgeSec)}</div>
-                    {cache.ttlRemainingSec != null && <div className="mt-2 text-[11px] text-tv-muted">TTL tersisa {duration(cache.ttlRemainingSec)}</div>}
-                    {cache.universeVersion && <div className="mt-1 text-[11px] text-tv-muted">Universe {cache.universeVersion}</div>}
+                    {cache.ttlRemainingSec != null && <div className="mt-2 lens-caption text-tv-muted">TTL tersisa {duration(cache.ttlRemainingSec)}</div>}
+                    {cache.universeVersion && <div className="mt-1 lens-caption text-tv-muted">Universe {cache.universeVersion}</div>}
                   </>
                 ) : (
                   <p className={`mt-3 text-xs leading-relaxed ${cache.state === 'WAITING' ? 'text-tv-blue' : 'text-tv-red'}`}>{cache.detail}</p>
                 )}
-                {cache.state === 'SNAPSHOT' && cache.detail && <p className="mt-2 text-[11px] leading-relaxed text-tv-yellow">{cache.detail}</p>}
-                <div className="mt-3 border-t border-tv-border pt-2 text-[11px] text-tv-muted">
+                {cache.state === 'SNAPSHOT' && cache.detail && <p className="mt-2 lens-caption leading-relaxed text-tv-yellow">{cache.detail}</p>}
+                <div className="mt-3 border-t border-tv-border pt-2 lens-caption text-tv-muted">
                   Cron terakhir: <span className="font-semibold text-tv-text">{timeAgo(cache.lastCronSuccessAt)}</span>
                   {cache.lastCronStatus && <span> · {cache.lastCronStatus}</span>}
                 </div>
@@ -395,7 +395,7 @@ export default function JobsMonitorClient() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="font-heading font-bold text-tv-text">{job.name}</div>
-                  <div className="mt-0.5 font-mono text-[11px] text-tv-muted">{job.path}</div>
+                  <div className="mt-0.5 font-mono lens-number text-tv-muted">{job.path}</div>
                 </div>
                 <span className={`shrink-0 rounded-full border px-3 py-1 text-xs font-bold ${BADGE_CLASS[d.tone]}`}>
                   {isDisabledByPolicy(job) ? 'DINONAKTIFKAN' : (job.lastStatus ?? 'BELUM ADA CATATAN')}
@@ -434,13 +434,13 @@ export default function JobsMonitorClient() {
               </div>
 
               {job.lastErrorMessage && (
-                <p className="mt-2 rounded-lg bg-tv-bg p-2 font-mono text-[11px] leading-relaxed text-tv-red">
+                <p className="mt-2 rounded-lg bg-tv-bg p-2 font-mono lens-number leading-relaxed text-tv-red">
                   {job.lastErrorMessage}
                 </p>
               )}
 
               {job.lastMeta && Object.keys(job.lastMeta).length > 0 && (
-                <p className="mt-2 font-mono text-[11px] text-tv-muted">
+                <p className="mt-2 font-mono lens-number text-tv-muted">
                   Hasil terakhir: {JSON.stringify(job.lastMeta)}
                 </p>
               )}

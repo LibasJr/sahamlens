@@ -130,7 +130,7 @@ export default function SetProForm() {
             className="w-full bg-tv-bg border border-tv-border rounded-md px-3 py-2 text-sm text-tv-text placeholder:text-tv-muted focus:outline-none focus:border-tv-blue"
           />
         </div>
-        <p className="md:col-span-2 text-[11px] leading-relaxed text-tv-muted">
+        <p className="md:col-span-2 lens-caption leading-relaxed text-tv-muted">
           Jika referensi diisi, aktivasi Pro juga menandai Payment Order sebagai PAID. Email dan referensi harus cocok; satu referensi tidak dapat dipakai dua kali.
         </p>
       </div>
@@ -189,7 +189,7 @@ export default function SetProForm() {
         </Button>
       </div>
 
-      <p className="text-[11px] text-tv-muted mt-3">
+      <p className="lens-caption text-tv-muted mt-3">
         {paymentReference.trim()
           ? 'Jika Payment Order dipakai, durasi Pro selalu diambil dari paket yang tercatat pada order; admin tidak dapat mengganti durasinya manual.'
           : 'Tombol durasi menumpuk dari tanggal berakhir kalau masa berlakunya belum habis, jadi sisa hari yang sudah dibayar tidak hangus.'}

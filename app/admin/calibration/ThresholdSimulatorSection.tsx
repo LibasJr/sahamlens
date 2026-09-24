@@ -59,7 +59,7 @@ export function ThresholdSimulatorSection({
               onChange={(e) => setThreshold(Number(e.target.value))}
               className="w-full accent-tv-accent"
             />
-            <div className="flex justify-between text-[11px] text-tv-muted mt-1">
+            <div className="flex justify-between lens-caption text-tv-muted mt-1">
               <span>60</span>
               <span>75</span>
               <span>80</span>
@@ -75,14 +75,14 @@ export function ThresholdSimulatorSection({
             <div className={`font-number text-2xl font-bold mt-1 ${thinSample ? 'text-tv-yellow' : ''}`}>
               {pct(selectedSimulation?.winRateT20)}
             </div>
-            <div className="text-[11px] text-tv-muted mt-1">
+            <div className="lens-caption text-tv-muted mt-1">
               Δ vs 80: {pct(selectedSimulation?.winRateDeltaPctVs80)}
             </div>
             {/* Peringatan dipasang PADA angkanya, bukan hanya di panel bawah: mata membaca
                 win rate lebih dulu, dan kartu jumlah sinyal di sebelahnya tidak menyatakan
                 bahwa angkanya terlalu kecil untuk dipercaya. */}
             {thinSample && (
-              <div className="text-[11px] text-tv-yellow mt-0.5">
+              <div className="lens-caption text-tv-yellow mt-0.5">
                 n={num(selectedSimulation?.totalSignals)} - belum layak dibaca
               </div>
             )}
@@ -90,29 +90,29 @@ export function ThresholdSimulatorSection({
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
             <div className="text-xs text-tv-muted uppercase">Jumlah Sinyal</div>
             <div className="font-number text-2xl font-bold mt-1">{num(selectedSimulation?.totalSignals)}</div>
-            <div className="text-[11px] text-tv-muted mt-1">
+            <div className="lens-caption text-tv-muted mt-1">
               Δ vs 80: {pct(selectedSimulation?.signalDeltaPctVs80, 0)}
             </div>
           </div>
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
             <div className="text-xs text-tv-muted uppercase">Avg T+20</div>
             <div className="font-number text-2xl font-bold mt-1">{pct(selectedSimulation?.avgReturnT20)}</div>
-            <div className="text-[11px] text-tv-muted mt-1">Net of cost</div>
+            <div className="lens-caption text-tv-muted mt-1">Net of cost</div>
           </div>
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
             <div className="text-xs text-tv-muted uppercase">Median T+20</div>
             <div className="font-number text-2xl font-bold mt-1">{pct(selectedSimulation?.medianReturnT20)}</div>
-            <div className="text-[11px] text-tv-muted mt-1">lebih tahan outlier</div>
+            <div className="lens-caption text-tv-muted mt-1">lebih tahan outlier</div>
           </div>
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
             <div className="text-xs text-tv-muted uppercase">Profit Factor</div>
             <div className="font-number text-2xl font-bold mt-1">{selectedSimulation?.profitFactorT20?.toFixed(2) ?? '—'}</div>
-            <div className="text-[11px] text-tv-muted mt-1">gross win / gross loss</div>
+            <div className="lens-caption text-tv-muted mt-1">gross win / gross loss</div>
           </div>
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
             <div className="text-xs text-tv-muted uppercase">Baseline 80</div>
             <div className="font-number text-2xl font-bold mt-1">{pct(baseline80?.winRateT20)}</div>
-            <div className="text-[11px] text-tv-muted mt-1">{num(baseline80?.totalSignals)} sinyal</div>
+            <div className="lens-caption text-tv-muted mt-1">{num(baseline80?.totalSignals)} sinyal</div>
           </div>
         </div>
       </div>

@@ -84,9 +84,9 @@ export function ValidationCard({ title, subtitle, children, action }: { title: s
 export function Metric({ label, value, hint }: { label: string; value: React.ReactNode; hint?: string }) {
   return (
     <div className="rounded-lg border border-tv-border bg-tv-bg p-3">
-      <div className="text-[11px] uppercase tracking-wide text-tv-muted">{label}</div>
+      <div className="lens-caption uppercase tracking-wide text-tv-muted">{label}</div>
       <div className="mt-1 font-number text-sm font-semibold text-tv-text break-words">{value}</div>
-      {hint ? <div className="mt-1 text-[11px] text-tv-muted">{hint}</div> : null}
+      {hint ? <div className="mt-1 lens-caption text-tv-muted">{hint}</div> : null}
     </div>
   );
 }
@@ -97,7 +97,7 @@ export function ProgressMetric({ label, current, required }: { label: string; cu
   const done = current >= required;
   return (
     <div className="rounded-lg border border-tv-border bg-tv-bg p-3">
-      <div className="text-[11px] uppercase tracking-wide text-tv-muted">{label}</div>
+      <div className="lens-caption uppercase tracking-wide text-tv-muted">{label}</div>
       <div className="mt-1 font-number text-sm font-semibold text-tv-text">
         {int(current)} / {int(required)}
       </div>
@@ -138,7 +138,7 @@ export function Td({ children }: { children: React.ReactNode }) {
 
 export function SampleTag({ status }: { status: string }) {
   if (status !== 'INSUFFICIENT_SAMPLE') return null;
-  return <span className="ml-2 rounded bg-tv-yellow/15 px-1.5 py-0.5 text-[10px] font-bold text-tv-yellow">INSUFFICIENT_SAMPLE</span>;
+  return <span className="ml-2 rounded bg-tv-yellow/15 px-1.5 py-0.5 lens-meta font-bold text-tv-yellow">INSUFFICIENT_SAMPLE</span>;
 }
 
 export function SortableSampleTh({

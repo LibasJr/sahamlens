@@ -18,7 +18,7 @@ export function RobustValidationSection({ data }: { data: CalibrationDashboardDa
         </div>
       )}
 
-      <div className="rounded-lg border border-tv-border bg-tv-bg/60 p-3 mb-4 text-[11px] text-tv-muted">
+      <div className="rounded-lg border border-tv-border bg-tv-bg/60 p-3 mb-4 lens-caption text-tv-muted">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
           <div>
             <span className="font-semibold text-tv-text">Audit reproducible · {data.robustValidation.audit.version}</span>
@@ -37,24 +37,24 @@ export function RobustValidationSection({ data }: { data: CalibrationDashboardDa
         <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
           <div className="text-xs text-tv-muted uppercase">Bootstrap 95% CI</div>
           <div className="font-number font-bold mt-1">{pct(data.robustValidation.bootstrap.ci95Low)} – {pct(data.robustValidation.bootstrap.ci95High)}</div>
-          <div className={`text-[11px] mt-1 font-semibold ${data.robustValidation.bootstrap.status === 'SUPPORTIVE' ? 'text-tv-green' : data.robustValidation.bootstrap.status === 'NEGATIVE' ? 'text-tv-red' : 'text-tv-yellow'}`}>
+          <div className={`lens-caption mt-1 font-semibold ${data.robustValidation.bootstrap.status === 'SUPPORTIVE' ? 'text-tv-green' : data.robustValidation.bootstrap.status === 'NEGATIVE' ? 'text-tv-red' : 'text-tv-yellow'}`}>
             {data.robustValidation.bootstrap.status === 'SUPPORTIVE' ? 'Supportive: seluruh CI di atas 0' : data.robustValidation.bootstrap.status === 'NEGATIVE' ? 'Negative: seluruh CI di bawah 0' : data.robustValidation.bootstrap.status === 'INCONCLUSIVE' ? 'Inconclusive: CI melewati 0' : 'Data belum cukup'}
           </div>
         </div>
         <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
           <div className="text-xs text-tv-muted uppercase">Permutation p</div>
           <div className="font-number text-2xl font-bold mt-1">{pValue(data.robustValidation.permutation.pValueOneTailed)}</div>
-          <div className="text-[11px] text-tv-muted mt-1">within-week labels, one-tailed</div>
+          <div className="lens-caption text-tv-muted mt-1">within-week labels, one-tailed</div>
         </div>
         <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
           <div className="text-xs text-tv-muted uppercase">Spearman IC</div>
           <div className="font-number text-2xl font-bold mt-1">{data.robustValidation.informationCoefficient.ic ?? '—'}</div>
-          <div className="text-[11px] text-tv-muted mt-1">pooled score vs forward T+20</div>
+          <div className="lens-caption text-tv-muted mt-1">pooled score vs forward T+20</div>
         </div>
         <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
           <div className="text-xs text-tv-muted uppercase">Monthly ICIR</div>
           <div className="font-number text-2xl font-bold mt-1">{data.robustValidation.monthlyInformationCoefficient.icir ?? '—'}</div>
-          <div className="text-[11px] text-tv-muted mt-1">mean IC {data.robustValidation.monthlyInformationCoefficient.meanIc ?? '—'} · {data.robustValidation.monthlyInformationCoefficient.positiveMonths}/{data.robustValidation.monthlyInformationCoefficient.months} bulan positif</div>
+          <div className="lens-caption text-tv-muted mt-1">mean IC {data.robustValidation.monthlyInformationCoefficient.meanIc ?? '—'} · {data.robustValidation.monthlyInformationCoefficient.positiveMonths}/{data.robustValidation.monthlyInformationCoefficient.months} bulan positif</div>
         </div>
         <div className="bg-tv-bg border border-tv-border rounded-lg p-4 col-span-2 lg:col-span-4">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2">
@@ -62,7 +62,7 @@ export function RobustValidationSection({ data }: { data: CalibrationDashboardDa
               <div className="text-xs text-tv-muted uppercase">Monotonicity bucket</div>
               <div className="font-number text-xl font-bold mt-1">{data.robustValidation.monotonicity.positiveSteps}/{data.robustValidation.monotonicity.totalSteps} step naik</div>
             </div>
-            <div className="text-[11px] text-tv-muted">Urutan diuji: &lt;60 → 60-69 → 70-79 → 80-100.</div>
+            <div className="lens-caption text-tv-muted">Urutan diuji: &lt;60 → 60-69 → 70-79 → 80-100.</div>
           </div>
         </div>
       </div>
@@ -97,7 +97,7 @@ export function OosProtocolSection({ data }: { data: CalibrationDashboardData })
       <div className="mb-2 flex items-center justify-between gap-3">
         <div>
           <div className="text-sm font-semibold">Retrospective temporal stability</div>
-          <div className="text-[11px] text-tv-muted">Bukan genuine OOS; hanya menunjukkan apakah edge stabil pada blok waktu historis yang berurutan.</div>
+          <div className="lens-caption text-tv-muted">Bukan genuine OOS; hanya menunjukkan apakah edge stabil pada blok waktu historis yang berurutan.</div>
         </div>
         <div className="font-number text-sm">{data.retrospectiveWalkForward.positiveSpreadFolds}/{data.retrospectiveWalkForward.foldsCompleted} fold spread positif</div>
       </div>
@@ -107,7 +107,7 @@ export function OosProtocolSection({ data }: { data: CalibrationDashboardData })
           <tbody>{data.retrospectiveWalkForward.rows.map((row) => (<tr key={row.fold} className="border-b border-tv-border/60"><td className="py-2">{row.fold}</td><td className="py-2">{row.startDate} → {row.endDate}</td><td className="py-2 text-right font-number">{num(row.samples)}</td><td className={`py-2 text-right font-number ${row.spreadT20 != null && row.spreadT20 > 0 ? 'text-tv-green' : 'text-tv-red'}`}>{pct(row.spreadT20)}</td><td className="py-2 text-right font-number">{row.ic ?? '—'}</td></tr>))}</tbody>
         </table>
       </div>
-      <div className="text-[11px] text-tv-muted mt-3">{data.retrospectiveWalkForward.conclusion}</div>
+      <div className="lens-caption text-tv-muted mt-3">{data.retrospectiveWalkForward.conclusion}</div>
     </Card>
   );
 }

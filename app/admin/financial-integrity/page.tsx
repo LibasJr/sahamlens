@@ -52,7 +52,7 @@ export default async function FinancialIntegrityAdminPage() {
             <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="border-tv-border p-4"><p className="text-xs text-tv-muted">Perpetual growth cap</p><p className="mt-1 font-number text-xl font-bold">{pct(macro.production.maxPerpetualGrowthPct)} → {pct(macro.candidate.maxPerpetualGrowthPct)}</p></Card>
           </div>
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className={`rounded border px-2 py-1 text-[11px] font-bold ${statusClass(macro.status)}`}>{macro.status}</span>
+            <span className={`rounded border px-2 py-1 lens-label ${statusClass(macro.status)}`}>{macro.status}</span>
             <span className="text-xs text-tv-muted">Largest |Δ cost of equity|: <span className="font-number text-tv-text">{macro.diagnostics.largestAbsoluteCostOfEquityDeltaPp == null ? '—' : `${macro.diagnostics.largestAbsoluteCostOfEquityDeltaPp.toFixed(2)} pp`}</span></span>
           </div>
           <Card as="div" padding="none" radius="xl" elevation="none" overflow="visible" highlight={false} className="overflow-x-auto border-tv-border">

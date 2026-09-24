@@ -90,7 +90,7 @@ export default async function AdminOwnershipFlowPage() {
             <p className="font-semibold text-tv-text">
               Arsip bulanan KSEI: {monitor.historical.ready ? 'SIAP DIPAKAI' : 'BELUM SIAP'}
             </p>
-            <p className="mt-1 text-[13px] leading-relaxed text-tv-muted">
+            <p className="mt-1 lens-body-sm leading-relaxed text-tv-muted">
               {monitor.historical.auditStatus} · {monitor.historical.snapshots} snapshot · {monitor.historical.totalRows} baris histori · snapshot terbaru {tanggalObservasi(monitor.historical.latestObservedDate)} ({monitor.historical.latestTickers} emiten).
             </p>
           </div>
@@ -117,7 +117,7 @@ export default async function AdminOwnershipFlowPage() {
             <p className="font-semibold text-tv-text">
               Snapshot live per-ticker: {monitor.gate.allowed ? 'DIIZINKAN' : `TERTUTUP (${monitor.gate.reason})`}
             </p>
-            <p className="mt-1 text-[13px] leading-relaxed text-tv-muted">{monitor.gate.message}</p>
+            <p className="mt-1 lens-body-sm leading-relaxed text-tv-muted">{monitor.gate.message}</p>
           </div>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default async function AdminOwnershipFlowPage() {
             <Database className="h-4 w-4 text-tv-blue" />
             Histori tersimpan
           </h2>
-          <dl className="mt-3 space-y-2 text-[13px]">
+          <dl className="mt-3 space-y-2 lens-body-sm">
             <Row label="Total baris" value={String(monitor.history.totalRows)} />
             <Row label="Emiten punya data" value={String(monitor.history.distinctTickers)} />
             <Row label="Snapshot historis" value={String(monitor.history.distinctObservedDates)} />
@@ -147,7 +147,7 @@ export default async function AdminOwnershipFlowPage() {
             <Row
               label="Kesegaran"
               value={freshness.label}
-              valueClassName={`rounded border px-1.5 py-0.5 text-[11px] font-bold ${freshness.className}`}
+              valueClassName={`rounded border px-1.5 py-0.5 lens-label font-bold ${freshness.className}`}
             />
           </dl>
         </Card>
@@ -157,14 +157,14 @@ export default async function AdminOwnershipFlowPage() {
             <Globe className="h-4 w-4 text-tv-blue" />
             Sumber data
           </h2>
-          <dl className="mt-3 space-y-2 text-[13px]">
+          <dl className="mt-3 space-y-2 lens-body-sm">
             <Row label="ID" value={monitor.source.id} />
             <Row label="Nama" value={monitor.source.name} />
             <Row label="Cadence" value={monitor.source.cadence} />
             <Row
               label="Status audit"
               value={monitor.source.auditStatus}
-              valueClassName={`rounded border px-1.5 py-0.5 text-[11px] font-bold ${
+              valueClassName={`rounded border px-1.5 py-0.5 lens-label font-bold ${
                 sourceVerified
                   ? 'border-tv-green/20 bg-tv-green/10 text-tv-green'
                   : 'border-tv-warning/20 bg-tv-warning/10 text-tv-warning'
@@ -173,18 +173,18 @@ export default async function AdminOwnershipFlowPage() {
             <Row
               label="Arsip bulanan"
               value={`${KSEI_HOLDING_COMPOSITION_ARCHIVE.auditStatus} · ${KSEI_HOLDING_COMPOSITION_ARCHIVE.format}`}
-              valueClassName={`rounded border px-1.5 py-0.5 text-[11px] font-bold ${
+              valueClassName={`rounded border px-1.5 py-0.5 lens-label font-bold ${
                 archiveVerified
                   ? 'border-tv-green/20 bg-tv-green/10 text-tv-green'
                   : 'border-tv-warning/20 bg-tv-warning/10 text-tv-warning'
               }`}
             />
           </dl>
-          <p className="mt-3 break-words rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5 text-[12px] leading-relaxed text-tv-muted">
+          <p className="mt-3 break-words rounded-lg border border-white/[0.06] bg-white/[0.02] p-2.5 lens-body-sm leading-relaxed text-tv-muted">
             {monitor.source.auditNote}
           </p>
           {archiveVerified && (
-            <p className="mt-2 rounded-lg border border-tv-green/15 bg-tv-green/[0.035] p-2.5 text-[12px] leading-relaxed text-tv-muted">
+            <p className="mt-2 rounded-lg border border-tv-green/15 bg-tv-green/[0.035] p-2.5 lens-body-sm leading-relaxed text-tv-muted">
               Arsip bulanan KSEI sudah terverifikasi untuk format <code className="rounded bg-white/[0.06] px-1">Balancepos*.txt</code>
               {' '}pipe-delimited. Arsip ini boleh dipakai untuk backfill historis dengan
               {' '}<code className="rounded bg-white/[0.06] px-1">npm run backfill:ownership-flow</code>.
@@ -192,7 +192,7 @@ export default async function AdminOwnershipFlowPage() {
             </p>
           )}
           {!sourceVerified && (
-            <p className="mt-2 text-[12px] leading-relaxed text-tv-muted">
+            <p className="mt-2 lens-body-sm leading-relaxed text-tv-muted">
               Untuk snapshot live, jalankan <code className="rounded bg-white/[0.06] px-1">npm run audit:ksei-ownership</code> di VPS,
               lalu ikuti checklist di <code className="rounded bg-white/[0.06] px-1">docs/ownership-flow/source-audit.md</code>.
             </p>
@@ -202,19 +202,19 @@ export default async function AdminOwnershipFlowPage() {
 
       <Card as="section" className="mt-4 border-tv-border p-4" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
         <h2 className="font-heading text-base font-bold text-tv-text">Konfigurasi & eksekusi terakhir</h2>
-        <dl className="mt-3 grid gap-2 text-[13px] sm:grid-cols-2">
+        <dl className="mt-3 grid gap-2 lens-body-sm sm:grid-cols-2">
           <Row label="OWNERSHIP_FLOW_ENABLED" value={monitor.enabled ? 'true' : 'false'} />
           <Row label="OWNERSHIP_FLOW_CRON_ENABLED" value={monitor.cronEnabled ? 'true' : 'false'} />
           <Row label="OWNERSHIP_FLOW_INGESTION_ENABLED" value={monitor.ingestionEnabled ? 'true' : 'false'} />
           <Row label="Durasi eksekusi" value={monitor.lastRun.durationMs === null ? '—' : `${monitor.lastRun.durationMs} ms`} />
         </dl>
         {monitor.lastRun.errorMessage && (
-          <p className="mt-3 rounded-lg border border-tv-red/20 bg-tv-red/[0.05] p-2.5 text-[12px] text-tv-text">
+          <p className="mt-3 rounded-lg border border-tv-red/20 bg-tv-red/[0.05] p-2.5 lens-body-sm text-tv-text">
             {monitor.lastRun.errorMessage}
           </p>
         )}
         {monitor.lastRun.meta && (
-          <pre className="mt-3 max-h-72 overflow-auto rounded-lg border border-white/[0.06] bg-black/30 p-3 text-[11.5px] leading-relaxed text-tv-muted">
+          <pre className="mt-3 max-h-72 overflow-auto rounded-lg border border-white/[0.06] bg-black/30 p-3 lens-body-sm leading-relaxed text-tv-muted">
             {JSON.stringify(monitor.lastRun.meta, null, 2)}
           </pre>
         )}
@@ -226,9 +226,9 @@ export default async function AdminOwnershipFlowPage() {
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (
     <Card as="div" className="border-tv-border p-3.5" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}>
-      <p className="text-[10.5px] uppercase tracking-wide text-tv-muted">{label}</p>
-      <p className="mt-1 truncate font-heading text-[15px] font-bold text-tv-text">{value}</p>
-      {sub && <p className="mt-0.5 truncate text-[11px] text-tv-muted">{sub}</p>}
+      <p className="lens-meta uppercase tracking-wide text-tv-muted">{label}</p>
+      <p className="mt-1 truncate font-heading lens-card-title font-bold text-tv-text">{value}</p>
+      {sub && <p className="mt-0.5 truncate lens-caption text-tv-muted">{sub}</p>}
     </Card>
   );
 }

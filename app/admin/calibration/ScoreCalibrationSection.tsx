@@ -57,7 +57,7 @@ export function ScoreCalibrationSection({
           menerjemahkan LensScore 76 jadi "76% peluang untung". Ia dipakai sebagai garis
           acuan supaya pertanyaan "berapa jauh skor dari satuan probabilitas" punya jawaban
           berangka. Tanpa catatan ini, ECE besar mudah disalahbaca sebagai bug. */}
-      <div className="rounded-lg border border-tv-border bg-tv-bg p-3 mb-4 text-[11px] text-tv-muted leading-relaxed">
+      <div className="rounded-lg border border-tv-border bg-tv-bg p-3 mb-4 lens-caption text-tv-muted leading-relaxed">
         Pemetaan naif <span className="font-number text-tv-text">p = skor/100</span> di bawah adalah
         TITIK ACUAN, bukan klaim yang sedang dibela. SahamLens tidak pernah menyebut LensScore
         sebagai persen peluang. ECE yang besar terhadap acuan ini adalah hasil yang diharapkan -
@@ -69,7 +69,7 @@ export function ScoreCalibrationSection({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <div>
               <div className="text-sm font-semibold mb-1">Reliability diagram</div>
-              <div className="text-[11px] text-tv-muted mb-3">
+              <div className="lens-caption text-tv-muted mb-3">
                 Sumbu-x prediksi, sumbu-y frekuensi menang yang teramati, batang vertikal = CI 95%
                 Wilson. Titik yang duduk di garis putus-putus berarti terkalibrasi.
               </div>
@@ -106,7 +106,7 @@ export function ScoreCalibrationSection({
                   </ScatterChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex flex-wrap gap-4 text-[11px] text-tv-muted mt-1">
+              <div className="flex flex-wrap gap-4 lens-caption text-tv-muted mt-1">
                 <span><span className="inline-block w-2 h-2 rounded-full bg-tv-green mr-1" />terkalibrasi</span>
                 <span><span className="inline-block w-2 h-2 rounded-full bg-tv-red mr-1" />meleset dari CI</span>
                 <span><span className="inline-block w-2 h-2 rounded-full bg-[#5B6472] mr-1" />sampel belum cukup</span>
@@ -140,7 +140,7 @@ export function ScoreCalibrationSection({
                   ))}
                 </tbody>
               </table>
-              <div className="text-[11px] text-tv-muted mt-2">
+              <div className="lens-caption text-tv-muted mt-2">
                 * di bawah {data.scoreCalibration.minSamplesPerReliableBin} sampel - tetap ditampilkan,
                 tidak ikut menolak atau membenarkan apa pun.
               </div>
@@ -151,24 +151,24 @@ export function ScoreCalibrationSection({
             <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
               <div className="text-xs text-tv-muted uppercase">ECE</div>
               <div className="font-number text-2xl font-bold mt-1">{score4(data.scoreCalibration.naive?.ece)}</div>
-              <div className="text-[11px] text-tv-muted mt-1">rata-rata |teramati − prediksi|</div>
+              <div className="lens-caption text-tv-muted mt-1">rata-rata |teramati − prediksi|</div>
             </div>
             <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
               <div className="text-xs text-tv-muted uppercase">Brier</div>
               <div className="font-number text-2xl font-bold mt-1">{score4(data.scoreCalibration.naive?.brier)}</div>
-              <div className="text-[11px] text-tv-muted mt-1">base rate: {score4(data.scoreCalibration.naive?.brierBaseRate)}</div>
+              <div className="lens-caption text-tv-muted mt-1">base rate: {score4(data.scoreCalibration.naive?.brierBaseRate)}</div>
             </div>
             <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
               <div className="text-xs text-tv-muted uppercase">Skill score</div>
               <div className={`font-number text-2xl font-bold mt-1 ${(data.scoreCalibration.naive?.brierSkillScore ?? 0) > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                 {score4(data.scoreCalibration.naive?.brierSkillScore)}
               </div>
-              <div className="text-[11px] text-tv-muted mt-1">negatif = kalah dari tebakan konstan</div>
+              <div className="lens-caption text-tv-muted mt-1">negatif = kalah dari tebakan konstan</div>
             </div>
             <div className="bg-tv-bg border border-tv-border rounded-lg p-4">
               <div className="text-xs text-tv-muted uppercase">Base rate</div>
               <div className="font-number text-2xl font-bold mt-1">{prob(data.scoreCalibration.naive?.baseRate)}</div>
-              <div className="text-[11px] text-tv-muted mt-1">frekuensi menang keseluruhan</div>
+              <div className="lens-caption text-tv-muted mt-1">frekuensi menang keseluruhan</div>
             </div>
           </div>
 
@@ -179,7 +179,7 @@ export function ScoreCalibrationSection({
           <div className="mt-5 rounded-lg border border-tv-border bg-tv-bg/60 p-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
               <div className="text-sm font-semibold">Isotonic regression — fit di TRAIN, diuji di TEST</div>
-              <div className="text-[11px] text-tv-muted font-number">
+              <div className="lens-caption text-tv-muted font-number">
                 {data.scoreCalibration.isotonic.trainSamples} train / {data.scoreCalibration.isotonic.testSamples} test
                 {data.scoreCalibration.isotonic.splitDate ? ` • split ${data.scoreCalibration.isotonic.splitDate}` : ''}
               </div>
@@ -215,7 +215,7 @@ export function ScoreCalibrationSection({
                     </tr>
                   </tbody>
                 </table>
-                <div className="text-[11px] text-tv-muted mt-2">
+                <div className="lens-caption text-tv-muted mt-2">
                   Kurva: {data.scoreCalibration.isotonic.curve.map((point) => `${point.score}→${prob(point.probability, 0)}`).join('  ')}
                 </div>
               </div>
@@ -227,7 +227,7 @@ export function ScoreCalibrationSection({
             )}
 
             {data.scoreCalibration.isotonic.fitted && (
-              <p className="text-[11px] text-tv-muted mt-3 leading-relaxed">{data.scoreCalibration.isotonic.note}</p>
+              <p className="lens-caption text-tv-muted mt-3 leading-relaxed">{data.scoreCalibration.isotonic.note}</p>
             )}
           </div>
         </>

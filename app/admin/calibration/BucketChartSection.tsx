@@ -70,14 +70,14 @@ export function BucketChartSection({ data }: { data: CalibrationDashboardData })
             <div key={row.bucket} className={`bg-tv-bg border border-tv-border rounded-lg p-3 ${row.totalSamples === 0 ? 'opacity-55' : ''}`}>
               <div className="text-xs text-tv-muted">Bucket {row.bucket}</div>
               <Val value={row.avgReturnT20} tone="signed" className="block font-bold mt-1" />
-              <div className={`text-[11px] mt-1 ${tipis ? 'text-tv-warning' : 'text-tv-muted'}`}>
+              <div className={`lens-caption mt-1 ${tipis ? 'text-tv-warning' : 'text-tv-muted'}`}>
                 {num(row.totalSamples)} sampel{tipis ? ' *' : ''}
               </div>
             </div>
           );
         })}
       </div>
-      <p className="mt-2 text-[10px] text-tv-muted">
+      <p className="mt-2 lens-meta text-tv-muted">
         <span className="text-tv-warning">*</span> di bawah 30 sampel - rata-ratanya masih didominasi kebetulan.
       </p>
     </Card>
@@ -125,7 +125,7 @@ export function TTestSection({ data, baselineTotalSignals }: { data: Calibration
               <td className="py-2 text-tv-muted">Sampel 80-100 / &lt;60</td>
               <td className="py-2 text-right font-number">
                 {num(data.tTest.highBucketSamples)} / {num(data.tTest.lowBucketSamples)}
-                <div className="text-[10px] text-tv-muted mt-1">effective non-overlap; raw threshold-80 = {num(baselineTotalSignals)}</div>
+                <div className="lens-meta text-tv-muted mt-1">effective non-overlap; raw threshold-80 = {num(baselineTotalSignals)}</div>
               </td>
             </tr>
             <tr>
