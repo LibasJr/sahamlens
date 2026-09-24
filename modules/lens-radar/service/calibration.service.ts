@@ -62,6 +62,14 @@ const CALIBRATION_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60
 const VISIBLE_CHART_BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69'];
 const OPEN_FETCH_BATCH_SIZE = 12;
 const MIN_EFFECTIVE_T_TEST_SAMPLES = 30;
+/**
+ * Kalibrasi memakai window 2 tahun kalendar (~500 hari bursa) yang jauh melebihi
+ * kebutuhan statistik T+20 (minimal 30–50 sampel efektif per bucket). Window penuh
+ * tanpa batas membaca seluruh lens_radar_history lalu men-fetch Yahoo bar untuk
+ * SETIAP ticker unik di memori — ini yang memicu OOM dan HTTP 502 di produksi.
+ * Diekspor untuk test regresi — kalau seseorang menaikkan ini tanpa alasan, test gagal.
+ */
+export const CALIBRATION_LOOKBACK_DAYS = 730;
 
 interface Queryable {
   query: (sql: string, params?: unknown[]) => Promise<{ rows: any[] }>;
@@ -619,7 +627,7 @@ export async function calculateCalibrationObservations(
   };
 }
 
-async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
+async function readLensRadarHistory(db: Queryable = pool, lookbackDays: number = CALIBRATION_LOOKBACK_DAYS): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, score_config_hash, universe_version,
@@ -630,9 +638,10 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
       AND universe_version = $1
+      AND "date" >= CURRENT_DATE - ($2::int * INTERVAL '1 day')
     ORDER BY ticker ASC, "date" ASC
     `,
-    [ACTIVE_LIQUID_UNIVERSE_VERSION]
+    [ACTIVE_LIQUID_UNIVERSE_VERSION, lookbackDays]
   );
   return rows as LensRadarHistoryEntry[];
 }
