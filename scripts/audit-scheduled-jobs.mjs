@@ -81,7 +81,12 @@ for (const unit of unitFiles) {
 // Drift: unit yang benar-benar dipasang di VPS harus identik dengan berkas di repo. Perbedaan
 // inilah yang membuat unit intraday-collect masih memakai hostname publik sampai 2026-09-24.
 const systemUnitDir = '/etc/systemd/system';
-if (fs.existsSync(systemUnitDir)) {
+// Hanya bermakna di host systemd (VPS). Runner CI tidak punya /etc/systemd/system/sahamlens-*,
+// dan aturan ini sempat melaporkan 23 unit "belum dipasang" di CI - alarm palsu yang justru
+// menutupi temuan asli (drift intraday-collect & uptime-monitor pada 2026-09-24).
+const systemdHost = fs.existsSync(systemUnitDir) && fs.readdirSync(systemUnitDir).some((n) => n.startsWith('sahamlens-') && n.endsWith('.service'));
+if (fs.existsSync(systemUnitDir) && !systemdHost) console.log('[scheduled-jobs] SKIP: pemeriksaan unit terpasang dilewati (bukan host systemd produksi)');
+if (systemdHost) {
   for (const unit of unitFiles) {
     const installed = path.join(systemUnitDir, path.basename(unit));
     if (!fs.existsSync(installed)) {
