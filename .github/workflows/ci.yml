@@ -43,6 +43,7 @@ jobs:
           npm run audit:trusted-proxy-mode
           npm run audit:schema
           npm run audit:cron
+          npm run audit:idx-fingerprint
           npm run audit:ui
           npm run audit:menus
           npm run audit:chat-knowledge

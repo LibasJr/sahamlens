@@ -16,6 +16,12 @@ import sys
 import time
 from datetime import date, datetime, timedelta, timezone
 
+try:  # dijalankan sebagai skrip (python3 scripts/xxx.py)
+    from idx_session import build_session
+except ImportError:  # dijalankan sebagai modul
+    from scripts.idx_session import build_session
+
+
 try:
     from curl_cffi import requests
 except ImportError:  # pragma: no cover
@@ -95,7 +101,7 @@ def main() -> int:
     if args.days < 2:
         raise SystemExit("--days minimal 2")
 
-    session = requests.Session(impersonate="chrome124")
+    session = build_session()
     collected = []
     today = date.today()
     for offset in range(args.days - 1, -1, -1):
