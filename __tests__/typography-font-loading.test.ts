@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { stripComments } from '../scripts/lib/strip-comments.mjs';
 
 /**
  * Dua kegagalan nyata yang dijaga berkas ini.
@@ -36,13 +37,13 @@ const FONT_DIR = path.join(ROOT, 'app', 'fonts');
  * komentar, tepat di sebelah kodenya. Tanpa penyaring ini, gerbangnya merah karena
  * prosa dokumentasinya sendiri; itu cara termudah membuat sebuah gerbang hijau tanpa
  * memeriksa apa pun, dan sudah pernah terjadi di repo ini (lihat CLAUDE.md §2).
+ *
+ * Salinannya TIDAK lagi ditulis di sini: satu implementasi untuk seluruh repo ada di
+ * `scripts/lib/strip-comments.mjs`, dipakai bersama ratchet tipografi dan gerbang
+ * permukaan yang sudah dimigrasikan.
  */
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
-}
-
-const CSS = stripComments(CSS_RAW);
-const LAYOUT = stripComments(LAYOUT_RAW);
+const CSS = stripComments(CSS_RAW) as string;
+const LAYOUT = stripComments(LAYOUT_RAW) as string;
 
 /** Isi deklarasi sebuah peran, dari `.nama {` sampai `}` pertama. */
 function peran(nama: string): string {
@@ -296,5 +297,41 @@ describe('jawaban LensAI nyaman dibaca, bukan microcopy', () => {
     // halaman saat papan ketik terbuka. Itu bukan kelalaian migrasi.
     expect(chat, 'input LensAI kehilangan 16px ponsel - papan ketik iOS akan memperbesar halaman')
       .toMatch(/text-base text-tv-text sm:min-h-0 sm:text-sm/);
+  });
+
+  it('angka di jawaban LensAI memakai digit tabular', () => {
+    // Rasio di jawaban LensAI duduk di dalam prosa ("PER 7.04x, PBV 1.71x"), jadi angkanya
+    // tidak bisa dipilih selector. Yang bisa dijamin: digitnya tabular, sehingga nilai
+    // sejajar saat dibandingkan berderet, dan blok backtick memakai mono design system.
+    expect(blokAi('.ai-response'), 'jawaban LensAI kehilangan digit tabular').toContain('tabular-nums');
+    expect(blokAi('.ai-response table'), 'tabel Markdown jawaban kehilangan digit tabular').toContain('tabular-nums');
+    expect(blokAi('.ai-response code'), 'blok backtick jawaban kehilangan digit tabular').toContain('tabular-nums');
+  });
+});
+
+describe('design system punya dua keluarga huruf, bukan empat', () => {
+  /**
+   * Setiap deklarasi `font-family` di globals.css wajib DIMULAI oleh salah satu variabel
+   * design system. Alasannya bukan estetika: berkas ini pernah memuat empat keluarga
+   * (Arial, Courier New, Fira Code, Cascadia Code) yang membuat nama token berbohong -
+   * `--font-jetbrains-mono` menunjuk 'Courier New'. Dua di antaranya bahkan tidak pernah
+   * dimuat, jadi nilainya jatuh ke huruf generik OS tanpa ada yang menyadarinya.
+   */
+  const KELUARGA_SAH = ['var(--font-inter)', 'var(--font-jetbrains-mono)'];
+
+  it('tidak ada deklarasi font-family yang dimulai oleh keluarga lain', () => {
+    const deklarasi = CSS.match(/font-family:[^;}]*/g) ?? [];
+    // Penjaga pemindai: berkas ini memang menyetel font-family di banyak peran.
+    expect(deklarasi.length).toBeGreaterThanOrEqual(15);
+    const pelanggar = deklarasi.filter(
+      (baris) => !KELUARGA_SAH.some((sah) => baris.replace(/font-family:\s*/, '').startsWith(sah)),
+    );
+    expect(pelanggar, 'pakai var(--font-inter) atau var(--font-jetbrains-mono), bukan keluarga lain').toEqual([]);
+  });
+
+  it('keluarga lama tidak dimuat aplikasi ini', () => {
+    for (const lama of ['Fira Code', 'Cascadia Code', 'Courier New', 'Arial']) {
+      expect(CSS, `${lama} kembali muncul sebagai keluarga yang dipakai`).not.toContain(`'${lama}'`);
+    }
   });
 });

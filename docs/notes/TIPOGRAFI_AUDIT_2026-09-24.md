@@ -299,3 +299,39 @@ Perbaikan:
 Dibuktikan dengan kontrol negatif: tinggi baris aturan media query diubah ke nilai di luar
 band, test **gagal** menyebut aturan itu, lalu dipulihkan dan test kembali hijau. Gerbang
 yang tidak pernah merah belum terbukti menjaga apa pun.
+
+## 11. Angka dan keluarga huruf di jawaban LensAI
+
+Ditutup setelah §10, dari pertanyaan yang sama: "angka di jawaban ini mono atau tidak?"
+Jawabannya tidak — dan sebabnya bukan yang diduga.
+
+`.ai-response code` masih memakai **`'Fira Code', 'Cascadia Code', monospace`**. Kedua
+keluarga itu tidak dimuat aplikasi ini sama sekali (hanya Inter dan JetBrains Mono yang
+ada di `app/fonts/`), jadi nilainya jatuh ke monospace generik milik OS. Ini sisa era
+empat keluarga huruf yang membuat nama token berbohong - kelas kesalahan yang sama dengan
+`--font-jetbrains-mono: 'Courier New'` di §1, hanya bertahan lebih lama karena tidak ada
+gerbang yang memeriksa keluarga huruf.
+
+Perbaikan:
+
+- `.ai-response code` → `var(--font-jetbrains-mono), Consolas, monospace`;
+- `font-variant-numeric: tabular-nums` pada `.ai-response` (angka di prosa: "PER 7.04x,
+  PBV 1.71x"), `.ai-response table` (tabel Markdown), dan `.ai-response code`.
+
+Batas yang jujur: **mono penuh untuk angka di dalam prosa belum bisa dicapai dengan CSS.**
+Angka yang menyatu dalam kalimat tidak punya selector; mono menuntut model membungkusnya
+dengan backtick. `modules/ai/chat/build-system-prompt.ts` justru meminta sebaliknya untuk
+baris data internal, dan mengubah perilaku keluaran model bukan pekerjaan tipografi. Yang
+dijamin sekarang: digitnya tabular (sejajar saat dibandingkan) dan setiap nilai yang
+memang di-backtick dirender mono design system, bukan monospace acak OS.
+
+Gerbang baru: setiap deklarasi `font-family` di `globals.css` wajib dimulai
+`var(--font-inter)` atau `var(--font-jetbrains-mono)` (dengan penjaga jumlah ≥ 15 deklarasi),
+dan keluarga lama (`Fira Code`, `Cascadia Code`, `Courier New`, `Arial`) tidak boleh muncul
+kembali. Juga dibuktikan dengan kontrol negatif: `var(--font-inter)` diganti `Arial` →
+gerbang merah → dipulihkan → hijau.
+
+Duplikasi ikut ditutup: salinan lokal `stripComments()` di
+`__tests__/typography-font-loading.test.ts` dihapus, memakai `scripts/lib/strip-comments.mjs`
+yang sama dengan ratchet. Menyalin regex itu per gerbang adalah cara paling rapi membuat
+salah satu gerbang kelak menghitung prosa sebagai kode - persis kelas kegagalan §2.

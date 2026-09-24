@@ -352,6 +352,11 @@ h3 {
   line-height: 1.65;
   max-width: 100%;
   word-wrap: break-word;
+  /* Angka di jawaban LensAI duduk di dalam prosa (mis. "PER 7.04x, PBV 1.71x"), jadi
+   * angkanya TIDAK bisa dipilih selector - tapi digitnya bisa dipaksa tabular supaya
+   * rasio sejajar saat dibandingkan. Mono penuh butuh penandaan backtick dari model;
+   * blok `.ai-response code` di bawah sudah memakai mono design system untuk itu. */
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-response p {
@@ -419,7 +424,12 @@ h3 {
   padding: 1px 5px;
   border-radius: 4px;
   font-size: 12px;
-  font-family: 'Fira Code', 'Cascadia Code', monospace;
+  /* Sisa dari era empat keluarga huruf: 'Fira Code' dan 'Cascadia Code' tidak dimuat
+   * aplikasi ini, jadi nilainya jatuh ke monospace generik OS. Design system hanya punya
+   * dua keluarga - perbaikan di bawah memakai mono yang benar-benar ada. */
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  /* Angka di dalam blok kode/backtick (rasio, harga) sejajar satu sama lain. */
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-response pre {
@@ -456,6 +466,8 @@ h3 {
   border-collapse: collapse;
   margin: 10px 0;
   font-size: 12px;
+  /* Tabel Markdown di jawaban hampir selalu berisi angka - kolomnya harus sejajar. */
+  font-variant-numeric: tabular-nums;
 }
 
 .ai-response th {
