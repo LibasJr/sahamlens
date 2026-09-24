@@ -227,17 +227,47 @@ describe('jawaban LensAI nyaman dibaca, bukan microcopy', () => {
     throw new Error(`${apa} tidak ditemukan pada blok: ${blok.slice(0, 120)}`);
   };
 
-  it('.ai-response memakai ukuran bacaan, bukan 13px', () => {
+  /**
+   * Semua aturan `.ai-response` (aturan dasar DAN di dalam @media) yang menyetel properti
+   * tertentu. Dipakai supaya sebuah override di blok media query tidak lolos dari gerbang
+   * hanya karena ia bukan aturan pertama.
+   */
+  function semuaAturanAi(properti: 'font-size' | 'line-height'): { nilai: string; blok: string }[] {
+    const hasil: { nilai: string; blok: string }[] = [];
+    // `.ai-response { ... }` - bukan `.ai-response h1 { ... }` dan bukan `.light .ai-response`.
+    for (const cocok of CSS.matchAll(/\.ai-response\s*\{([^}]*)\}/g)) {
+      const blok = cocok[1];
+      const nilai = blok.match(new RegExp(`${properti}:\\s*([\\d.]+)(px|rem)?`));
+      if (nilai) hasil.push({ nilai: nilai[2] ? `${nilai[1]}${nilai[2]}` : nilai[1], blok });
+    }
+    return hasil;
+  }
+
+  it('.ai-response memakai ukuran bacaan di SETIAP aturan, bukan 13px', () => {
     // 13px adalah ukuran yang brief audit larang sebagai default jawaban AI panjang -
     // 13px = ambang "tidak gagal", sedangkan jawaban LensAI bisa berhalaman-halaman.
-    const blok = blokAi('.ai-response');
-    expect(px(blok, 'font-size')).toBeGreaterThanOrEqual(15);
+    //
+    // Diperiksa SEMUA aturan, bukan hanya yang pertama: versi pertama gerbang ini hanya
+    // membaca aturan dasar, sehingga blok @media (max-width: 768px) - blok
+    // senior-friendly yang menyetel ulang ukuran dan tinggi baris - lolos tanpa
+    // diperiksa. Yang membuat kesalahan itu ketahuan adalah CSS produksi yang benar-benar
+    // disajikan browser, bukan test ini.
+    const aturan = semuaAturanAi('font-size');
+    expect(aturan.length, 'tidak ada satu pun aturan .ai-response yang menyetel font-size').toBeGreaterThanOrEqual(2);
+    for (const { nilai, blok } of aturan) {
+      const px16 = nilai.endsWith('rem') ? Number.parseFloat(nilai) * 16 : Number.parseFloat(nilai);
+      expect(px16, `aturan .ai-response menyetel ${nilai} (${blok.trim()})`).toBeGreaterThanOrEqual(15);
+    }
   });
 
-  it('tinggi barisnya di rentang nyaman baca (1.6-1.7)', () => {
-    const lh = Number.parseFloat(blokAi('.ai-response').match(/line-height:\s*([\d.]+);/)?.[1] ?? '0');
-    expect(lh).toBeGreaterThanOrEqual(1.6);
-    expect(lh).toBeLessThanOrEqual(1.7);
+  it('tinggi baris SETIAP aturan di rentang nyaman baca (1.6-1.7)', () => {
+    const aturan = semuaAturanAi('line-height');
+    expect(aturan.length, 'tidak ada satu pun aturan .ai-response yang menyetel line-height').toBeGreaterThanOrEqual(2);
+    for (const { nilai } of aturan) {
+      const lh = Number.parseFloat(nilai);
+      expect(lh, `aturan .ai-response menyetel line-height ${nilai}`).toBeGreaterThanOrEqual(1.6);
+      expect(lh, `aturan .ai-response menyetel line-height ${nilai}`).toBeLessThanOrEqual(1.7);
+    }
   });
 
   it('hierarki heading Markdown tetap berjenjang', () => {

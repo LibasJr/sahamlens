@@ -1167,9 +1167,14 @@ a,
     letter-spacing: 0.1em;
   }
 
+  /* Tinggi baris disamakan dengan aturan dasar (1.65), bukan 1.75: isi yang sama tidak
+   * punya alasan punya tinggi baris berbeda antara ponsel dan desktop, dan 1.75 di luar
+   * rentang nyaman-baca 1.6-1.7 yang dipakai skala peran. Ukuran hurufnya sendiri TETAP
+   * 15px di sini - blok senior-friendly ini yang membuat jawaban LensAI sudah terbaca di
+   * ponsel sementara di desktop ia masih 13px. */
   .ai-response {
     font-size: 0.9375rem;
-    line-height: 1.75;
+    line-height: 1.65;
   }
 
   .ai-response h1 { font-size: 1.375rem; }

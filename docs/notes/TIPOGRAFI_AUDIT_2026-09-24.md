@@ -171,10 +171,19 @@ harga utama di halaman analisis masuk fase 4 bersama halaman finansial.
 
 ## 8. Fase 3 — nilai baca: LensAI dan News (PR ketiga)
 
-Fase ini menyerang temuan brief yang paling langsung terasa pengguna: jawaban panjang
-LensAI dirender **13px**.
+Fase ini menyerang temuan brief yang paling langsung terasa pengguna: di layar **>768px**
+jawaban panjang LensAI dirender 13px.
+
+> **Koreksi (25 September 2026, lihat §10).** Kalimat di PR #488 menyebut jawaban LensAI
+> "dirender 13px" seolah berlaku di semua layar. Itu tidak akurat: blok
+> `@media (max-width: 768px)` — blok senior-friendly di `globals.css` — sudah menyetel
+> `.ai-response` ke 15px, jadi ponsel sudah terbaca sejak awal dan yang benar-benar naik
+> adalah desktop/tablet. Buktinya CSS produksi, bukan pembacaan kode:
+> `.ai-response{color:#dbeafe;font-size:15px;line-height:1.65}` (aturan dasar) dan
+> di dalam `@media (max-width:768px)` `.ai-response{font-size:.9375rem;line-height:1.65}`.
 
 ```css
+/* aturan dasar - berlaku di >768px */
 /* sebelum */
 .ai-response { font-size: 13px; line-height: 1.75; }
 /* sesudah */
@@ -188,7 +197,7 @@ h2 16→17px, h3 14→15px.
 
 | Berkas | Perubahan |
 |---|---|
-| `app/globals.css` | `.ai-response` 13px/1.75 → **15px/1.65**; h1 20px, h2 17px, h3 15px |
+| `app/globals.css` | `.ai-response` 13px/1.75 → **15px/1.65** (aturan dasar, >768px); h1 20px, h2 17px, h3 15px |
 | `components/AIChat.tsx` | pesan dan baris "sedang berpikir": `text-base leading-relaxed sm:text-sm` (16px ponsel → 14px desktop) → `lens-body` (15px/1.6) |
 | `app/news/page.tsx` | subtitle → `lens-ui`; judul kartu nada → `lens-card-title`; penjelasan nada `text-[11px]` → `lens-body-sm`; pil filter → `lens-meta font-semibold` |
 | `components/news/StructuredNewsCard.tsx` | judul artikel → `lens-card-title`; chip tahap `text-[10px]` → `lens-meta`; skor keyakinan → `lens-number lens-meta`; ringkasan dampak, alasan sentimen, dan catatan keyakinan (`text-[11px]`/`text-[10px]`) → `lens-body-sm` |
@@ -258,3 +267,35 @@ Pencocokan pola tetap membuang komentar lebih dulu. Kali ini salinannya dijadika
 `scripts/lib/strip-comments.mjs`, dipakai bersama oleh ratchet dan gerbang baru — menyalin
 regex itu per gerbang adalah cara paling rapi membuat salah satu gerbang kelak menghitung
 prosa sebagai kode.
+
+## 10. Koreksi fase 3 — gerbang yang hanya membaca aturan pertama
+
+Ketahuan dari tangkapan layar aplikasi produksi, lalu dipastikan pada CSS yang benar-benar
+disajikan server, bukan dengan membaca ulang kode:
+
+```
+.ai-response{color:#dbeafe;font-size:15px;line-height:1.65}      <- aturan dasar (>768px)
+@media (max-width:768px){ ... .ai-response{font-size:.9375rem;line-height:1.75} ... }
+```
+
+Dua hal yang salah pada fase 3, keduanya karena gerbangnya dangkal:
+
+1. **Narasi berlebihan.** PR #488 menulis jawaban LensAI "dirender 13px". Yang benar:
+   hanya layar >768px yang 13px; ponsel sudah 15px lewat blok senior-friendly. Perbaikannya
+   tetap nyata — desktop 13→15px — tapi klaimnya harus tepat.
+2. **Gerbangnya buta pada `@media`.** `blokAi()` mengambil aturan **pertama** yang memuat
+   `font-size`, jadi override di dalam media query tidak pernah diperiksa. Test yang hijau
+   di atas aturan dasar yang benar sementara aturan ponsel bebas berubah adalah persis
+   gerbang yang lulus tanpa memeriksa apa pun.
+
+Perbaikan:
+
+- `semuaAturanAi(properti)` mengumpulkan **setiap** aturan `.ai-response` (dasar maupun di
+  dalam `@media`) yang menyetel properti itu; test menuntut minimal 2 aturan dan setiap
+  nilainya dalam band (font-size ≥ 15px, line-height 1.6–1.7);
+- tinggi baris aturan ponsel disamakan ke **1.65** dari 1.75: isi yang sama tidak punya
+  alasan punya tinggi baris berbeda antara ponsel dan desktop, dan 1.75 di luar band.
+
+Dibuktikan dengan kontrol negatif: tinggi baris aturan media query diubah ke nilai di luar
+band, test **gagal** menyebut aturan itu, lalu dipulihkan dan test kembali hijau. Gerbang
+yang tidak pernah merah belum terbukti menjaga apa pun.
