@@ -180,10 +180,42 @@ describe('sitemap', () => {
   });
 });
 
-describe('catatan internal — bukan pengganti review hukum', () => {
-  it('i18n id berisi disclaimer operasional', () => {
-    const idSource = readI18n('id');
-    expect(idSource).toContain('dokumentasi operasional');
-    expect(idSource).toContain('pengganti tinjauan hukum');
+describe('frasa terlarang — tidak boleh tampil di UI', () => {
+  const forbiddenPatterns: Array<[string, RegExp]> = [
+    ['bukan pengganti tinjauan hukum', /bukan pengganti tinjauan hukum/i],
+    ['tidak pernah melebihi (liability cap)', /tidak pernah melebihi/i],
+    ['12 bulan sebelum klaim', /12 bulan sebelum klaim/i],
+    ['penggunaan berkelanjutan.*menerima', /penggunaan berkelanjutan.*menerima/i],
+    ['tidak menjanjikan pengembalian dana', /tidak menjanjikan pengembalian dana/i],
+  ];
+
+  it.each(forbiddenPatterns)('i18n id tidak mengandung "%s"', (_label, pattern) => {
+    const id = stripComments(readI18n('id'));
+    expect(id).not.toMatch(pattern);
+  });
+
+  it.each(forbiddenPatterns)('i18n en tidak mengandung "%s"', (_label, pattern) => {
+    const en = stripComments(readI18n('en'));
+    expect(en).not.toMatch(pattern);
+  });
+
+  it('privacy/page.tsx tidak merender noteDisclaimer', () => {
+    const source = read('privacy/page.tsx');
+    expect(source).not.toContain('noteDisclaimer');
+  });
+
+  it('terms/page.tsx tidak merender noteDisclaimer', () => {
+    const source = read('terms/page.tsx');
+    expect(source).not.toContain('noteDisclaimer');
+  });
+
+  it('privacy sectionSecurityBody tidak memakai jaminan absolut "Yang kami jamin"', () => {
+    const id = stripComments(readI18n('id'));
+    expect(id).not.toContain('Yang kami jamin');
+  });
+
+  it('privacy sectionRightsBody memakai "menargetkan respons awal"', () => {
+    const id = stripComments(readI18n('id'));
+    expect(id).toContain('menargetkan respons awal dalam 1 hari kerja');
   });
 });

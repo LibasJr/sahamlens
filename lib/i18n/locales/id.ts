@@ -599,15 +599,13 @@ export const id = {
       'Data pasar dan fundamental berasal dari penyedia pihak ketiga (terutama Yahoo Finance). Provenansi dan tanggal observasi dipertahankan agar data finansial tidak disajikan seolah lebih baru atau lebih pasti dari sumbernya. Penggunaan data pihak ketiga ini adalah deskripsi faktual, bukan transfer data Anda kepada mereka.',
     sectionSecurityTitle: 'Batasan keamanan',
     sectionSecurityBody:
-      'Kami menerapkan langkah keamanan yang wajar sesuai ukuran tim dan sensitivitas data. Tidak ada sistem yang kebal pelanggaran — kami tidak menjanjikan keamanan mutlak. Yang kami jamin: pengumpulan terbatas, retensi terbatas, dan pembersihan otomatis.',
+      'Kami menerapkan langkah keamanan yang wajar sesuai ukuran tim dan sensitivitas data. Tidak ada sistem yang kebal pelanggaran — kami tidak menjanjikan keamanan mutlak. Kami membatasi pengumpulan, menerapkan retensi sesuai jadwal, dan menjalankan pembersihan otomatis.',
     sectionRightsTitle: 'Opsi Anda',
     sectionRightsBody:
-      'Anda dapat meminta ekspor data atau penghapusan akun, atau bertanya soal privasi dengan mengirim email ke support@sahamlens.id dari alamat terdaftar. Kami merespons dalam 1 hari kerja.',
+      'Anda dapat meminta ekspor data atau penghapusan akun, atau bertanya soal privasi dengan mengirim email ke support@sahamlens.id dari alamat terdaftar. Kami menargetkan respons awal dalam 1 hari kerja.',
     sensitiveWarningTitle: 'Jangan bagikan data sensitif',
     sensitiveWarningBody:
       'Jangan pernah mengirim password, OTP, PIN, API key, atau dokumen identitas melalui prompt atau email. Staf SahamLens tidak akan pernah menanyakan password Anda.',
-    noteDisclaimer:
-      'Ini adalah dokumentasi operasional dari praktik nyata kami, bukan pengganti tinjauan hukum.',
   },
   termsPage: {
     lastUpdated: 'Terakhir diperbarui {date}',
@@ -648,19 +646,17 @@ export const id = {
       'Akses dapat dibatasi karena penyalahgunaan, pelanggaran Ketentuan Layanan, atau tidak membayar apabila ketentuan berlangganan berlaku.',
     sectionSubscriptionTitle: 'Langganan (jika berlaku)',
     sectionSubscriptionBody:
-      'Apabila ada rencana berbayar, ketentuannya (kode rencana, durasi, jumlah) disajikan sebelum pembelian. Mekanisme pembatalan dan penagihan spesifik diatur oleh flow pembayaran pada saat pembelian — kami tidak menjanjikan pengembalian dana atau perpanjangan yang bukan bagian dari flow terdokumentasi tersebut.',
+      'Apabila ada rencana berbayar, ketentuannya (kode rencana, durasi, jumlah) disajikan sebelum pembelian. Detail harga, durasi, penagihan, pembatalan, dan refund (jika ada) mengikuti informasi yang ditampilkan sebelum Anda membeli.',
     sectionIpTitle: 'Hak cipta',
     sectionIpBody:
       'Konten SahamLens (teks, desain, metodologi skor, perangkat lunak) dilindungi hak cipta. Data pihak ketiga tetap menjadi milik penyedianya. Anda dapat mengutip atau merujuk konten SahamLens di bawah penggunaan wajar dengan atribusi.',
     sectionLiabilityTitle: 'Batasan tanggung jawab',
     sectionLiabilityBody:
-      'Sejauh yang diizinkan oleh hukum yang berlaku, SahamLens disediakan apa adanya tanpa jaminan apa pun. Tanggung jawab kami dibatasi sejauh yang diizinkan oleh hukum dan tidak pernah melebihi apa yang benar-benar Anda bayarkan untuk layanan dalam 12 bulan sebelum klaim.',
+      'Sejauh yang diizinkan oleh hukum yang berlaku, SahamLens disediakan berdasarkan ketersediaan dan apa adanya, tanpa jaminan bebas gangguan atau galat. Hak wajib Anda tidak hilang karena ketentuan ini.',
     sectionChangesTitle: 'Perubahan ketentuan ini',
     sectionChangesBody:
-      'Kami dapat memperbarui ketentuan ini seiring perkembangan produk. Penggunaan berkelanjutan setelah perubahan berarti Anda menerima ketentuan yang diperbarui. Perubahan material akan diumumkan melalui layanan atau kontak dukungan.',
+      'Kami dapat memperbarui ketentuan ini seiring perkembangan produk. Perubahan material akan diumumkan melalui layanan atau kontak dukungan. Versi terbaru selalu tersedia di halaman ini — baca sebelum terus menggunakan layanan.',
     contactNote: 'Pertanyaan? Hubungi support@sahamlens.id.',
-    noteDisclaimer:
-      'Ketentuan ini menggambarkan realitas operasional layanan. Ini bukan pengganti tinjauan hukum independen.',
   },
 };
 

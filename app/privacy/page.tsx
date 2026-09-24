@@ -121,9 +121,6 @@ export default function PrivacyPage() {
         </span>
       </div>
 
-      <p className="mt-4 text-[11px] text-tv-muted italic">
-        {t('privacyPage.noteDisclaimer')}
-      </p>
     </PageContainer>
   );
 }
