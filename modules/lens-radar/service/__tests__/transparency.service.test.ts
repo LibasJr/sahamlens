@@ -4,6 +4,7 @@ import {
   TRANSPARENCY_CACHE_VERSION,
   buildBucketRows,
   buildDecileRows,
+  buildEmitenCoverage,
   buildTop5EquityCurve,
   buildTransparencyBanner,
 } from '../transparency.service';
@@ -192,5 +193,60 @@ describe('transparency.service', () => {
     expect(buildTransparencyBanner('NOT_ENOUGH_DATA').message).toContain('pengumpulan');
     expect(buildTransparencyBanner('OUT_OF_SAMPLE_PENDING').message.toLowerCase()).toContain('out-of-sample');
     expect(buildTransparencyBanner('EXPLORATORY').message.toLowerCase()).toContain('eksploratif');
+  });
+
+  it('memisahkan jumlah emiten arsip dari emiten yang lolos gerbang populasi validasi', () => {
+    const historyRow = (ticker: string, scoreVersion: string | null) => ({
+      date: '2026-01-01',
+      ticker,
+      lens_score: 80,
+      close_price: 1_000,
+      market_cap: null,
+      score_version: scoreVersion,
+    });
+
+    const coverage = buildEmitenCoverage(
+      [
+        historyRow('aaaa.jk', SCORE_VERSION),
+        historyRow('AAAA.JK', SCORE_VERSION),
+        // Versi model lain tidak boleh membesarkan hitungan arsip versi yang ditampilkan.
+        historyRow('ZZZZ.JK', 'v0-legacy'),
+      ] as never,
+      [
+        obs({ ticker: 'AAAA.JK', signalDate: '2026-01-01' }),
+        obs({ ticker: 'AAAA.JK', signalDate: '2026-01-02' }),
+        obs({ ticker: 'BBBB.JK', signalDate: '2026-01-02' }),
+        obs({ ticker: 'AAAA.JK', signalDate: '2026-01-03' }),
+        obs({ ticker: 'BBBB.JK', signalDate: '2026-01-03' }),
+        obs({ ticker: 'CCCC.JK', signalDate: '2026-01-03' }),
+      ],
+      SCORE_VERSION
+    );
+
+    expect(coverage.archiveEmiten).toBe(1);
+    expect(coverage.validationEmiten).toBe(3);
+    expect(coverage.validationRows).toBe(6);
+    // Satu emiten boleh muncul beberapa kali per tanggal, tetapi dihitung sekali per hari.
+    expect(coverage.perDay).toEqual({
+      median: 2,
+      min: 1,
+      max: 3,
+      latestDate: '2026-01-03',
+      latest: 3,
+    });
+    // Katalog resmi opsional: kalau terbaca, jumlahnya harus realistis (ratusan emiten).
+    if (coverage.catalogEmiten != null) {
+      expect(coverage.catalogEmiten).toBeGreaterThan(500);
+      expect(coverage.catalogWithoutArchiveData).not.toBeNull();
+      expect(coverage.catalogWithoutArchiveData!).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('cakupan emiten nol tetap menghasilkan angka yang jujur, bukan undefined', () => {
+    const coverage = buildEmitenCoverage([], [], SCORE_VERSION);
+    expect(coverage.archiveEmiten).toBe(0);
+    expect(coverage.validationEmiten).toBe(0);
+    expect(coverage.validationRows).toBe(0);
+    expect(coverage.perDay).toEqual({ median: null, min: null, max: null, latestDate: null, latest: null });
   });
 });
