@@ -233,7 +233,7 @@ function DashboardContent() {
 
               {/* Score Circle */}
               <div className="flex flex-col items-center justify-center gap-2 min-w-[140px]">
-                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider text-center flex flex-col gap-1 items-center justify-center">
+                <div className="lens-eyebrow font-sans text-tv-muted text-center flex flex-col gap-1 items-center justify-center">
                   Skor total
                 </div>
                 <div className={`w-24 h-24 rounded-full border-4 flex items-center justify-center text-3xl font-extrabold font-number ${
@@ -245,7 +245,7 @@ function DashboardContent() {
                   <AnimatedNumber value={data.scoring.total_score} />
                 </div>
                 {coveragePct != null && (
-                  <div className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  <div className={`rounded-full border px-2 py-0.5 lens-chip font-bold uppercase tracking-wide ${
                     coveragePct >= 90
                       ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
                       : coveragePct >= 55
@@ -259,12 +259,12 @@ function DashboardContent() {
                     BUY/SELL/HOLD/WATCH sengaja tidak diulang di bawah agar tidak
                     bentrok dengan ringkasan SahamLens/Konsensus AI di atas. */}
                 {!decisionPresentation?.actionable && decisionPresentation?.explanation && (
-                  <p className="text-[11px] leading-snug text-tv-muted text-center max-w-[240px]">
+                  <p className="lens-body-sm leading-snug text-tv-muted text-center max-w-[240px]">
                     Skor total {data.scoring.total_score}/100 adalah skor informasi. Belum otomatis menjadi rekomendasi transaksi. {decisionPresentation.explanation}
                   </p>
                 )}
                 {coveragePct != null && coveragePct < 100 && (
-                  <p className="max-w-[240px] text-center text-[11px] leading-snug text-tv-muted">
+                  <p className="max-w-[240px] text-center lens-body-sm leading-snug text-tv-muted">
                     Skor dibaca bersama kelengkapan data. Coverage rendah berarti sebagian pertanyaan model belum terjawab.
                   </p>
                 )}
@@ -272,7 +272,7 @@ function DashboardContent() {
 
               {/* Score Breakdown */}
               <div className="flex-1 space-y-3">
-                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-2">BREAKDOWN SKOR</div>
+                <div className="lens-eyebrow font-sans text-tv-muted mb-2">BREAKDOWN SKOR</div>
                 {/* Technical */}
                 <div className="flex items-center gap-3">
                   <span className="text-xs text-tv-muted font-sans w-28">Technical (0-40)</span>
@@ -337,7 +337,7 @@ function DashboardContent() {
                   const best = sorted[0];
                   const worst = sorted[sorted.length - 1];
                   return (
-                    <p className="mt-3 pt-3 border-t border-tv-border text-[11px] leading-relaxed text-tv-muted">
+                    <p className="mt-3 pt-3 border-t border-tv-border lens-body-sm leading-relaxed text-tv-muted">
                       Skor ini paling ditopang <span className="text-tv-text font-medium">{best.name}</span> ({best.pct}% dari data yang tersedia)
                       dan paling ditahan <span className="text-tv-text font-medium">{worst.name}</span> ({worst.pct}%).
                       {worst.pct < 40 && ` Perbaikan terbesar untuk saham ini akan datang dari sisi ${worst.name.toLowerCase()}.`}
@@ -348,7 +348,7 @@ function DashboardContent() {
 
               {/* Reasons & Risk */}
               <div className="flex-1 space-y-3">
-                <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-2">TOP 3 ALASAN</div>
+                <div className="lens-eyebrow font-sans text-tv-muted mb-2">TOP 3 ALASAN</div>
                 {data.scoring.alasan_3_poin?.map((reason: string, i: number) => (
                   <div key={i} className="flex items-start gap-2 text-xs">
                     <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-tv-green" aria-hidden="true" />
@@ -357,7 +357,7 @@ function DashboardContent() {
                 ))}
                 {data.scoring.risk && (
                   <div className="mt-3 pt-3 border-t border-tv-border">
-                    <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase tracking-wider mb-1">RISK</div>
+                    <div className="lens-eyebrow font-sans text-tv-muted mb-1">RISK</div>
                     <div className="flex items-start gap-2 text-xs">
                       <span className="text-tv-red font-bold">⚠</span>
                       <span className="text-tv-muted font-sans">{data.scoring.risk}</span>
@@ -375,7 +375,7 @@ function DashboardContent() {
           <div className="w-full flex items-center gap-3 bg-tv-purple/10 border border-tv-purple/25 rounded-lg px-4 py-3">
             <Radar className="w-4 h-4 text-tv-purple shrink-0" />
             <div className="min-w-0">
-              <span className="text-[10px] font-sans font-semibold text-tv-muted uppercase">LensRadar</span>
+              <span className="lens-eyebrow font-sans text-tv-muted">LensRadar</span>
               <div className="text-sm text-white">
                 Skor <strong className="font-number">{radarRank.finalScore}</strong>
                 {radarRank.topReasons?.[0] && <span className="text-tv-muted"> — {radarRank.topReasons[0]}</span>}
@@ -405,7 +405,7 @@ function DashboardContent() {
               <div className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border ${status.bg}`}>
                 <Activity className={`w-5 h-5 ${status.color}`} />
                 <div>
-                  <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">MA STATUS</div>
+                  <div className="lens-eyebrow font-sans text-tv-muted">MA STATUS</div>
                   <div className={`text-sm font-bold font-sans ${status.color}`}>{status.label}</div>
                 </div>
                 <div className="ml-auto text-right text-xs font-number text-tv-muted">
@@ -417,7 +417,7 @@ function DashboardContent() {
                 </div>
               </div>
               {maDataReady && (
-                <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" surface="60" className="mt-2 border-tv-border px-3 py-2 text-[11px] leading-relaxed text-tv-muted">
+                <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" surface="60" className="mt-2 border-tv-border px-3 py-2 lens-body-sm leading-relaxed text-tv-muted">
                   <span className="font-semibold text-tv-text">Konteks tren:</span>{' '}
                   {price < (ma200 as number)
                     ? 'Momentum jangka pendek bisa membaik, tetapi tren besar belum pulih karena harga masih di bawah MA200. Sinyal bullish pendek tidak otomatis berarti uptrend jangka panjang.'

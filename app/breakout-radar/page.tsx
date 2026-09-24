@@ -225,7 +225,7 @@ export default function AiPickPage() {
                 <TrendingUp className="w-4 h-4 text-tv-blue" />
                 {isId ? 'Pantauan Terkuat Hari Ini' : "Today's Strongest Screen"}
               </h2>
-              <p className="text-[11px] text-tv-muted mt-1">
+              <p className="lens-body-sm text-tv-muted mt-1">
                 {isId
                   ? 'Diurutkan dari skor komposit tertinggi. Hanya saham berskor 60 ke atas yang tampil; ini scanner, bukan rekomendasi beli/jual.'
                   : 'Sorted by highest composite score. Only stocks scoring 60 and above appear; this is a scanner, not a buy/sell recommendation.'}
@@ -370,7 +370,7 @@ export default function AiPickPage() {
                                   <span className="ml-2 text-tv-red text-xs font-normal">! {it.flagReason}</span>
                                 )}
                                 {it.topReasons?.[0] && (
-                                  <div className="text-[10px] font-normal text-tv-muted truncate max-w-[220px]">{it.topReasons[0]}</div>
+                                  <div className="lens-meta font-normal text-tv-muted truncate max-w-[220px]">{it.topReasons[0]}</div>
                                 )}
                               </div>
                             </div>
@@ -396,7 +396,7 @@ export default function AiPickPage() {
                           </td>
                           <td className="py-3 px-4 text-right font-number text-tv-text">
                             <div className="flex flex-col items-end gap-1">
-                              <span>{it.breakdown?.technical ?? 'N/A'}<span className="text-[10px] text-tv-muted">/40</span></span>
+                              <span>{it.breakdown?.technical ?? 'N/A'}<span className="lens-meta text-tv-muted">/40</span></span>
                               <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
                                 <span className={`block h-full rounded-full bg-tv-blue ${percentageWidthClass(scoreBarWidth(it.breakdown?.technical, 40))}`} />
                               </span>
@@ -404,7 +404,7 @@ export default function AiPickPage() {
                           </td>
                           <td className="py-3 px-4 text-right font-number text-tv-text">
                             <div className="flex flex-col items-end gap-1">
-                              <span>{it.breakdown?.fundamental ?? 'N/A'}<span className="text-[10px] text-tv-muted">/30</span></span>
+                              <span>{it.breakdown?.fundamental ?? 'N/A'}<span className="lens-meta text-tv-muted">/30</span></span>
                               <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
                                 <span className={`block h-full rounded-full bg-tv-purple ${percentageWidthClass(scoreBarWidth(it.breakdown?.fundamental, 30))}`} />
                               </span>
@@ -412,7 +412,7 @@ export default function AiPickPage() {
                           </td>
                           <td className="py-3 px-4 text-right font-number text-tv-text">
                             <div className="flex flex-col items-end gap-1">
-                              <span>{it.breakdown?.flow ?? 'N/A'}<span className="text-[10px] text-tv-muted">/30</span></span>
+                              <span>{it.breakdown?.flow ?? 'N/A'}<span className="lens-meta text-tv-muted">/30</span></span>
                               <span className="h-1 w-12 rounded-full bg-tv-hover overflow-hidden">
                                 <span className={`block h-full rounded-full bg-tv-green ${percentageWidthClass(scoreBarWidth(it.breakdown?.flow, 30))}`} />
                               </span>
@@ -432,7 +432,7 @@ export default function AiPickPage() {
                               type="button"
                               onClick={() => setExpandedSymbol(isExpanded ? null : it.symbol)}
                               aria-label={isExpanded ? (isId ? `Tutup rincian ${it.symbol}` : `Close details for ${it.symbol}`) : (isId ? `Buka rincian ${it.symbol}` : `Open details for ${it.symbol}`)}
-                              className="inline-flex items-center gap-1 text-[11px] text-tv-blue hover:text-tv-text transition-colors"
+                              className="inline-flex items-center gap-1 lens-label text-tv-blue hover:text-tv-text transition-colors"
                             >
                               {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                             </Button>
@@ -444,20 +444,20 @@ export default function AiPickPage() {
                               <div className="flex flex-col md:flex-row gap-4 text-xs">
                                 <div className="flex gap-4 shrink-0">
                                   <div>
-                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{isId ? 'Technical' : 'Technical'}</div>
+                                    <div className="text-tv-muted uppercase lens-meta tracking-wide">{isId ? 'Technical' : 'Technical'}</div>
                                     <div className="font-bold font-number text-tv-text">{it.breakdown?.technical ?? 'N/A'}/40</div>
                                   </div>
                                   <div>
-                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{isId ? 'Fundamental' : 'Fundamental'}</div>
+                                    <div className="text-tv-muted uppercase lens-meta tracking-wide">{isId ? 'Fundamental' : 'Fundamental'}</div>
                                     <div className="font-bold font-number text-tv-text">{it.breakdown?.fundamental ?? 'N/A'}/30</div>
                                   </div>
                                   <div>
-                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{isId ? 'Arus Dana' : 'Fund Flow'}</div>
+                                    <div className="text-tv-muted uppercase lens-meta tracking-wide">{isId ? 'Arus Dana' : 'Fund Flow'}</div>
                                     <div className="font-bold font-number text-tv-text">{it.breakdown?.flow ?? 'N/A'}/30</div>
                                   </div>
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">{isId ? 'Alasan Utama' : 'Key Drivers'}</div>
+                                  <div className="text-tv-muted uppercase lens-meta tracking-wide mb-1">{isId ? 'Alasan Utama' : 'Key Drivers'}</div>
                                   {it.topReasons && it.topReasons.length > 0 ? (
                                     <ul className="space-y-0.5">
                                       {it.topReasons.map((r, i) => (
@@ -496,13 +496,13 @@ export default function AiPickPage() {
                     urut di bawah tetap berlaku untuk kedua tampilan. */}
                 <div className="md:hidden">
                   <div className="flex items-center gap-1.5 overflow-x-auto px-3 py-2.5 border-b border-tv-border">
-                    <span className="text-[10px] uppercase tracking-wide text-tv-muted shrink-0 mr-1">{isId ? 'Urutkan' : 'Sort'}</span>
+                    <span className="lens-meta uppercase tracking-wide text-tv-muted shrink-0 mr-1">{isId ? 'Urutkan' : 'Sort'}</span>
                     {sortableColumns.map((col) => (
                       <Button variant="bare" size="none"
                         key={col.key}
                         type="button"
                         onClick={() => handleRadarSort(col.key)}
-                        className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] transition-colors ${
+                        className={`shrink-0 rounded-full border px-2.5 py-1 lens-label transition-colors ${
                           radarSortKey === col.key
                             ? 'border-tv-blue/40 bg-tv-blue/10 text-tv-blue'
                             : 'border-tv-border text-tv-muted hover:text-tv-text'
@@ -520,7 +520,7 @@ export default function AiPickPage() {
                       return (
                         <div key={it.symbol} className={`border-l-4 ${it.flagged ? 'border-l-tv-warning' : 'border-l-tv-green'}`}>
                           <div className="flex items-center gap-3 px-3 py-3">
-                            <span className="text-[11px] text-tv-muted font-number w-4 shrink-0">{idx + 1}</span>
+                            <span className="lens-meta text-tv-muted font-number w-4 shrink-0">{idx + 1}</span>
                             <TickerAvatar symbol={it.symbol} size="md" />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
@@ -531,17 +531,17 @@ export default function AiPickPage() {
                                   {it.changePct >= 0 ? '+' : ''}{it.changePct.toFixed(1)}%
                                 </span>
                               </div>
-                              <div className="text-[11px] text-tv-muted font-number">
+                              <div className="lens-meta text-tv-muted font-number">
                                 Rp {Math.round(it.price).toLocaleString(isId ? 'id-ID' : 'en-US')}
                               </div>
-                              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] font-number text-tv-muted">
+                              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 lens-meta font-number text-tv-muted">
                                 <span>T {it.finalScore}</span>
                                 <span>{isId ? 'Tek' : 'Tech'} {it.breakdown?.technical ?? 'N/A'}/40</span>
                                 <span>Fund {it.breakdown?.fundamental ?? 'N/A'}/30</span>
                                 <span>Flow {it.breakdown?.flow ?? 'N/A'}/30</span>
                                 <span>Cov {typeof it.coverage === 'number' ? `${it.coverage}%` : 'N/A'}</span>
                               </div>
-                              {it.flagged && <div className="text-[10px] text-tv-red mt-0.5">! {it.flagReason}</div>}
+                              {it.flagged && <div className="lens-meta text-tv-red mt-0.5">! {it.flagReason}</div>}
                             </div>
                             <div className="text-right shrink-0">
                               <div className="font-number font-bold text-tv-text">{it.finalScore}</div>
@@ -575,9 +575,9 @@ export default function AiPickPage() {
                                   [isId ? 'Arus Dana' : 'Fund Flow', it.breakdown?.flow, 30],
                                 ] as const).map(([label, value, max]) => (
                                   <div key={label}>
-                                    <div className="text-tv-muted uppercase text-[10px] tracking-wide">{label}</div>
+                                    <div className="text-tv-muted uppercase lens-meta tracking-wide">{label}</div>
                                     <div className="font-bold font-number text-tv-text text-sm">
-                                      {value ?? 'N/A'}<span className="text-tv-muted text-[10px] font-normal">/{max}</span>
+                                      {value ?? 'N/A'}<span className="text-tv-muted lens-meta font-normal">/{max}</span>
                                     </div>
                                     <div className="mt-1 h-1 rounded-full bg-tv-hover overflow-hidden">
                                       <div className={`h-full rounded-full bg-tv-blue ${percentageWidthClass(value == null ? 0 : (value / max) * 100)}`} />
@@ -586,13 +586,13 @@ export default function AiPickPage() {
                                 ))}
                               </div>
                               <div className="mt-3">
-                                <div className="text-tv-muted uppercase text-[10px] tracking-wide mb-1">{isId ? 'Alasan Utama' : 'Key Drivers'}</div>
+                                <div className="text-tv-muted uppercase lens-meta tracking-wide mb-1">{isId ? 'Alasan Utama' : 'Key Drivers'}</div>
                                 {it.topReasons && it.topReasons.length > 0 ? (
                                   <ul className="space-y-0.5">
-                                    {it.topReasons.map((r, i) => <li key={i} className="text-[11px] text-tv-text">✓ {r}</li>)}
+                                    {it.topReasons.map((r, i) => <li key={i} className="lens-body-sm text-tv-text">✓ {r}</li>)}
                                   </ul>
                                 ) : (
-                                  <span className="text-[11px] text-tv-muted">{isId ? 'Rincian belum tersedia untuk saham ini.' : 'Details are not yet available for this stock.'}</span>
+                                  <span className="lens-body-sm text-tv-muted">{isId ? 'Rincian belum tersedia untuk saham ini.' : 'Details are not yet available for this stock.'}</span>
                                 )}
                               </div>
                             </motion.div>
@@ -638,7 +638,7 @@ export default function AiPickPage() {
                   />
                 ))}
               </div>
-              <p className="text-[10px] text-tv-muted mt-2">
+              <p className="lens-meta text-tv-muted mt-2">
                 {isId
                   ? 'Kartu ini menampilkan bukti dari data yang sudah ada — bukan rekomendasi beli/jual. Klik kartu untuk melihat rincian lengkap.'
                   : 'These cards show evidence from existing data — not buy/sell recommendations. Click a card to view full details.'}
@@ -646,7 +646,7 @@ export default function AiPickPage() {
             </section>
           )}
 
-          <p className="text-[11px] text-tv-muted mt-4 leading-relaxed">
+          <p className="lens-body-sm text-tv-muted mt-4 leading-relaxed">
             {isId ? (
               <>
                 Skor 0-100 = komposit teknikal (maks 40), fundamental (maks 30), dan arus dana (maks 30).

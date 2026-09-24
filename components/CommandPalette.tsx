@@ -195,7 +195,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
       <PrimitiveButton variant="bare" size="none"
         onClick={() => setOpen(true)}
         title="Cari saham (Ctrl+K)"
-        className="flex h-11 w-full items-center justify-start gap-2 rounded-xl border border-tv-border bg-tv-hover/40 px-3 text-[11px] font-medium text-tv-muted transition-colors hover:border-tv-borderLight hover:bg-tv-hover hover:text-tv-text md:h-9"
+        className="flex h-11 w-full items-center justify-start gap-2 rounded-xl border border-tv-border bg-tv-hover/40 px-3 lens-body-sm font-medium text-tv-muted transition-colors hover:border-tv-borderLight hover:bg-tv-hover hover:text-tv-text md:h-9"
       >
         <Search className="h-3.5 w-3.5 shrink-0" />
         {/* Labelnya dulu `hidden sm:inline`, jadi di HP tombol ini tampil sebagai batang
@@ -206,7 +206,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
             HP - h-9 (36px) di bawah ambang target sentuh. */}
         <span className="truncate sm:hidden">Cari saham atau kode emiten...</span>
         <span className="hidden truncate sm:inline">Cari saham, IHSG, kode emiten, atau perusahaan...</span>
-        <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded-md border border-tv-border bg-tv-hover px-1.5 py-0.5 text-[10px] font-mono text-tv-muted">⌘K</kbd>
+        <kbd className="ml-auto hidden md:inline-flex items-center gap-0.5 rounded-md border border-tv-border bg-tv-hover px-1.5 py-0.5 lens-label font-mono text-tv-muted">⌘K</kbd>
       </PrimitiveButton>
 
       {open && (
@@ -231,7 +231,7 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                 onKeyDown={handleKeyDown}
                 placeholder={t('common.searchModalPlaceholder')}
                 aria-label={t('common.searchModalAria')}
-                className="flex-1 rounded-md bg-transparent text-[14px] text-tv-text placeholder:text-tv-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
+                className="flex-1 rounded-md bg-transparent lens-ui text-tv-text placeholder:text-tv-muted/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue"
               />
               {/* Tombol berisi ikon saja WAJIB punya nama aksesibel - tanpa aria-label
                   pembaca layar hanya mengumumkan "tombol". Ukurannya juga dinaikkan ke
@@ -248,12 +248,12 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
             <div className="flex max-h-[60vh]">
               <div className="flex-1 overflow-y-auto py-1.5 max-w-[60%]">
                 {!loaded && (
-                  <div className="px-4 py-8 text-center text-[12px] text-tv-muted flex items-center justify-center gap-2">
+                  <div className="px-4 py-8 text-center lens-body-sm text-tv-muted flex items-center justify-center gap-2">
                     <Loader2 className="h-3.5 w-3.5 animate-spin" /> {t('common.loadingEmiten')}
                   </div>
                 )}
                 {loaded && results.length === 0 && (
-                  <div className="px-4 py-8 text-center text-[12px] text-tv-muted">{t('common.noMatchingStocks')}</div>
+                  <div className="px-4 py-8 text-center lens-body-sm text-tv-muted">{t('common.noMatchingStocks')}</div>
                 )}
                 {results.map((r, idx) => (
                   <PrimitiveButton variant="bare" size="none"
@@ -263,10 +263,10 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
                     className={`w-full text-left px-4 py-2.5 flex items-center justify-between gap-2 transition-colors ${idx === activeIdx ? 'bg-tv-blue/10' : 'hover:bg-tv-hover'}`}
                   >
                     <div className="min-w-0">
-                      <div className="text-[13px] font-bold text-tv-text font-mono">{r.symbol.replace(/\.JK$/i, '')}</div>
-                      <div className="text-[11px] text-tv-muted truncate">{r.name}</div>
+                      <div className="lens-body-sm font-bold text-tv-text font-mono">{r.symbol.replace(/\.JK$/i, '')}</div>
+                      <div className="lens-meta text-tv-muted truncate">{r.name}</div>
                     </div>
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-tv-muted shrink-0">{r.board}</span>
+                    <span className="lens-label uppercase tracking-wide text-tv-muted shrink-0">{r.board}</span>
                   </PrimitiveButton>
                 ))}
               </div>
@@ -274,34 +274,34 @@ export default function CommandPalette({ onSelect, enableShortcut = true }: Comm
               {/* Mini chart preview */}
               <div className="hidden sm:flex flex-col flex-1 border-l border-tv-border p-4 bg-tv-cardAlt">
                 {!active ? (
-                  <div className="m-auto text-[11px] text-tv-muted text-center">{t('common.hoverChartPreview')}</div>
+                  <div className="m-auto lens-meta text-tv-muted text-center">{t('common.hoverChartPreview')}</div>
                 ) : (
                   <>
-                    <div className="text-[13px] font-bold text-tv-text font-mono">{active.symbol.replace(/\.JK$/i, '')}</div>
-                    <div className="text-[10px] text-tv-muted truncate mb-3">{active.name}</div>
+                    <div className="lens-body-sm font-bold text-tv-text font-mono">{active.symbol.replace(/\.JK$/i, '')}</div>
+                    <div className="lens-meta text-tv-muted truncate mb-3">{active.name}</div>
                     {previewLoading ? (
                       <div className="flex-1 flex items-center justify-center"><Loader2 className="h-4 w-4 animate-spin text-tv-muted" /></div>
                     ) : preview ? (
                       <>
                         <div className="flex items-baseline gap-2 mb-2">
-                          <span className="font-number text-[16px] font-bold text-tv-text">Rp {Math.round(preview.price).toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
-                          <span className={`font-number inline-flex items-center gap-0.5 text-[11px] font-semibold ${preview.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                          <span className="font-number lens-card-title font-bold text-tv-text">Rp {Math.round(preview.price).toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
+                          <span className={`font-number inline-flex items-center gap-0.5 lens-body-sm font-semibold ${preview.changePct >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                             {preview.changePct >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
                             {preview.changePct >= 0 ? '+' : ''}{preview.changePct.toFixed(2)}%
                           </span>
                         </div>
                         <Sparkline closes={preview.closes} />
-                        <div className="text-[10px] text-tv-muted mt-2">{t('common.lastMonth')}</div>
+                        <div className="lens-meta text-tv-muted mt-2">{t('common.lastMonth')}</div>
                       </>
                     ) : (
-                      <div className="flex-1 flex items-center justify-center text-[11px] text-tv-muted">{t('common.chartDataUnavailable')}</div>
+                      <div className="flex-1 flex items-center justify-center lens-meta text-tv-muted">{t('common.chartDataUnavailable')}</div>
                     )}
                   </>
                 )}
               </div>
             </div>
 
-            <div className="px-4 py-2 border-t border-tv-border flex items-center justify-between text-[10px] text-tv-muted">
+            <div className="px-4 py-2 border-t border-tv-border flex items-center justify-between lens-meta text-tv-muted">
               <span>↑↓ {t('common.navHintNavigation')} • {onSelect ? t('common.navHintEnterChart') : t('common.navHintEnterAnalysis')}</span>
               {!onSelect && <span>{t('common.freeFeaturesNote')}</span>}
             </div>
