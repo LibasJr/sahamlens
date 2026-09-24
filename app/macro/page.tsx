@@ -136,7 +136,7 @@ export default function MacroPage() {
               <Globe className="h-6 w-6" />
             </div>
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">
+              <p className="lens-eyebrow text-tv-muted">
                 {isEn ? 'INDONESIA MACRO MONITOR' : 'INDONESIA MACRO MONITOR'}
               </p>
               <h1 className="font-heading text-xl font-bold tracking-tight text-tv-text sm:text-2xl">
@@ -245,7 +245,7 @@ export default function MacroPage() {
                 <p className="text-xs text-tv-muted leading-relaxed bg-tv-bg/50 p-3 rounded-lg border border-tv-border">
                   {data.regime.narrative}
                 </p>
-                <p className="text-[10px] leading-relaxed text-tv-muted/80">
+                <p className="lens-body-sm leading-relaxed text-tv-muted/80">
                   {isEn
                     ? 'Method note: regime thresholds and sector mappings are SahamLens heuristics applied to sourced macro observations; they are not empirical sector-return probabilities.'
                     : 'Catatan metode: threshold rezim dan pemetaan sektor adalah heuristik SahamLens yang diterapkan pada observasi makro bersumber; bukan probabilitas return sektor.'}
@@ -271,27 +271,27 @@ export default function MacroPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                    <span className="text-[11px] text-tv-muted">{t('macroEnhance.realYield')}</span>
+                    <span className="lens-meta">{t('macroEnhance.realYield')}</span>
                     <div className="text-lg font-bold font-number text-tv-green mt-1">
                       {data.health.realInterestRate != null ? `+${data.health.realInterestRate}%` : 'N/A'}
                     </div>
-                    <span className="text-[10px] text-tv-muted/70">{isEn ? 'Attractive foreign carry buffer' : 'Buffer yield riil menarik'}</span>
+                    <span className="lens-body-sm text-tv-muted/70">{isEn ? 'Attractive foreign carry buffer' : 'Buffer yield riil menarik'}</span>
                   </Card>
 
                   <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                    <span className="text-[11px] text-tv-muted">{t('macroEnhance.fxReservesCover')}</span>
+                    <span className="lens-meta">{t('macroEnhance.fxReservesCover')}</span>
                     <div className="text-lg font-bold font-number text-tv-blue mt-1">
                       {data.health.fxImportCoverMonths != null ? `${data.health.fxImportCoverMonths} bln` : 'N/A'}
                     </div>
-                    <span className="text-[10px] text-tv-muted/70">{isEn ? 'Above IMF 3-mo standard' : 'Di atas standar IMF 3 bln'}</span>
+                    <span className="lens-body-sm text-tv-muted/70">{isEn ? 'Above IMF 3-mo standard' : 'Di atas standar IMF 3 bln'}</span>
                   </Card>
 
                   <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                    <span className="text-[11px] text-tv-muted">{t('macroEnhance.yieldSpread')}</span>
+                    <span className="lens-meta">{t('macroEnhance.yieldSpread')}</span>
                     <div className="text-lg font-bold font-number text-tv-purple mt-1">
                       {data.health.yieldSpread10Y != null ? `+${data.health.yieldSpread10Y}%` : 'N/A'}
                     </div>
-                    <span className="text-[10px] text-tv-muted/70">{isEn ? 'ID 10Y over US 10Y' : 'Premi Surat Utang Negara'}</span>
+                    <span className="lens-body-sm text-tv-muted/70">{isEn ? 'ID 10Y over US 10Y' : 'Premi Surat Utang Negara'}</span>
                   </Card>
                 </div>
               </Card>
@@ -340,7 +340,7 @@ export default function MacroPage() {
                           </div>
                         </div>
                         <div className="mt-4 flex items-end justify-between gap-2">
-                          <p className="text-[10px] leading-4 text-tv-muted">{formatDateTime(item.asOf)}</p>
+                          <p className="lens-meta leading-4 text-tv-muted">{formatDateTime(item.asOf)}</p>
                           <a
                             href={item.sourceUrl}
                             target="_blank"
@@ -398,7 +398,7 @@ export default function MacroPage() {
                       </div>
                       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-white/[0.06] pt-3">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-[10px] text-tv-muted">{item.source}</span>
+                          <span className="lens-meta">{item.source}</span>
                           {item.retrievalStatus === 'LAST_VERIFIED' && (
                             <Badge variant="warning">{isEn ? 'LAST VERIFIED' : 'TERAKHIR TERVERIFIKASI'}</Badge>
                           )}
@@ -407,13 +407,13 @@ export default function MacroPage() {
                           href={item.sourceUrl}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-[10px] font-semibold text-tv-blue hover:underline"
+                          className="inline-flex items-center gap-1 lens-label font-semibold text-tv-blue hover:underline"
                         >
                           {isEn ? 'Source' : 'Sumber'}
                           <ExternalLink className="h-3 w-3" />
                         </a>
                       </div>
-                      {item.note && <p className="mt-2 text-[10px] leading-4 text-tv-muted">{item.note}</p>}
+                      {item.note && <p className="mt-2 lens-meta leading-4 text-tv-muted">{item.note}</p>}
                     </Card>
                   ))}
                 </div>
@@ -449,13 +449,13 @@ export default function MacroPage() {
                     </div>
                     <div className="mt-4 space-y-3">
                       <div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-tv-muted">
+                        <p className="lens-eyebrow text-tv-muted">
                           {isEn ? 'Transmission Channel' : 'Kanal transmisi'}
                         </p>
                         <p className="mt-1 text-xs leading-5 text-tv-text">{item.channel}</p>
                       </div>
                       <div className="rounded-xl border border-tv-purple/15 bg-tv-purple/[0.04] p-3">
-                        <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-tv-purple">
+                        <p className="lens-eyebrow text-tv-purple">
                           {isEn ? 'Equity Read-Through & Implications' : 'Implikasi yang perlu dipantau'}
                         </p>
                         <p className="mt-1 text-xs leading-5 text-tv-muted">{item.equityReadThrough}</p>

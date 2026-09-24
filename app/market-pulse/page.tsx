@@ -260,7 +260,7 @@ export default function MarketPulse() {
               >
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <div className="text-[10px] text-tv-muted uppercase font-semibold tracking-wide">{idx.fullName}</div>
+                    <div className="lens-eyebrow text-tv-muted">{idx.fullName}</div>
                     <div className="text-lg font-extrabold text-tv-text font-number">{idx.name}</div>
                   </div>
                   {hasData ? (
@@ -288,7 +288,7 @@ export default function MarketPulse() {
                   {hasData && <Sparkline data={idx.sparkline} color={isUp ? '#22C55E' : '#EF4444'} />}
                 </div>
                 {idx.name === 'IHSG' && idx.source === 'IDX_OFFICIAL_INDEX_SUMMARY' && (
-                  <div className="mt-1 text-[10px] font-semibold text-tv-blue">Penutupan resmi BEI</div>
+                  <div className="mt-1 lens-label font-semibold text-tv-blue">Penutupan resmi BEI</div>
                 )}
               </motion.div>
             );
@@ -318,7 +318,7 @@ export default function MarketPulse() {
                     HP) - keduanya jujur soal delay Yahoo Finance ~15 menit. Label dibuat eksplisit sebagai delayed karena sumber Yahoo dapat tertunda; refresh berkala tidak membuat data menjadi realtime. */}
                 <Badge variant="danger" dot title="Data Yahoo Finance, delay ±15 menit dari kondisi pasar riil - bukan realtime">Delayed</Badge>
               </h3>
-              <p className="mt-0.5 text-[10px] text-tv-muted">Sumber: Yahoo Finance, delay ±15 menit</p>
+              <p className="mt-0.5 lens-meta text-tv-muted">Sumber: Yahoo Finance, delay ±15 menit</p>
             </div>
             <a href="/breakout-radar" className="text-xs text-tv-blue hover:text-tv-text flex items-center gap-1 transition-colors">
               Lihat Semua Radar &rarr;
@@ -349,7 +349,7 @@ export default function MarketPulse() {
                     </div>
                     <div className="text-xs font-bold text-tv-blue font-number shrink-0">{item.change}</div>
                   </div>
-                  <div className="text-[10px] text-tv-muted line-clamp-1 mb-2">
+                  <div className="lens-meta text-tv-muted line-clamp-1 mb-2">
                     {item.reason || 'Alasan breakout belum dirinci untuk saham ini'}
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-tv-border gap-2">
@@ -361,7 +361,7 @@ export default function MarketPulse() {
                         <span className={`block h-full rounded-full bg-tv-blue ${percentageWidthClass((Number(item.score) / 8) * 100)}`} />
                       </span>
                     </div>
-                    <span className="text-[10px] text-tv-muted bg-tv-hover px-2 rounded font-number shrink-0">RR {item.rr}</span>
+                    <span className="lens-meta text-tv-muted bg-tv-hover px-2 rounded font-number shrink-0">RR {item.rr}</span>
                   </div>
                 </motion.a>
               ))
@@ -391,7 +391,7 @@ export default function MarketPulse() {
               <Layers className="w-5 h-5 text-tv-green" />
               Sector Heatmap IDX
             </h3>
-            <span className="text-[10px] text-tv-muted">
+            <span className="lens-meta text-tv-muted">
               11 Sektor • Warna ~ % Perubahan • Rata-rata beberapa saham wakil per sektor (bukan indeks sektor resmi IDX)
             </span>
           </div>
@@ -431,7 +431,7 @@ export default function MarketPulse() {
               <BarChart3 className="w-5 h-5 text-tv-green" />
               Market Breadth (universe terpantau)
             </h3>
-            <span className="text-[10px] text-tv-muted">
+            <span className="lens-meta text-tv-muted">
               {data?.breadth?.total ?? 0} / {data?.breadth?.expectedTotal ?? 'N/A'} saham terbaca
             </span>
           </div>
@@ -455,7 +455,7 @@ export default function MarketPulse() {
                   className="rounded-lg border border-tv-green/20 bg-tv-bg p-2 text-center transition-colors hover:bg-tv-green/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60 disabled:cursor-not-allowed disabled:opacity-70 sm:p-4"
                 >
                   <AnimatedNumber value={data.breadth.advancing} className="block text-xl sm:text-3xl font-extrabold text-tv-green font-number" />
-                  <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Naik (Advance)</div>
+                  <div className="lens-eyebrow text-tv-muted mt-1">Naik (Advance)</div>
                   <div className="mt-1 lens-meta text-tv-green/80">Ketuk untuk daftar</div>
                 </Button>
                 <Button variant="bare" size="none"
@@ -466,7 +466,7 @@ export default function MarketPulse() {
                   className="rounded-lg border border-tv-border bg-tv-bg p-2 text-center transition-colors hover:bg-tv-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60 disabled:cursor-not-allowed disabled:opacity-70 sm:p-4"
                 >
                   <AnimatedNumber value={data.breadth.unchanged} className="block text-xl sm:text-3xl font-extrabold text-tv-muted font-number" />
-                  <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Stagnan</div>
+                  <div className="lens-eyebrow text-tv-muted mt-1">Stagnan</div>
                   <div className="mt-1 lens-meta text-tv-muted">Ketuk untuk daftar</div>
                 </Button>
                 <Button variant="bare" size="none"
@@ -477,7 +477,7 @@ export default function MarketPulse() {
                   className="rounded-lg border border-tv-red/20 bg-tv-bg p-2 text-center transition-colors hover:bg-tv-red/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue/60 disabled:cursor-not-allowed disabled:opacity-70 sm:p-4"
                 >
                   <AnimatedNumber value={data.breadth.declining} className="block text-xl sm:text-3xl font-extrabold text-tv-red font-number" />
-                  <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">Turun (Decline)</div>
+                  <div className="lens-eyebrow text-tv-muted mt-1">Turun (Decline)</div>
                   <div className="mt-1 lens-meta text-tv-red/80">Ketuk untuk daftar</div>
                 </Button>
                 <div className="bg-tv-bg border border-tv-border rounded-lg p-2 sm:p-4 text-center flex flex-col items-center justify-center">
@@ -488,7 +488,7 @@ export default function MarketPulse() {
                       data.breadth.advanceDeclineRatio >= 1 ? 'text-tv-green' : 'text-tv-red'
                     }`}
                   />
-                  <div className="text-[10px] sm:text-[10px] text-tv-muted uppercase font-semibold tracking-wide mt-1">AD Ratio</div>
+                  <div className="lens-eyebrow text-tv-muted mt-1">AD Ratio</div>
                 </div>
               </div>
 
@@ -507,7 +507,7 @@ export default function MarketPulse() {
                     <div className={`flex items-center justify-center gap-2 rounded-lg border py-2 text-sm font-bold ${verdict.tone}`}>
                       {verdict.label}
                     </div>
-                    <p className="mt-2 text-[11px] leading-relaxed text-tv-muted text-center">
+                    <p className="mt-2 lens-body-sm leading-relaxed text-tv-muted text-center">
                       {verdict.story} Dihitung dari {data.breadth.total} saham terpantau, bukan seluruh emiten IDX.
                     </p>
                   </div>

@@ -60,7 +60,7 @@ export default function TermsPage() {
         <div className="pointer-events-none absolute -left-24 -bottom-16 h-64 w-64 rounded-full bg-glow-blue blur-3xl" />
 
         <div className="relative">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 text-[11px] font-semibold text-tv-blue">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 lens-label font-semibold text-tv-blue">
             <Scale className="h-3 w-3" /> {t('termsPage.badge')}
           </span>
           <h1 className="mt-4 font-heading text-3xl sm:text-4xl font-bold tracking-tight text-tv-text leading-[1.15]">
@@ -82,7 +82,7 @@ export default function TermsPage() {
         <h2 className="font-heading text-lg font-bold text-tv-text">
           {t('termsPage.summaryTitle')}
         </h2>
-        <p className="text-[13px] text-tv-muted leading-relaxed">
+        <p className="lens-body-sm text-tv-muted leading-relaxed">
           {t('termsPage.summaryBody')}
         </p>
       </Card>
@@ -96,7 +96,7 @@ export default function TermsPage() {
             <h2 className="font-heading text-sm font-bold text-tv-text">
               {t(`termsPage.${key}Title` as const)}
             </h2>
-            <p className="text-[13px] text-tv-muted leading-relaxed">
+            <p className="lens-body-sm text-tv-muted leading-relaxed">
               {t(`termsPage.${key}Body` as const)}
             </p>
           </Card>
@@ -110,7 +110,7 @@ export default function TermsPage() {
         >
           <Mail className="h-4 w-4 shrink-0" /> support@sahamlens.id
         </a>
-        <p className="min-w-0 text-[12px] leading-relaxed text-tv-muted">{t('termsPage.contactNote')}</p>
+        <p className="min-w-0 lens-body-sm leading-relaxed text-tv-muted">{t('termsPage.contactNote')}</p>
       </Card>
 
     </PageContainer>

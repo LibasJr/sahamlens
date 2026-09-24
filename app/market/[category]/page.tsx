@@ -119,7 +119,7 @@ export default function MarketCategoryPage() {
             {/* next/image, bukan <img>: berkasnya 263 KB dan dulu dikirim utuh untuk
                 kotak 32 piksel. Optimizer melayaninya 1,1 KB WebP. */}
             <Image src="/sahamlens-logo.png" alt="SahamLens" width={32} height={32} className="h-8 w-8 rounded-xl object-contain shadow-sm" priority />
-            <span className="font-bold text-[15px] tracking-tight font-heading">SahamLens</span>
+            <span className="font-bold lens-card-title tracking-tight font-heading">SahamLens</span>
           </div>
         </div>
       </header>
@@ -131,10 +131,10 @@ export default function MarketCategoryPage() {
           </div>
           <div>
             <h1 className="lens-page-title">{config.title}</h1>
-            <p className="text-[13px] text-tv-muted">{config.sub}</p>
+            <p className="lens-body-sm text-tv-muted">{config.sub}</p>
           </div>
         </div>
-        <p className="text-[11px] text-tv-muted mb-6">
+        <p className="lens-body-sm text-tv-muted mb-6">
           {loading ? 'Memuat data...' : `${displayRows.length} saham • Data sesi ${lastUpdated || 'tidak tersedia'} • Sumber: Yahoo Finance`}
         </p>
 
@@ -147,7 +147,7 @@ export default function MarketCategoryPage() {
         />
 
         <Card padding="none" radius="lg" elevation="none" highlight={false} className="border-tv-border overflow-hidden shadow-1">
-          <div className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-tv-border/60 bg-tv-hover/40 text-[11px] font-bold uppercase tracking-widest text-tv-muted">
+          <div className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-tv-border/60 bg-tv-hover/40 lens-meta font-bold uppercase tracking-widest text-tv-muted">
             <span>#</span>
             <Button variant="bare" size="none" onClick={() => toggleSort('symbol')} className="flex items-center gap-1 text-left hover:text-tv-text transition-colors">Kode <SortIcon active={sortKey === 'symbol'} dir={sortDir} /></Button>
             <Button variant="bare" size="none" onClick={() => toggleSort('price')} className="flex items-center gap-1 text-left hover:text-tv-text transition-colors">Harga <SortIcon active={sortKey === 'price'} dir={sortDir} /></Button>
@@ -177,10 +177,10 @@ export default function MarketCategoryPage() {
                 href={`/technical/${row.symbol}.JK`}
                 className="grid grid-cols-[40px_1fr_1fr_1fr] sm:grid-cols-[48px_1fr_1fr_1fr] gap-2 px-4 py-3 border-b border-tv-border/40 last:border-b-0 hover:bg-tv-hover transition-colors items-center"
               >
-                <span className="text-[11px] font-number text-tv-muted">{idx + 1}</span>
-                <span className="text-[13px] font-bold text-tv-text font-number">{row.symbol.replace(/\.JK$/i, '')}</span>
-                <span className="text-[13px] text-tv-muted font-number">Rp {Math.round(row.price).toLocaleString('id-ID')}</span>
-                <span className={`text-[13px] font-bold text-right font-number ${isDown ? 'text-tv-red' : isUp ? 'text-tv-green' : 'text-tv-text'}`}>
+                <span className="lens-meta font-number text-tv-muted">{idx + 1}</span>
+                <span className="lens-body-sm font-bold text-tv-text font-number">{row.symbol.replace(/\.JK$/i, '')}</span>
+                <span className="lens-body-sm text-tv-muted font-number">Rp {Math.round(row.price).toLocaleString('id-ID')}</span>
+                <span className={`lens-body-sm font-bold text-right font-number ${isDown ? 'text-tv-red' : isUp ? 'text-tv-green' : 'text-tv-text'}`}>
                   {formatMetric(row, config.metricKey)}
                 </span>
               </Link>

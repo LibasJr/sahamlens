@@ -310,7 +310,7 @@ export default function MoatPage() {
             <div className="rounded-2xl border border-tv-purple/20 bg-tv-purple/[0.06] p-4">
               <div className="flex items-center justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">
+                  <p className="lens-eyebrow text-tv-muted">
                     {isEn ? 'Moat Proxy Result' : 'Hasil proxy'}
                   </p>
                   <div className="mt-2">{statusBadge(moat.status)}</div>
@@ -352,35 +352,35 @@ export default function MoatPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
                 <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                  <span className="text-[11px] text-tv-muted">{t('moatEnhance.netProfitMargin')}</span>
+                  <span className="lens-label text-tv-muted">{t('moatEnhance.netProfitMargin')}</span>
                   <div className="text-lg font-bold font-number text-tv-green mt-1">
                     {moat.dupont.netProfitMarginPct != null ? `${moat.dupont.netProfitMarginPct.toFixed(1)}%` : 'N/A'}
                   </div>
-                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Margin contribution' : 'Kontribusi Margin'}</span>
+                  <span className="lens-meta text-tv-muted/70">{isEn ? 'Margin contribution' : 'Kontribusi Margin'}</span>
                 </Card>
 
                 <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                  <span className="text-[11px] text-tv-muted">{t('moatEnhance.assetTurnover')}</span>
+                  <span className="lens-label text-tv-muted">{t('moatEnhance.assetTurnover')}</span>
                   <div className="text-lg font-bold font-number text-tv-blue mt-1">
                     {moat.dupont.assetTurnover != null ? `${moat.dupont.assetTurnover.toFixed(2)}x` : 'N/A'}
                   </div>
-                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Asset Velocity' : 'Perputaran Aset'}</span>
+                  <span className="lens-meta text-tv-muted/70">{isEn ? 'Asset Velocity' : 'Perputaran Aset'}</span>
                 </Card>
 
                 <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                  <span className="text-[11px] text-tv-muted">{t('moatEnhance.financialLeverage')}</span>
+                  <span className="lens-label text-tv-muted">{t('moatEnhance.financialLeverage')}</span>
                   <div className="text-lg font-bold font-number text-tv-purple mt-1">
                     {moat.dupont.equityMultiplier != null ? `${moat.dupont.equityMultiplier.toFixed(2)}x` : 'N/A'}
                   </div>
-                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Equity Multiplier' : 'Pengungkit Modal'}</span>
+                  <span className="lens-meta text-tv-muted/70">{isEn ? 'Equity Multiplier' : 'Pengungkit Modal'}</span>
                 </Card>
 
                 <div className="p-3 rounded-xl bg-gradient-to-r from-tv-blue/10 to-tv-purple/10 border border-tv-blue/30">
-                  <span className="text-[11px] font-semibold text-tv-text">{t('moatEnhance.roeResult')}</span>
+                  <span className="lens-label font-semibold text-tv-text">{t('moatEnhance.roeResult')}</span>
                   <div className="text-2xl font-bold font-number text-white mt-1">
                     {moat.dupont.roePct != null ? `${moat.dupont.roePct.toFixed(1)}%` : 'N/A'}
                   </div>
-                  <span className="text-[10px] text-tv-muted">{isEn ? 'Compounded Return' : 'Imbal Hasil Ekuitas'}</span>
+                  <span className="lens-meta text-tv-muted">{isEn ? 'Compounded Return' : 'Imbal Hasil Ekuitas'}</span>
                 </div>
               </div>
 
@@ -423,7 +423,7 @@ export default function MoatPage() {
                       </div>
                       <p className="mt-2 text-xs text-tv-muted leading-relaxed">{source.basis}</p>
                     </div>
-                    <div className="pt-2 border-t border-tv-border/50 flex items-center justify-between text-[11px]">
+                    <div className="pt-2 border-t border-tv-border/50 flex items-center justify-between lens-meta">
                       <span className="text-tv-muted">{isEn ? 'Financial clue:' : 'Petunjuk rasio:'}</span>
                       <span className="font-number font-bold text-tv-text">{source.evidence}</span>
                     </div>
@@ -496,7 +496,7 @@ export default function MoatPage() {
                         <span className="text-sm font-semibold text-tv-text">{check.label}</span>
                         <span
                           className={
-                            'text-[11px] font-bold ' +
+                            'lens-label font-bold ' +
                             (check.verdict === 'SUPPORTIVE'
                               ? 'text-tv-green'
                               : check.verdict === 'CAUTION'
@@ -517,7 +517,7 @@ export default function MoatPage() {
                 </div>
               ) : null}
 
-              <p className="mt-3 text-[11px] leading-relaxed text-tv-muted">
+              <p className="mt-3 lens-body-sm leading-relaxed text-tv-muted">
                 {payload.moatDurability.conclusion}
               </p>
             </section>
@@ -530,7 +530,7 @@ export default function MoatPage() {
               <h2 className="font-heading text-lg font-bold text-tv-text">
                 {isEn ? 'Four Quantitative Proxy Pillars' : 'Empat pilar proxy kuantitatif'}
               </h2>
-              <span className="text-[11px] text-tv-muted">— {isEn ? 'current snapshot' : 'potret terkini'}</span>
+              <span className="lens-label text-tv-muted">— {isEn ? 'current snapshot' : 'potret terkini'}</span>
             </div>
             <div className="grid gap-4 lg:grid-cols-2">
               {moat.pillars.map((pillar) => (
