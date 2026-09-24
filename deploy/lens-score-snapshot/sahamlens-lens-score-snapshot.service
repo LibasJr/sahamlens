@@ -1,0 +1,14 @@
+[Unit]
+Description=SahamLens - rekam snapshot skor LensRadar (append-only)
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+WorkingDirectory=/opt/sahamlens/app
+# DATABASE_URL dari env produksi. Tanpa berkas ini skrip berhenti kode 2, tidak lapor "sukses".
+EnvironmentFile=-/opt/sahamlens/app/.env.production
+ExecStart=/opt/sahamlens/scripts/lens-score-snapshot.sh
+NoNewPrivileges=true

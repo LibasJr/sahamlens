@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { Activity, ArrowLeft, BarChart3, Bot, Building2, FileSpreadsheet, MessageSquare, Radar, RefreshCw, ShieldCheck, Sparkles, Target, Timer, TrendingUp, Users, Waves } from 'lucide-react';
+import { Activity, ArrowLeft, BarChart3, Bot, Building2, FileSpreadsheet, MessageSquare, Radar, RefreshCw, ShieldCheck, Sparkles, Target, Timer, TrendingUp, Users, Waves, Gauge } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getActiveUsers } from '@/shared/auth/presence';
 import { getAdminUserActivityReport, getProductFunnelSummary, getRecentAuthEvents, type AuthEventType } from '@/modules/user/repository/user.repository';
@@ -174,6 +174,21 @@ export default async function AdminPage() {
             </div>
             <p className="text-sm text-tv-muted mt-1">
               Render factsheet dari SahamLens dataset dan export artifact PNG resolusi tinggi.
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/admin/profil-risiko"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 hover:border-tv-borderLight hover:bg-tv-hover transition-colors"
+        >
+          <div className="rounded-lg bg-tv-green/10 p-2 text-tv-green">
+            <Gauge className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="font-heading text-lg font-bold text-tv-text">Profil Risiko &amp; Tren</h2>
+            <p className="text-sm text-tv-muted mt-1">
+              Peringkat emiten likuid dari volatilitas 60 sesi dan jarak ke puncak 52 minggu - dua ciri yang terbukti di luar sampel.
             </p>
           </div>
         </Link>

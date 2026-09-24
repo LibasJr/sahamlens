@@ -1,0 +1,15 @@
+[Unit]
+Description=SahamLens - pengawas bukti faktor risiko (bulanan)
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+WorkingDirectory=/opt/sahamlens/app
+# DATABASE_URL dari env produksi. Tanpa berkas ini skrip berhenti kode 2, tidak lapor "sehat".
+EnvironmentFile=-/opt/sahamlens/app/.env.production
+TimeoutStartSec=1800
+ExecStart=/opt/sahamlens/scripts/factor-scan-watchdog.sh
+NoNewPrivileges=true

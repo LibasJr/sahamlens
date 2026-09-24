@@ -45,6 +45,7 @@ import {
   Wallet,
   Waves,
   Zap,
+  Gauge,
 } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { isProtectedPage } from '@/shared/constants/access';
@@ -195,6 +196,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin-panduan-harian', name: 'Peta Alur Harian', subtitle: 'Kapan data diperbarui (log tugas)', path: '/admin/panduan-harian', icon: CalendarDays },
     { id: 'admin-konfirmasi-ganda', name: 'Konfirmasi Ganda', subtitle: 'Sinyal berbeda yang menunjuk emiten sama', path: '/admin/konfirmasi-ganda', icon: Layers },
     { id: 'admin-pemindai-harga', name: 'Pemindai Harga Masuk', subtitle: 'Level masuk, Stop Loss, dan sasaran dari arsip harga', path: '/admin/pemindai-harga', icon: Crosshair },
+    { id: 'admin-profil-risiko', name: 'Profil Risiko & Tren', subtitle: 'Volatilitas rendah & kedekatan puncak 52 minggu', path: '/admin/profil-risiko', icon: Gauge },
     { id: 'admin-jobs', name: 'Cron & Update Mingguan', subtitle: 'Jadwal, hasil audit & kesehatan job', path: '/admin/jobs', icon: Activity },
     { id: 'admin-decision-lab', name: 'Simulasi Keputusan AI', subtitle: 'Paper order & bukti sinyal', path: '/admin/decision-lab', icon: Brain },
     { id: 'admin-ara-scanner', name: 'Kesiapan Scanner ARA', subtitle: 'Gate input real-time', path: '/admin/ara-scanner', icon: Radar },
