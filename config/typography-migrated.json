@@ -42,7 +42,16 @@
     "components/ui/StatusMeta.tsx",
     "components/ui/Table.tsx",
     "components/ui/Textarea.tsx",
-    "components/ui/Toast.tsx"
+    "components/ui/Toast.tsx",
+    "app/breakout-radar/page.tsx",
+    "app/dashboard/page.tsx",
+    "components/CommandPalette.tsx",
+    "components/dashboard/DashboardStockOverview.tsx",
+    "components/dashboard/DashboardFeatureGrid.tsx",
+    "components/dashboard/DashboardMarketStrips.tsx",
+    "components/screener/ScreenerControls.tsx",
+    "components/StockChartPanel.tsx",
+    "components/dashboard/DashboardIndexSection.tsx"
   ],
   "pengecualian": [
     {
