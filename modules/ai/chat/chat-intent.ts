@@ -1,5 +1,6 @@
 import { normalizeChatText } from './chat-normalize';
-import { isAllFeaturesProductQuery } from './product-help';
+import { isAllFeaturesProductQuery, isWorkflowQuery } from './product-help';
+import { isMetaCorrectionPrompt } from './extract-ticker';
 import { resolveChatDate, type ChatDateResolution, type ChatHistoryMessage } from './chat-date';
 
 export type ChatIntent =
@@ -374,6 +375,18 @@ function classifyPrimaryIntent(args: NormalizedClassifyArgs): Omit<IntentClassif
     compareScope: 'GENERAL',
     requestedMetrics: metrics,
   };
+
+  // Meta-correction / negative feedback dari pengguna.
+  // Prompt seperti "saya nanya apa jawaban mu apa", "jawabanmu tidak sesuai",
+  // "bukan itu yang saya tanya" harus merespons konteks pertanyaan terakhir,
+  // bukan menganalisis emiten dari history.
+  if (isMetaCorrectionPrompt(args.prompt)) return productHelp;
+
+  // Pertanyaan workflow lintas fitur — "alur riset saham di SahamLens dari cek data
+  // sampai pantau watchlist". Harus dikenali sebagai product help dengan jawaban
+  // alur end-to-end, bukan UNKNOWN atau STOCK_GENERAL.
+  if (isWorkflowQuery(args.prompt)) return productHelp;
+
   if (isAllFeaturesProductQuery(args.prompt)) return productHelp;
   if (args.tickerCount === 0 && TPCL_METHODOLOGY_QUERY.test(text)) return productHelp;
   // Fitur riset/admin yang nama menunya juga mengandung istilah data harus dicek

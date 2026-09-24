@@ -44,10 +44,18 @@ export const INDONESIAN_COMMON_4_LETTER_WORDS: ReadonlySet<string> = new Set([
   'nilai', 'jaga', 'jauh', 'jika', 'juga', 'maka', 'pula', 'saja', 'sama', 'soal',
   'atau', 'yang', 'dari', 'pada', 'oleh', 'akan', 'anda', 'saya', 'kamu', 'dia',
   'apa', 'ini', 'itu', 'mana', 'gimana', 'kapan', 'siapa', 'nanti', 'tadi', 'dulu',
-  'lagi', 'masih', 'sudah', 'belum', 'terus', 'sini', 'situ', 'sana',
+  'lagi', 'masih', 'sudah', 'belum', 'terus', 'sini', 'situ', 'sana', 'data',
   // istilah pasar yang bukan kode emiten
   'lots', 'lot', 'bull', 'bear', 'high', 'open', 'stop', 'loss', 'gain', 'risk',
   'buy', 'sell', 'hold', 'call', 'put', 'best', 'good', 'bad', 'top', 'down',
+  // collision tambahan (audit 2026-09-24): kata Indonesia frekuensi tinggi yang kebetulan ticker
+  'main', 'bank', 'euro', 'mark', 'real', 'roda', 'pada', 'buku', 'kertas', 'jalan',
+  'makan', 'minum', 'tidur', 'bangun', 'sekolah', 'kuliah', 'kerja', 'istirahat', 'libur',
+  'tugas', 'ujian', 'rapat', 'laporan', 'pajak', 'dana', 'kredit', 'pinjaman', 'tabungan',
+  'kurs', 'dolar', 'rupiah', 'yen', 'pound', 'franc', 'yuan', 'won', 'rupee', 'ringgit',
+  'baht', 'peso', 'rand', 'koruna', 'zloty', 'forint', 'leu', 'lev', 'lira', 'dinar',
+  'dirham', 'rial', 'shekel', 'sol', 'colon', 'cordoba', 'quetzal', 'lempira', 'balboa',
+  'sucre', 'boliviano', 'guarani',
 ]);
 
 /** Cek satu token teks asli: apakah ia kata biasa, bukan kode emiten. */
