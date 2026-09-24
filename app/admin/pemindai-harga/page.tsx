@@ -1,19 +1,22 @@
 import Link from 'next/link';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { ArrowLeft, Crosshair, Info, ShieldAlert } from 'lucide-react';
 
 import { Card } from '@/components/ui/Card';
 import { getEntryScanData, type EntryScanResult } from '@/modules/confirmation/service/entry-scan.service';
+import { isAdminServer } from '@/modules/user';
 import { LANG_COOKIE } from '@/shared/constants/cookie-names';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export const metadata = {
-  title: 'Pemindai Harga Masuk — SahamLens',
+  robots: { index: false, follow: false },
+  title: 'Pemindai Harga Masuk — Admin SahamLens',
   description:
     'Level masuk, Stop Loss, dan sasaran yang dihitung langsung dari arsip harga SahamLens: penutupan terendah/tertinggi 20 sesi dan volatilitas penutupan-ke-penutupan.',
-  alternates: { canonical: '/pemindai-harga' },
+  alternates: { canonical: '/admin/pemindai-harga' },
 };
 
 const NUMBER_FORMAT = 'id-ID';
@@ -34,6 +37,8 @@ function formatRatio(value: number | null): string {
 }
 
 export default async function EntryScanPage() {
+  if (!(await isAdminServer())) redirect('/admin-login');
+
   const data = await getEntryScanData();
   const isEn = (await cookies()).get(LANG_COOKIE)?.value === 'en';
   const shown = data.rows.slice(0, 80);
@@ -41,8 +46,8 @@ export default async function EntryScanPage() {
   return (
     <main className="min-h-screen bg-tv-bg p-4 text-tv-text sm:p-8">
       <div className="mx-auto max-w-6xl">
-        <Link href="/" className="mb-4 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text">
-          <ArrowLeft className="h-4 w-4" /> {isEn ? 'Back' : 'Kembali'}
+        <Link href="/admin" className="mb-4 inline-flex items-center gap-1.5 text-sm text-tv-muted hover:text-tv-text">
+          <ArrowLeft className="h-4 w-4" /> {isEn ? 'Back to Admin' : 'Kembali ke Admin'}
         </Link>
 
         <h1 className="flex items-center gap-2 font-heading text-2xl font-bold">

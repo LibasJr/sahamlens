@@ -95,8 +95,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: 'fundamental', name: 'LensFundamental', subtitle: 'Kualitas bisnis, pertumbuhan, neraca, dan profitabilitas', path: '/fundamental', icon: Building2 },
       { id: 'ownership-flow', name: 'Ownership Flow', subtitle: 'Komposisi kepemilikan lokal dan asing', path: '/ownership-flow', icon: Users, guest: true },
       { id: 'compare', name: 'Compare', subtitle: 'Bandingkan beberapa emiten berdampingan', path: '/compare', icon: GitCompare },
-      { id: 'cross-check', name: 'Konfirmasi Ganda', subtitle: 'Sinyal berbeda yang menunjuk emiten sama', path: '/cross-check', icon: Layers, guest: true },
-      { id: 'pemindai-harga', name: 'Pemindai Harga Masuk', subtitle: 'Level masuk, Stop Loss, dan sasaran dari arsip harga', path: '/pemindai-harga', icon: Crosshair, guest: true },
     ],
   },
   {
@@ -195,6 +193,8 @@ const ADMIN_NAV_GROUP: NavGroup = {
   items: [
     { id: 'admin', name: 'Admin Panel', subtitle: 'User & subscription', path: '/admin', icon: ShieldAlert },
     { id: 'admin-panduan-harian', name: 'Peta Alur Harian', subtitle: 'Kapan data diperbarui (log tugas)', path: '/admin/panduan-harian', icon: CalendarDays },
+    { id: 'admin-konfirmasi-ganda', name: 'Konfirmasi Ganda', subtitle: 'Sinyal berbeda yang menunjuk emiten sama', path: '/admin/konfirmasi-ganda', icon: Layers },
+    { id: 'admin-pemindai-harga', name: 'Pemindai Harga Masuk', subtitle: 'Level masuk, Stop Loss, dan sasaran dari arsip harga', path: '/admin/pemindai-harga', icon: Crosshair },
     { id: 'admin-jobs', name: 'Cron & Update Mingguan', subtitle: 'Jadwal, hasil audit & kesehatan job', path: '/admin/jobs', icon: Activity },
     { id: 'admin-decision-lab', name: 'Simulasi Keputusan AI', subtitle: 'Paper order & bukti sinyal', path: '/admin/decision-lab', icon: Brain },
     { id: 'admin-ara-scanner', name: 'Kesiapan Scanner ARA', subtitle: 'Gate input real-time', path: '/admin/ara-scanner', icon: Radar },

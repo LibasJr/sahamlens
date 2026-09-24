@@ -47,9 +47,12 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // dependensi baru, dan 1 KB pertumbuhan adalah kontrak data yang terlihat pengguna.
 // Dinaikkan 6.072 -> 6.076 KB pada 2026-09-05 untuk pembersihan string hardcoded
 // dwibahasa (i18n) di pencarian, modal emiten, dan kartu pantauan pasar.
-// Dinaikkan 6.076 -> 6.080 KB pada 2026-09-24 karena tiga halaman publik baru yang
-// seluruhnya server-rendered: /cross-check (konfirmasi ganda), /panduan-harian (peta alur
-// dari log tugas), dan /pemindai-harga (level dari arsip harga). Build lokal terukur
+// Dinaikkan 6.076 -> 6.080 KB pada 2026-09-24 karena tiga halaman baru yang seluruhnya
+// server-rendered: /admin/konfirmasi-ganda (dulu /cross-check), /admin/panduan-harian (dulu
+// /panduan-harian), dan /admin/pemindai-harga (dulu /pemindai-harga). Ketiganya sejak
+// 24 Sep 2026 hidup di panel admin, bukan menu riset - rutenya tetap dibangun Next.js,
+// jadi anggarannya tetap berlaku; yang berubah hanya siapa yang boleh membukanya.
+// Build lokal terukur
 // 6.077 KB, jadi +1 KB untuk tiga halaman; tidak ada dependensi baru, tidak ada impor
 // berat yang berpindah, dan muatan awal halaman lama tidak berubah. Batas diberi kepala
 // ruang 3 KB agar tetap ratchet - kalau kepala ruang ini habis lagi, yang benar adalah
