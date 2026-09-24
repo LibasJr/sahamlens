@@ -148,7 +148,7 @@ export default function OwnershipFlowPage() {
               <Badge variant="warning">Eksperimental</Badge>
               <Badge variant="neutral">Tidak masuk LensScore</Badge>
             </div>
-            <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-tv-muted">
+            <p className="mt-1.5 max-w-2xl lens-body-sm">
               Komposisi kepemilikan efek (lokal vs asing) dari sumber resmi kustodian.
               Ini <strong className="text-tv-text">bukan</strong> data transaksi broker &mdash; kenaikan
               kepemilikan asing tidak dapat disimpulkan sebagai pembelian oleh broker asing tertentu.
@@ -164,9 +164,9 @@ export default function OwnershipFlowPage() {
           <Card className="mb-4 border-tv-warning/20 bg-tv-warning/[0.04]">
             <div className="flex items-start gap-3">
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-tv-warning" />
-              <div className="min-w-0 text-[13px] leading-relaxed">
+              <div className="min-w-0 lens-body-sm">
                 <p className="font-semibold text-tv-text">Verifikasi sumber belum selesai</p>
-                <p className="mt-1 text-tv-muted">
+                <p className="mt-1 lens-meta">
                   Pengambilan data produksi masih tertutup (fail-closed) sampai struktur halaman sumber
                   diverifikasi langsung di server. Tabel di bawah menampilkan keadaan sebenarnya:
                   kosong selama belum ada observasi tersimpan. Tidak ada angka contoh atau data sintetis.
@@ -181,7 +181,7 @@ export default function OwnershipFlowPage() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex items-start gap-3">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-tv-red" />
-                <p className="text-[13px] text-tv-text">{error}</p>
+                <p className="lens-body-sm text-tv-text">{error}</p>
               </div>
               {/* BUG FIX (2026-08-22): sebelumnya cuma ada tombol "Muat ulang" generik di
                   header (terpisah dari pesan errornya) - halaman lain (LensMarket,
@@ -221,7 +221,7 @@ export default function OwnershipFlowPage() {
                   key={key}
                   type="button"
                   onClick={() => setFilter(key)}
-                  className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+                  className={`rounded-lg border px-2.5 py-1.5 lens-label transition-colors ${
                     filter === key
                       ? 'border-tv-blue/30 bg-tv-blue/10 text-tv-blue'
                       : 'border-white/[0.07] bg-white/[0.02] text-tv-muted hover:text-tv-text'
@@ -247,7 +247,7 @@ export default function OwnershipFlowPage() {
                   ? 'Belum ada observasi kepemilikan tersimpan'
                   : 'Tidak ada emiten yang cocok'}
               </p>
-              <p className="max-w-md text-[12.5px] leading-relaxed text-tv-muted">
+              <p className="max-w-md lens-body-sm">
                 {data && data.coverage.totalObservations === 0
                   ? 'Histori mulai terkumpul setelah verifikasi sumber selesai dan cron pengambilan diaktifkan. Sampai saat itu, halaman ini sengaja kosong daripada menampilkan angka yang tidak pernah diukur.'
                   : 'Ubah kata kunci atau filter untuk melihat emiten lainnya.'}
@@ -259,8 +259,8 @@ export default function OwnershipFlowPage() {
                   terbaca di layar 360px, dan menggulirnya menyamping membuat
                   kode sahamnya sendiri hilang dari pandangan. */}
               <div className="lens-table-sticky-col hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[900px] text-left text-[13px]">
-                  <thead className="border-b border-white/[0.06] text-[11px] uppercase tracking-wide text-tv-muted">
+                <table className="w-full min-w-[900px] text-left lens-body">
+                  <thead className="border-b border-white/[0.06] lens-caption text-tv-muted">
                     <tr>
                       <Th onClick={() => toggleSort('ticker')} active={sortKey === 'ticker'} asc={sortAsc}>Kode</Th>
                       <Th onClick={() => toggleSort('foreignPct')} active={sortKey === 'foreignPct'} asc={sortAsc} align="right">Asing %</Th>
@@ -297,40 +297,40 @@ export default function OwnershipFlowPage() {
                 {visibleRows.map((row) => (
                   <div key={row.ticker} className="p-3.5">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-heading text-[15px] font-bold text-tv-text">{row.ticker}</span>
+                      <span className="lens-card-title">{row.ticker}</span>
                       <TrendBadge trend={row.trend} />
                     </div>
                     <div className="mt-2 flex items-baseline gap-3">
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide text-tv-muted">Asing</p>
+                        <p className="lens-caption">Asing</p>
                         <p className="text-lg font-bold tabular-nums text-tv-text">{formatPercent(row.foreignPct)}</p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wide text-tv-muted">Lokal</p>
+                        <p className="lens-caption">Lokal</p>
                         <p className="text-lg font-bold tabular-nums text-tv-muted">{formatPercent(row.localPct)}</p>
                       </div>
                     </div>
                     <div className="mt-2.5 grid grid-cols-2 gap-2">
                       <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
-                        <p className="text-[10px] uppercase tracking-wide text-tv-muted">Δ asing vs prev</p>
-                        <p className={`text-[13px] font-bold tabular-nums ${deltaColor(row.previous.foreignPp)}`}>
+                        <p className="lens-caption">Δ asing vs prev</p>
+                        <p className={`lens-label tabular-nums ${deltaColor(row.previous.foreignPp)}`}>
                           {formatPpCell(row.previous.foreignPp)}{row.previous.foreignPp === null ? '' : ' pp'}
                         </p>
                       </div>
                       <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] px-2 py-1.5">
-                        <p className="text-[10px] uppercase tracking-wide text-tv-muted">Δ lokal vs prev</p>
-                        <p className={`text-[13px] font-bold tabular-nums ${deltaColor(row.previous.localPp)}`}>
+                        <p className="lens-caption">Δ lokal vs prev</p>
+                        <p className={`lens-label tabular-nums ${deltaColor(row.previous.localPp)}`}>
                           {formatPpCell(row.previous.localPp)}{row.previous.localPp === null ? '' : ' pp'}
                         </p>
                       </div>
                     </div>
                     {row.previous.structuralBreak && (
-                      <div className="mt-2 rounded-lg border border-tv-warning/20 bg-tv-warning/[0.04] px-2 py-1.5 text-[11px] leading-relaxed text-tv-muted">
+                      <div className="mt-2 rounded-lg border border-tv-warning/20 bg-tv-warning/[0.04] px-2 py-1.5 lens-body-sm">
                         Structural break: jumlah efek berubah; delta asing/lokal ditahan agar corporate action tidak dibaca sebagai flow.
                       </div>
                     )}
                     {row.previous.basisObservedDate && (
-                      <p className="mt-2 text-[11px] text-tv-muted">
+                      <p className="mt-2 lens-caption">
                         Dibanding {formatObservedDate(row.previous.basisObservedDate)} · jarak {row.previous.actualGapDays} hari
                       </p>
                     )}
@@ -354,7 +354,7 @@ export default function OwnershipFlowPage() {
           )}
         </Card>
 
-        <p className="mt-4 text-[11.5px] leading-relaxed text-tv-muted">
+        <p className="mt-4 lens-body-sm">
           Δ dinyatakan dalam <strong className="text-tv-text">percentage point (pp)</strong>, bukan persen relatif.
           Perubahan kepemilikan asing dari 40,00% ke 41,00% adalah +1,00 pp (setara +2,5% relatif).
           Perubahan utama dibandingkan dengan <strong className="text-tv-text">snapshot sebelumnya dari sumber yang sama</strong> dan selalu menampilkan jarak hari sebenarnya.
@@ -375,11 +375,11 @@ const FILTER_LABEL: Record<FilterKey, string> = {
 function StatCard({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <Card padding="sm">
-      <p className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-tv-muted">
+      <p className="flex items-center gap-1.5 lens-eyebrow text-tv-muted">
         {icon}
         {label}
       </p>
-      <p className="mt-1 truncate font-heading text-[15px] font-bold text-tv-text">{value}</p>
+      <p className="mt-1 truncate font-heading lens-meta font-bold text-tv-text">{value}</p>
     </Card>
   );
 }
@@ -445,7 +445,7 @@ function FreshnessCell({
   const config = FRESHNESS_LABEL[freshness];
   return (
     <span className="inline-flex items-center gap-2">
-      <span className="text-[12.5px] text-tv-muted">{formatObservedDate(observedDate)}</span>
+      <span className="lens-meta text-tv-muted">{formatObservedDate(observedDate)}</span>
       <Badge variant={config.variant} size="sm">
         {config.label}
       </Badge>
