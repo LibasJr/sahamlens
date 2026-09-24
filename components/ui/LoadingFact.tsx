@@ -52,7 +52,7 @@ export function LoadingFact({ intervalMs = 5000, className }: LoadingFactProps) 
     >
       <Lightbulb className="w-4 h-4 shrink-0 mt-0.5 text-tv-gold" />
       <div className="min-w-0">
-        <p className="text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Tahukah kamu</p>
+        <p className="lens-eyebrow">Tahukah kamu</p>
         <p key={index} className="mt-1 text-xs leading-relaxed text-tv-text/90 animate-fadeIn">
           {FACTS[index]}
         </p>
