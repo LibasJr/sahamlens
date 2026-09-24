@@ -84,7 +84,7 @@ export function StatusAndActionsSection({
         </div>
 
         <div className="mt-4 rounded-lg border border-tv-border bg-tv-bg p-3">
-          <div className="text-[11px] uppercase tracking-wide text-tv-muted mb-2">Bobot LensIntraday (terpisah dari bobot produksi)</div>
+          <div className="lens-caption uppercase tracking-wide text-tv-muted mb-2">Bobot LensIntraday (terpisah dari bobot produksi)</div>
           <div className="flex flex-wrap gap-2 text-xs font-number">
             {Object.entries(dashboard.weights).map(([key, value]) => (
               <span key={key} className="rounded border border-tv-border px-2 py-1">
@@ -160,7 +160,7 @@ export function StatusAndActionsSection({
         {actionMessage ? (
           <p className="mt-3 rounded-md border border-tv-border bg-tv-bg p-2.5 text-xs text-tv-text">{actionMessage}</p>
         ) : null}
-        <p className="mt-3 text-[11px] text-tv-muted">
+        <p className="mt-3 lens-caption text-tv-muted">
           Backfill riset 60 hari: naikkan lookback ke 60 lalu tekan &quot;Kumpulkan data intraday&quot;. Provider hanya
           menyimpan 60 hari untuk interval 5 menit, jadi data lebih lama dari itu tidak bisa diambil ulang. Backfill dari browser
           berhenti aman sebelum timeout jaringan; tekan lagi bila status menyebut batas waktu tercapai.

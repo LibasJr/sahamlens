@@ -36,7 +36,7 @@ const CSV_PLACEHOLDER = [
 function SummaryCard({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-tv-border bg-tv-bg/50 p-3">
-      <div className="text-[10px] uppercase tracking-wide text-tv-muted">{label}</div>
+      <div className="lens-meta uppercase tracking-wide text-tv-muted">{label}</div>
       <div className="mt-1 font-number text-lg font-bold text-tv-text">{value}</div>
     </div>
   );
@@ -158,7 +158,7 @@ export default function FundamentalBackfillClient() {
 
           <div className="space-y-4 rounded-lg border border-tv-border bg-tv-bg/40 p-4">
             <label className="block">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Source default</span>
+              <span className="mb-1 block lens-meta font-semibold uppercase tracking-wide text-tv-muted">Source default</span>
               {/* Ketiga kontrol ini mengubah ARTI angka yang masuk. Sebelumnya
                   mengubahnya tidak membatalkan hasil Dry Run yang sudah tampil -
                   admin bisa dry-run dengan "18.5 = 18.5%", lalu memindah pilihan ke
@@ -172,7 +172,7 @@ export default function FundamentalBackfillClient() {
             </label>
 
             <label className="block">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-wide text-tv-muted">Input persen</span>
+              <span className="mb-1 block lens-meta font-semibold uppercase tracking-wide text-tv-muted">Input persen</span>
               <select
                 value={percentInput}
                 onChange={(event) => { setPercentInput(event.target.value as 'percent' | 'decimal'); resetVerification(); }}
@@ -216,7 +216,7 @@ export default function FundamentalBackfillClient() {
 
             {/* Tombol nonaktif tanpa keterangan hanya terbaca sebagai rusak. */}
             {!dryRunValid && csvText.trim() && loadingMode === null && (
-              <p className="text-[11px] leading-relaxed text-tv-muted">
+              <p className="lens-caption leading-relaxed text-tv-muted">
                 {verifiedInput === null && result === null
                   ? 'Jalankan Dry Run dulu. Insert baru terbuka setelah masukan ini lolos pemeriksaan.'
                   : 'Masukan berubah setelah Dry Run terakhir - jalankan Dry Run lagi sebelum Insert.'}

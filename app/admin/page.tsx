@@ -170,7 +170,7 @@ export default async function AdminPage() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-heading text-lg font-bold text-tv-text">Infographic Studio</h2>
-              <span className="rounded-full bg-tv-blue/20 px-2 py-0.5 text-[10px] font-bold text-tv-blue">NEW</span>
+              <span className="rounded-full bg-tv-blue/20 px-2 py-0.5 lens-meta font-bold text-tv-blue">NEW</span>
             </div>
             <p className="text-sm text-tv-muted mt-1">
               Render factsheet dari SahamLens dataset dan export artifact PNG resolusi tinggi.
@@ -233,7 +233,7 @@ export default async function AdminPage() {
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="font-heading text-lg font-bold text-tv-text">Kesiapan Scanner ARA</h2>
-              <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold ${
+              <span className={`rounded-full border px-2 py-0.5 lens-label ${
                 araScannerReadiness?.status === 'READY'
                   ? 'border-tv-green/30 bg-tv-green/10 text-tv-green'
                   : 'border-tv-red/30 bg-tv-red/10 text-tv-red'
@@ -365,7 +365,7 @@ export default async function AdminPage() {
           </div>
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">
-              IDX Broker Summary <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">ACTIVE · OFFICIAL</span>
+              IDX Broker Summary <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 lens-meta font-bold uppercase tracking-wide text-tv-green align-middle">ACTIVE · OFFICIAL</span>
             </h2>
             <p className="text-sm text-tv-muted mt-1">
               Aggregate daily trading value, volume, dan frequency per broker code dari IDX official source.
@@ -388,7 +388,7 @@ export default async function AdminPage() {
           </div>
           <div>
             <h2 className="font-heading text-lg font-bold text-tv-text">
-              IDX Foreign Flow Coverage <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-tv-green align-middle">OFFICIAL</span>
+              IDX Foreign Flow Coverage <span className="ml-1 rounded border border-tv-green/30 bg-tv-green/10 px-1.5 py-0.5 lens-meta font-bold uppercase tracking-wide text-tv-green align-middle">OFFICIAL</span>
             </h2>
             <p className="text-sm text-tv-muted mt-1">
               Monitor issuer coverage, official/proxy source mode, artifact availability, dan data freshness.
@@ -485,7 +485,7 @@ export default async function AdminPage() {
                 <a> biasa, bukan <Link>: navigasi klien ke rute yang sama tidak
                 memicu pengambilan ulang di server. */}
             <div className="flex items-center gap-3">
-              <span className="text-[11px] text-tv-muted">Snapshot {jamWib(snapshotAt)}</span>
+              <span className="lens-caption text-tv-muted">Snapshot {jamWib(snapshotAt)}</span>
               <a
                 href="/admin"
                 className="inline-flex items-center gap-1.5 rounded-md border border-tv-border bg-tv-bg px-2.5 py-1.5 text-xs font-semibold text-tv-muted transition-colors hover:text-tv-text"
@@ -504,11 +504,11 @@ export default async function AdminPage() {
             ].map(([label, count]) => (
               <div key={String(label)} className="bg-tv-card px-4 py-3">
                 <div className="font-number text-xl font-bold text-tv-text">{count}</div>
-                <div className="mt-0.5 text-[11px] text-tv-muted">{label}</div>
+                <div className="mt-0.5 lens-caption text-tv-muted">{label}</div>
               </div>
             ))}
           </div>
-          <p className="border-b border-tv-border px-6 py-2 text-[11px] leading-relaxed text-tv-muted">
+          <p className="border-b border-tv-border px-6 py-2 lens-caption leading-relaxed text-tv-muted">
             Aktivitas tersimpan dari request akun yang terautentikasi (maksimal satu pembaruan per 15 menit). Riwayat mulai tercatat setelah pembaruan ini; login terakhir dicatat saat login atau verifikasi berhasil.
           </p>
           {activeUsers.length === 0 ? (
@@ -618,7 +618,7 @@ export default async function AdminPage() {
               <div key={String(label)} className="bg-tv-card px-5 py-4">
                 <div className="font-number text-2xl font-bold text-tv-text">{count}</div>
                 <div className="mt-0.5 text-xs text-tv-muted">{label}</div>
-                {typeof rate === 'number' && <div className="mt-1 text-[11px] font-semibold text-tv-blue">{rate.toFixed(1)}% dari tahap sebelumnya</div>}
+                {typeof rate === 'number' && <div className="mt-1 lens-caption font-semibold text-tv-blue">{rate.toFixed(1)}% dari tahap sebelumnya</div>}
               </div>
             ))}
           </div>
@@ -705,7 +705,7 @@ export default async function AdminPage() {
                     sengaja tidak ditampilkan sama. */}
                 <div className="font-number text-2xl font-bold text-tv-text">{metric.value ?? '--'}</div>
                 <div className="mt-0.5 text-xs text-tv-muted">{metric.label}</div>
-                <div className="mt-1 text-[11px] text-tv-muted/70">{metric.value === null ? 'belum ada data' : metric.note}</div>
+                <div className="mt-1 lens-caption text-tv-muted/70">{metric.value === null ? 'belum ada data' : metric.note}</div>
               </div>
             ))}
           </div>

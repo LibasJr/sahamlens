@@ -71,7 +71,7 @@ export default async function AdminAraScannerPage() {
             <div>
               <div className="flex flex-wrap items-center gap-2">
                 <h2 className="font-heading text-lg font-bold">Kesetaraan algoritma Hermes</h2>
-                <span className="rounded-full border border-tv-yellow/30 bg-tv-yellow/10 px-2 py-0.5 text-[11px] font-bold text-tv-yellow">
+                <span className="rounded-full border border-tv-yellow/30 bg-tv-yellow/10 px-2 py-0.5 lens-label font-bold text-tv-yellow">
                   {readiness.engineParity.status}
                 </span>
               </div>
@@ -88,7 +88,7 @@ export default async function AdminAraScannerPage() {
             </div>
             <div className="flex flex-wrap gap-2">
               {ARA_SCANNER_POLICY.lifecycle.map((stage) => (
-                <span key={stage} className="rounded-full border border-tv-yellow/30 bg-tv-yellow/10 px-2 py-0.5 text-[10px] font-bold text-tv-yellow">
+                <span key={stage} className="rounded-full border border-tv-yellow/30 bg-tv-yellow/10 px-2 py-0.5 lens-label font-bold text-tv-yellow">
                   {stage}
                 </span>
               ))}
@@ -151,7 +151,7 @@ export default async function AdminAraScannerPage() {
                       : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-tv-yellow" />}
                     <h2 className="font-heading font-bold text-tv-text">{input.label}</h2>
                   </div>
-                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-bold ${status.tone}`}>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 lens-label ${status.tone}`}>
                     {status.label}
                   </span>
                 </div>

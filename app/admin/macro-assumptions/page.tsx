@@ -23,9 +23,9 @@ function evidenceCard(title: string, evidence: MacroInputEvidence | null, produc
           <p className="mt-2 font-number text-2xl font-bold text-tv-text">{pct(evidence?.valuePct)}</p>
         </div>
         {evidence ? (
-          <span className="rounded border border-tv-green/30 bg-tv-green/10 px-2 py-1 text-[10px] font-bold text-tv-green">PIT EVIDENCE</span>
+          <span className="rounded border border-tv-green/30 bg-tv-green/10 px-2 py-1 lens-meta font-bold text-tv-green">PIT EVIDENCE</span>
         ) : (
-          <span className="rounded border border-tv-yellow/30 bg-tv-yellow/10 px-2 py-1 text-[10px] font-bold text-tv-yellow">BELUM ADA</span>
+          <span className="rounded border border-tv-yellow/30 bg-tv-yellow/10 px-2 py-1 lens-meta font-bold text-tv-yellow">BELUM ADA</span>
         )}
       </div>
       {production != null && (

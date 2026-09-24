@@ -96,12 +96,12 @@ export function BucketTooltip({ active, payload, label }: { active?: boolean; pa
   const tipis = (row?.totalSamples ?? 0) > 0 && (row?.totalSamples ?? 0) < 30;
   return (
     <Card as="div" padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="border-tv-border bg-tv-card/95 px-3 py-2.5 shadow-2 backdrop-blur-sm">
-      <div className="text-[10px] uppercase tracking-wide text-tv-muted">Bucket {label}</div>
+      <div className="lens-meta uppercase tracking-wide text-tv-muted">Bucket {label}</div>
       <div className="mt-1 flex items-baseline gap-2">
         <span className="text-tv-muted text-xs">Avg T+20</span>
         <Val value={v} tone="signed" className="text-sm font-semibold" />
       </div>
-      <div className="mt-1 text-[11px] text-tv-muted">
+      <div className="mt-1 lens-caption text-tv-muted">
         {num(row?.totalSamples)} sampel
         {tipis && <span className="text-tv-warning"> · terlalu sedikit untuk disimpulkan</span>}
       </div>

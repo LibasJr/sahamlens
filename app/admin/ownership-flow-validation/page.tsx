@@ -54,4 +54,4 @@ export default async function OwnershipFlowValidationPage() {
     </main>
   );
 }
-function StatCard({label,value,sub}:{label:string;value:string;sub?:string}){return <UiCard as="div" className="border-tv-border p-3.5" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}><p className="text-[10.5px] uppercase tracking-wide text-tv-muted">{label}</p><p className="mt-1 break-words font-heading text-sm font-bold text-tv-text">{value}</p>{sub&&<p className="mt-1 text-[11px] text-tv-muted">{sub}</p>}</UiCard>}
+function StatCard({label,value,sub}:{label:string;value:string;sub?:string}){return <UiCard as="div" className="border-tv-border p-3.5" padding="none" radius="xl" surface="solid" elevation="none" overflow="visible" highlight={false}><p className="lens-meta uppercase tracking-wide text-tv-muted">{label}</p><p className="mt-1 break-words font-heading text-sm font-bold text-tv-text">{value}</p>{sub&&<p className="mt-1 lens-caption text-tv-muted">{sub}</p>}</UiCard>}

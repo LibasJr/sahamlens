@@ -87,7 +87,7 @@ export default async function LensAiFeedbackAdminPage() {
                   </div>
                   <p className="mt-3 text-sm font-semibold text-tv-text">Pertanyaan: {row.prompt}</p>
                   <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-tv-muted">{row.answer}</p>
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-tv-muted">
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 lens-caption text-tv-muted">
                     <span>Intent: <strong className="text-tv-text">{row.intent ?? 'tidak tercatat'}</strong></span>
                     {row.source_label && <span>Sumber: {row.source_label}</span>}
                     {row.data_timestamp && <span>Waktu data: {row.data_timestamp}</span>}

@@ -108,7 +108,7 @@ export function ResultsSection({ result, horizon, setHorizon }: { result: Valida
           </table>
         </Scroller>
 
-        <p className="mt-3 text-[11px] text-tv-muted">
+        <p className="mt-3 lens-caption text-tv-muted">
           <strong className="text-tv-text">Max DD ekuitas harian</strong>: satu unit modal dibagi rata ke seluruh
           sinyal pada hari yang sama, flat semalam, dimajemukkan antar hari - ini angka drawdown yang bisa dibaca
           sebagai portofolio. <strong className="text-tv-text">Max DD rentetan</strong> adalah jumlah kumulatif
@@ -304,7 +304,7 @@ export function ResultsSection({ result, horizon, setHorizon }: { result: Valida
             </tbody>
           </table>
         </Scroller>
-        <p className="mt-3 text-[11px] text-tv-muted">
+        <p className="mt-3 lens-caption text-tv-muted">
           Gerbang: harga entry di atas gocap, nilai transaksi sesi memadai, dan cukup sering bertransaksi sampai
           waktu sinyal. Baris lama yang diarsipkan sebelum kolom ini ada dihitung{' '}
           <strong className="text-tv-text">tidak layak</strong> — &quot;tidak tahu&quot; bukan &quot;ya&quot;.
@@ -367,7 +367,7 @@ export function ResultsSection({ result, horizon, setHorizon }: { result: Valida
           <Metric label="Median slippage exit" value={num(result.spreadFloor?.medianExitSlippageBps, 2)} hint="bps sisi jual" />
           <Metric label="Maks slippage terpakai" value={num(result.spreadFloor?.maxAppliedSlippageBps, 2)} hint="bps pada satu sisi" />
         </div>
-        <p className="mb-4 rounded-md border border-tv-border bg-tv-bg p-2.5 text-[11px] text-tv-muted">
+        <p className="mb-4 rounded-md border border-tv-border bg-tv-bg p-2.5 lens-caption text-tv-muted">
           {result.spreadFloor?.note}
         </p>
         <Scroller>

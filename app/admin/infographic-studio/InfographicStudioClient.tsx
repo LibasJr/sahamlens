@@ -341,7 +341,7 @@ export default function InfographicStudioClient() {
               <ArrowLeft className="w-3.5 h-3.5" />
               Kembali ke Panel Admin
             </Link>
-            <span className="rounded-full border border-white/[0.12] bg-white/[0.05] px-3 py-0.5 text-[11px] font-bold text-slate-300">
+            <span className="rounded-full border border-white/[0.12] bg-white/[0.05] px-3 py-0.5 lens-label font-bold text-slate-300">
               Institutional Editorial · {activeTheme.sectorLabel}
             </span>
           </div>
@@ -416,7 +416,7 @@ export default function InfographicStudioClient() {
             {/* Autocomplete Dropdown Suggestions */}
             {isDropdownOpen && filteredTickers.length > 0 && (
               <div className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border border-slate-700 bg-[#081020] shadow-2xl overflow-hidden max-h-72 overflow-y-auto">
-                <div className="px-3.5 py-2 text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 bg-[#050b16]">
+                <div className="px-3.5 py-2 lens-number font-mono font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800 bg-[#050b16]">
                   Pilih Emiten ({filteredTickers.length} hasil ditemukan):
                 </div>
                 {filteredTickers.map((t) => {
@@ -436,7 +436,7 @@ export default function InfographicStudioClient() {
                           {t.name}
                         </span>
                       </div>
-                      <span className="text-[10px] font-mono text-cyan-400">Pilih</span>
+                      <span className="lens-number font-mono text-cyan-400">Pilih</span>
                     </Button>
                   );
                 })}
@@ -486,7 +486,7 @@ export default function InfographicStudioClient() {
                 <Icon className="h-5 w-5 shrink-0" />
                 <span>
                   <span className="block text-sm font-bold">{title}</span>
-                  <span className="mt-0.5 block text-[11px] font-normal text-slate-400">{note}</span>
+                  <span className="mt-0.5 block lens-caption font-normal text-slate-400">{note}</span>
                 </span>
               </Button>
             ))}
@@ -523,7 +523,7 @@ export default function InfographicStudioClient() {
                     size="none"
                     type="button"
                     onClick={() => setZoomScale(scale)}
-                    className={`rounded px-2 py-1 text-[11px] font-bold transition-colors ${
+                    className={`rounded px-2 py-1 lens-label font-bold transition-colors ${
                       zoomScale === scale ? 'bg-[#5e6ad2] text-white' : 'text-slate-400 hover:text-white'
                     }`}
                   >
@@ -547,7 +547,7 @@ export default function InfographicStudioClient() {
                     ? 'Catatan Teknikal & Smart Money'
                     : 'Catatan Fundamental, Moat & Earnings'}
               </span>
-              <span className="hidden md:inline text-[11px] text-slate-400">
+              <span className="hidden md:inline lens-caption text-slate-400">
                 • Aksen laporan: <b className={activeTheme.accentText}>{activeTheme.sectorLabel}</b>
               </span>
             </div>
