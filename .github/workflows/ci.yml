@@ -45,6 +45,7 @@ jobs:
           npm run audit:cron
           npm run audit:ui
           npm run audit:menus
+          npm run audit:chat-knowledge
           npm run audit:performance
           npm run audit:manual-market
           npm run audit:market-labels

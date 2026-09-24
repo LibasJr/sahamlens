@@ -125,6 +125,27 @@ Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: *
 - **Tentang**: Filosofi dan prinsip objektivitas SahamLens.
 - **Pattern**: Deteksi pola grafik teknikal dan konfirmasinya.
 
+- **Uji Akurasi LensRadar** (admin): kalibrasi LensScore - isotonic regression atas sampel latih dan uji, base rate, skill score, dan status reliabilitas. Skill score negatif berarti pemetaan skor ke probabilitas TIDAK lebih baik daripada menebak base rate; angka itu tidak boleh disajikan sebagai peluang menang.
+- **Bukti Validasi LensRadar** (admin): bukti mentah per kelompok skor (bucket) beserta cek harga T+20 di luar sampel, untuk menelusuri asal klaim performa.
+- **Bukti Data Makro** (admin): bukti terkurasi SBN 10Y, Equity Risk Premium, dan BI-Rate beserta tanggal berlaku dan tautan sumber resminya. Nilai hanya boleh berasal dari brief/siaran pers resmi; bila tak ada sumber terbaru, angkanya dibiarkan apa adanya dan diberi peringatan basi, bukan diperkirakan.
+- **Bukti Fundamental Bank** (admin): NIM, NPL (gross/net), CASA, dan CAR per bank dari laporan resmi. Bobot faktor bank belum diaktifkan karena bukti belum lengkap dan seragam untuk semua bank sampel.
+- **Arus Kepemilikan / Ownership Flow** (admin): status data komposisi kepemilikan KSEI (per periode bulanan), cakupan emiten, dan kesegaran data. Komposisi kepemilikan adalah potret bulanan, bukan transaksi harian.
+- **Validasi Arus Kepemilikan (Ownership Flow Validation)**: uji konsistensi data komposisi kepemilikan terhadap sumber resmi KSEI, termasuk baris yang dikarantina karena gagal invariant.
+- **Peta Alur Harian** (admin): log kapan tiap pipeline data diperbarui (jam WIB) beserta hasil job terakhir, untuk menjawab "data ini kapan diperbarui".
+- **Cron & Update Mingguan** (admin): jadwal seluruh job terjadwal, hasil audit mingguan, dan kesehatan pipeline data.
+- **Pemindai Harga Masuk** (admin): level masuk, Stop Loss (= harga masuk x (1 - 2 x volatilitas)), dan sasaran harga yang dihitung dari arsip harga harian. Ini pembacaan arsip, bukan sinyal real-time.
+- **Konfirmasi Ganda** (admin): emiten yang disetujui oleh dua sinyal berbeda atau lebih (teknikal, radar, rekomendasi) - pembacaan silang, bukan rekomendasi beli.
+- **Profil Risiko & Tren** (admin): volatilitas 60 hari dan kedekatan harga ke puncak 52 minggu. Hanya emiten dengan nilai transaksi memadai (>= Rp 1 miliar) yang diperingkat; emiten likuiditas tipis sengaja dikecualikan.
+- **Kesiapan Scanner ARA** (admin): gerbang kesiapan input real-time untuk detektor ARA. Fitur ini beta dan belum dipakai untuk keputusan pengguna.
+- **Simulasi Keputusan AI** (admin): paper order dan bukti sinyal agen keputusan, tanpa uang sungguhan.
+- **Stack Role Decision Lab**: pembagian peran Lead, Analyst, Reviewer, dan Ops pada simulasi keputusan.
+- **Masukan LensAI** (admin): audit rating jempol dan prompt pengguna atas jawaban LensAI, dipakai untuk memperbaiki kualitas jawaban.
+- **Validasi Intraday** (admin): lini intraday sudah DITUTUP dan berstatus research-only permanen; halaman ini menampilkan 14 gerbang validasi dan hasilnya (net expectancy negatif, tanpa irisan positif) sebagai bukti penutupan, bukan ajakan mencoba.
+- **Validasi TP/CL** (admin): pengujian level target profit dan cut loss terhadap hasil harga nyata; dijalankan berkala oleh worker khusus.
+- **Ringkasan Broker** (admin): rekap broker summary per emiten dan periode, sumbernya data transaksi per broker (bukan komposisi kepemilikan).
+- **Broker End of Day** (admin): agregat transaksi broker level pasar untuk menutup hari perdagangan; dipakai saat data broker per emiten belum tersedia.
+- **Admin Panel**: pengelolaan pengguna dan langganan aplikasi; tidak menampilkan data pasar.
+
 ---
 
 ### 2. Teori & Pengetahuan Pasar Modal Mendalam (IDX Capital Market Mastery)
