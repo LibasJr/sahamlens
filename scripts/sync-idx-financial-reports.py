@@ -54,6 +54,12 @@ import time
 import zipfile
 from datetime import datetime, timezone
 
+try:  # dijalankan sebagai skrip (python3 scripts/xxx.py)
+    from idx_session import build_session
+except ImportError:  # dijalankan sebagai modul
+    from scripts.idx_session import build_session
+
+
 try:
     from curl_cffi import requests
 except ImportError:  # pragma: no cover
@@ -277,7 +283,7 @@ def parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str]) -> int:
     args = parse_args(argv)
     os.makedirs(args.out_dir, exist_ok=True)
-    session = requests.Session(impersonate="chrome124")
+    session = build_session()
 
     print(f"[i] Daftar laporan {args.year} {args.period.upper()}...")
     try:

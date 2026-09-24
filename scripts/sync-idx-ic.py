@@ -9,6 +9,12 @@ import argparse, csv, os, re
 from datetime import date
 from curl_cffi import requests
 
+try:  # dijalankan sebagai skrip (python3 scripts/xxx.py)
+    from idx_session import build_session
+except ImportError:  # dijalankan sebagai modul
+    from scripts.idx_session import build_session
+
+
 ENDPOINT = "https://www.idx.co.id/primary/ListedCompany/GetCompanyProfiles"
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -16,7 +22,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output", default=os.path.join(ROOT, "data", "idx-ic", f"idx-ic-{date.today().isoformat()}.csv"))
     args = parser.parse_args()
-    response = requests.get(ENDPOINT, params={"start": 0, "length": 5000}, impersonate="chrome124", timeout=60)
+    response = build_session(timeout=60).get(ENDPOINT, params={"start": 0, "length": 5000}, timeout=60)
     response.raise_for_status()
     payload = response.json()
     source = payload.get("data") or []

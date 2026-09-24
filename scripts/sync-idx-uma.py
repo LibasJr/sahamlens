@@ -39,6 +39,12 @@ import sys
 import time
 from datetime import datetime, timedelta, timezone
 
+try:  # dijalankan sebagai skrip (python3 scripts/xxx.py)
+    from idx_session import build_session
+except ImportError:  # dijalankan sebagai modul
+    from scripts.idx_session import build_session
+
+
 try:
     from curl_cffi import requests
 except ImportError:  # pragma: no cover - dependency guard
@@ -202,7 +208,7 @@ def main(argv: list[str]) -> int:
         return 2
 
     cutoff = (datetime.now(timezone.utc) - timedelta(days=args.lookback_days)).strftime("%Y-%m-%d")
-    session = requests.Session(impersonate="chrome124")
+    session = build_session()
 
     print(f"[+] Sinkronisasi UMA sejak {cutoff}, sumber {SOURCE_LABEL}", flush=True)
 

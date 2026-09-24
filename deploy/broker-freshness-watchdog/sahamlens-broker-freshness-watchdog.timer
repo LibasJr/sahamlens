@@ -1,0 +1,13 @@
+[Unit]
+Description=Jadwal SahamLens - pengawas kesegaran data broker (harian bursa)
+
+[Timer]
+# Setelah unduh 17:30 dan impor 17:45, jadi verdict memakai data hari itu.
+OnCalendar=Mon..Fri *-*-* 18:30:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=300
+AccuracySec=60
+Unit=sahamlens-broker-freshness-watchdog.service
+
+[Install]
+WantedBy=timers.target

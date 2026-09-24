@@ -164,11 +164,25 @@ async function handleGET(req: NextRequest) {
   try {
     const result = await withJobRunLog('idx-flow-sync', async () => {
       const guarded = await runWithJobConcurrencyGuard('idx-flow-sync', runSync, 40 * 60);
-      return guarded.executed
+      const value = guarded.executed
         ? guarded.value
         : ({ status: 'SKIPPED', steps: [], brokerRowsInserted: null } satisfies SyncResult);
+
+      // Insiden 2026-09-24/25: Cloudflare IDX menolak fingerprint curl_cffi yang dipakai
+      // semua skrip IDX. Empat dari enam langkah gagal, tetapi karena fungsinya mengembalikan
+      // nilai (bukan melempar), withJobRunLog mencatatnya SUCCESS - jadi tidak ada alarm yang
+      // berbunyi dan data berhenti sehari tanpa ada yang tahu. PARTIAL sekarang DILEMPAR
+      // supaya barisnya tercatat FAILED dan jalur peringatan cron bekerja.
+      if (value.status === 'PARTIAL') {
+        const failed = value.steps
+          .filter((step) => !step.ok)
+          .map((step) => `${step.step}: ${(step.detail ?? '').replace(/\s+/g, ' ').trim().slice(0, 140)}`)
+          .join(' | ');
+        throw new Error(`Sinkronisasi IDX PARTIAL - langkah gagal: ${failed}`);
+      }
+      return value;
     });
-    return NextResponse.json({ success: result.status !== 'PARTIAL', result });
+    return NextResponse.json({ success: true, result });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     logger.error('idx-flow-sync gagal', { err: error });

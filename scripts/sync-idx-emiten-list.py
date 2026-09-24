@@ -29,6 +29,12 @@ import shutil
 import sys
 from datetime import datetime, timezone
 
+try:  # dijalankan sebagai skrip (python3 scripts/xxx.py)
+    from idx_session import build_session
+except ImportError:  # dijalankan sebagai modul
+    from scripts.idx_session import build_session
+
+
 KATALOG = os.environ.get("SAHAMLENS_EMITEN_CSV", "idx_emiten_900.csv")
 ENDPOINT = "https://www.idx.co.id/primary/ListedCompany/GetCompanyProfiles"
 PAGE_SIZE = 1000  # halaman besar (mis. 5000) ditolak Cloudflare; 1000 diterima
@@ -48,7 +54,7 @@ def ambil_resmi() -> dict[str, dict]:
 
     import time
 
-    session = requests.Session(impersonate="chrome")
+    session = build_session()
     out: dict[str, dict] = {}
     total = None
     start = 0

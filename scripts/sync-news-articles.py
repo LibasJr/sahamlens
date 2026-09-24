@@ -44,6 +44,12 @@ import re
 import sys
 import time
 
+try:  # dijalankan sebagai skrip (python3 scripts/xxx.py)
+    from idx_session import build_session
+except ImportError:  # dijalankan sebagai modul
+    from scripts.idx_session import build_session
+
+
 try:
     from curl_cffi import requests
 except ImportError:  # pragma: no cover - dependency guard
@@ -103,7 +109,7 @@ def main(argv: list[str]) -> int:
     if args.limit:
         items = items[: args.limit]
 
-    session = requests.Session(impersonate="chrome124")
+    session = build_session()
     written = skipped = failed = short = 0
 
     for index, item in enumerate(items, start=1):
