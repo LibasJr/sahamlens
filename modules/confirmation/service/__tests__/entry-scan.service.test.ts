@@ -52,7 +52,7 @@ describe('buildEntryScan', () => {
     expect(result.lastDate).toBe(long.dates[long.dates.length - 1]);
   });
 
-  it('menghitung Cutloss dan rasio risiko/imbal dari volatilitas sendiri', () => {
+  it('menghitung Stop Loss dan rasio risiko/imbal dari volatilitas sendiri', () => {
     const long = series(80, (index) => 2000 * Math.exp(Math.sin(index / 4) * 0.02));
     const result = buildEntryScan('CCCC.JK', long.closes, long.dates);
     const volatility = (result.volatilityPct ?? 0) / 100;
@@ -82,7 +82,7 @@ describe('buildEntryScan', () => {
     expect(ENTRY_SCAN_OPTIONS.minimumAvgTradedValue20d).toBe(1_000_000_000);
   });
 
-  it('menolak menampilkan Cutloss di bawah nol, bukan menyajikannya sebagai angka', () => {
+  it('menolak menampilkan Stop Loss di bawah nol, bukan menyajikannya sebagai angka', () => {
     // Deret 100/200 bergantian: volatilitas harian ~0,69 sehingga 2x volatilitas > 1.
     const wild = series(80, (index) => (index % 2 === 0 ? 100 : 200));
     const result = buildEntryScan('EEEE.JK', wild.closes, wild.dates);

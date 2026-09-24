@@ -12,7 +12,7 @@ export const revalidate = 0;
 export const metadata = {
   title: 'Pemindai Harga Masuk — SahamLens',
   description:
-    'Level masuk, Cutloss, dan sasaran yang dihitung langsung dari arsip harga SahamLens: penutupan terendah/tertinggi 20 sesi dan volatilitas penutupan-ke-penutupan.',
+    'Level masuk, Stop Loss, dan sasaran yang dihitung langsung dari arsip harga SahamLens: penutupan terendah/tertinggi 20 sesi dan volatilitas penutupan-ke-penutupan.',
   alternates: { canonical: '/pemindai-harga' },
 };
 
@@ -51,7 +51,7 @@ export default async function EntryScanPage() {
         <p className="mt-2 max-w-3xl text-sm leading-relaxed text-tv-muted">
           {isEn
             ? 'Three numbers per issuer, all computed from SahamLens\' own price archive: entry level, stop, and target. Nothing comes from an outside call, an analyst estimate, or a filled-in value.'
-            : 'Tiga angka per emiten, semuanya dihitung dari arsip harga SahamLens sendiri: level masuk, Cutloss, dan sasaran. Tidak ada yang berasal dari panggilan luar, taksiran analis, atau nilai tambalan.'}
+            : 'Tiga angka per emiten, semuanya dihitung dari arsip harga SahamLens sendiri: level masuk, Stop Loss, dan sasaran. Tidak ada yang berasal dari panggilan luar, taksiran analis, atau nilai tambalan.'}
         </p>
 
         <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mb-6 mt-4 border-tv-border p-5">
@@ -80,7 +80,7 @@ export default async function EntryScanPage() {
               {isEn ? 'sessions' : 'sesi terakhir'} · {isEn ? 'target' : 'sasaran'} = {isEn ? 'highest close of the same window' : 'penutupan tertinggi jendela yang sama'}
             </li>
             <li>
-              • {isEn ? 'Cut loss' : 'Cutloss'} = {isEn ? 'entry level minus' : 'level masuk dikurangi'} {data.options.stopVolatilityMultiple}{' '}
+              • Stop Loss = {isEn ? 'entry level minus' : 'level masuk dikurangi'} {data.options.stopVolatilityMultiple}{' '}
               {isEn ? '× daily volatility' : '× volatilitas harian'}
             </li>
             <li>
@@ -109,7 +109,7 @@ export default async function EntryScanPage() {
                       <th className="py-2 pr-3">{isEn ? 'Ticker' : 'Emiten'}</th>
                       <th className="py-2 pr-3">{isEn ? 'Last close' : 'Penutupan akhir'}</th>
                       <th className="py-2 pr-3">{isEn ? 'Entry' : 'Masuk'}</th>
-                      <th className="py-2 pr-3">{isEn ? 'Cut loss' : 'Cutloss'}</th>
+                      <th className="py-2 pr-3">Stop Loss</th>
                       <th className="py-2 pr-3">{isEn ? 'Target' : 'Sasaran'}</th>
                       <th className="py-2 pr-3">{isEn ? 'Risk/reward' : 'Risiko/imbal'}</th>
                       <th className="py-2 pr-3">{isEn ? 'Daily volatility' : 'Volatilitas harian'}</th>
@@ -182,7 +182,7 @@ export default async function EntryScanPage() {
             <li>
               • {isEn
                 ? 'Levels are recalculated from closes alone; there is no intraday high/low in the archive, so ATR-based stops cannot be produced honestly.'
-                : 'Level dihitung hanya dari penutupan; arsip tidak punya high/low intraday, jadi Cutloss berbasis ATR tidak bisa diproduksi secara jujur.'}
+                : 'Level dihitung hanya dari penutupan; arsip tidak punya high/low intraday, jadi Stop Loss berbasis ATR tidak bisa diproduksi secara jujur.'}
             </li>
           </ul>
         </Card>
