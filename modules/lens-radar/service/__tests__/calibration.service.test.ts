@@ -298,4 +298,14 @@ describe('calibration.service', () => {
 
     expect(result.observations.find((obs) => obs.signalDate === '2026-01-01')).toBeUndefined();
   });
+
+  // OOM regression — insiden 2026-09-24: readLensRadarHistory membaca SELURUH baris
+  // tanpa batas, lalu men-fetch Yahoo bar untuk setiap ticker unik di memori.
+  // Kalau lookback ini tanpa batas atau dihapus, proses OOM → HTTP 502 di Cloudflare.
+  it('LOOKBACK BOUNDED: window kalibrasi terbatas — tidak membaca tabel penuh', async () => {
+    const { CALIBRATION_LOOKBACK_DAYS } = await import('../calibration.service');
+    expect(typeof CALIBRATION_LOOKBACK_DAYS).toBe('number');
+    expect(CALIBRATION_LOOKBACK_DAYS).toBeGreaterThan(20);
+    expect(CALIBRATION_LOOKBACK_DAYS).toBeLessThanOrEqual(730);
+  });
 });

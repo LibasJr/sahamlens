@@ -13,6 +13,9 @@ import {
 import { logger } from '@/shared/logger/logger';
 import { SCORE_VERSION, partitionByScoreVersion } from '../constants/model-version';
 import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
+
+// Lihat CALIBRATION_LOOKBACK_DAYS di calibration.service.ts — harus sama.
+const CALIBRATION_LOOKBACK_DAYS = 730;
 import { ACTIVE_LIQUID_UNIVERSE_VERSION } from '@/modules/market/constants/ai-pick-universe';
 import {
   PRICE_ADJUSTMENT_VERSION,
@@ -608,7 +611,7 @@ export async function calculateLensBucketStats(
   };
 }
 
-export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
+export async function readLensRadarHistory(db: Queryable = pool, lookbackDays: number = CALIBRATION_LOOKBACK_DAYS): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, score_config_hash, universe_version,
@@ -619,9 +622,10 @@ export async function readLensRadarHistory(db: Queryable = pool): Promise<LensRa
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
       AND universe_version = $1
+      AND "date" >= CURRENT_DATE - ($2::int * INTERVAL '1 day')
     ORDER BY ticker ASC, "date" ASC
     `,
-    [ACTIVE_LIQUID_UNIVERSE_VERSION]
+    [ACTIVE_LIQUID_UNIVERSE_VERSION, lookbackDays]
   );
   return rows as LensRadarHistoryEntry[];
 }

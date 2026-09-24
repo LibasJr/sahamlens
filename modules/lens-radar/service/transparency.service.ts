@@ -34,6 +34,9 @@ import {
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
 import { provenancedValue, type ProvenancedFinancialValue } from '@/shared/finance/provenance';
 
+// Lihat CALIBRATION_LOOKBACK_DAYS di calibration.service.ts — harus sama.
+const CALIBRATION_LOOKBACK_DAYS = 730;
+
 const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 // v2: payload sekarang membedakan observasi mentah, sampel efektif per bucket edge,
 // dan hari sinyal yang benar-benar lolos populasi validasi. Cache lama tidak boleh
@@ -438,7 +441,7 @@ async function readLatestBucketStats(
   return rows as LensBucketStatsRow[];
 }
 
-async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHistoryEntry[]> {
+async function readLensRadarHistory(db: Queryable = pool, lookbackDays: number = CALIBRATION_LOOKBACK_DAYS): Promise<LensRadarHistoryEntry[]> {
   const { rows } = await db.query(
     `
     SELECT "date", ticker, lens_score, close_price, market_cap, score_version, score_config_hash, universe_version,
@@ -448,8 +451,10 @@ async function readLensRadarHistory(db: Queryable = pool): Promise<LensRadarHist
     FROM lens_radar_history
     WHERE lens_score IS NOT NULL
       AND close_price IS NOT NULL
+      AND "date" >= CURRENT_DATE - ($1::int * INTERVAL '1 day')
     ORDER BY ticker ASC, "date" ASC
-    `
+    `,
+    [lookbackDays]
   );
   return rows as LensRadarHistoryEntry[];
 }
