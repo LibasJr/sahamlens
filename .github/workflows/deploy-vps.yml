@@ -1,9 +1,9 @@
 name: Deploy VPS
 
+# 2026-09-24: pemicu otomatis `workflow_run` DIMATIKAN. Deploy produksi sekarang berbasis
+# tarik dari VPS (`deploy/auto-deploy/`, timer tiap 5 menit, bergerbang CI). Alasan lengkap ada
+# di README direktori itu. Workflow ini tinggal jalur cadangan yang dijalankan manual.
 on:
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
   workflow_dispatch:
 
 concurrency:
@@ -11,6 +11,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Job `ci-cancelled-guard` di bawah hanya berlaku untuk pemicu `workflow_run`, yang sejak
+  # 2026-09-24 sudah dimatikan (deploy pindah ke VPS, `deploy/auto-deploy/`). Perannya diambil
+  # alih skrip `auto-deploy.sh`: CI main yang `cancelled` dijalankan ulang sekali di sana.
+  # Job ini disimpan supaya jalur manual tidak kehilangan riwayat, bukan karena masih dipakai.
   # Jaring pengaman: CI di main yang TIDAK sukses membuat job `deploy` di bawah
   # ter-skip, dan `skipped` terbaca persis seperti "tidak ada yang perlu dilakukan" -
   # tidak ada tanda merah, tidak ada notifikasi, main tinggal diam tidak ter-deploy.
@@ -21,9 +25,7 @@ jobs:
   # runner mati, timeout. Jadi keadaan itu tidak boleh lagi berlalu tanpa suara.
   ci-cancelled-guard:
     if: >
-      github.event_name == 'workflow_run' &&
-      github.event.workflow_run.head_branch == 'main' &&
-      github.event.workflow_run.conclusion == 'cancelled'
+      false  # pemicu workflow_run dimatikan 2026-09-24; lihat catatan di atas
     runs-on: ubuntu-latest
     permissions:
       actions: write

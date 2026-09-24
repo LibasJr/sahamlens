@@ -1,0 +1,16 @@
+[Unit]
+Description=SahamLens - deploy otomatis berbasis tarik (pull) dari main
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+WorkingDirectory=/opt/sahamlens/app
+EnvironmentFile=-/opt/sahamlens/app/.env.production
+ExecStart=/opt/sahamlens/scripts/auto-deploy.sh
+# Deploy menjalankan npm ci + next build untuk aplikasi yang bisa memakai beberapa GB;
+# batas waktu longgar supaya build lambat tidak dianggap gagal.
+TimeoutStartSec=1800
+NoNewPrivileges=true
