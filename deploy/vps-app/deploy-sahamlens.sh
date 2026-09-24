@@ -146,6 +146,17 @@ $SUDO /usr/bin/install -m 0644 deploy/screener-scan/sahamlens-screener-scan.time
 $SUDO /usr/bin/systemctl daemon-reload
 $SUDO /usr/bin/systemctl enable sahamlens-screener-scan.timer
 
+echo "Installing emiten-sync systemd units..."
+# Katalog emiten (idx_emiten_900.csv) pernah hanya snapshot manual: papan pencatatan basi
+# dan nama terpotong 32 karakter (temuan 24 Sep 2026). Job bulanan ini menyinkronkannya
+# dengan daftar resmi BEI dan mengajukan PR - bukan menulis ke checkout produksi.
+$SUDO /usr/bin/install -m 0644 deploy/emiten-sync/sahamlens-emiten-sync.service \
+  /etc/systemd/system/sahamlens-emiten-sync.service
+$SUDO /usr/bin/install -m 0644 deploy/emiten-sync/sahamlens-emiten-sync.timer \
+  /etc/systemd/system/sahamlens-emiten-sync.timer
+$SUDO /usr/bin/systemctl daemon-reload
+$SUDO /usr/bin/systemctl enable sahamlens-emiten-sync.timer
+
 echo "Restarting SahamLens..."
 $SUDO /usr/bin/systemctl restart sahamlens
 
