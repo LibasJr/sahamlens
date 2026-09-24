@@ -13,4 +13,7 @@ ExecStart=/opt/sahamlens/scripts/auto-deploy.sh
 # Deploy menjalankan npm ci + next build untuk aplikasi yang bisa memakai beberapa GB;
 # batas waktu longgar supaya build lambat tidak dianggap gagal.
 TimeoutStartSec=1800
-NoNewPrivileges=true
+# TANPA NoNewPrivileges: skrip deploy memakai sudo (chown node_modules/.next, restart
+# sahamlens, pasang unit). Dengan flag itu, langkah pertama gagal dengan
+# «sudo: The "no new privileges" flag is set» dan deploy berhenti sebelum menyentuh apa pun.
+# Terbukti pada 2026-09-24 pukul 21:20 saat unit ini pertama kali mencoba deploy sungguhan.
