@@ -8,7 +8,12 @@ SCRIPTS_DIR=/opt/sahamlens/scripts
 UNIT_DIR=/etc/systemd/system
 
 sudo install -d -m 0755 "$SCRIPTS_DIR"
-sudo install -m 0755 "$REPO/scripts/macro-evidence-watchdog.mjs" "$SCRIPTS_DIR/macro-evidence-watchdog.mjs"
+# Skrip dijalankan langsung dari checkout aplikasi (lihat komentar ExecStart di unit):
+# salinan di /opt/sahamlens/scripts akan gagal resolve modul `pg`.
+if [ ! -f "$REPO/scripts/macro-evidence-watchdog.mjs" ]; then
+  echo "skrip belum ada di checkout aplikasi: $REPO/scripts/macro-evidence-watchdog.mjs" >&2
+  exit 1
+fi
 sudo install -m 0644 "$HERE/sahamlens-macro-evidence-watchdog.service" "$UNIT_DIR/"
 sudo install -m 0644 "$HERE/sahamlens-macro-evidence-watchdog.timer" "$UNIT_DIR/"
 sudo systemctl daemon-reload
