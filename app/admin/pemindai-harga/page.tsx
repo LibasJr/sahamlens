@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { getEntryScanData, type EntryScanResult } from '@/modules/confirmation/service/entry-scan.service';
 import { isAdminServer } from '@/modules/user';
 import { LANG_COOKIE } from '@/shared/constants/cookie-names';
+import { ENTRY_RULE_BACKTEST } from '@/modules/confirmation/constants/entry-rule-evidence';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -173,6 +174,65 @@ export default async function EntryScanPage() {
             ) : null}
           </Card>
         ) : null}
+
+        <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mt-6 border-tv-border p-5">
+                  <h2 className="flex items-center gap-2 font-heading text-lg font-bold">
+                    <Info className="h-4 w-4" /> {isEn ? 'How this rule actually performed' : 'Hasil uji aturan ini pada arsip'}
+                  </h2>
+                  <p className="mt-2 text-sm text-tv-muted">
+                    {isEn
+                      ? `Deterministic test of ${ENTRY_RULE_BACKTEST.archive.rulesTested} entry/stop/target rules across the whole daily archive (${ENTRY_RULE_BACKTEST.archive.firstSession} → ${ENTRY_RULE_BACKTEST.archive.lastSession}, ${ENTRY_RULE_BACKTEST.archive.horizonSessions}-session horizon), split into train and out-of-sample. The rule this page uses is the one measured below. The rule list was frozen before the run — adding rules after seeing results is p-hacking.`
+                      : `Uji deterministik ${ENTRY_RULE_BACKTEST.archive.rulesTested} aturan masuk/stop/sasaran pada seluruh arsip harian (${ENTRY_RULE_BACKTEST.archive.firstSession} → ${ENTRY_RULE_BACKTEST.archive.lastSession}, horizon ${ENTRY_RULE_BACKTEST.archive.horizonSessions} sesi), dipisah train dan out-of-sample. Aturan yang dipakai halaman ini adalah yang diukur di bawah. Daftar aturan dibekukan sebelum uji dijalankan — menambah aturan setelah melihat hasil itu p-hacking.`}
+                  </p>
+                  <ul className="mt-3 space-y-1 text-sm text-tv-muted">
+                    <li>
+                      • {isEn ? 'Signals filled' : 'Sinyal terisi'}:{' '}
+                      <span className="font-number text-tv-text">{ENTRY_RULE_BACKTEST.executable.filledSignals.toLocaleString(NUMBER_FORMAT)}</span> dari{' '}
+                      <span className="font-number text-tv-text">
+                        {ENTRY_RULE_BACKTEST.executable.filledSignals + ENTRY_RULE_BACKTEST.executable.unfilledDays}
+                      </span>{' '}
+                      {isEn
+                        ? 'session-days tested. The rest never reached the entry level — no signal, not a loss.'
+                        : 'hari-sesi yang diuji. Sisanya tidak pernah menyentuh level masuk — tanpa sinyal, bukan kerugian.'}
+                    </li>
+                    <li>
+                      • {isEn ? 'TRAIN (to' : 'TRAIN (sampai'} {ENTRY_RULE_BACKTEST.split.trainEnd}): {isEn ? 'stop hit' : 'stop kena'}{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.executable.train.stopRate * 100).toFixed(2)}%</span> ·{' '}
+                      {isEn ? 'target hit' : 'sasaran kena'}{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.executable.train.targetRate * 100).toFixed(2)}%</span> ·{' '}
+                      {isEn ? 'net average per trade' : 'netto rata-rata per transaksi'}{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.executable.train.net * 100).toFixed(2)}%</span> · median{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.executable.train.medianNet * 100).toFixed(2)}%</span>
+                    </li>
+                    <li>
+                      • {isEn ? 'OUT-OF-SAMPLE (from' : 'OUT-OF-SAMPLE (sejak'} {ENTRY_RULE_BACKTEST.split.oosStart}): {isEn ? 'stop hit' : 'stop kena'}{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.executable.oos.stopRate * 100).toFixed(2)}%</span> ·{' '}
+                      {isEn ? 'target hit' : 'sasaran kena'}{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.executable.oos.targetRate * 100).toFixed(2)}%</span> ·{' '}
+                      {isEn ? 'net average per trade' : 'netto rata-rata per transaksi'}{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.executable.oos.net * 100).toFixed(2)}%</span> · median{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.executable.oos.medianNet * 100).toFixed(2)}%</span>
+                    </li>
+                    <li>
+                      • {isEn ? 'Cost applied' : 'Biaya yang dipakai'}{' '}
+                      <span className="font-number text-tv-text">{(ENTRY_RULE_BACKTEST.costRoundTrip * 100).toFixed(2)}%</span>{' '}
+                      {isEn
+                        ? 'per round trip — fees only, no slippage. Real fills are worse, not better.'
+                        : 'per transaksi bolak-balik — hanya fee, belum termasuk slippage. Eksekusi nyata lebih buruk, bukan lebih baik.'}
+                    </li>
+                    <li>
+                      • {isEn ? 'Rules that cleared the gate' : 'Aturan yang lolos syarat'} ({ENTRY_RULE_BACKTEST.gate}):{' '}
+                      <strong className="text-tv-text">{ENTRY_RULE_BACKTEST.anyRulePassedGate ? 'ada' : 'tidak ada'}</strong>.{' '}
+                      {isEn
+                        ? `The only rule with a positive out-of-sample net (${ENTRY_RULE_BACKTEST.bestOosRule.label}, ${(ENTRY_RULE_BACKTEST.bestOosRule.oosNet * 100).toFixed(2)}%) was negative in train (${(ENTRY_RULE_BACKTEST.bestOosRule.trainNet * 100).toFixed(2)}%), so it is not a finding — a coin that lands well once is not a method.`
+                        : `Satu-satunya aturan dengan netto OOS positif (${ENTRY_RULE_BACKTEST.bestOosRule.label}, ${(ENTRY_RULE_BACKTEST.bestOosRule.oosNet * 100).toFixed(2)}%) negatif di train (${(ENTRY_RULE_BACKTEST.bestOosRule.trainNet * 100).toFixed(2)}%), jadi itu bukan temuan — koin yang sekali mendarat bagus bukan metode.`}
+                    </li>
+                    <li>
+                      • {isEn ? 'Full report' : 'Laporan lengkap'}: <span className="text-tv-text">{ENTRY_RULE_BACKTEST.reportPath}</span> ·{' '}
+                      {isEn ? 're-run' : 'ukur ulang'}: <span className="font-number text-tv-text">npm run backtest:entry-rules</span>
+                    </li>
+                  </ul>
+                </Card>
 
         <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mt-6 border-tv-border p-5">
           <h2 className="flex items-center gap-2 font-heading text-lg font-bold">
