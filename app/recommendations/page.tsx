@@ -283,7 +283,7 @@ export default function ResearchIdeasPage() {
           <div>
             <div className="flex items-center gap-2">
               <h2 className="lens-page-title">Scanner Teknikal Top 50 (LensScanner)</h2>
-              <span className="text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-tv-green/20 text-tv-green border border-tv-green/30">
+              <span className="lens-label font-sans font-semibold px-2 py-0.5 rounded bg-tv-green/20 text-tv-green border border-tv-green/30">
                 LENSSCANNER
               </span>
             </div>
@@ -433,13 +433,13 @@ export default function ResearchIdeasPage() {
                             <div className="w-24 h-1.5 bg-tv-bg rounded-full overflow-hidden flex">
                               <div className={`h-full bg-gradient-to-r from-tv-red via-tv-yellow to-tv-green ${percentageWidthClass(item.sentimentScore)}`} />
                             </div>
-                            <span className="text-[10px] text-tv-muted font-mono">{item.sentimentScore}% bullish</span>
+                            <span className="lens-meta text-tv-muted font-mono">{item.sentimentScore}% bullish</span>
                           </>
                         )}
                       </div>
                     </td>
                     <td className="p-4 text-center">
-                      <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-sans text-[11px] ${item.foreignFlow?.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/50' :
+                      <div className={`inline-flex items-center justify-center px-3 py-1 rounded font-bold font-sans lens-label ${item.foreignFlow?.includes('BUY') ? 'bg-tv-green/10 text-tv-green border border-tv-green/50' :
                           item.foreignFlow?.includes('SELL') ? 'bg-tv-red/10 text-tv-red border border-tv-red/50' :
                             item.foreignFlow === 'UNAVAILABLE' ? 'bg-tv-card text-tv-muted border border-tv-border' :
                             'bg-tv-yellow/10 text-tv-yellow border border-tv-yellow/50'

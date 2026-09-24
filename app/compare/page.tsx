@@ -360,7 +360,7 @@ function CompareContent() {
                         {displayTicker(data.data2.symbol)}: <span className="font-number">{win2}</span>
                       </span>
                     </div>
-                    <span className="text-right text-[11px] text-tv-muted leading-relaxed">
+                    <span className="text-right lens-body-sm text-tv-muted leading-relaxed">
                       {leader
                         ? (isEn ? `${displayTicker(leader)} leads across more metrics overall.` : `${displayTicker(leader)} unggul di lebih banyak metrik perbandingan.`)
                         : (isEn ? 'Both stocks are evenly matched across metrics.' : 'Kedua emiten berimbang di jumlah metrik yang sama.')}
@@ -372,7 +372,7 @@ function CompareContent() {
                           size="none"
                           type="button"
                           onClick={() => setCompareMode('simple')}
-                          className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${compareMode === 'simple' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
+                          className={`rounded px-2.5 py-1 lens-label font-semibold transition-colors ${compareMode === 'simple' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
                         >
                           Ringkas
                         </Button>
@@ -381,7 +381,7 @@ function CompareContent() {
                           size="none"
                           type="button"
                           onClick={() => setCompareMode('advanced')}
-                          className={`rounded px-2.5 py-1 text-[11px] font-semibold transition-colors ${compareMode === 'advanced' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
+                          className={`rounded px-2.5 py-1 lens-label font-semibold transition-colors ${compareMode === 'advanced' ? 'bg-tv-blue text-white' : 'text-tv-muted hover:text-tv-text'}`}
                         >
                           Lengkap
                         </Button>
@@ -392,12 +392,12 @@ function CompareContent() {
                         type="button"
                         onClick={shareCompare}
                         aria-live="polite"
-                        className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 py-1 text-[11px] transition-colors ${shareStatus === 'error' ? 'border-tv-red/40 text-tv-red' : shareStatus === 'copied' || shareStatus === 'shared' ? 'border-tv-green/40 text-tv-green' : 'border-tv-border text-tv-muted hover:text-tv-text'}`}
+                        className={`inline-flex min-h-8 items-center gap-1.5 rounded-md border px-2.5 py-1 lens-label transition-colors ${shareStatus === 'error' ? 'border-tv-red/40 text-tv-red' : shareStatus === 'copied' || shareStatus === 'shared' ? 'border-tv-green/40 text-tv-green' : 'border-tv-border text-tv-muted hover:text-tv-text'}`}
                       >
                         {shareStatus === 'copied' || shareStatus === 'shared' ? <Check className="h-3.5 w-3.5" /> : <Share2 className="h-3.5 w-3.5" />}
                         {shareLabel}
                       </Button>
-                      <Button variant="bare" size="none" type="button" onClick={downloadSummary} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-tv-border px-2.5 py-1 text-[11px] text-tv-muted hover:text-tv-text">
+                      <Button variant="bare" size="none" type="button" onClick={downloadSummary} className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-tv-border px-2.5 py-1 lens-label text-tv-muted hover:text-tv-text">
                         <Download className="h-3.5 w-3.5" />
                         Export CSV
                       </Button>
@@ -444,7 +444,7 @@ function CompareContent() {
                           memang tidak bisa: harga saham antar emiten tidak sebanding
                           tanpa jumlah lembar saham. Itu yang perlu dikatakan. */}
                       {!lockForGuest && (
-                        <td className="py-4 px-6 text-tv-muted border-l border-tv-border text-[11px] leading-relaxed">
+                        <td className="py-4 px-6 text-tv-muted border-l border-tv-border lens-body-sm leading-relaxed">
                           Tidak dibandingkan - harga per lembar antar emiten tidak sebanding tanpa memperhitungkan jumlah saham beredar.
                         </td>
                       )}
@@ -457,9 +457,9 @@ function CompareContent() {
                         {!lockForGuest && (
                           <td className="py-3 px-6 border-l border-tv-border text-left">
                             {row.winner !== '-' && (
-                              <span className="inline-block mb-1 text-tv-blue font-bold bg-tv-blue/10 px-2 py-0.5 rounded text-[10px]">{row.winner} unggul</span>
+                              <span className="inline-block mb-1 text-tv-blue font-bold bg-tv-blue/10 px-2 py-0.5 rounded lens-meta">{row.winner} unggul</span>
                             )}
-                            <p className="font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>
+                            <p className="font-sans lens-body-sm text-tv-muted leading-relaxed">{row.reason}</p>
                           </td>
                         )}
                       </tr>
@@ -474,7 +474,7 @@ function CompareContent() {
                     <div key={d.symbol} className="flex flex-col items-center gap-1">
                       <TickerAvatar symbol={d.symbol} size="md" />
                       <span className="font-number font-bold text-tv-text">{displayTicker(d.symbol)}</span>
-                      <span className="font-number text-[11px] text-tv-muted">
+                      <span className="font-number lens-body-sm text-tv-muted">
                         {typeof d.price === 'number' ? `Rp ${d.price.toLocaleString('id-ID')}` : 'N/A'}
                       </span>
                     </div>
@@ -483,16 +483,16 @@ function CompareContent() {
                 {visibleRows.map((row: any) => (
                   <div key={row.key} className="px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[11px] uppercase tracking-wide text-tv-muted">{row.label}</span>
+                      <span className="lens-label uppercase tracking-wide text-tv-muted">{row.label}</span>
                       {row.winner !== '-' && (
-                        <span className="text-tv-blue font-bold bg-tv-blue/10 px-2 py-0.5 rounded text-[10px] shrink-0">{displayTicker(row.winner)} unggul</span>
+                        <span className="text-tv-blue font-bold bg-tv-blue/10 px-2 py-0.5 rounded lens-meta shrink-0">{displayTicker(row.winner)} unggul</span>
                       )}
                     </div>
                     <div className="mt-1.5 grid grid-cols-2 gap-2">
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data1.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.a}</div>
                       <div className={`rounded-md px-2.5 py-1.5 text-center text-sm ${row.winner === data.data2.symbol ? 'bg-tv-blue/10 text-tv-blue font-bold' : 'bg-tv-bg/60 text-tv-text'}`}>{row.b}</div>
                     </div>
-                    {!lockForGuest && <p className="mt-1.5 font-sans text-[11px] text-tv-muted leading-relaxed">{row.reason}</p>}
+                    {!lockForGuest && <p className="mt-1.5 font-sans lens-body-sm text-tv-muted leading-relaxed">{row.reason}</p>}
                   </div>
                 ))}
               </div>

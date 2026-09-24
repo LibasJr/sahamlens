@@ -93,7 +93,7 @@ function LoginForm() {
                 label bawaan Input. Sebelumnya input password TIDAK punya nama aksesibel
                 sama sekali - tanpa label, tanpa aria-label, bahkan tanpa placeholder. */}
             <label htmlFor="password" className="block text-xs font-medium text-tv-muted">Password</label>
-            <Link href="/forgot-password" className="min-h-11 inline-flex items-center text-[11px] font-semibold text-tv-blue hover:underline">Lupa Password?</Link>
+            <Link href="/forgot-password" className="min-h-11 inline-flex items-center lens-label font-semibold text-tv-blue hover:underline">Lupa Password?</Link>
           </div>
           <Input
             id="password"
@@ -115,7 +115,7 @@ function LoginForm() {
             onChange={(e) => setRememberMe(e.target.checked)}
             className="w-4 h-4 rounded border-tv-border bg-tv-bg text-tv-blue focus:ring-tv-blue accent-tv-blue"
           />
-          <label htmlFor="remember" className="text-[13px] text-tv-muted cursor-pointer select-none">
+          <label htmlFor="remember" className="lens-body-sm text-tv-muted cursor-pointer select-none">
             Ingat Saya
           </label>
         </div>
@@ -125,7 +125,7 @@ function LoginForm() {
         </Button>
       </form>
 
-      <div className="mt-6 text-center text-[13px] text-tv-muted">
+      <div className="mt-6 text-center lens-body-sm text-tv-muted">
         Belum punya akun? <Link href="/signup" className="text-tv-blue font-semibold hover:underline">Daftar</Link>
       </div>
     </AuthShell>

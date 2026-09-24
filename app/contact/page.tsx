@@ -37,7 +37,7 @@ export default function ContactPage() {
         <div className="pointer-events-none absolute -left-24 -bottom-16 h-64 w-64 rounded-full bg-glow-blue blur-3xl" />
 
         <div className="relative">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 text-[11px] font-semibold text-tv-blue">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 lens-label font-semibold text-tv-blue">
             <Mail className="h-3 w-3" /> {t('contactPage.badge')}
           </span>
           <h1 className="mt-4 font-heading text-3xl sm:text-4xl font-bold tracking-tight text-tv-text leading-[1.15]">
@@ -54,7 +54,7 @@ export default function ContactPage() {
             >
               {t('contactPage.ctaLabel')}
             </a>
-            <div className="flex flex-col gap-1 text-[12px] text-tv-muted">
+            <div className="flex flex-col gap-1 lens-body-sm text-tv-muted">
               <span className="inline-flex items-center gap-1.5">
                 <Clock className="h-3.5 w-3.5" /> {t('contactPage.responseTarget')}
               </span>
@@ -71,8 +71,8 @@ export default function ContactPage() {
             <FileText className="h-4 w-4" />
           </span>
           <h2 className="font-heading text-sm font-bold text-tv-text">{t('contactPage.reportTitle')}</h2>
-          <p className="text-[13px] text-tv-muted leading-relaxed">{t('contactPage.reportIntro')}</p>
-          <ul className="flex flex-col gap-1.5 text-[13px] text-tv-muted">
+          <p className="lens-body-sm text-tv-muted leading-relaxed">{t('contactPage.reportIntro')}</p>
+          <ul className="flex flex-col gap-1.5 lens-body-sm text-tv-muted">
             {reportItems.map((item) => (
               <li key={item} className="flex items-start gap-2">
                 <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-tv-blue" />
@@ -88,7 +88,7 @@ export default function ContactPage() {
               <ShieldCheck className="h-4 w-4" />
             </span>
             <h2 className="font-heading text-sm font-bold text-tv-text">{t('contactPage.securityTitle')}</h2>
-            <p className="text-[13px] text-tv-muted leading-relaxed">
+            <p className="lens-body-sm text-tv-muted leading-relaxed">
               {t('contactPage.securityWarning')}
             </p>
           </Card>
@@ -96,14 +96,14 @@ export default function ContactPage() {
           <Card hoverable className="flex flex-col gap-3">
             <h2 className="font-heading text-sm font-bold text-tv-text">{t('contactPage.channelTitle')}</h2>
             <div className="flex flex-col gap-1">
-              <span className="text-[13px] font-semibold text-tv-text">{t('contactPage.channelEmail')}</span>
+              <span className="lens-body-sm font-semibold text-tv-text">{t('contactPage.channelEmail')}</span>
               <a
                 href={t('contactPage.ctaHref')}
-                className="text-[13px] text-tv-blue hover:underline break-all"
+                className="lens-body-sm text-tv-blue hover:underline break-all"
               >
                 support@sahamlens.id
               </a>
-              <span className="text-[12px] text-tv-muted">{t('contactPage.channelEmailDesc')}</span>
+              <span className="lens-body-sm text-tv-muted">{t('contactPage.channelEmailDesc')}</span>
             </div>
           </Card>
         </div>

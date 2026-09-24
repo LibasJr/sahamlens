@@ -45,7 +45,7 @@ export default function AboutPage() {
         <div className="pointer-events-none absolute -left-24 -bottom-16 h-64 w-64 rounded-full bg-glow-blue blur-3xl" />
 
         <div className="relative">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 text-[11px] font-semibold text-tv-blue">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/30 bg-tv-blue/10 px-3 py-1 lens-label font-semibold text-tv-blue">
             <Sparkles className="h-3 w-3" /> {t('aboutPage.badge')}
           </span>
           <h1 className="mt-4 font-heading text-3xl sm:text-4xl font-bold tracking-tight text-tv-text leading-[1.15] whitespace-pre-line">
@@ -64,12 +64,12 @@ export default function AboutPage() {
               <Icon className="h-4 w-4" />
             </span>
             <h2 className="font-heading text-sm font-bold text-tv-text">{title}</h2>
-            <p className="text-[13px] text-tv-muted leading-relaxed">{body}</p>
+            <p className="lens-body-sm text-tv-muted leading-relaxed">{body}</p>
           </Card>
         ))}
       </div>
 
-      <p className="mt-8 text-[11px] text-tv-muted leading-relaxed">
+      <p className="mt-8 lens-body-sm text-tv-muted leading-relaxed">
         {t('aboutPage.disclaimer')}
       </p>
     </PageContainer>
