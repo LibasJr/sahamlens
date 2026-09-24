@@ -1,0 +1,24 @@
+# /etc/systemd/system/sahamlens-emiten-sync.timer
+#
+# BULANAN tanggal 1 pukul 09:15 WIB - di luar jam padat pasar dan jauh dari gerombolan
+# timer 17:30/20:00 (idx-flow-sync, intraday-collect, idx-financial-sync) yang sama-sama
+# memanggil idx.co.id; Cloudflare BEI bisa membalas 403 kalau dipanggil berdekatan.
+#
+# Kenapa bulanan: daftar emiten BEI berubah karena pencatatan baru, delisting, dan
+# perpindahan papan (Pemantauan Khusus). Perubahan itu jarang - bulanan cukup, dan tiap
+# jalan yang menemukan perubahan hanya membuka PR, bukan menimpa produksi.
+#
+# Persistent=true: kalau VPS mati saat jadwalnya, job dikejar setelah menyala. Aman karena
+# skripnya idempoten dan tidak menulis ke checkout produksi.
+# RandomizedDelaySec: menghindari panggilan bertumpuk dengan job lain di menit yang sama.
+
+[Unit]
+Description=Jadwal SahamLens - sinkron katalog emiten dengan daftar resmi BEI
+
+[Timer]
+OnCalendar=*-*-01 09:15:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target
