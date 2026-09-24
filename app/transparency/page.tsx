@@ -73,7 +73,7 @@ export default async function PublicTransparencyPage() {
         <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mb-6 border-tv-border p-5">
           <h2 className="font-heading text-lg font-bold">{isEn ? 'Methodology and return basis' : 'Metodologi dan basis return'}</h2>
           <ul className="mt-3 space-y-2 text-sm leading-relaxed text-tv-muted">
-            {(isEn ? ['LensScore is frozen by model version and configuration hash before forward results are calculated.', 'Validation uses point-in-time data and only includes signals that pass model-version, price-basis, liquidity, coverage, and eligibility checks.', 'High-score buckets are compared with lower-score buckets using decorrelated T+20 samples.', 'Public status remains research-only until sample-size and out-of-sample requirements are met.'] : data.methodology).map((item) => <li key={item}>• {item}</li>)}
+            {(isEn ? ['LensScore is frozen by model version and configuration hash before forward results are calculated.', 'Validation uses point-in-time data and only includes signals that pass model-version, price-basis, liquidity, coverage, and eligibility checks.', 'High-score buckets are compared with lower-score buckets using decorrelated T+20 samples.', 'Issuer counts are reported in layers: the official IDX catalog, names in the score archive, and names that pass the validation gate.', 'Public status remains research-only until sample-size and out-of-sample requirements are met.'] : data.methodology).map((item) => <li key={item}>• {item}</li>)}
           </ul>
           <p className="mt-3 rounded-lg border border-tv-border bg-tv-card p-3 text-xs text-tv-muted">
             Return basis: {data.validation.returnBasis}
@@ -162,6 +162,33 @@ export default async function PublicTransparencyPage() {
               </tbody>
             </table>
           </div>
+        </Card>
+
+        <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mb-6 border-tv-border p-5">
+          <h2 className="font-heading text-lg font-bold">{isEn ? 'Issuer coverage: three layers, three different numbers' : 'Cakupan emiten: tiga lapisan, tiga angka berbeda'}</h2>
+          <p className="mt-2 text-xs leading-relaxed text-tv-muted">
+            {isEn
+              ? 'The issuer count depends on which layer is counted: the official IDX listing, the names ever scored in the archive, or the names that actually pass the validation gate. Only the last layer is the basis for the metrics on this page, so it is always the smallest of the three.'
+              : 'Jumlah emiten tergantung lapisan yang dihitung: daftar resmi BEI, nama yang pernah dihitung skornya di arsip, atau nama yang benar-benar lolos gerbang validasi. Hanya lapisan terakhir yang menjadi dasar angka di halaman ini, jadi selalu yang terkecil dari ketiganya.'}
+          </p>
+          <dl className="mt-4 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+            <div><dt className="text-tv-muted">{isEn ? 'IDX catalog' : 'Katalog BEI'}</dt><dd className="mt-1 font-number text-lg font-bold">{fmt(data.validation.emitenCoverage.catalogEmiten, '', isEn)}</dd></div>
+            <div><dt className="text-tv-muted">{isEn ? 'In score archive' : 'Di arsip skor'}</dt><dd className="mt-1 font-number text-lg font-bold">{fmt(data.validation.emitenCoverage.archiveEmiten, '', isEn)}</dd></div>
+            <div><dt className="text-tv-muted">{isEn ? 'Pass validation gate' : 'Lolos gerbang validasi'}</dt><dd className="mt-1 font-number text-lg font-bold">{fmt(data.validation.emitenCoverage.validationEmiten, '', isEn)}</dd></div>
+            <div><dt className="text-tv-muted">{isEn ? 'Validation rows' : 'Baris validasi'}</dt><dd className="mt-1 font-number text-lg font-bold">{fmt(data.validation.emitenCoverage.validationRows, '', isEn)}</dd></div>
+          </dl>
+          <ul className="mt-3 space-y-1 text-xs leading-relaxed text-tv-muted">
+            <li>
+              • {isEn ? 'Issuers per signal date in the validation population: median' : 'Emiten per tanggal sinyal pada populasi validasi: median'}{' '}
+              {fmt(data.validation.emitenCoverage.perDay.median, '', isEn)} · min {fmt(data.validation.emitenCoverage.perDay.min, '', isEn)} · max {fmt(data.validation.emitenCoverage.perDay.max, '', isEn)}
+            </li>
+            <li>
+              • {isEn ? 'Latest signal date' : 'Tanggal sinyal terakhir'} {data.validation.emitenCoverage.perDay.latestDate ?? '-'}: {fmt(data.validation.emitenCoverage.perDay.latest, '', isEn)} {isEn ? 'issuers' : 'emiten'}
+            </li>
+            <li>
+              • {isEn ? 'Listed issuers with no archive row yet (e.g. suspended): ' : 'Emiten tercatat yang belum punya satu baris arsip pun (mis. tersuspensi): '}{fmt(data.validation.emitenCoverage.catalogWithoutArchiveData, '', isEn)}
+            </li>
+          </ul>
         </Card>
 
         <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5">

@@ -32,6 +32,7 @@ import {
   VALIDATION_LIMITATIONS_REVIEWED_ON,
 } from '../constants/validation-limitations';
 import { PRICE_ADJUSTMENT_VERSION, RETURN_PRICE_BASIS, type PriceBasis } from '@/shared/market/price-basis';
+import { loadEmitenList } from '@/shared/market/emiten-list';
 import { provenancedValue, type ProvenancedFinancialValue } from '@/shared/finance/provenance';
 
 // Lihat CALIBRATION_LOOKBACK_DAYS di calibration.service.ts — harus sama.
@@ -44,7 +45,12 @@ const BUCKETS: LensScoreBucket[] = ['80-100', '70-79', '60-69', '<60'];
 // v4: payload publik sekarang membawa median, win-rate, dan excess-vs-pasar per bucket
 // serta distribusi desil. Cache v3 hanya memuat rata-rata, yang pada distribusi miring ke
 // kanan terbaca seolah skor punya edge (temuan audit kuantitatif 2026-09-24).
-export const TRANSPARENCY_CACHE_VERSION = 'audit-v4-skew-metrics';
+// v5: payload publik membawa cakupan emiten berlapis (katalog BEI vs arsip vs populasi
+// validasi). Satu angka "jumlah emiten" mudah salah baca: katalog berisi 962 emiten
+// tercatat, arsip memuat nama yang pernah dihitung, tetapi hanya sebagian yang lolos
+// gerbang validasi. Tanpa pemisahan lapisan ini, pembaca menyimpulkan sample jauh lebih
+// luas daripada yang sebenarnya dinilai.
+export const TRANSPARENCY_CACHE_VERSION = 'audit-v5-emiten-coverage';
 // Cache key wajib mengikuti SCORE_VERSION. Jika tidak, Redis bisa menyajikan payload
 // lama tanpa metadata versi setelah model versioning di-hardening, sehingga UI publik
 // tampak sehat tetapi audit trail versi tidak terbawa.
@@ -152,6 +158,34 @@ export interface TransparencyBanner {
   message: string;
 }
 
+/**
+ * Jumlah emiten hanya masuk akal kalau lapisannya dipisah. Katalog adalah daftar resmi
+ * BEI yang dipakai aplikasi; arsip adalah nama yang pernah dihitung LensScore; populasi
+ * validasi adalah nama yang benar-benar lolos gerbang (versi model, cakupan data,
+ * eligibility, dan keanggotaan universe point-in-time). Selisih antar lapisan itu temuan,
+ * bukan angka yang boleh disembunyikan di balik satu kata "emiten".
+ */
+export interface TransparencyEmitenCoverage {
+  /** Emiten pada katalog resmi (idx_emiten_900.csv, sinkron BEI). null bila katalog tidak terbaca. */
+  catalogEmiten: number | null;
+  /** Emiten unik di arsip skor untuk versi model yang ditampilkan. */
+  archiveEmiten: number;
+  /** Emiten unik yang lolos gerbang populasi validasi. */
+  validationEmiten: number;
+  /** Baris observasi validasi (satu baris = satu sinyal satu emiten). */
+  validationRows: number;
+  /** Emiten unik per tanggal sinyal pada populasi validasi. */
+  perDay: {
+    median: number | null;
+    min: number | null;
+    max: number | null;
+    latestDate: string | null;
+    latest: number | null;
+  };
+  /** Emiten katalog BEI yang belum punya satu baris arsip pun (mis. tersuspensi). */
+  catalogWithoutArchiveData: number | null;
+}
+
 export interface TransparencyData {
   asOfDate: string;
   latestStatsRunDate: string | null;
@@ -188,6 +222,8 @@ export interface TransparencyData {
   /** Pembanding bucket resmi yang tidak seimbang; sumber daya pisah skor yang lebih adil. */
   deciles: TransparencyDecileRow[];
   equityCurve: TransparencyEquityPoint[];
+  /** Lapisan jumlah emiten; lihat TransparencyEmitenCoverage. */
+  emitenCoverage: TransparencyEmitenCoverage;
 }
 
 interface IhsgBar {
@@ -576,6 +612,77 @@ export function buildTransparencyBanner(status: ValidationStatus): TransparencyB
   };
 }
 
+function normalizeTicker(value: string | null | undefined): string {
+  return typeof value === 'string' ? value.trim().toUpperCase() : '';
+}
+
+/**
+ * Bandingkan lapisan emiten: katalog resmi, arsip, dan populasi validasi. Dihitung dari
+ * baris yang SUDAH dibaca halaman ini (tanpa query tambahan) supaya tidak menambah beban
+ * baca arsip yang sudah berat.
+ */
+export function buildEmitenCoverage(
+  historyRows: LensRadarHistoryEntry[],
+  observations: CalibrationObservation[],
+  scoreVersion: string | null
+): TransparencyEmitenCoverage {
+  const archiveTickers = new Set<string>();
+  for (const row of historyRows) {
+    if (scoreVersion && row.score_version !== scoreVersion) continue;
+    const ticker = normalizeTicker(row.ticker);
+    if (ticker) archiveTickers.add(ticker);
+  }
+
+  const validationTickers = new Set<string>();
+  const tickersPerDay = new Map<string, Set<string>>();
+  for (const observation of observations) {
+    const ticker = normalizeTicker(observation.ticker);
+    if (ticker) validationTickers.add(ticker);
+    const day = observation.signalDate;
+    if (!day) continue;
+    let dayTickers = tickersPerDay.get(day);
+    if (!dayTickers) {
+      dayTickers = new Set<string>();
+      tickersPerDay.set(day, dayTickers);
+    }
+    if (ticker) dayTickers.add(ticker);
+  }
+
+  const perDayCounts = [...tickersPerDay.entries()]
+    .map(([date, tickers]) => ({ date, count: tickers.size }))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const sortedCounts = perDayCounts.map((entry) => entry.count).sort((a, b) => a - b);
+  const latestDay = perDayCounts.length ? perDayCounts[perDayCounts.length - 1] : null;
+
+  let catalogEmiten: number | null = null;
+  let catalogWithoutArchiveData: number | null = null;
+  try {
+    const catalog = loadEmitenList();
+    if (catalog.length > 0) {
+      catalogEmiten = catalog.length;
+      catalogWithoutArchiveData = catalog.filter((item) => !archiveTickers.has(normalizeTicker(item.symbol))).length;
+    }
+  } catch {
+    // Katalog bersifat opsional: halaman transparansi tetap tayang walau berkas katalog
+    // tidak terbaca, dengan angka katalog dibiarkan null (bukan 0 yang menyesatkan).
+  }
+
+  return {
+    catalogEmiten,
+    archiveEmiten: archiveTickers.size,
+    validationEmiten: validationTickers.size,
+    validationRows: observations.length,
+    perDay: {
+      median: sortedCounts.length ? sortedCounts[Math.floor((sortedCounts.length - 1) / 2)] : null,
+      min: sortedCounts.length ? sortedCounts[0] : null,
+      max: sortedCounts.length ? sortedCounts[sortedCounts.length - 1] : null,
+      latestDate: latestDay?.date ?? null,
+      latest: latestDay?.count ?? null,
+    },
+    catalogWithoutArchiveData,
+  };
+}
+
 async function computeTransparencyData(db: Queryable = pool): Promise<TransparencyData> {
   await ensureSharedSchema();
   const requestedScoreVersion = SCORE_VERSION;
@@ -647,6 +754,7 @@ async function computeTransparencyData(db: Queryable = pool): Promise<Transparen
     buckets: bucketResult.rows,
     deciles: buildDecileRows(observations),
     equityCurve: buildTop5EquityCurve(observations, ihsgBars),
+    emitenCoverage: buildEmitenCoverage(historyRows, observations, scoreVersion),
   };
 }
 
@@ -688,6 +796,8 @@ export interface PublicTransparencyData {
     }>;
     /** Pembanding bucket resmi yang tidak seimbang (1.157 vs 45.723 sampel). */
     deciles: TransparencyDecileRow[];
+    /** Lapisan jumlah emiten: katalog BEI vs arsip skor vs populasi validasi. */
+    emitenCoverage: TransparencyEmitenCoverage;
     outOfSampleStatus: 'PENDING';
     returnBasis: string;
   };
@@ -745,6 +855,7 @@ export function toPublicTransparencyData(data: TransparencyData): PublicTranspar
         excessT20: bucket.excessT20,
       })),
       deciles: data.deciles,
+      emitenCoverage: data.emitenCoverage,
       outOfSampleStatus: 'PENDING',
       returnBasis: 'Entry Open H+1, exit T+N hari bursa, return T+20 bersih setelah fee 0,4% + slippage 0,1%',
     },
@@ -761,6 +872,7 @@ export function toPublicTransparencyData(data: TransparencyData): PublicTranspar
       'LensScore dibekukan per versi model dan hash konfigurasi sebelum hasil forward dihitung.',
       'Validasi memakai data point-in-time: hanya sinyal yang lolos versi model, basis harga, likuiditas, cakupan, dan eligibility.',
       'Bucket skor tinggi dibandingkan dengan bucket skor rendah memakai sampel T+20 yang didekorelasi.',
+      'Jumlah emiten dilaporkan berlapis: katalog resmi BEI, nama di arsip skor, dan nama yang lolos gerbang populasi validasi. Angka validasi selalu lebih kecil dari arsip karena arsip memuat baris yang ditolak (cakupan data, eligibility, atau keanggotaan universe point-in-time).',
       'Status publik tidak naik dari research-only sebelum syarat sampel dan out-of-sample terpenuhi.',
     ],
     limitations: data.limitations,
