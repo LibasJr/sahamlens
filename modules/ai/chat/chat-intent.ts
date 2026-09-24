@@ -385,9 +385,9 @@ function classifyPrimaryIntent(args: NormalizedClassifyArgs): Omit<IntentClassif
   // Pertanyaan workflow lintas fitur — "alur riset saham di SahamLens dari cek data
   // sampai pantau watchlist". Harus dikenali sebagai product help dengan jawaban
   // alur end-to-end, bukan UNKNOWN atau STOCK_GENERAL.
-  if (isWorkflowQuery(args.prompt)) return productHelp;
+  if (isWorkflowQuery(args.prompt, args.tickerCount)) return productHelp;
 
-  if (isAllFeaturesProductQuery(args.prompt)) return productHelp;
+  if (isAllFeaturesProductQuery(args.prompt, args.tickerCount)) return productHelp;
   if (args.tickerCount === 0 && TPCL_METHODOLOGY_QUERY.test(text)) return productHelp;
   // Fitur riset/admin yang nama menunya juga mengandung istilah data harus dicek
   // paling awal dalam blok product-help. Ini mencegah false routing seperti

@@ -108,34 +108,59 @@ export async function earningsBlock(ticker: string): Promise<string> {
   }
 }
 
-/** Kalender korporasi (ex-date, jadwal earnings) - peta tanggal, disaring per emiten. */
+/** Kalender korporasi (ex-date, jadwal earnings, RUPS) - peta tanggal, disaring per emiten atau umum. */
 export async function calendarBlock(tickers: string[]): Promise<string> {
-  const map = await cacheGet<Record<string, any[]>>(COMPUTED_CACHE_KEY.CORPORATE_CALENDAR);
-  if (!map || typeof map !== 'object') {
+  const raw = await cacheGet<any>(COMPUTED_CACHE_KEY.CORPORATE_CALENDAR);
+  if (!raw || typeof raw !== 'object') {
+    return unavailableLine('Kalender korporasi', 'cache kalender sedang kosong');
+  }
+
+  const map: Record<string, any[]> =
+    raw.events && typeof raw.events === 'object' && !Array.isArray(raw.events)
+      ? raw.events
+      : raw;
+
+  if (!map || typeof map !== 'object' || Object.keys(map).length === 0) {
     return unavailableLine('Kalender korporasi', 'cache kalender sedang kosong');
   }
 
   const wanted = tickers.map(plain);
-  const rows: string[] = [];
+  const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date());
+
+  const upcomingRows: string[] = [];
+  const pastRows: string[] = [];
 
   for (const [dateKey, events] of Object.entries(map).sort(([a], [b]) => a.localeCompare(b))) {
     if (!Array.isArray(events)) continue;
     for (const event of events) {
       const symbol = plain(String(event.symbol ?? ''));
       if (wanted.length > 0 && !wanted.includes(symbol)) continue;
-      rows.push(`  - ${dateKey} | ${symbol} | ${event.type} | ${event.title}`);
+      const time = event.timeWib ? ` (${event.timeWib} WIB)` : '';
+      const line = `  - ${dateKey} | ${symbol} | ${event.type} | ${event.title}${time}`;
+      if (dateKey >= todayKey) {
+        upcomingRows.push(line);
+      } else {
+        pastRows.push(line);
+      }
     }
   }
 
-  if (!rows.length) {
+  const totalFound = upcomingRows.length + pastRows.length;
+  if (!totalFound) {
     return wanted.length
       ? `- Kalender korporasi: tidak ada agenda tercatat untuk ${wanted.join(', ')} dalam jendela yang dipantau (45 hari ke belakang, 180 hari ke depan). Jangan mengarang tanggal.`
       : '- Kalender korporasi: tidak ada agenda dalam jendela yang dipantau.';
   }
 
+  // Untuk pertanyaan emiten spesifik: sertakan riwayat dekat + agenda mendatang (hingga 30 baris).
+  // Untuk pertanyaan umum (tanpa emiten): prioritaskan agenda mendatang mulai hari ini (hingga 35 baris).
+  const displayedRows = wanted.length > 0
+    ? [...pastRows.slice(-5), ...upcomingRows].slice(0, 30)
+    : (upcomingRows.length > 0 ? upcomingRows.slice(0, 35) : pastRows.slice(-15));
+
   return [
-    '- Agenda korporasi (jendela: 45 hari ke belakang sampai 180 hari ke depan):',
-    ...rows.slice(0, 20),
+    `- Agenda korporasi (hari ini: ${todayKey}, jendela: 45 hari ke belakang sampai 180 hari ke depan):`,
+    ...displayedRows,
     '- BATAS: ex-dividend date dari sumber adalah tanggal TERAKHIR TERCATAT (bisa sudah lewat),',
     '  dan tanggal earnings sering berupa ESTIMASI. Sebutkan sifat itu, jangan sajikan sebagai jadwal resmi emiten.',
   ].join('\n');
