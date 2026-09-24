@@ -28,7 +28,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     const errorId = error ? `${inputId}-error` : undefined;
     return (
       <div className="w-full">
-        {label && <label htmlFor={inputId} className="mb-1.5 block text-sm font-semibold text-tv-muted sm:text-xs">{label}</label>}
+        {label && <label htmlFor={inputId} className="mb-1.5 block lens-label text-tv-muted">{label}</label>}
         <div className="relative">
           {leftIcon && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-tv-muted">{leftIcon}</span>}
           <input
@@ -46,7 +46,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           />
           {rightIcon && <span className="absolute right-3 top-1/2 -translate-y-1/2 text-tv-muted">{rightIcon}</span>}
         </div>
-        {error && <p id={errorId} className="mt-1 text-sm font-medium text-tv-red sm:text-[11px]">{error}</p>}
+        {error && <p id={errorId} className="mt-1 text-sm font-medium text-tv-red sm:text-xs">{error}</p>}
       </div>
     );
   },

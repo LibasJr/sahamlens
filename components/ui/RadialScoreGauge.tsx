@@ -157,14 +157,14 @@ export function RadialScoreGauge({
       </div>
 
       {/* Scale Limits Legend */}
-      <div className="flex justify-between w-full px-2 text-[10px] font-bold text-tv-muted font-number mt-0.5">
+      <div className="flex justify-between w-full px-2 lens-meta font-bold text-tv-muted font-number mt-0.5">
         <span className="text-tv-red">0 Bearish</span>
         <span className="text-tv-yellow">50 Netral</span>
         <span className="text-tv-green">100 Bullish</span>
       </div>
 
       {label && (
-        <span className="text-[11px] text-tv-muted font-medium mt-1">
+        <span className="lens-meta text-tv-muted font-medium mt-1">
           {label}
         </span>
       )}

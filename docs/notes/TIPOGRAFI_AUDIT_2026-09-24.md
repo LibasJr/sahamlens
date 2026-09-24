@@ -102,7 +102,7 @@ ke 12px). Tebalnya diturunkan 700 → 600 agar tidak tampak berat pada ukuran ya
 
 | Fase | Target | Ukuran arbitrer saat ini |
 |---|---|---|
-| 2 | `Sidebar` (`text-xs`/`text-sm` sisa), kartu/form/tabel bersama, `TickerAnalysisShell` | Sidebar: 0 arbitrér, sisa utility |
+| 2 | `Sidebar` (sisa utility), kartu/form/tabel/primitif bersama, `TickerAnalysisShell` | **selesai** — lihat §7 |
 | 3 | `AIChat` (LensAI), `app/news`, teks metodologi panjang | `app/news`: 1 |
 | 4 | DCF, Risk, Dividend, Watchlist, Screener, Calendar | `app/dcf`: 6 · `app/risk`: 13 · `app/dividend`: 13 · `app/calendar`: 4 |
 | 5 | `text-[Npx]` sisanya, klasifikasi pengecualian, penyederhanaan lantai kompatibilitas | 718 tersebar di 111 berkas |
@@ -140,3 +140,31 @@ Ditemukan juga empat proses `jest-worker` yatim dari worktree `.worktrees/t_a6b9
 (direktori sudah dihapus) yang berjalan **12 jam** pada 100% CPU dan menahan swap — efek
 dari test run yang parentnya mati tanpa mematikan worker-nya. Sudah dihentikan; penyebabnya
 belum ditelusuri dan tidak diperbaiki di PR ini.
+
+## 7. Fase 2 — permukaan bersama (PR kedua)
+
+**26 penyebutan** ukuran arbitrer dihapus dari **13 berkas** (`components/ui/**` 12 berkas +
+`components/Sidebar.tsx`). Ratchet turun dari 718/655 menjadi **689/627** (98 berkas dari 479
+diperiksa) dan baseline diperketat supaya capaiannya tidak bisa kembali diam-diam. Selisih 29
+pada ratchet berasal dari `ui/Table.tsx`, yang menanggung dua penyebutan pada satu baris
+(`text-[12px]` dan `sm:text-[10px]`).
+
+| Berkas | Sebelum → sesudah | Alasan |
+|---|---|---|
+| `ui/LanguageSwitcher.tsx` (5) | `text-[11px]` → `lens-meta` / `lens-meta lens-number` | 11px dirender 13px oleh lantai; 12px adalah ukuran yang dimaksud |
+| `ui/NotificationCenter.tsx` (6) | `text-[10px]`→`text-xs`, `text-[11px]`→`lens-meta`, `text-[11.5px]`→`lens-body-sm`, `text-[10.5px]`→`lens-meta` | isi notifikasi adalah teks bacaan, bukan microcopy |
+| `ui/RadialScoreGauge.tsx` (2), `ui/PriceRangeSlider.tsx` (2) | → `lens-meta` (+`lens-number` untuk angka) | label sumbu/rentang, angka tetap mono |
+| `ui/EmptyState.tsx`, `ui/Select.tsx`, `ui/Input.tsx`, `ui/Textarea.tsx` (2), `ui/Toast.tsx`, `ui/SegmentedControl.tsx`, `ui/LoadingFact.tsx` | `sm:text-[11px]` → `sm:text-xs`; label form → `lens-label`; error → `lens-body-sm`; toast `text-[13px]` → `lens-body-sm`; eyebrow → `lens-eyebrow` | satu skala, bukan campuran |
+| `ui/Table.tsx` | `text-[12px] … sm:text-[10px]` → `lens-meta` | header tabel 12px; **`lens-chip` tidak dipakai** di `<th>` (bug `display:inline-flex` pada elemen struktur tabel) |
+| `Sidebar.tsx` | `text-xs` → `text-sm` (tautan Admin) | target menu 13–14px, tebal tetap 700 |
+
+Satu pengecualian disengaja dan dijaga test: `ui/TickerAvatar.tsx` memakai `text-[10px]` di
+kotak **berukuran tetap** (`w-7 h-7` = 20px). Menggantinya dengan peran justru merusak —
+`lens-meta` menyetel `line-height: 1.35`, sedangkan yang menahan inisial di dalam kotak
+adalah `leading-none`. Gerbang
+`components/ui/__tests__/shared-ui-typography.test.ts` memastikan pengecualian itu tetap
+hanya satu, tetap punya `leading-none`, dan bahwa jumlah ukuran arbitrer di seluruh primitif
+tidak bertambah.
+
+`TickerAnalysisShell.tsx` sendiri sudah bersih (0 ukuran arbitrer); isinya yang menentukan
+harga utama di halaman analisis masuk fase 4 bersama halaman finansial.

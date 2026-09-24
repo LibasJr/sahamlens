@@ -18,7 +18,7 @@ export function SegmentedControl({ options, value, onChange, className }: Segmen
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              'relative min-h-9 shrink-0 rounded-lg border px-3 text-[11px] font-semibold transition-colors duration-150',
+              'relative min-h-9 shrink-0 rounded-lg border px-3 lens-label transition-colors duration-150',
               active
                 ? 'border-tv-blue/20 bg-tv-blue/15 text-white'
                 : 'border-transparent text-tv-muted hover:bg-white/[0.04] hover:text-white',

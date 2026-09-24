@@ -117,7 +117,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-tv-green px-1 font-number text-[10px] leading-none font-extrabold text-black shadow-[0_0_8px_rgba(35,196,131,0.9)]">
+          <span className="absolute right-0.5 top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-tv-green px-1 lens-number text-xs leading-none font-bold text-black shadow-[0_0_8px_rgba(35,196,131,0.9)]">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -141,7 +141,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 {language === 'id' ? 'Notifikasi & Alert' : 'Notifications & Alerts'}
               </span>
               {unreadCount > 0 && (
-                <span className="rounded-full bg-tv-green/20 px-2 py-0.5 text-[11px] font-bold text-tv-green border border-tv-green/30">
+                <span className="rounded-full bg-tv-green/20 px-2 py-0.5 lens-meta font-bold text-tv-green border border-tv-green/30">
                   {unreadCount} {language === 'id' ? 'baru' : 'new'}
                 </span>
               )}
@@ -186,7 +186,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               <Button variant="bare" size="none"
                 type="button"
                 onClick={handleRequestPush}
-                className="shrink-0 rounded-lg bg-tv-blue px-3 py-1.5 text-[11px] font-bold text-white shadow-sm hover:bg-tv-blueHover active:scale-95"
+                className="shrink-0 rounded-lg bg-tv-blue px-3 py-1.5 lens-meta font-bold text-white shadow-sm hover:bg-tv-blueHover active:scale-95"
               >
                 {language === 'id' ? 'Izinkan' : 'Enable'}
               </Button>
@@ -216,8 +216,8 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                         {!notif.read && <span className="h-2 w-2 shrink-0 rounded-full bg-tv-green shadow-[0_0_6px_rgba(35,196,131,0.8)]" />}
                         <h4 className="font-heading text-xs font-bold text-white truncate">{notif.title}</h4>
                       </div>
-                      <p className="mt-1 text-[11.5px] leading-relaxed text-slate-300">{notif.body}</p>
-                      <div className="mt-2.5 flex items-center justify-between text-[10.5px] text-slate-400">
+                      <p className="mt-1 lens-body-sm text-slate-300">{notif.body}</p>
+                      <div className="mt-2.5 flex items-center justify-between lens-meta text-slate-400">
                         <span className="font-medium">{formatTimeAgo(notif.timestamp)}</span>
                         {notif.link && (
                           <Link
@@ -238,7 +238,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
           </div>
 
           {/* Footer Controls */}
-          <div className="mt-3 flex items-center justify-between border-t border-slate-700/80 pt-3 text-[11px]">
+          <div className="mt-3 flex items-center justify-between border-t border-slate-700/80 pt-3 lens-meta">
             <Button variant="bare" size="none"
               type="button"
               onClick={handleTestAlert}

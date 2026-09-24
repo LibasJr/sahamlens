@@ -7,7 +7,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({ label,
   const selectId = id || props.name;
   return (
     <div className="w-full">
-      {label && <label htmlFor={selectId} className="mb-1.5 block text-sm font-semibold text-tv-muted sm:text-xs">{label}</label>}
+      {label && <label htmlFor={selectId} className="mb-1.5 block lens-label text-tv-muted">{label}</label>}
       <div className="relative">
         <select
           ref={ref}
@@ -21,7 +21,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(({ label,
         >{children}</select>
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-tv-muted" />
       </div>
-      {error && <p className="mt-1 text-sm font-medium text-tv-red sm:text-[11px]">{error}</p>}
+      {error && <p className="mt-1 text-sm font-medium text-tv-red sm:text-xs">{error}</p>}
     </div>
   );
 });

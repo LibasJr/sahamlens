@@ -131,7 +131,7 @@ export function EmptyState({
 
       {progress && (
         <div className="mt-5 w-full max-w-xs">
-          <div className="mb-1.5 flex items-baseline justify-between text-sm sm:text-[11px]">
+          <div className="mb-1.5 flex items-baseline justify-between text-sm sm:text-xs">
             <span className="text-tv-muted">{progress.label ?? 'Pengumpulan data'}</span>
             <span className="font-number font-semibold text-tv-text tabular-nums">
               {progress.current}/{progress.total}
@@ -153,7 +153,7 @@ export function EmptyState({
       )}
 
       {countdown && (
-        <p className="mt-4 text-sm text-tv-muted sm:text-[11px]">
+        <p className="mt-4 text-sm text-tv-muted sm:text-xs">
           {countdown.label ?? 'Perkiraan muncul'}{' '}
           <span className="font-number font-semibold text-tv-text">{formatJakartaDate(countdown.targetDate)}</span>
           {remainingDays > 0 && <span className="text-tv-muted"> &middot; {remainingDays} hari lagi</span>}

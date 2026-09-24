@@ -31,7 +31,7 @@ export function PriceRangeSlider({
       {/* Header Info */}
       <div className="flex items-center justify-between text-xs mb-2">
         <span className="font-semibold text-tv-muted">{label}</span>
-        <span className="font-number font-bold text-tv-text text-[11px]">
+        <span className="font-number font-bold text-tv-text text-xs">
           Posisi: <strong className={clampedPct >= 50 ? 'text-tv-green' : 'text-tv-red'}>{clampedPct.toFixed(0)}%</strong> dari Low
         </span>
       </div>
@@ -52,7 +52,7 @@ export function PriceRangeSlider({
       </div>
 
       {/* Bottom Range Limits */}
-      <div className="flex items-center justify-between text-[11px] font-number text-tv-muted pt-0.5">
+      <div className="flex items-center justify-between text-xs font-number text-tv-muted pt-0.5">
         <div>
           <span className="lens-meta uppercase tracking-wider block opacity-70">Low</span>
           <strong className="text-tv-text">Rp {lowPrice.toLocaleString('id-ID')}</strong>

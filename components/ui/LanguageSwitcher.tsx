@@ -24,7 +24,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
           <Button variant="bare" size="none"
             type="button"
             onClick={() => setLanguage('id')}
-            className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
+            className={`px-2 py-1 lens-meta font-bold rounded-lg transition-all ${
               language === 'id'
                 ? 'bg-tv-blue text-white shadow-sm'
                 : 'text-tv-muted hover:text-tv-text hover:bg-white/[0.04]'
@@ -36,7 +36,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
           <Button variant="bare" size="none"
             type="button"
             onClick={() => setLanguage('en')}
-            className={`px-2 py-1 text-[11px] font-bold rounded-lg transition-all ${
+            className={`px-2 py-1 lens-meta font-bold rounded-lg transition-all ${
               language === 'en'
                 ? 'bg-tv-blue text-white shadow-sm'
                 : 'text-tv-muted hover:text-tv-text hover:bg-white/[0.04]'
@@ -59,7 +59,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
         aria-label={language === 'id' ? 'Switch to English' : 'Ganti ke Bahasa Indonesia'}
         className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-tv-border bg-tv-card text-xs font-bold text-tv-text shadow-2 transition-all hover:-translate-y-0.5 hover:border-tv-borderLight hover:bg-tv-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue md:h-9 md:w-9 font-number ${className}`}
       >
-        <span className="text-[11px] font-extrabold tracking-wider">{language === 'id' ? 'ID' : 'EN'}</span>
+        <span className="lens-meta font-bold tracking-wider">{language === 'id' ? 'ID' : 'EN'}</span>
       </Button>
     );
   }
@@ -74,7 +74,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
       <Button variant="bare" size="none"
         type="button"
         onClick={() => setLanguage('id')}
-        className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all text-[11px] font-number ${
+        className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all lens-meta lens-number ${
           language === 'id'
             ? 'bg-tv-blue text-white shadow-sm font-bold'
             : 'text-tv-muted hover:text-tv-text hover:bg-tv-hover'
@@ -88,7 +88,7 @@ export default function LanguageSwitcher({ variant = 'pill', className = '' }: L
       <Button variant="bare" size="none"
         type="button"
         onClick={() => setLanguage('en')}
-        className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all text-[11px] font-number ${
+        className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-all lens-meta lens-number ${
           language === 'en'
             ? 'bg-tv-blue text-white shadow-sm font-bold'
             : 'text-tv-muted hover:text-tv-text hover:bg-tv-hover'

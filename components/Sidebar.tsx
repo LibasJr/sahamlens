@@ -580,7 +580,7 @@ export default function Sidebar() {
           {hasAdminAccess && (
             <Link
               href="/admin/infographic-studio"
-              className={`mb-2.5 flex items-center gap-2 rounded-xl border border-tv-blue/30 bg-tv-blue/10 p-2 text-xs font-bold text-tv-blue hover:bg-tv-blue/20 transition-all ${
+              className={`mb-2.5 flex items-center gap-2 rounded-xl border border-tv-blue/30 bg-tv-blue/10 p-2 text-sm font-bold text-tv-blue hover:bg-tv-blue/20 transition-all ${
                 isCollapsed ? 'md:justify-center md:p-1.5' : 'justify-between'
               }`}
               title="Infographic Studio (Admin)"
