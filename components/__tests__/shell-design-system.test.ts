@@ -22,6 +22,11 @@ const SHELL = [
   'components/Sidebar.tsx',
   'components/TopMarketBar.tsx',
   'components/MarketTicker.tsx',
+  // Header masuk daftar ini sejak 24 September 2026: audit tipografi menemukan ia
+  // satu-satunya bagian shell yang ukuran metadatanya masih `text-[10px]` - badge
+  // modul, konteks ticker, dan kuota analisa. Ketiganya sudah memakai peran semantik,
+  // jadi pintu masuknya dikunci di sini supaya tidak kembali.
+  'components/Header.tsx',
 ];
 
 /** CLAUDE.md SEC.2: buang komentar dulu, atau prosa bisa meluluskan - atau menggagalkan -

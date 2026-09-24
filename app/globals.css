@@ -2,7 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --font-inter: Arial, Helvetica, sans-serif; --font-jetbrains-mono: 'Courier New', monospace; }
+/* Keluarga font diikat ke variabel yang diinjeksi app/layout.tsx lewat
+ * `next/font/local` (berkas woff2 self-hosted di app/fonts/, tanpa fetch jaringan
+ * saat build). Sebelumnya baris ini berbunyi `--font-inter: Arial` dan
+ * `--font-jetbrains-mono: 'Courier New'`, jadi nama tokennya berbohong: aplikasi
+ * tidak pernah benar-benar menyajikan Inter maupun JetBrains Mono.
+ *
+ * Fallback sengaja ditulis DI DALAM `var()` dan bukan sebagai item kedua daftar:
+ * kalau `--font-inter-src` tidak terdefinisi (mis. harness test yang merender HTML
+ * tanpa layout Next), `var(--font-inter-src, ...)` mengambil stack cadangan ini,
+ * sedangkan `var(--font-inter-src), Arial` akan membatalkan SELURUH deklarasi
+ * font-family (invalid at computed-value time) - dan teks jatuh ke serif default. */
+:root {
+  --font-inter: var(--font-inter-src, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif);
+  --font-jetbrains-mono: var(--font-jetbrains-mono-src, Consolas, Menlo, 'Liberation Mono', monospace);
+}
 
 
 :root {
@@ -1029,10 +1043,15 @@ textarea {
 
 .lens-eyebrow {
   font-family: var(--font-inter), 'Inter', sans-serif;
-  font-size: 0.625rem;
+  /* 12px / 600. Sebelumnya 10px / 700: satu-satunya peran yang UKURANNYA berbeda
+   * antara desktop dan ponsel, karena lantai kompatibilitas mobile mengangkat
+   * .text-[9px]/[10px]/[11px] ke 12px sementara di desktop ia tetap 10px. Eyebrow
+   * adalah label yang harus terbaca (bukan mikro-ornamen), jadi ukurannya
+   * disamakan di 12px dan tebalnya diturunkan ke 600 mengikuti skala. */
+  font-size: 0.75rem;
   line-height: 1.3;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: rgb(var(--lens-muted));
 }
@@ -1401,6 +1420,27 @@ html.lens-battery-saver .sahamlens-signal-track {
   font-weight: 400;
 }
 
+/* Peran UI utama (navigasi, kontrol, tombol, baris tabel yang padat).
+ * Berada di antara body (15px, untuk dibaca) dan label (13px, untuk dipindai):
+ * 14px adalah ukuran yang membuat chrome aplikasi tetap rapat tanpa mengecilkan
+ * teks yang perlu dibaca. */
+.lens-ui {
+  font-family: var(--font-inter), 'Inter', sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  font-weight: 500;
+}
+
+/* Angka keuangan yang ukurannya MENGIKUTI konteks induknya (mis. di dalam baris
+ * tabel 13px atau di dalam metric card 22px). Tidak menyetel font-size dengan
+ * sengaja - peran ini hanya menyatakan "ini data numerik": mono + digit seragam.
+ * Untuk angka yang ukurannya juga ditentukan peran, pakai .lens-metric /
+ * .lens-metric-lg.
+ *
+ * DIPINDAH KE AKHIR blok skala (lihat catatan di bawah, tepat sebelum @media 640px)
+ * supaya bisa DIKOMPOSISIKAN dengan peran ukuran: `.lens-meta lens-number` harus
+ * menghasilkan mono 12px, bukan 12px Inter. */
+
 .lens-body-sm {
   font-family: var(--font-inter), 'Inter', sans-serif;
   font-size: 0.8125rem;
@@ -1439,6 +1479,18 @@ html.lens-battery-saver .sahamlens-signal-track {
   letter-spacing: -0.01em;
 }
 
+/* Harga utama / metrik keuangan paling penting di sebuah panel (mis. harga terakhir
+ * di kepala halaman emiten). Satu tingkat di atas .lens-metric dan tetap mono, jadi
+ * nominalnya sejajar per digit dengan angka lain di halaman yang sama. */
+.lens-display {
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-size: 1.75rem;
+  line-height: 1.15;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
 /* Sasaran tautan dalam-halaman. Header modul ber-`sticky top-0`, dan pada halaman emiten
  * ia membawa baris kedua berisi navigasi sudut pandang - totalnya sekitar 132px, lebih
  * tinggi lagi di layar sempit tempat header menumpuk vertikal. Tanpa offset ini, judul
@@ -1474,6 +1526,23 @@ html.lens-battery-saver .sahamlens-signal-track {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.02em;
+}
+
+/* ===== Peran komposisi: DIDEKLARASIKAN TERAKHIR DENGAN SENGAJA =====
+ *
+ * Semua peran di atas menyetel font-family, dan di CSS satu berkas yang menang pada
+ * spesifisitas sama adalah yang PALING BELAKANG. Peran ukuran (lens-meta, lens-label,
+ * lens-body-sm, ...) menyetel Inter; .lens-number menyetel mono. Kalau .lens-number
+ * ditulis lebih awal, `class="lens-meta lens-number"` menghasilkan 12px Inter - angka
+ * keuangan kehilangan digit seragamnya tanpa ada yang merah di test mana pun.
+ *
+ * Karena itu urutan di berkas ini adalah bagian dari kontraknya, bukan kerapian.
+ * `font-number` (utility Tailwind) TIDAK bisa dipakai untuk komposisi ini: utilities
+ * dipancarkan lebih awal oleh @tailwind, jadi peran lens-* selalu menang atasnya.
+ */
+.lens-number {
+  font-family: var(--font-jetbrains-mono), Consolas, monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 @media (min-width: 640px) {
