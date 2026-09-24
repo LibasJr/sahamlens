@@ -67,7 +67,7 @@ export default function DashboardFeatureGrid() {
                   <LineChart className="h-5 w-5" />
                 </div>
                 <div>
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-tv-blue">{t('bento.featuredBadge')}</span>
+                  <span className="lens-eyebrow font-bold text-tv-blue">{t('bento.featuredBadge')}</span>
                   <h3 className="font-heading text-xl font-bold text-tv-text">{t('bento.technicalTitle')}</h3>
                 </div>
               </div>
@@ -75,7 +75,7 @@ export default function DashboardFeatureGrid() {
                 {t('bento.consensusBadge')}
               </span>
             </div>
-            <p className="text-sm sm:text-[14.5px] leading-relaxed text-tv-muted/90 max-w-xl">
+            <p className="lens-body-sm leading-relaxed text-tv-muted/90 max-w-xl">
               {t('bento.technicalDesc')}
             </p>
           </div>
@@ -101,9 +101,9 @@ export default function DashboardFeatureGrid() {
             <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl border text-tv-green bg-tv-green/10 border-tv-green/30 shadow-xs">
               <Target className="h-5 w-5" />
             </div>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-tv-green">{t('bento.qualityBadge')}</span>
+            <span className="lens-eyebrow font-bold text-tv-green">{t('bento.qualityBadge')}</span>
             <h3 className="font-heading text-xl font-bold text-tv-text mt-0.5">{t('bento.fundamentalTitle')}</h3>
-            <p className="mt-2 text-sm sm:text-[14.5px] leading-relaxed text-tv-muted/90">
+            <p className="mt-2 lens-body-sm leading-relaxed text-tv-muted/90">
               {t('bento.fundamentalDesc')}
             </p>
           </div>
@@ -146,7 +146,7 @@ export default function DashboardFeatureGrid() {
               <History className="h-5 w-5" />
             </div>
             <h4 className="font-heading text-base font-bold text-tv-text">{t('bento.backtestTitle')}</h4>
-            <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
+            <p className="mt-1.5 lens-body-sm leading-relaxed text-tv-muted">
               {t('bento.backtestDesc')}
             </p>
           </div>
@@ -166,7 +166,7 @@ export default function DashboardFeatureGrid() {
               <BarChart3 className="h-5 w-5" />
             </div>
             <h4 className="font-heading text-base font-bold text-tv-text">{t('bento.dividendTitle')}</h4>
-            <p className="mt-1.5 text-sm leading-relaxed text-tv-muted sm:text-[13px]">
+            <p className="mt-1.5 lens-body-sm leading-relaxed text-tv-muted">
               {t('bento.dividendDesc')}
             </p>
           </div>
@@ -188,7 +188,7 @@ export default function DashboardFeatureGrid() {
             <div>
               <div className="flex items-center gap-2">
                 <h4 className="font-heading text-base font-bold text-tv-text">{t('bento.macroTitle')}</h4>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-tv-purple/15 text-tv-purple border border-tv-purple/30">
+                <span className="px-2 py-0.5 rounded lens-eyebrow font-bold bg-tv-purple/15 text-tv-purple border border-tv-purple/30">
                   {t('bento.macroBadge')}
                 </span>
               </div>

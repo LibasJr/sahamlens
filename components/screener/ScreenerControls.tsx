@@ -108,7 +108,7 @@ export default function ScreenerControls({
         </div>
       </Card>
 
-      <p className="-mt-3 text-[11px] leading-relaxed text-tv-muted">
+      <p className="-mt-3 lens-meta leading-relaxed text-tv-muted">
         {riskProfile === 'Konservatif' && 'Konservatif: DER 35%, dividen 30%, ROE 20%, PER 15%. Pertumbuhan dan momentum tidak dihitung sama sekali - saham bertumbuh cepat tapi berutang besar akan tenggelam di profil ini.'}
         {riskProfile === 'Moderat' && 'Moderat: ROE 25%, PER 25%, pertumbuhan 20%, DER 15%, dividen 15%. Momentum tidak dihitung - peringkat di sini murni soal kualitas dan harga, bukan pergerakan harga terkini.'}
         {riskProfile === 'Agresif' && (momentumScored
@@ -175,7 +175,7 @@ export default function ScreenerControls({
           <div className="flex flex-wrap items-center gap-1.5 border-t border-tv-border pt-3">
             <span className="lens-meta uppercase tracking-wide text-tv-muted shrink-0 mr-1">Template</span>
             {templates.map((template) => (
-              <span key={template.name} className="flex items-center gap-1 rounded-full border border-tv-border bg-tv-bg px-2.5 py-1 text-[11px] text-tv-text">
+              <span key={template.name} className="flex items-center gap-1 rounded-full border border-tv-border bg-tv-bg px-2.5 py-1 lens-meta text-tv-text">
                 <Button variant="bare" size="none" type="button" onClick={() => applyTemplate(template)} className="hover:text-tv-blue transition-colors">{template.name}</Button>
                 <Button variant="bare" size="none" type="button" onClick={() => deleteTemplate(template.name)} aria-label={`Hapus template ${template.name}`} className="text-tv-muted hover:text-tv-red transition-colors"><X className="h-3 w-3" /></Button>
               </span>

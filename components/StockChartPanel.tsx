@@ -75,7 +75,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
       {ind && (
         <div className="flex justify-end">
           <span
-            className={`rounded-full border px-2.5 py-1 text-[12px] font-bold sm:text-[10px] font-sans ${
+            className={`rounded-full border px-2.5 py-1 lens-eyebrow font-bold font-sans ${
               finalSignal === 'BUY'
                 ? 'bg-tv-green/10 border-tv-green/30 text-tv-green'
                 : finalSignal === 'SELL'
@@ -128,7 +128,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
 
       <div className="flex items-start gap-2 rounded-lg bg-tv-hover border border-tv-border p-3">
         <Sparkles className="w-4 h-4 text-tv-blue shrink-0 mt-0.5" />
-        <p className="text-sm leading-relaxed text-tv-muted sm:text-[12px] sm:leading-[1.5]">
+        <p className="lens-body-sm leading-relaxed text-tv-muted">
           {chartError
             ? isEn
               ? 'Technical summary awaiting valid chart data.'

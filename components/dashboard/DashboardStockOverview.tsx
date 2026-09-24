@@ -65,7 +65,7 @@ export function DashboardStockOverview(props: {
   {dataFreshness?.warn && (
     <div className="mb-4 rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 p-3 flex items-start gap-2">
       <AlertTriangle className="w-4 h-4 text-tv-yellow shrink-0 mt-0.5" />
-      <div className="text-[11px] leading-relaxed text-tv-yellow">
+      <div className="lens-body-sm leading-relaxed text-tv-yellow">
         <b>{dataFreshness.label}</b>
         {dataFreshness.detail && <span className="block text-tv-text/80 mt-0.5">{dataFreshness.detail}</span>}
       </div>
@@ -78,7 +78,7 @@ export function DashboardStockOverview(props: {
       <TickerAvatar symbol={stock.symbol || ticker} size="lg" />
       <div>
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">{displayTicker(stock.symbol || ticker)}</h1>
+          <h1 className="shrink-0 font-heading lens-card-title tracking-tight text-white">{displayTicker(stock.symbol || ticker)}</h1>
           <QuickWatchlistStar ticker={stock.symbol || ticker} />
           <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">{stock.name || ticker.replace('.JK', '')}</span>
         </div>
@@ -136,7 +136,7 @@ export function DashboardStockOverview(props: {
                 </Badge>
               </div>
               {flowInterpretation.kind !== 'FOREIGN_FLOW_ACTIVE' && (
-                <p className="mt-1.5 max-w-2xl text-[11px] leading-relaxed text-tv-muted">
+                <p className="mt-1.5 max-w-2xl lens-body-sm leading-relaxed text-tv-muted">
                   {flowInterpretation.detail}
                 </p>
               )}
@@ -159,7 +159,7 @@ export function DashboardStockOverview(props: {
             <AnimatedNumber
               value={stock.current_price}
               format={(n) => `Rp ${Math.round(n).toLocaleString('id-ID')}`}
-              className="font-number text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl md:text-[28px]"
+              className="font-number lens-card-title tracking-tight text-white tabular-nums"
             />
           ) : (
             <span className="text-sm text-tv-muted">Harga tidak tersedia dari sumber data</span>
@@ -176,7 +176,7 @@ export function DashboardStockOverview(props: {
             </span>
           )}
         </div>
-        <p className="text-[11px] text-tv-muted mt-1">
+        <p className="lens-meta text-tv-muted mt-1">
           Data sesi: {formatTime(lastUpdate)}
           {dataFreshness && <span className="ml-2">• Data pasar: {dataFreshness.label}</span>}
         </p>
@@ -207,7 +207,7 @@ export function DashboardStockOverview(props: {
     <div className="flex w-full min-w-0 items-stretch gap-4 md:w-auto md:items-center md:gap-6">
        {data?.bestPerformer && (
           <div className="text-right border-r border-tv-border pr-6 hidden md:block">
-            <div className="text-[10px] font-sans font-semibold text-tv-muted uppercase">TOP METHOD TODAY</div>
+            <div className="lens-eyebrow font-sans text-tv-muted">TOP METHOD TODAY</div>
             <div className="text-lg font-bold text-white flex items-center gap-2">
               <ShieldCheck className="w-5 h-5 text-tv-green" />
               {data.bestPerformer.label} (rule {data.bestPerformer.confidence}/100)
@@ -215,7 +215,7 @@ export function DashboardStockOverview(props: {
           </div>
        )}
       <div className="w-full min-w-0 md:w-auto md:min-w-[250px]">
-        <div className="mb-1.5 text-[10px] font-sans font-semibold uppercase tracking-wide text-tv-muted md:text-right">Konsensus Analyzer</div>
+        <div className="mb-1.5 lens-eyebrow font-sans uppercase tracking-wide text-tv-muted md:text-right">Konsensus Analyzer</div>
         {(() => {
           const consensus = splitStatusText(data?.consensus);
           const consensusLabel = getKategoriPresentationLabel(consensus.primary);
@@ -247,13 +247,13 @@ export function DashboardStockOverview(props: {
                     kecil di 13px. Itu memang disengaja: kotak ini sinyal
                     sekunder, tidak boleh mengalahkan putusan utama halaman. */}
                 <div className="text-sm font-bold leading-tight">{loading ? 'Calculating...' : consensusLabel}</div>
-                {!loading && consensus.detail && <div className="mt-0.5 truncate text-[11px] font-medium opacity-80 sm:text-xs">Keselarasan analyzer: {consensus.detail}</div>}
+                {!loading && consensus.detail && <div className="mt-0.5 truncate lens-meta font-medium opacity-80">Keselarasan analyzer: {consensus.detail}</div>}
               </div>
             </div>
           );
         })()}
         {data?.consensusData && (
-          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] font-number text-tv-muted md:justify-end">
+          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 lens-meta font-number text-tv-muted md:justify-end">
             <span>Vote <strong className="text-white">{data.consensusData.vote}</strong></span>
             <span className="text-tv-borderLight">•</span>
             <span>Median <strong className="text-white">{data.consensusData.median_skor}</strong></span>
@@ -290,19 +290,19 @@ export function DashboardStockOverview(props: {
       pertama dibuka. */}
   {!loading && data?.analyzers && data.analyzers.length > 0 && (
     <details className="group mt-3 rounded-lg border border-tv-border bg-tv-bg/60">
-      <summary className="cursor-pointer list-none px-3 py-2 text-[11px] font-semibold text-tv-muted transition-colors hover:text-tv-text">
+      <summary className="cursor-pointer list-none px-3 py-2 lens-meta font-semibold text-tv-muted transition-colors hover:text-tv-text">
         Rincian voting {data.analyzers.length} analyzer <span className="font-normal text-tv-muted/80">— lihat alasan di balik konsensus di atas</span>
       </summary>
       <div className="border-t border-tv-border">
         {data.analyzers.map((a: any, i: number) => (
           <div
             key={`${a.label}-${i}`}
-            className={`flex items-center justify-between gap-3 px-3 py-2 text-[11px] ${i > 0 ? 'border-t border-tv-border/60' : ''}`}
+            className={`flex items-center justify-between gap-3 px-3 py-2 lens-meta ${i > 0 ? 'border-t border-tv-border/60' : ''}`}
           >
             <span className="min-w-0 truncate font-medium text-tv-text">{a.label}</span>
             <div className="flex shrink-0 items-center gap-2">
               <span className="font-number text-tv-muted">{a.value}</span>
-              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 lens-eyebrow font-bold ${
                 a.decision === 'BULLISH'
                   ? 'bg-tv-green/10 text-tv-green'
                   : a.decision === 'BEARISH'

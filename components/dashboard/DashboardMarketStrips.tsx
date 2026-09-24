@@ -14,7 +14,7 @@ export function TickerTape({ items, failed }: { items: { symbol: string; price: 
         {failed ? (
           // Tanpa ini, kegagalan mengambil ringkasan pasar membuat baris ini tertulis
           // "Memuat harga saham..." selamanya di bagian paling atas halaman publik.
-          <span className="text-[11px] text-tv-muted">
+          <span className="lens-meta text-tv-muted">
             Harga berjalan tidak tersedia saat ini. Bagian lain halaman tetap berfungsi.
           </span>
         ) : (
@@ -58,7 +58,7 @@ export function TickerTape({ items, failed }: { items: { symbol: string; price: 
           <Link
             key={`${item.symbol}-${i}`}
             href={`/technical/${item.symbol}.JK`}
-            className="flex min-h-6 shrink-0 items-center gap-1.5 border-r border-tv-border px-4 text-[12px] font-number transition-opacity hover:opacity-80"
+            className="flex min-h-6 shrink-0 items-center gap-1.5 border-r border-tv-border px-4 lens-meta font-number transition-opacity hover:opacity-80"
           >
             <span className="font-bold text-tv-text">{item.symbol.replace(/\.JK$/i, '')}</span>
             <span className="text-tv-muted">
@@ -118,25 +118,25 @@ export function StockSignalRunningText({ items, advisoryEnabled }: { items: Stoc
                   {item.changePct == null ? 'N/A' : `${item.changePct >= 0 ? '+' : ''}${item.changePct.toFixed(2)}%`}
                 </span>
               </div>
-              <div className="mt-1 truncate text-[11px] font-medium text-tv-muted">{item.signals?.[0] || `Skor total ${Math.round(item.finalScore)}/100`}</div>
+              <div className="mt-1 truncate lens-meta font-medium text-tv-muted">{item.signals?.[0] || `Skor total ${Math.round(item.finalScore)}/100`}</div>
               {item.tp1 != null && item.cl1 != null ? (
-                <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 font-number text-[11px] font-bold leading-tight">
+                <div className="mt-1.5 grid grid-cols-2 gap-x-2 gap-y-0.5 font-number lens-meta font-bold leading-tight">
                   <span className="text-tv-green">TP1 {item.tp1.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
                   <span className="text-tv-red">CL1 {item.cl1.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>
                   {item.tp2 != null && <span className="text-tv-green/80 font-semibold">TP2 {item.tp2.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>}
                   {item.cl2 != null && <span className="text-tv-red/80 font-semibold">CL2 {item.cl2.toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</span>}
                 </div>
               ) : (
-                <div className="mt-1.5 text-[11px] font-medium text-tv-muted">{t('radar.tpClUnavailable')}</div>
+                <div className="mt-1.5 lens-meta font-medium text-tv-muted">{t('radar.tpClUnavailable')}</div>
               )}
               {typeof item.brokerNetValue === 'number' && item.brokerNetValue !== 0 && (
-                <div className={`mt-1.5 text-[11px] font-semibold ${item.brokerNetValue > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
+                <div className={`mt-1.5 lens-meta font-semibold ${item.brokerNetValue > 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                   {t('radar.bandarFlow', { code: item.brokerCode || '?', action: item.brokerNetValue > 0 ? 'Buy' : 'Sell', amount: formatBrokerFlow(item.brokerNetValue) })}
                 </div>
               )}
             </div>
             <div className="shrink-0 text-right">
-              <span className={`inline-flex rounded-full border px-2.5 py-0.5 text-[10px] font-bold tracking-wider uppercase ${tone}`}>{label}</span>
+              <span className={`inline-flex rounded-full border px-2.5 py-0.5 lens-eyebrow font-bold ${tone}`}>{label}</span>
               <div className="mt-2 font-number text-xs font-bold text-tv-text">Rp {Math.round(item.price).toLocaleString(language === 'id' ? 'id-ID' : 'en-US')}</div>
             </div>
           </Link>

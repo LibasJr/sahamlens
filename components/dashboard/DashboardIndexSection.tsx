@@ -26,7 +26,7 @@ export function DashboardIndexSection(props: {
           <TickerAvatar symbol="IHSG" size="lg" />
           <div>
             <div className="flex min-w-0 items-baseline gap-2 sm:gap-3">
-              <h1 className="shrink-0 font-heading text-xl font-bold tracking-tight text-white sm:text-2xl md:text-[28px]">IHSG</h1>
+              <h1 className="shrink-0 font-heading lens-card-title tracking-tight text-white">IHSG</h1>
               <span className="min-w-0 truncate text-xs font-normal text-tv-muted font-sans sm:text-sm">Indeks Harga Saham Gabungan</span>
             </div>
             <div className="mt-1 flex items-center gap-3">
@@ -34,7 +34,7 @@ export function DashboardIndexSection(props: {
                 <AnimatedNumber
                   value={stock.current_price}
                   format={(value) => value.toLocaleString('id-ID', { maximumFractionDigits: 2 })}
-                  className="font-number text-xl font-bold tracking-tight text-white tabular-nums sm:text-2xl md:text-[28px]"
+                  className="font-number lens-card-title tracking-tight text-white tabular-nums"
                 />
               ) : (
                 <span className="text-sm text-tv-muted">Level IHSG tidak tersedia</span>
