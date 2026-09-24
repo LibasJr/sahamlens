@@ -55,11 +55,11 @@ export default function Header({
       <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 px-4 py-4 md:flex-row md:items-center md:justify-between md:px-6">
         <div className="min-w-0">
           <div className="mb-1 flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/15 bg-tv-blue/[0.08] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.16em] text-tv-blue">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-tv-blue/15 bg-tv-blue/[0.08] px-2 py-0.5 lens-meta font-semibold uppercase tracking-[0.16em] text-tv-blue">
               <Sparkles className="h-3 w-3" /> {moduleBank}
             </span>
             {tickerSearch && currentTicker && (
-              <span className="font-number text-[10px] font-semibold text-tv-muted">
+              <span className="lens-meta lens-number font-semibold text-tv-muted">
                 {currentTicker.startsWith('^') ? 'IHSG' : currentTicker.replace(/\.JK$/i, '')}
               </span>
             )}
@@ -104,7 +104,7 @@ export default function Header({
             )}
 
             {showUsageQuota && (
-              <span className={`hidden whitespace-nowrap rounded-xl border px-3 py-2 text-[10px] font-bold sm:inline-flex ${
+              <span className={`hidden whitespace-nowrap rounded-xl border px-3 py-2 lens-meta font-bold sm:inline-flex ${
               analisaRemaining <= 0
                 ? 'border-tv-red/20 bg-tv-red/10 text-tv-red'
                 : 'border-tv-green/15 bg-tv-green/[0.08] text-tv-green'

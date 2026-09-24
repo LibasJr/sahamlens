@@ -1,17 +1,43 @@
 import './globals.css';
 import { headers } from 'next/headers';
+import localFont from 'next/font/local';
 import React from 'react';
 import type { Viewport } from 'next';
 import AppShell from '@/components/AppShell';
 
 // Design System "Lens" (2026-08-06): dua font saja, bukan empat.
 // Inter untuk semua teks & heading, JetBrains Mono untuk semua angka/harga.
-// Sebelumnya di sini dimuat Plus Jakarta Sans + Sora + Space Grotesk + JetBrains
-// Mono sekaligus - empat unduhan font padahal Sora dan Space Grotesk cuma dipakai
-// lewat aturan CSS di globals.css yang menyebut nama keluarga font secara literal
-// ('Sora', 'Space Grotesk'), bukan lewat variabel next/font, jadi variabelnya
-// tidak pernah benar-benar terpakai.
-// Font system native: avoid build-time Google fetch in CI.
+//
+// Riwayat penting - baca sebelum mengubah cara font dimuat:
+//   (a) Awalnya empat keluarga (Plus Jakarta Sans + Sora + Space Grotesk + JetBrains
+//       Mono), dan Sora/Space Grotesk dirujuk lewat nama literal di globals.css
+//       sehingga variabel next/font-nya tidak pernah terpakai.
+//   (b) 2026-09-23 (`2fef5146`) `next/font/google` DILEPAS karena build CI harus
+//       mengambil berkas dari fonts.googleapis.com. Menggantinya dengan stack
+//       sistem membuat nama token berbohong: `--font-inter` berisi Arial dan
+//       `--font-jetbrains-mono` berisi Courier New - aplikasi tidak pernah
+//       menyajikan Inter sama sekali.
+//   (c) Sekarang: berkas font asli IKUT DI-COMMIT di `app/fonts/` dan dimuat lewat
+//       `next/font/local`. Tidak ada permintaan jaringan saat build (persyaratan
+//       (b)) DAN keluarga fontnya benar-benar Inter/JetBrains Mono (persyaratan (a)).
+//       Berkasnya variable font, subset latin: Inter 100-900, JetBrains Mono 100-800.
+//       Mengganti ini dengan `next/font/google` akan mengulang kegagalan (b).
+const inter = localFont({
+  src: [
+    { path: './fonts/inter-latin-wght-normal.woff2', weight: '100 900', style: 'normal' },
+    { path: './fonts/inter-latin-wght-italic.woff2', weight: '100 900', style: 'italic' },
+  ],
+  variable: '--font-inter-src',
+  display: 'swap',
+  fallback: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial', 'sans-serif'],
+});
+
+const jetbrainsMono = localFont({
+  src: [{ path: './fonts/jetbrains-mono-latin-wght-normal.woff2', weight: '100 800', style: 'normal' }],
+  variable: '--font-jetbrains-mono-src',
+  display: 'swap',
+  fallback: ['Consolas', 'Menlo', 'Liberation Mono', 'monospace'],
+});
 
 // Audit BUILD 002 (SEO) - sebelumnya cuma title+description di root layout, tanpa
 // metadataBase/OpenGraph/robots/canonical, dan tanpa tagline resmi ("Lihat Peluang
@@ -130,7 +156,11 @@ export default async function RootLayout({
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang="id" suppressHydrationWarning className="font-sans">
+    <html
+      lang="id"
+      suppressHydrationWarning
+      className={`font-sans ${inter.variable} ${jetbrainsMono.variable}`}
+    >
       <head><script nonce={nonce} dangerouslySetInnerHTML={{ __html: bootScript }} /></head>
       <body className="bg-tv-bg text-tv-text antialiased min-h-screen relative selection:bg-tv-blue/25">
         <AppShell>{children}</AppShell>
