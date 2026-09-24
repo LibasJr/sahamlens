@@ -62,8 +62,18 @@ export default async function EntryScanPage() {
             <li>
               • {isEn ? 'Session date' : 'Tanggal sesi'}: <span className="font-number text-tv-text">{data.date ?? 'tidak tersedia'}</span> ·{' '}
               {isEn ? 'issuers with enough history' : 'emiten dengan riwayat cukup'}:{' '}
-              <span className="font-number text-tv-text">{data.rows.length + data.insufficient.length}</span> /{' '}
+              <span className="font-number text-tv-text">{data.rows.length + data.belowLiquidityFloor.length}</span> /{' '}
               <span className="font-number text-tv-text">{data.totalTickers}</span>
+            </li>
+            <li>
+              • {isEn ? 'Liquidity floor' : 'Ambang likuiditas'}: {isEn ? 'average 20-day traded value at least' : 'rata-rata nilai transaksi 20 hari minimal'}{' '}
+              <span className="font-number text-tv-text">
+                Rp {data.options.minimumAvgTradedValue20d.toLocaleString(NUMBER_FORMAT, { maximumFractionDigits: 0 })}
+              </span>
+              {' — '}
+              {isEn
+                ? `${data.belowLiquidityFloor.length} issuers fall below it and are listed separately, not hidden.`
+                : `${data.belowLiquidityFloor.length} emiten di bawah ambang ini dan didaftarkan terpisah, bukan disembunyikan.`}
             </li>
             <li>
               • {isEn ? 'Entry level' : 'Level masuk'} = {isEn ? 'lowest close of the last' : 'penutupan terendah'} {data.options.levelWindow}{' '}
@@ -139,7 +149,10 @@ export default async function EntryScanPage() {
             <p className="mt-1 text-xs text-tv-muted">
               {isEn
                 ? 'Shown so you know it is missing, not skipped.'
-                : 'Ditampilkan supaya jelas ada yang belum bisa dihitung, bukan dilewati diam-diam.'}
+                : 'Ditampilkan supaya jelas ada yang belum bisa dihitung, bukan dilewati diam-diam.'}{' '}
+              {isEn
+                ? `History too short: ${data.insufficient.length - data.belowLiquidityFloor.length} · below liquidity floor: ${data.belowLiquidityFloor.length}.`
+                : `Riwayat kurang: ${data.insufficient.length - data.belowLiquidityFloor.length} · di bawah ambang likuiditas: ${data.belowLiquidityFloor.length}.`}
             </p>
             <ul className="mt-3 space-y-1 text-sm text-tv-muted">
               {data.insufficient.slice(0, 25).map((row) => (

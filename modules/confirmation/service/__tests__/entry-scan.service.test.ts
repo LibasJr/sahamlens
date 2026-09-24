@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { ENTRY_SCAN_OPTIONS, buildEntryScan, stdevOfLogReturns } from '../entry-scan.service';
+import { ENTRY_SCAN_OPTIONS, buildEntryScan, splitByLiquidity, stdevOfLogReturns } from '../entry-scan.service';
 
 function series(length: number, mapper: (index: number) => number, startDate = '2026-01-01'): { closes: number[]; dates: string[] } {
   const closes: number[] = [];
@@ -79,5 +79,39 @@ describe('buildEntryScan', () => {
     expect(ENTRY_SCAN_OPTIONS.levelWindow).toBe(20);
     expect(ENTRY_SCAN_OPTIONS.volatilityWindow).toBe(20);
     expect(ENTRY_SCAN_OPTIONS.stopVolatilityMultiple).toBe(2);
+    expect(ENTRY_SCAN_OPTIONS.minimumAvgTradedValue20d).toBe(1_000_000_000);
+  });
+
+  it('menolak menampilkan henti rugi di bawah nol, bukan menyajikannya sebagai angka', () => {
+    // Deret 100/200 bergantian: volatilitas harian ~0,69 sehingga 2x volatilitas > 1.
+    const wild = series(80, (index) => (index % 2 === 0 ? 100 : 200));
+    const result = buildEntryScan('EEEE.JK', wild.closes, wild.dates);
+
+    expect(result.status).toBe('OK');
+    expect(result.stop).toBeLessThanOrEqual(0);
+    expect(result.riskReward).toBeNull();
+    expect(result.note).toContain('di bawah nol');
+  });
+});
+
+describe('splitByLiquidity', () => {
+  it('memisahkan emiten di bawah ambang dan yang likuiditasnya belum tercatat', () => {
+    const solid = buildEntryScan('AAAA.JK', series(80, (index) => 1000 + (index % 5)).closes, series(80, (index) => 1000 + (index % 5)).dates);
+    const thin = buildEntryScan('BBBB.JK', series(80, (index) => 1000 + (index % 5)).closes, series(80, (index) => 1000 + (index % 5)).dates);
+    const unknown = buildEntryScan('CCCC.JK', series(80, (index) => 1000 + (index % 5)).closes, series(80, (index) => 1000 + (index % 5)).dates);
+
+    const liquidity = new Map<string, number | null>([
+      ['AAAA.JK', 5_000_000_000],
+      ['BBBB.JK', 50_000_000],
+      ['CCCC.JK', null],
+    ]);
+
+    const { eligible, belowFloor } = splitByLiquidity([solid, thin, unknown], liquidity, ENTRY_SCAN_OPTIONS.minimumAvgTradedValue20d);
+
+    expect(eligible.map((row) => row.ticker)).toEqual(['AAAA.JK']);
+    expect(belowFloor.map((row) => row.ticker)).toEqual(['BBBB.JK', 'CCCC.JK']);
+    expect(belowFloor.every((row) => row.riskReward === null)).toBe(true);
+    expect(belowFloor[0].note).toContain('ambang likuiditas');
+    expect(belowFloor[1].note).toContain('belum pernah tercatat');
   });
 });
