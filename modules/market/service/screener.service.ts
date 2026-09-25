@@ -8,6 +8,7 @@ import { ProviderUnavailableError } from '@/shared/errors/app-error';
 import { isIdxMarketHoursNow, todayDateKeyWIB } from '@/shared/market/trading-session';
 import { correctPbvForUsdReporter } from '@/shared/market/usd-idr-rate';
 import { fetchYahooHistory, analyzeRsi, analyzeMacd, calculateScore, type ScoringResult } from '@/modules/technical';
+import { anggaranHabis, batasBatchMs, denganBatasWaktu, mulaiAnggaran } from './fetch-budget';
 import { evaluateIndicatorDecisions, BACKTEST_PRESETS } from '@/modules/backtest';
 import { getBatchStockSentiment, type Sentiment as NewsSentiment } from '@/modules/news';
 import {
@@ -411,19 +412,42 @@ export function getScreenerFetchTickers(): string[] {
   return Array.from(new Set(AI_PICK_UNIVERSE));
 }
 
-export async function fetchScreenerUniverse(): Promise<RawStock[]> {
+// ANGGARAN WAKTU (2026-09-25). Sebelum ini tidak ada batas waktu sama sekali: satu
+// permintaan Yahoo yang menggantung menahan seluruh batch, sehingga finishJobRun tidak
+// pernah dipanggil. Jejaknya di produksi: run 2026-09-24 07:15 tetap RUNNING sampai
+// ditutup rekonsiliasi SLA pada 07:45, dan tick 07:30 hilang dari job_run_log karena
+// kunci konkurensi masih dipegang. Sekarang setiap batch punya batas waktu dan seluruh
+// siklus punya anggaran; kalau hasil kurang dari ambang minimum, gagalnya CEPAT dan
+// berisik (ProviderUnavailableError) - bukan menggantung tanpa jejak.
+const BATAS_BATCH_MS = 45_000;
+const ANGGARAN_DEFAULT_MS = 240_000;
+
+export async function fetchScreenerUniverse(
+  options: { budgetMs?: number; now?: () => number } = {},
+): Promise<RawStock[]> {
   const tickers = getScreenerFetchTickers();
+  const sekarang = options.now ?? Date.now;
+  const anggaran = mulaiAnggaran(sekarang(), options.budgetMs ?? ANGGARAN_DEFAULT_MS);
   const raw: RawStock[] = [];
+  let batchDilewati = 0;
+
   for (let i = 0; i < tickers.length; i += FETCH_BATCH_SIZE) {
+    if (anggaranHabis(anggaran, sekarang())) {
+      batchDilewati = tickers.length - i;
+      break;
+    }
     const batch = tickers.slice(i, i + FETCH_BATCH_SIZE);
-    const results = await Promise.all(batch.map(fetchOne));
+    const batas = batasBatchMs(anggaran, sekarang(), BATAS_BATCH_MS);
+    const results = await Promise.all(batch.map((t) => denganBatasWaktu(fetchOne(t), batas, null)));
     results.forEach((r) => { if (r) raw.push(r); });
   }
 
   const minYield = Math.ceil(tickers.length * MIN_UNIVERSE_YIELD_RATIO);
   if (raw.length < minYield) {
     throw new ProviderUnavailableError(
-      `Data pasar sedang tidak lengkap (${raw.length} dari ${tickers.length} emiten berhasil diambil). Coba lagi beberapa saat lagi.`,
+      batchDilewati > 0
+        ? `Anggaran waktu pemindaian habis sebelum seluruh emiten diambil (${raw.length} dari ${tickers.length}; ${batchDilewati} emiten belum dicoba dalam ${Math.round(anggaran.anggaranMs / 1000)} detik). Coba lagi beberapa saat lagi.`
+        : `Data pasar sedang tidak lengkap (${raw.length} dari ${tickers.length} emiten berhasil diambil). Coba lagi beberapa saat lagi.`,
     );
   }
 

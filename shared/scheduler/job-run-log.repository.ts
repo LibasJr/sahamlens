@@ -33,7 +33,13 @@ export async function startJobRun(jobName: string, itemKey: string | null = null
         SET status = 'FAILED', finished_at = now(),
             error_message = coalesce(error_message, 'Run diterminasi otomatis setelah melewati batas SLA')
       WHERE job_name = $1 AND status = 'RUNNING'
-        AND started_at < now() - interval '10 minutes'`,
+        -- 20 menit (2026-09-25; sebelumnya 10 menit). Run terlama yang SAH di produksi
+        -- mencapai ~5,8 menit (screener-scan), jadi 10 menit terlalu dekat: job yang
+        -- tetap berjalan bisa dicap "melewati batas SLA" padahal sebabnya permintaan
+        -- upstream menggantung. Sebab itu kini ditangani anggaran waktu di dalam job
+        -- (lihat modules/market/service/fetch-budget.ts); ambang ini murni jaring
+        -- pengaman untuk baris yatim.
+        AND started_at < now() - interval '20 minutes'`,
     [jobName],
   );
   const { rows } = await pool.query(

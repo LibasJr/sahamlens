@@ -14,7 +14,7 @@ import CreateTestUserForm from './CreateTestUserForm';
 import ChangeSecretForm from './ChangeSecretForm';
 import { listRecentPaymentOrders } from '@/modules/payment/repository/payment-order.repository';
 import { formatRupiah } from '@/shared/config/pricing';
-import { getAraScannerReadiness } from '@/modules/ara-scanner';
+import { getAraScannerReadinessWithLiveData } from '@/modules/ara-scanner';
 
 // Root layout menyetel robots index:true untuk seluruh situs. Halaman admin ikut
 // mewarisinya - meski pengunjung non-admin dialihkan, tidak ada alasan rute ini
@@ -83,7 +83,7 @@ export default async function AdminPage() {
     loadPanel('Funnel pendaftaran', () => getProductFunnelSummary()),
     loadPanel('Perjalanan riset (beta)', () => getResearchJourneySummary()),
     loadPanel('Payment Order Terbaru', () => listRecentPaymentOrders(20)),
-    loadPanel('Kesiapan Scanner ARA', async () => getAraScannerReadiness()),
+    loadPanel('Kesiapan Scanner ARA', async () => getAraScannerReadinessWithLiveData()),
   ]);
 
   // Nilai cadangan hanya untuk panel yang bentuk kosongnya memang punya arti ("belum ada
@@ -242,7 +242,12 @@ export default async function AdminPage() {
             {!araScannerPanel.ok ? (
               <p className="mt-1 text-sm text-tv-yellow">{araScannerPanel.message}</p>
             ) : (
-              <p className="mt-1 text-sm text-tv-muted">Audit {araScannerPanel.value.blockerCount} input real-time yang masih memblokir sinyal ARA untuk Agent Speed.</p>
+              <>
+                <p className="mt-1 text-sm text-tv-muted">Audit {araScannerPanel.value.blockerCount} input real-time yang masih memblokir sinyal ARA untuk Agent Speed.</p>
+                <p className={`mt-1 text-sm ${araScannerPanel.value.liveData?.status === 'READY' ? 'text-tv-muted' : 'text-tv-yellow'}`}>
+                  Data hidup: {araScannerPanel.value.liveData?.status ?? 'TIDAK DIPERIKSA'} — {araScannerPanel.value.liveData?.reason ?? 'pemeriksaan data pasar tidak tersedia'}
+                </p>
+              </>
             )}
           </div>
         </Link>

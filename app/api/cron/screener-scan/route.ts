@@ -9,7 +9,7 @@ import { logger } from '@/shared/logger/logger';
 import { runCronRoute } from '@/shared/scheduler/cron-route.adapter';
 import { timingSafeStringEqual } from '@/shared/security/timing-safe-equal';
 
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 // BARU (2026-08-14, laporan pengguna: "buka LensScanner lama sekali muncul nya"). Sebelum
 // ini, /api/screener (app/api/screener/route.ts) murni getOrCompute() on-demand dengan TTL
@@ -24,10 +24,15 @@ export const maxDuration = 120;
 // SENGAJA cuma punya handler GET + CRON_SECRET (pola systemd timer, sama seperti
 // lens-bucket-backtest/lens-score-optimizer/broker-summary-scan), BUKAN POST+signature
 // QStash. Perlu timer systemd baru di VPS - lihat instruksi di docs/operations/DEPLOYMENT.md.
+// ANGGARAN 240 DETIK, sengaja di bawah maxDuration=300 supaya rute SELALU punya waktu
+// mencatat hasil dan menutup barisnya sendiri. Sebelum ini tidak ada anggaran: run yang
+// menggantung meninggalkan baris RUNNING dan tick berikutnya dilewati tanpa jejak.
+const ANGGARAN_PINDAI_MS = 240_000;
+
 async function runScan() {
-  const universe = await fetchScreenerUniverse();
+  const universe = await fetchScreenerUniverse({ budgetMs: ANGGARAN_PINDAI_MS });
   await cacheSet(COMPUTED_CACHE_KEY.SCREENER_UNIVERSE, universe, TTL.SCREENER_UNIVERSE);
-  return { count: universe.length };
+  return { count: universe.length, budgetMs: ANGGARAN_PINDAI_MS };
 }
 
 async function handleGET(req: NextRequest) {

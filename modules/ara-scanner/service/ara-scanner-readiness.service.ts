@@ -206,3 +206,23 @@ export function evaluateAraScannerReadiness(
 export function getAraScannerReadiness(): AraScannerReadiness {
   return evaluateAraScannerReadiness(CURRENT_ARA_INPUT_READINESS);
 }
+
+import { getAraLiveDataReadiness, type AraLiveDataReadiness } from './ara-live-data-readiness.service';
+
+/**
+ * Kesiapan ARA + kesiapan DATA HIDUP dalam satu panggilan.
+ *
+ * Kenapa perlu: daftar input di atas hanya membuktikan pipa kode, bukan keberadaan data
+ * pasar. Panel admin memakai fungsi ini supaya "READY" tidak pernah berarti "pipanya
+ * bersih" saja. Kegagalan pemeriksaan data hidup TIDAK menjatuhkan panel - statusnya
+ * dilaporkan UNAVAILABLE apa adanya.
+ */
+export async function getAraScannerReadinessWithLiveData(): Promise<
+  AraScannerReadiness & { liveData: AraLiveDataReadiness }
+> {
+  const [dasar, liveData] = await Promise.all([
+    Promise.resolve(getAraScannerReadiness()),
+    getAraLiveDataReadiness(),
+  ]);
+  return { ...dasar, liveData };
+}
