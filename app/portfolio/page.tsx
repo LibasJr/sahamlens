@@ -328,7 +328,7 @@ export default function PortfolioPage() {
       <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
         <div className="mx-auto flex w-full max-w-[1680px] flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-tv-blue">Paper portfolio</div>
+            <div className="mb-1 lens-eyebrow text-tv-blue">Paper portfolio</div>
             <h1 className="lens-page-title">Akun Demo</h1>
             <p className="mt-0.5 text-xs text-tv-muted">Simulasikan posisi, pantau P/L, dan evaluasi disiplin trading tanpa dana riil.</p>
           </div>
@@ -361,13 +361,13 @@ export default function PortfolioPage() {
             <div className="flex items-center justify-between mb-2">
               <span className="text-tv-muted text-sm font-medium">Total Ekuitas</span>
               {totalEquity == null ? (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-warning/15 text-tv-warning">HARGA BELUM LENGKAP</span>
+                <span className="lens-chip font-bold px-2 py-0.5 rounded-full bg-tv-warning/15 text-tv-warning">HARGA BELUM LENGKAP</span>
               ) : isUntouched ? (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-hover text-tv-muted">BELUM ADA TRANSAKSI</span>
+                <span className="lens-chip font-bold px-2 py-0.5 rounded-full bg-tv-hover text-tv-muted">BELUM ADA TRANSAKSI</span>
               ) : isPositive ? (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-green/15 text-tv-green">UNTUNG</span>
+                <span className="lens-chip font-bold px-2 py-0.5 rounded-full bg-tv-green/15 text-tv-green">UNTUNG</span>
               ) : (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-tv-red/15 text-tv-red">RUGI</span>
+                <span className="lens-chip font-bold px-2 py-0.5 rounded-full bg-tv-red/15 text-tv-red">RUGI</span>
               )}
             </div>
             <div className="flex items-end gap-3 mb-4">
@@ -385,7 +385,7 @@ export default function PortfolioPage() {
             {/* Peringatan harga basi ditempatkan tepat di bawah angka ekuitas karena
                 angka itulah yang terpengaruh - bukan disembunyikan di baris posisi. */}
             {stalePriceCount > 0 && (
-              <p className="mb-4 rounded-md border border-tv-warning/30 bg-tv-warning/10 px-2.5 py-2 text-[11px] leading-relaxed text-tv-warning">
+              <p className="mb-4 rounded-md border border-tv-warning/30 bg-tv-warning/10 px-2.5 py-2 lens-body-sm">
                 Harga pasar {stalePriceCount} posisi gagal diambil. SahamLens tidak mengganti harga yang hilang dengan harga beli, sehingga total ekuitas dan return ditampilkan N/A sampai semua posisi memiliki harga pasar.
               </p>
             )}
@@ -409,7 +409,7 @@ export default function PortfolioPage() {
             {badges.length > 0 && (
               <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-tv-border">
                 {badges.map((b) => (
-                  <span key={b} className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-tv-gold/10 text-tv-gold border border-tv-gold/30">
+                  <span key={b} className="inline-flex items-center gap-1 lens-chip px-2.5 py-1 rounded-full bg-tv-gold/10 text-tv-gold border border-tv-gold/30">
                     <Trophy className="w-3 h-3" /> {b}
                   </span>
                 ))}
@@ -418,12 +418,12 @@ export default function PortfolioPage() {
           </div>
           <div className="bg-tv-bg border-t border-tv-border px-5 py-3 grid grid-cols-2 gap-4">
             <div>
-              <span className="text-[10px] text-tv-muted uppercase font-semibold">Buying Power</span>
+              <span className="lens-caption">Buying Power</span>
               <div className="text-sm font-bold text-white font-number tabular-nums">{formatIDR(portfolio.cash)}</div>
               {/* Storytelling: porsi kas vs saham menentukan seberapa terekspos akun
                   ini ke pergerakan pasar - angka kas sendirian tidak menyatakan itu. */}
               {totalEquity != null && totalEquity > 0 && (
-                <div className="text-[10px] text-tv-muted mt-0.5">
+                <div className="lens-caption mt-0.5">
                   {Math.round((portfolio.cash / totalEquity) * 100)}% dari ekuitas masih kas
                 </div>
               )}
@@ -485,7 +485,7 @@ export default function PortfolioPage() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-[11px] text-tv-muted">{h.lots.toLocaleString('id-ID')} Lot</div>
+                            <div className="lens-caption">{h.lots.toLocaleString('id-ID')} Lot</div>
                           </div>
                         </div>
                         {/* Posisi yang harganya gagal diambil TIDAK boleh menampilkan
@@ -494,8 +494,8 @@ export default function PortfolioPage() {
                         <div className="text-right shrink-0">
                           {h.priceStale ? (
                             <>
-                              <div className="text-xs font-semibold text-tv-warning">harga tak terambil</div>
-                              <div className="text-[10px] text-tv-muted">P&amp;L belum bisa dihitung</div>
+                              <div className="lens-label">harga tak terambil</div>
+                              <div className="lens-caption">P&L belum bisa dihitung</div>
                             </>
                           ) : (
                             <>
@@ -532,7 +532,7 @@ export default function PortfolioPage() {
                           variant="bare"
                           size="none"
                           onClick={() => openOrder('BUY', h.symbol)}
-                          className="flex-1 rounded-lg border border-tv-green/20 bg-tv-green/10 py-1.5 text-[11px] font-bold text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]"
+                          className="flex-1 rounded-lg border border-tv-green/20 bg-tv-green/10 py-1.5 lens-label text-tv-green transition-colors hover:bg-tv-green hover:text-[#06130E]"
                         >
                           Beli lagi
                         </Button>
@@ -540,7 +540,7 @@ export default function PortfolioPage() {
                           variant="bare"
                           size="none"
                           onClick={() => openOrder('SELL', h.symbol)}
-                          className="flex-1 rounded-lg border border-tv-red/20 bg-tv-red/10 py-1.5 text-[11px] font-bold text-tv-red transition-colors hover:bg-tv-red hover:text-white"
+                          className="flex-1 rounded-lg border border-tv-red/20 bg-tv-red/10 py-1.5 lens-label text-tv-red transition-colors hover:bg-tv-red hover:text-white"
                         >
                           Jual
                         </Button>
@@ -580,7 +580,7 @@ export default function PortfolioPage() {
                             <span className="font-bold text-white text-sm font-number">{tickerCode(t.symbol)}</span>
                             <span className={`lens-chip font-bold px-1.5 py-0.5 rounded ${isBuy ? 'bg-tv-blue/15 text-tv-blue' : 'bg-tv-red/15 text-tv-red'}`}>{t.type}</span>
                           </div>
-                          <div className="text-[11px] text-tv-muted">
+                          <div className="lens-caption">
                             {t.lots.toLocaleString('id-ID')} lot @ {t.price.toLocaleString('id-ID')} · {new Date(t.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                           </div>
                         </div>
