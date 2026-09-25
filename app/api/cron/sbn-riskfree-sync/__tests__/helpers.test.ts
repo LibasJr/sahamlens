@@ -81,32 +81,57 @@ describe('validatePayload', () => {
 });
 
 describe('decideEvidenceAction', () => {
+  const hari = '2026-09-25';
+
   it('mencatat bila belum ada bukti sama sekali', () => {
-    expect(decideEvidenceAction({ payload: payload(), latest: null })).toEqual({ action: 'CATAT', reason: 'BUKTI_RESMI_PERTAMA' });
+    expect(decideEvidenceAction({ payload: payload(), latest: null, todayIso: hari })).toEqual({
+      action: 'CATAT',
+      reason: 'BUKTI_RESMI_PERTAMA',
+    });
   });
 
   it('mencatat penerbitan resmi baru walau nilainya sama', () => {
     const keputusan = decideEvidenceAction({
       payload: payload({ tanggal_data: '2026-09-25', sumber_terbit: '2026-09-25' }),
-      latest: { valuePct: 7.08, usableFromDate: '2026-09-18', sourceUrl: null },
+      latest: { valuePct: 7.08, usableFromDate: '2026-09-18', marketDate: '2026-09-18', sourceUrl: null },
+      todayIso: hari,
     });
     expect(keputusan).toEqual({ action: 'CATAT', reason: 'PENERBITAN_RESMI_BARU' });
   });
 
-  it('melewati penerbitan yang sudah tercatat', () => {
+  it('melewati penerbitan yang tanggal pasarnya sudah tercatat', () => {
     const keputusan = decideEvidenceAction({
       payload: payload(),
-      latest: { valuePct: 7.08, usableFromDate: '2026-09-18', sourceUrl: null },
+      latest: { valuePct: 7.16, usableFromDate: '2026-09-25', marketDate: '2026-09-18', sourceUrl: null },
+      todayIso: hari,
     });
-    expect(keputusan.action).toBe('LEWATI');
     expect(keputusan.reason).toBe('PENERBITAN_INI_SUDAH_DICATAT');
+  });
+
+  it('melewati bila bukti hari ini sudah tercatat', () => {
+    const keputusan = decideEvidenceAction({
+      payload: payload({ tanggal_data: '2026-09-24', sumber_terbit: '2026-09-24' }),
+      latest: { valuePct: 7.14, usableFromDate: '2026-09-25', marketDate: '2026-09-18', sourceUrl: null },
+      todayIso: hari,
+    });
+    expect(keputusan.reason).toBe('BUKTI_HARI_INI_SUDAH_DICATAT');
   });
 
   it('melewati berkas yang lebih tua daripada bukti tersimpan', () => {
     const keputusan = decideEvidenceAction({
       payload: payload({ tanggal_data: '2026-09-11', sumber_terbit: '2026-09-11' }),
-      latest: { valuePct: 7.08, usableFromDate: '2026-09-18', sourceUrl: null },
+      latest: { valuePct: 7.08, usableFromDate: '2026-09-18', marketDate: '2026-09-18', sourceUrl: null },
+      todayIso: hari,
     });
     expect(keputusan.reason).toBe('BUKTI_TERSIMPAN_LEBIH_BARU');
+  });
+
+  it('melewati bukti tersimpan yang bertanggal masa depan', () => {
+    const keputusan = decideEvidenceAction({
+      payload: payload({ tanggal_data: '2026-09-19', sumber_terbit: '2026-09-19' }),
+      latest: { valuePct: 7.08, usableFromDate: '2026-10-01', marketDate: '2026-09-18', sourceUrl: null },
+      todayIso: hari,
+    });
+    expect(keputusan.reason).toBe('BUKTI_TERSIMPAN_BERTANGGAL_MASA_DEPAN');
   });
 });
