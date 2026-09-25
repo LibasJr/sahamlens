@@ -69,8 +69,14 @@ async function runSync(): Promise<RiskFreeSyncResult> {
   const keputusan = decideEvidenceAction({
     payload,
     latest: latest
-      ? { valuePct: Number(latest.valuePct), usableFromDate: String(latest.usableFromDate).slice(0, 10), sourceUrl: latest.sourceUrl ?? null }
+      ? {
+          valuePct: Number(latest.valuePct),
+          usableFromDate: String(latest.usableFromDate).slice(0, 10),
+          marketDate: latest.marketDate ? String(latest.marketDate).slice(0, 10) : null,
+          sourceUrl: latest.sourceUrl ?? null,
+        }
       : null,
+    todayIso,
   });
 
   if (keputusan.action === 'LEWATI') {
@@ -92,7 +98,10 @@ async function runSync(): Promise<RiskFreeSyncResult> {
     valuePct: payload.yield_pct,
     marketDate: payload.tanggal_data,
     observedDate: todayIso,
-    usableFromDate: payload.tanggal_data,
+    // Constraint DB: observed_date <= usable_from_date. Berkas berisi data sampai
+    // tanggal pasar tertentu, tetapi kita baru membacanya hari ini -> bukti dipakai
+    // mulai hari ini, tidak surut.
+    usableFromDate: todayIso,
     evidenceType: 'MARKET_OBSERVATION',
     sourceTier: 'GOVERNMENT_OFFICIAL',
     sourceName: SUMBER_NAMA,

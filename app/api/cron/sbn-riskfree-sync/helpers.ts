@@ -27,6 +27,7 @@ export interface RiskFreeCollectorPayload {
 export interface LatestEvidenceRingkas {
   valuePct: number;
   usableFromDate: string;
+  marketDate: string | null;
   sourceUrl: string | null;
   seri?: string | null;
 }
@@ -109,19 +110,32 @@ export function validatePayload(payload: RiskFreeCollectorPayload, todayIso: str
 }
 
 /**
- * Catat bila ini penerbitan BARU; lewati bila berkas yang sama sudah pernah dicatat.
+ * Catat bila ini penerbitan BARU; lewati bila berkas yang sama sudah pernah dicatat
+ * atau bukti hari ini sudah ada.
+ *
  * Penerbitan baru tetap dicatat walau nilainya sama - yield pasar harian adalah
  * observasi baru, dan pengawas kebasian makro memakai tanggal bukti terakhir.
+ * Catatan constraint DB: observed_date <= usable_from_date, jadi bukti dari berkas
+ * yang baru kita baca hari ini dipakai mulai HARI INI (bukan surut ke tanggal pasar).
  */
-export function decideEvidenceAction(input: { payload: RiskFreeCollectorPayload; latest: LatestEvidenceRingkas | null }): KeputusanBukti {
-  const { payload, latest } = input;
+export function decideEvidenceAction(input: {
+  payload: RiskFreeCollectorPayload;
+  latest: LatestEvidenceRingkas | null;
+  todayIso: string;
+}): KeputusanBukti {
+  const { payload, latest, todayIso } = input;
   if (!latest) return { action: 'CATAT', reason: 'BUKTI_RESMI_PERTAMA' };
-  if (latest.usableFromDate === payload.tanggal_data) {
-    const sama = Math.abs(latest.valuePct - payload.yield_pct) <= TOLERANSI_NILAI;
-    return { action: 'LEWATI', reason: sama ? 'PENERBITAN_INI_SUDAH_DICATAT' : 'PENERBITAN_INI_SUDAH_DICATAT_NILAI_BERBEDA' };
+  if (latest.marketDate && latest.marketDate === payload.tanggal_data) {
+    return { action: 'LEWATI', reason: 'PENERBITAN_INI_SUDAH_DICATAT' };
   }
-  if (String(latest.usableFromDate) > String(payload.tanggal_data)) {
+  if (latest.usableFromDate === todayIso) {
+    return { action: 'LEWATI', reason: 'BUKTI_HARI_INI_SUDAH_DICATAT' };
+  }
+  if (latest.marketDate && String(latest.marketDate) > String(payload.tanggal_data)) {
     return { action: 'LEWATI', reason: 'BUKTI_TERSIMPAN_LEBIH_BARU' };
+  }
+  if (latest.usableFromDate > todayIso) {
+    return { action: 'LEWATI', reason: 'BUKTI_TERSIMPAN_BERTANGGAL_MASA_DEPAN' };
   }
   return { action: 'CATAT', reason: 'PENERBITAN_RESMI_BARU' };
 }
