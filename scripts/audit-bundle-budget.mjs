@@ -63,7 +63,13 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // hanya kode rute + helper validasi yang tetap dihitung audit pada direktori ini.
 // Kepala ruang dikecilkan menjadi 5 KB (bukan 8) supaya ratchet tetap ketat: kalau habis
 // lagi, yang benar adalah memindahkan impor berat berikutnya ke impor dinamis.
-const TOTAL_BUDGET_KB = 6_086;
+// Dinaikkan 6.086 -> 6.089 KB pada 2026-09-25 untuk tiga tema konten baru pada Grafik
+// Studio (bloomberg-amber, breaking-news, regulator-navy), daftar tema terpusat THEME_MENU,
+// dan modul components/export/export-layout.ts (preset ekspor 9:16/4:5/1:1). Build CI
+// terukur 6.088 KB dari anggaran 6.086 KB - pertumbuhan 2 KB seluruhnya pada chunk rute
+// admin /admin/infographic-studio, tanpa dependensi baru, dan muatan awal halaman publik
+// tidak berubah. Kepala ruang 1 KB dipertahankan sebagai ratchet.
+const TOTAL_BUDGET_KB = 6_089;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri

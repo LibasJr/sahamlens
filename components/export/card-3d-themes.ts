@@ -225,9 +225,105 @@ export const CARD_3D_THEMES: Record<string, Card3DTheme> = {
     orbBottom: 'bg-indigo-700/30',
     gridDotColor: '#fb7185',
   },
+
+  // 9. BLOOMBERG AMBER (Data terminal: hitam pekat + amber). Aksen di kertas: #8A5A00.
+  'bloomberg-amber': {
+    id: 'bloomberg-amber',
+    name: '🟨 Bloomberg Amber (Terminal Data)',
+    sectorLabel: 'Terminal Data',
+    badgeLabel: 'Amber Terminal 3D',
+    bgBase: '#0a0700',
+    outerBorder: '#3a2a00',
+    specularLine: 'via-amber-400/95',
+    cardBorder: 'border-amber-500/45',
+    cardBg: 'from-[#1a1200]/95 to-[#0a0700]/95',
+    glassTileBg: 'from-[#201700] to-[#0b0800]',
+    accentText: 'text-amber-300',
+    accentTextSecondary: 'text-orange-200',
+    accentBg: 'bg-amber-500/25',
+    accentBorder: 'border-amber-400/60',
+    accentGradient: 'from-amber-300 via-orange-400 to-amber-500',
+    accentShadow: 'shadow-[0_0_40px_rgba(245,158,11,0.6)]',
+    buttonGrad: 'from-amber-400 via-orange-500 to-amber-600',
+    orbTop: 'from-amber-400/45 via-orange-600/35',
+    orbMid: 'bg-yellow-500/25',
+    orbBottom: 'bg-amber-800/30',
+    gridDotColor: '#f59e0b',
+  },
+
+  // 10. BREAKING NEWS (Berita kilat: merah-putih). Aksen di kertas: #B3121B.
+  'breaking-news': {
+    id: 'breaking-news',
+    name: '🔴 Breaking News (Merah Putih)',
+    sectorLabel: 'Berita Kilat',
+    badgeLabel: 'Breaking News 3D',
+    bgBase: '#0c0102',
+    outerBorder: '#4a0409',
+    specularLine: 'via-red-400/95',
+    cardBorder: 'border-red-500/45',
+    cardBg: 'from-[#240306]/95 to-[#0d0102]/95',
+    glassTileBg: 'from-[#2c0407] to-[#0f0103]',
+    accentText: 'text-red-300',
+    accentTextSecondary: 'text-rose-200',
+    accentBg: 'bg-red-500/25',
+    accentBorder: 'border-red-400/60',
+    accentGradient: 'from-red-300 via-red-500 to-rose-500',
+    accentShadow: 'shadow-[0_0_40px_rgba(239,68,68,0.6)]',
+    buttonGrad: 'from-red-400 via-red-500 to-rose-600',
+    orbTop: 'from-red-400/45 via-rose-600/35',
+    orbMid: 'bg-rose-500/25',
+    orbBottom: 'bg-red-800/30',
+    gridDotColor: '#ef4444',
+  },
+
+  // 11. REGULATOR NAVY (Makro & institusional: biru tinta + emas tipis). Aksen di kertas: #123A63.
+  'regulator-navy': {
+    id: 'regulator-navy',
+    name: '🟦 Nusantara Regulator (Navy & Emas)',
+    sectorLabel: 'Regulator & Makro',
+    badgeLabel: 'Navy Regulator 3D',
+    bgBase: '#01050c',
+    outerBorder: '#0a2440',
+    specularLine: 'via-sky-400/95',
+    cardBorder: 'border-sky-500/45',
+    cardBg: 'from-[#04152b]/95 to-[#010610]/95',
+    glassTileBg: 'from-[#061b34] to-[#020812]',
+    accentText: 'text-sky-300',
+    accentTextSecondary: 'text-amber-200',
+    accentBg: 'bg-sky-500/25',
+    accentBorder: 'border-sky-400/60',
+    accentGradient: 'from-sky-300 via-blue-500 to-amber-400',
+    accentShadow: 'shadow-[0_0_40px_rgba(56,189,248,0.55)]',
+    buttonGrad: 'from-sky-400 via-blue-500 to-amber-500',
+    orbTop: 'from-sky-400/45 via-blue-700/35',
+    orbMid: 'bg-amber-500/25',
+    orbBottom: 'bg-blue-900/30',
+    gridDotColor: '#38bdf8',
+  },
 };
 
 export const THEME_KEYS = Object.keys(CARD_3D_THEMES);
+
+/**
+ * Daftar tema untuk pemilih di Studio.
+ *
+ * Satu sumber kebenaran: Studio tidak lagi menulis daftar temanya sendiri, supaya tema baru
+ * tidak bisa ada di registri tetapi tidak bisa dipilih (atau sebaliknya, ada pilihan yang
+ * jatuh ke aksen bawaan). Label ditulis sebagai tujuan pemakaian, bukan nama kode.
+ */
+export const THEME_MENU: Array<{ id: string; label: string }> = [
+  { id: 'sapphire-bank', label: 'Biru finansial (bank & bluechip)' },
+  { id: 'imperial-gold', label: 'Emas properti & barang mewah' },
+  { id: 'solar-mining', label: 'Tembaga energi & tambang' },
+  { id: 'tokyo-neon', label: 'Ungu teknologi' },
+  { id: 'rose-fmcg', label: 'Rose konsumer & retail' },
+  { id: 'ruby-health', label: 'Merah kesehatan' },
+  { id: 'emerald-infra', label: 'Hijau infrastruktur & industri' },
+  { id: 'obsidian-cyber', label: 'Teal netral (bawaan)' },
+  { id: 'bloomberg-amber', label: 'Amber terminal data (konten angka)' },
+  { id: 'breaking-news', label: 'Merah berita kilat (berita panas)' },
+  { id: 'regulator-navy', label: 'Navy regulator & makro' },
+];
 
 /**
  * Otomatis mencocokkan tema 3D warna, pencahayaan, dan specular bevel

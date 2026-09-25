@@ -14,9 +14,18 @@ import FundamentalResearchCard from '@/components/export/FundamentalResearchCard
 import InvestmentSnapshot360Card from '@/components/export/InvestmentSnapshot360Card';
 import {
   Card3DTheme,
+  THEME_MENU,
   getSector3DTheme,
   getThemeById,
 } from '@/components/export/card-3d-themes';
+import {
+  EXPORT_PRESETS,
+  EXPORT_PRESET_IDS,
+  exportFileName,
+  planExportLayout,
+  type ExportPresetId,
+} from '@/components/export/export-layout';
+import { PAPER } from '@/components/export/research-paper';
 import { buildMoatProxy } from '@/modules/fundamental/service/moat-proxy.service';
 import { buildTechnicalSuite } from '@/lib/technical/technical-levels';
 import { getKategoriPresentationLabel, getKategoriTone } from '@/shared/presentation/signal-labels';
@@ -34,6 +43,7 @@ export default function InfographicStudioClient() {
   const [activeTicker, setActiveTicker] = useState('BBCA');
   const [cardMode, setCardMode] = useState<StudioCardMode>('snapshot_360');
   const [selectedThemeId, setSelectedThemeId] = useState<string>('auto'); // 'auto' | themeId
+  const [exportPreset, setExportPreset] = useState<ExportPresetId>('tiktok_9x16');
   const [zoomScale, setZoomScale] = useState<number>(0.75);
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
@@ -285,18 +295,43 @@ export default function InfographicStudioClient() {
     if (!canvasRef.current) return;
     setExporting(true);
     try {
-      const { toPng } = await import('html-to-image');
-      const dataUrl = await toPng(canvasRef.current, { pixelRatio: 2, cacheBust: true });
-      const link = document.createElement('a');
+      const target = canvasRef.current;
+      const preset = EXPORT_PRESETS[exportPreset];
       const typeLabel = cardMode === 'snapshot_360'
         ? 'Investment-Snapshot-360'
         : cardMode === 'technical'
           ? 'Technical-Research'
           : 'Fundamental-Research';
-      link.download = `SahamLens-${typeLabel}-${activeTicker}-${new Date().toISOString().slice(0, 10)}.png`;
-      link.href = dataUrl;
+
+      // Kartu dirender 2x lalu dikecilkan ke kanvas preset: teks tetap tajam, ukuran berkas
+      // tetap sama berapa pun tinggi isi kartu, dan tidak ada bagian kartu yang terpotong
+      // atau tertutup antarmuka aplikasi.
+      const tata = planExportLayout(target.offsetWidth, target.offsetHeight, preset);
+      const { toPng } = await import('html-to-image');
+      const gambarKartu = await toPng(target, { pixelRatio: 2, cacheBust: true });
+      const gambar = await new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('Gagal memuat gambar kartu'));
+        img.src = gambarKartu;
+      });
+
+      const kanvas = document.createElement('canvas');
+      kanvas.width = preset.canvasWidth * 2;
+      kanvas.height = preset.canvasHeight * 2;
+      const ctx = kanvas.getContext('2d');
+      if (!ctx) throw new Error('Kanvas ekspor tidak tersedia');
+      ctx.fillStyle = PAPER;
+      ctx.fillRect(0, 0, kanvas.width, kanvas.height);
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(gambar, tata.drawX * 2, tata.drawY * 2, tata.drawWidth * 2, tata.drawHeight * 2);
+
+      const link = document.createElement('a');
+      link.download = exportFileName(typeLabel, activeTicker, preset);
+      link.href = kanvas.toDataURL('image/png');
       link.click();
-      showToast(`Infografis ${typeLabel.replaceAll('-', ' ')} berhasil diekspor (HD PNG)!`, 'success');
+      showToast(`Infografis ${typeLabel.replaceAll('-', ' ')} (${preset.label}) berhasil diekspor (HD PNG)!`, 'success');
     } catch (error) {
       console.error('Export error:', error);
       showToast('Gagal mengekspor infografis. Silakan coba lagi.', 'error');
@@ -502,16 +537,36 @@ export default function InfographicStudioClient() {
                 className="rounded-lg border border-white/[0.1] bg-[#030612] px-3 py-2 text-xs font-bold text-white focus:outline-none focus:ring-2 focus:ring-[#828fff]/40"
               >
                 <option value="auto">Otomatis sesuai sektor</option>
-                <option value="sapphire-bank">Biru finansial</option>
-                <option value="imperial-gold">Emas properti</option>
-                <option value="solar-mining">Tembaga energi</option>
-                <option value="tokyo-neon">Ungu teknologi</option>
-                <option value="rose-fmcg">Rose konsumer</option>
-                <option value="ruby-health">Merah kesehatan</option>
-                <option value="emerald-infra">Hijau infrastruktur</option>
-                <option value="obsidian-cyber">Teal netral</option>
+                {THEME_MENU.map((tema) => (
+                  <option key={tema.id} value={tema.id}>{tema.label}</option>
+                ))}
               </select>
             </label>
+
+            <div className="flex items-center gap-2 text-xs text-slate-400">
+              <ImageIcon className="h-4 w-4" />
+              <span>Ukuran ekspor</span>
+              <div className="flex items-center gap-1">
+                {EXPORT_PRESET_IDS.map((id) => (
+                  <Button
+                    key={id}
+                    variant="bare"
+                    size="none"
+                    type="button"
+                    onClick={() => setExportPreset(id)}
+                    title={`${EXPORT_PRESETS[id].note} — ${EXPORT_PRESETS[id].canvasWidth}×${EXPORT_PRESETS[id].canvasHeight} px`}
+                    className={`rounded px-2.5 py-1.5 lens-label font-bold transition-colors ${
+                      exportPreset === id ? 'bg-[#5e6ad2] text-white' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {EXPORT_PRESETS[id].label}
+                  </Button>
+                ))}
+              </div>
+              <span className="hidden md:inline lens-caption text-slate-500">
+                {EXPORT_PRESETS[exportPreset].canvasWidth}×{EXPORT_PRESETS[exportPreset].canvasHeight} px &middot; {EXPORT_PRESETS[exportPreset].note}
+              </span>
+            </div>
 
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <span>Ukuran pratinjau</span>
