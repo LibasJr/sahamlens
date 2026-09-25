@@ -1,0 +1,16 @@
+[Unit]
+Description=Jadwal SahamLens - penyegaran bukti validasi (uji target/cut loss + uji intraday)
+
+[Timer]
+# Sabtu 05:30 WIB. Sengaja SETELAH semua pengumpul data yang relevan selesai:
+# intraday-collect & idx-flow-sync (Jumat 17:30), market-data-reconcile (18:30),
+# lens-bucket-backtest (17:00). Karena itu hasil validasi memakai data Jumat terbaru,
+# bukan data Kamis seperti kalau dijadwalkan pagi hari kerja.
+# Persistent=true: kalau VPS mati saat jadwalnya, penyegaran tetap dijalankan saat hidup lagi
+# - tidak boleh lewat diam-diam, karena inilah satu-satunya pemicu otomatis bukti validasi.
+OnCalendar=Sat 05:30 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-cron@research-refresh.service
+
+[Install]
+WantedBy=timers.target

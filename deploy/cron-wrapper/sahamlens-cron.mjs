@@ -3,6 +3,7 @@ import fs from "node:fs";
 const job = process.argv[2];
 
 const allowed = new Set([
+  "research-refresh",
   "sbn-riskfree-sync",
   "macro-evidence-sync",
   "idx-ic-sync",
