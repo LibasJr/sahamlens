@@ -1,0 +1,31 @@
+# /etc/systemd/system/sahamlens-sbn-riskfree-sync.timer
+#
+# MINGGUAN Senin 08:10 WIB - mengejar berkas resmi DJPPR yang diperbarui mingguan
+# ("Daftar Kuotasi Harga SBN Seri Benchmark Mingguan", terbit tiap Jumat).
+#
+# Kenapa ini ada: RISK_FREE_RATE_PCT dulu diisi MANUAL dari Monetary Brief DEN
+# (terakhir 7,29% Juli 2026) sehingga bisa basi berbulan-bulan tanpa rilis pengganti.
+# Sekarang angkanya diambil dari berkas resmi DJPPR Kementerian Keuangan: kolom 10Y
+# benchmark (seri FR0108), baris terakhir berkas, apa adanya - tanpa pembulatan ulang,
+# tanpa angka agregator pihak ketiga.
+#
+# Setiap pengambilan menyertakan URL media resmi + SHA256 PDF di bukti, jadi angkanya
+# bisa diaudit ulang kapan saja. Bila berkas tidak terbaca / tidak lolos validasi,
+# job GAGAL dan bukti lama TIDAK diganti (halaman tetap jujur menunjukkan tanggal bukti).
+#
+# Persistent=true: kalau VPS mati saat jadwalnya, job dikejar setelah menyala.
+
+[Unit]
+Description=Jadwal SahamLens - tarik yield SBN 10Y resmi (DJPPR) sebagai bukti makro
+Documentation=https://djppr.kemenkeu.go.id/daftarkuotasihargasbnseribenchmarkmingguan
+
+[Timer]
+# Menumpang templat systemd yang sudah ada (rute /api/cron/sbn-riskfree-sync dijalankan
+# lewat /usr/local/bin/sahamlens-cron.mjs).
+Unit=sahamlens-cron@sbn-riskfree-sync.service
+OnCalendar=Mon *-*-* 08:10:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

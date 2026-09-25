@@ -57,7 +57,13 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // berat yang berpindah, dan muatan awal halaman lama tidak berubah. Batas diberi kepala
 // ruang 3 KB agar tetap ratchet - kalau kepala ruang ini habis lagi, yang benar adalah
 // membuat dinamis satu impor berat lagi, bukan menaikkan angka ini tanpa sebab tertulis.
-const TOTAL_BUDGET_KB = 6_080;
+// Dinaikkan 6.080 -> 6.086 KB pada 2026-09-25 untuk rute cron server baru
+// /api/cron/sbn-riskfree-sync (RISK_FREE_RATE_PCT otomatis dari berkas resmi DJPPR).
+// Build branch ini terukur 6.081 KB, jadi pertumbuhannya ~1 KB dan bukan dependensi baru -
+// hanya kode rute + helper validasi yang tetap dihitung audit pada direktori ini.
+// Kepala ruang dikecilkan menjadi 5 KB (bukan 8) supaya ratchet tetap ketat: kalau habis
+// lagi, yang benar adalah memindahkan impor berat berikutnya ke impor dinamis.
+const TOTAL_BUDGET_KB = 6_086;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri

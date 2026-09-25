@@ -170,6 +170,13 @@
       "schedule": "30 7 * * 1",
       "scheduleStatus": "known",
       "source": "BARU 2026-09-25. Impor klasifikasi IDX-IC sebelumnya MANUAL (unggah CSV di panel admin decision-lab) sehingga tabel idx_ic_classifications beku sejak 2026-08-25. Sekarang scripts/sync-idx-ic.py menarik klasifikasi resmi BEI lalu rute ini mengimpornya otomatis (ON CONFLICT(ticker), idempoten). Timer systemd mingguan Senin 07:30 WIB, di luar jam pasar dan jauh dari job lain yang memanggil idx.co.id agar tidak kena 403 Cloudflare."
+    },
+    {
+      "path": "/api/cron/sbn-riskfree-sync",
+      "provider": "systemd",
+      "schedule": "10 8 * * 1",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-09-25. RISK_FREE_RATE_PCT sebelumnya diisi MANUAL dari Monetary Brief DEN (nilai terakhir 7,29% Juli 2026, tidak ada rilis pengganti). Sekarang scripts/sync-sbn-riskfree-official.py menarik berkas RESMI DJPPR Kementerian Keuangan (Daftar Kuotasi Harga SUN Seri Benchmark Mingguan) dan mencatat yield 10Y benchmark sebagai bukti makro; timer systemd mingguan Senin 08:10 WIB."
     }
   ]
 }
