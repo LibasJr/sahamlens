@@ -48,6 +48,7 @@
     "audit:market-labels": "node scripts/audit-market-label-semantics.mjs",
     "restore:verify": "node scripts/verify-restore-drill-target.mjs",
     "audit:risk-controls": "node scripts/audit-risk-controls.mjs",
+    "audit:radar-history": "node scripts/audit-radar-history-uniqueness.mjs",
     "audit:zero-dummy": "node scripts/audit-zero-dummy-policy.mjs",
     "audit:data-quality": "vitest run shared/research/__tests__/data-quality.test.ts app/api/backtest/__tests__/route.test.ts modules/recommendation/service/__tests__/lens-score-bucket-backtest.service.test.ts",
     "audit:broker-forensics": "node scripts/audit-broker-summary-forensics.mjs",
