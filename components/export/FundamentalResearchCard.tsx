@@ -16,6 +16,7 @@ import {
   ABSENT, BULL, BEAR, FLAT, HIGHLIGHT, INK, INK_2, INK_3, RULE, RULE_SOFT, SERIF,
   Absent, Eyebrow, Field, Rule, SectionTitle, Sheet, accentOf, orAbsent, pct, rp, toneColor,
 } from './research-paper';
+import { PriceChartBlock, type PriceCandle, type PriceLevel } from './PriceChartBlock';
 
 /**
  * Kartu ekspor Fundamental, bahasa visual "catatan riset" - pasangan dari
@@ -47,6 +48,8 @@ export interface FundamentalResearchCardProps {
     change_pct?: number | null;
     volume?: number | null;
   };
+  /** Candle harian asli dari payload (`stock.history`). Kosong = bagian grafik tidak dirender. */
+  priceHistory?: PriceCandle[];
   scoring?: {
     totalScore?: number | null;
     breakdown?: {
@@ -180,6 +183,7 @@ export default function FundamentalResearchCard({
   latestEarningsQuarter,
   valuation = null,
   ownership = null,
+  priceHistory = [],
   themeId,
   theme,
   exportedAt = new Date(),
@@ -187,6 +191,17 @@ export default function FundamentalResearchCard({
   const activeTheme =
     theme || (themeId ? getThemeById(themeId) : getSector3DTheme(profile.sector, profile.industry, ticker));
   const accent = accentOf(activeTheme);
+
+  // Nilai wajar dipakai sebagai level bantu: itu angka valuasi yang sudah ada di kartu ini,
+  // jadi garis pada grafik tidak memperkenalkan angka baru.
+  const levelGrafik = React.useMemo<PriceLevel[]>(() => {
+    const daftar: PriceLevel[] = [];
+    const nilaiWajar = valuation?.fairValue;
+    if (typeof nilaiWajar === 'number' && Number.isFinite(nilaiWajar) && nilaiWajar > 0) {
+      daftar.push({ value: nilaiWajar, label: 'Nilai wajar', tone: 'neutral' });
+    }
+    return daftar;
+  }, [valuation]);
 
   const displaySymbol = (ticker || '').replace('.JK', '').toUpperCase();
   const price = stock.current_price ?? null;
@@ -306,6 +321,18 @@ export default function FundamentalResearchCard({
           </div>
         </div>
       </div>
+
+      <Rule strong />
+
+      {/* 1b. GRAFIK HARGA ──────────────────────────────────────────────── */}
+      {priceHistory.length > 0 && (
+        <div style={{ paddingTop: 18, paddingBottom: 18 }}>
+          <SectionTitle accent={accent} note="Garis putus-putus adalah nilai wajar (DCF) bila berada di dalam rentang gambar">
+            Grafik Harga Harian
+          </SectionTitle>
+          <PriceChartBlock history={priceHistory} accent={accent} levels={levelGrafik} />
+        </div>
+      )}
 
       <Rule strong />
 

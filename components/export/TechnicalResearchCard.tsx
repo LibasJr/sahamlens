@@ -7,6 +7,7 @@ import {
   ABSENT, BULL, BEAR, FLAT, HIGHLIGHT, INK, INK_2, INK_3, RULE, RULE_SOFT, SERIF,
   Absent, Eyebrow, Field, Rule, SectionTitle, Sheet, accentOf, pct, rp, toneColor,
 } from './research-paper';
+import { PriceChartBlock, type PriceCandle, type PriceLevel } from './PriceChartBlock';
 
 /**
  * Kartu ekspor Teknikal, bahasa visual "catatan riset".
@@ -91,6 +92,8 @@ export interface TechnicalResearchCardProps {
     bandarmologyStatus?: string | null;
     foreignFlowStatus?: string | null;
   };
+  /** Candle harian asli dari payload (`stock.history`). Kosong = bagian grafik tidak dirender. */
+  priceHistory?: PriceCandle[];
   themeId?: string;
   theme?: Card3DTheme;
   exportedAt?: Date;
@@ -170,12 +173,28 @@ export default function TechnicalResearchCard({
   trends = [],
   tradingPlan = null,
   flowDetails,
+  priceHistory = [],
   themeId,
   theme,
   exportedAt = new Date(),
 }: TechnicalResearchCardProps) {
   const activeTheme = theme || getThemeById(themeId || 'sapphire-bank');
   const accent = accentOf(activeTheme);
+
+  // Level bantu pada grafik diambil dari angka yang SUDAH tampil di kartu ini (pivot dan
+  // batas 52 minggu), jadi grafik dan tabel tidak bisa saling bertentangan.
+  const levelGrafik = React.useMemo<PriceLevel[]>(() => {
+    const daftar: PriceLevel[] = [];
+    if (pivots) {
+      daftar.push({ value: pivots.r1, label: 'R1', tone: 'bear' });
+      daftar.push({ value: pivots.s1, label: 'S1', tone: 'bull' });
+    }
+    if (range52w) {
+      daftar.push({ value: range52w.high52w, label: '52m tertinggi', tone: 'neutral' });
+      daftar.push({ value: range52w.low52w, label: '52m terendah', tone: 'neutral' });
+    }
+    return daftar;
+  }, [pivots, range52w]);
 
   const upperSym = (symbol || '').toUpperCase();
   const isIndex = upperSym.includes('JKSE') || upperSym === 'IHSG';
@@ -258,6 +277,21 @@ export default function TechnicalResearchCard({
             </div>
           </div>
         </div>
+
+        <Rule strong />
+
+        {/* 1b. GRAFIK HARGA ──────────────────────────────────────────────── */}
+        {priceHistory.length > 0 && (
+          <div style={{ paddingTop: 18, paddingBottom: 18 }}>
+            <SectionTitle
+              accent={accent}
+              note="Garis putus-putus adalah level pivot yang berada di dalam rentang gambar"
+            >
+              Grafik Harga Harian
+            </SectionTitle>
+            <PriceChartBlock history={priceHistory} accent={accent} levels={levelGrafik} />
+          </div>
+        )}
 
         <Rule strong />
 
