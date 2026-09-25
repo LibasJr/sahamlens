@@ -187,6 +187,9 @@ export default function InfographicStudioClient() {
           current_price: stockPrice,
           change_pct: changePct,
           volume: stockVolume,
+          // Candle harian asli yang sama dengan yang dipakai mesin teknikal - bukan deret
+          // terpisah yang bisa berbeda dari angka di kartu.
+          history: candleHistory,
         },
         technical: {
           score: totalScore,
@@ -682,6 +685,7 @@ export default function InfographicStudioClient() {
                       patterns={data.technical.patterns}
                       patternAsOf={data.technical.patternAsOf}
                       flowDetails={data.technical.flowDetails}
+                      priceHistory={data.stock.history}
                       theme={activeTheme}
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
@@ -699,6 +703,7 @@ export default function InfographicStudioClient() {
                       latestEarningsQuarter={data.fundamental.latestEarningsQuarter}
                       valuation={data.fundamental.valuation}
                       ownership={data.fundamental.ownership}
+                      priceHistory={data.stock.history}
                       theme={activeTheme}
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
