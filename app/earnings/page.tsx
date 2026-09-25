@@ -272,7 +272,7 @@ export default function EarningsPage() {
               </p>
               <div className="mt-5 grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-tv-muted">
+                  <p className="lens-eyebrow font-bold text-tv-muted">
                     {isEn ? 'Snapshot Price' : 'Harga snapshot'}
                   </p>
                   <p className="mt-1 font-heading text-xl font-bold text-tv-text">
@@ -280,7 +280,7 @@ export default function EarningsPage() {
                   </p>
                 </div>
                 <div className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-tv-muted">
+                  <p className="lens-eyebrow font-bold text-tv-muted">
                     {isEn ? 'Latest Result' : 'Hasil terakhir'}
                   </p>
                   <div className="mt-2 flex items-center gap-2">
@@ -296,7 +296,7 @@ export default function EarningsPage() {
             <div className="rounded-2xl border border-tv-green/20 bg-tv-green/[0.05] p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-tv-muted">
+                  <p className="lens-eyebrow font-bold text-tv-muted">
                     {isEn ? 'Next Earnings Release' : 'Rilis berikutnya'}
                   </p>
                   <p className="mt-2 font-heading text-xl font-bold text-tv-text">
@@ -340,11 +340,11 @@ export default function EarningsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                  <span className="text-[11px] text-tv-muted">{t('earningsEnhance.ocfToNetIncome')}</span>
+                  <span className="lens-meta text-tv-muted">{t('earningsEnhance.ocfToNetIncome')}</span>
                   <div className="text-lg font-bold font-number text-tv-green mt-1">
                     {earningsQuality.ocfRatio != null ? `${earningsQuality.ocfRatio.toFixed(2)}x` : 'N/A'}
                   </div>
-                  <span className="text-[10px] text-tv-muted/70">
+                  <span className="lens-meta text-tv-muted/70">
                     {earningsQuality.ocfRatio == null
                       ? isEn ? 'Needs OCF plus 4 complete quarters of net income' : 'Butuh OCF + laba bersih 4 kuartal lengkap'
                       : earningsQuality.ocfRatio >= 1.0
@@ -354,22 +354,22 @@ export default function EarningsPage() {
                 </Card>
 
                 <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                  <span className="text-[11px] text-tv-muted">{isEn ? 'Operating Cash Flow (TTM)' : 'Arus Kas Operasional (TTM)'}</span>
+                  <span className="lens-meta text-tv-muted">{isEn ? 'Operating Cash Flow (TTM)' : 'Arus Kas Operasional (TTM)'}</span>
                   <div className="text-lg font-bold font-number text-tv-blue mt-1">
                     {formatCompact(earningsQuality.ocf, financialCurrency)}
                   </div>
-                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'Core cash generated' : 'Kas inti yang dihasilkan'}</span>
+                  <span className="lens-meta text-tv-muted/70">{isEn ? 'Core cash generated' : 'Kas inti yang dihasilkan'}</span>
                 </Card>
 
                 <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" surface="60" className="p-3 border-tv-border">
-                  <span className="text-[11px] text-tv-muted">{isEn ? 'Free Cash Flow (FCF)' : 'Free Cash Flow'}</span>
+                  <span className="lens-meta text-tv-muted">{isEn ? 'Free Cash Flow (FCF)' : 'Free Cash Flow'}</span>
                   <div className={`text-lg font-bold font-number mt-1 ${earningsQuality.fcf == null ? 'text-tv-muted' : earningsQuality.fcf >= 0 ? 'text-tv-green' : 'text-tv-red'}`}>
                     {formatCompact(earningsQuality.fcf, financialCurrency)}
                   </div>
-                  <span className="text-[10px] text-tv-muted/70">{isEn ? 'After CapEx expenditures' : 'Setelah belanja modal CapEx'}</span>
+                  <span className="lens-meta text-tv-muted/70">{isEn ? 'After CapEx expenditures' : 'Setelah belanja modal CapEx'}</span>
                 </Card>
               </div>
-              <p className="text-[10px] leading-relaxed text-tv-muted">
+              <p className="lens-body-sm text-tv-muted">
                 {isEn
                   ? 'OCF/NI is computed only when operating cash flow and four complete quarterly net-income observations are available. A single quarter is never annualized to fill missing data.'
                   : 'OCF/NI hanya dihitung bila arus kas operasi dan empat observasi laba bersih kuartalan lengkap tersedia. Satu kuartal tidak pernah disetahunkan untuk mengisi data yang hilang.'}
@@ -467,7 +467,7 @@ export default function EarningsPage() {
                 data.periodCoverage.filledFromTimeSeries > 0) && (
                 <div className="border-b border-white/[0.07] px-4 py-3 md:px-5">
                   {data.periodCoverage.missingQuarters.length > 0 && (
-                    <p className="text-[11px] leading-relaxed text-tv-yellow">
+                    <p className="lens-body-sm text-tv-yellow">
                       <span className="font-semibold">
                         {isEn ? 'Quarters with unavailable data: ' : 'Ada kuartal yang datanya tidak tersedia: '}
                       </span>
@@ -479,7 +479,7 @@ export default function EarningsPage() {
             {data.quarters.length > 0 ? (
               <div className="lens-table-sticky-col overflow-x-auto">
                 <table className="w-full min-w-[880px] text-left text-xs">
-                  <thead className="border-b border-white/[0.07] bg-white/[0.02] text-[10px] uppercase tracking-[0.1em] text-tv-muted">
+                  <thead className="border-b border-white/[0.07] bg-white/[0.02] lens-eyebrow text-tv-muted">
                     <tr>
                       <th className="px-4 py-3 font-semibold">{isEn ? 'Quarter' : 'Kuartal'}</th>
                       <th className="px-4 py-3 text-right font-semibold">{isEn ? 'Actual EPS' : 'EPS aktual'}</th>
@@ -496,7 +496,7 @@ export default function EarningsPage() {
                       <tr key={quarter.quarter + String(quarter.periodEnd)} className="hover:bg-white/[0.025]">
                         <td className="px-4 py-3">
                           <p className="font-semibold text-tv-text">{quarter.quarter}</p>
-                          <p className="mt-0.5 text-[10px] text-tv-muted">
+                          <p className="mt-0.5 lens-meta text-tv-muted">
                             {formatDate(quarter.reportedDate ?? quarter.periodEnd)}
                           </p>
                         </td>
@@ -555,7 +555,7 @@ export default function EarningsPage() {
                   ['Free cash flow', formatCompact(data.latestFundamentals.freeCashflow, financialCurrency)],
                 ].map(([label, value]) => (
                   <div key={label} className="rounded-xl border border-white/[0.06] bg-white/[0.025] p-3">
-                    <p className="text-[10px] text-tv-muted">{label}</p>
+                    <p className="lens-meta text-tv-muted">{label}</p>
                     <p className="mt-1 font-heading text-sm font-bold text-tv-text">{value}</p>
                   </div>
                 ))}
@@ -578,13 +578,13 @@ export default function EarningsPage() {
                     >
                       <p className="font-heading text-sm font-bold text-tv-text">{annual.year}</p>
                       <div>
-                        <p className="text-[10px] text-tv-muted">{isEn ? 'Revenue' : 'Pendapatan'}</p>
+                        <p className="lens-meta text-tv-muted">{isEn ? 'Revenue' : 'Pendapatan'}</p>
                         <p className="text-xs font-semibold text-tv-text">
                           {formatCompact(annual.revenue, financialCurrency)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] text-tv-muted">{isEn ? 'Net Income · Margin' : 'Laba · Margin'}</p>
+                        <p className="lens-meta text-tv-muted">{isEn ? 'Net Income · Margin' : 'Laba · Margin'}</p>
                         <p className="text-xs font-semibold text-tv-text">
                           {formatCompact(annual.netIncome, financialCurrency)} · {formatRatioPercent(annual.profitMargin)}
                         </p>

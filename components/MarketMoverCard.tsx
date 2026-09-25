@@ -58,37 +58,37 @@ export function MarketMoverCard({ card, lastUpdated, loaded }: { card: MoverCard
             <card.Icon className="h-4 w-4" />
           </div>
           <div>
-            <h3 className="font-heading text-[13px] font-bold leading-tight tracking-tight text-tv-text max-w-[180px]">{card.title}</h3>
-            <span className={`mt-0.5 inline-flex rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${accent.bg} ${accent.text}`}>{card.sub}</span>
+            <h3 className="lens-card-title">{card.title}</h3>
+            <span className={`lens-eyebrow ${accent.text}`}>{card.sub}</span>
           </div>
         </div>
         <span className={`h-2 w-2 rounded-full ${accent.dot}`} />
       </div>
       <div className="mt-4 divide-y divide-tv-border/60 rounded-lg border border-tv-border/60 overflow-hidden">
         {card.items.length === 0 && (
-          <div className="bg-tv-card px-3 py-6 text-center text-[11px] text-tv-muted">
+          <div className="bg-tv-card px-3 py-6 text-center lens-caption">
             {loaded ? t('common.noData') : t('common.loading')}
           </div>
         )}
         {card.items.map((it, idx) => (
           <Link key={it.code} href={it.href} className="flex items-center justify-between gap-2 bg-tv-card px-3 py-[11px] hover:bg-tv-hover transition">
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="grid h-6 w-6 place-items-center rounded-full bg-tv-surface text-[10px] leading-none font-bold text-white shrink-0">{idx + 1}</span>
-              <span className="text-[12px] font-bold tracking-tight text-tv-text">{it.code}</span>
+              <span className="grid h-6 w-6 place-items-center rounded-full bg-tv-surface lens-eyebrow leading-none font-bold text-white shrink-0">{idx + 1}</span>
+              <span className="lens-label">{it.code}</span>
             </div>
             <div className="text-right shrink-0">
-              <div className={`text-[12px] font-bold tracking-tight flex items-center justify-end gap-1 font-number ${it.dir === 'down' ? 'text-tv-red' : it.dir === 'up' ? 'text-tv-green' : 'text-tv-text'}`}>
+              <div className="lens-label flex items-center justify-end gap-1 font-number">
                 {it.dir !== 'neutral' && <span className={`h-1 w-1 rounded-full ${it.dir === 'down' ? 'bg-tv-red' : 'bg-tv-green'}`} />}
                 {it.change}
               </div>
-              <div className="text-[10px] font-medium text-tv-muted">{it.value}</div>
+              <div className="lens-caption">{it.value}</div>
             </div>
           </Link>
         ))}
       </div>
       <div className="mt-3 flex items-center justify-between">
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-tv-muted">Data sesi {lastUpdated || 'tidak tersedia'} • IDX</span>
-        <Link href={card.listPath} className="inline-flex items-center gap-1 text-[11px] font-bold text-tv-blue hover:text-tv-text transition">
+        <span className="lens-caption">Data sesi {lastUpdated || 'tidak tersedia'} • IDX</span>
+        <Link href={card.listPath} className="inline-flex items-center gap-1 lens-label">
           {t('common.viewAll')} <ChevronRight className="h-3 w-3" />
         </Link>
       </div>

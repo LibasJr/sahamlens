@@ -85,7 +85,7 @@ export function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }:
         <div className="text-xs font-bold text-tv-text truncate">{sector}</div>
         {/* Dinyatakan apa adanya: ini rata-rata beberapa saham wakil, bukan indeks sektor
             resmi IDX (temuan M-3). */}
-        {sampleSize ? <div className="text-[10px] text-tv-muted">rata-rata {sampleSize} saham wakil</div> : null}
+        {sampleSize ? <div className="lens-caption">rata-rata {sampleSize} saham wakil</div> : null}
         {/* Angka % */}
         <div className="text-lg font-extrabold font-number text-tv-text flex items-center gap-1">
           {isUp ? (
@@ -114,7 +114,7 @@ export function HeatmapTile({ sector, changePct, stocks, sampleSize, onSelect }:
           </span>
         ))}
         {stocks?.length > 4 && (
-          <span className="text-[10px] text-tv-muted font-medium">+{stocks.length - 4} lainnya</span>
+          <span className="lens-caption">+{stocks.length - 4} lainnya</span>
         )}
       </div>
     </motion.button>
@@ -147,7 +147,7 @@ export function SectorDetailModal({ sector, onClose }: { sector: any; onClose: (
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <p className="px-4 pt-3 text-[10px] text-tv-muted leading-relaxed">
+        <p className="px-4 pt-3 lens-caption">
           {sector.sampleSize} saham wakil (kurasi manual, bukan seluruh emiten sektor ini - lihat catatan &quot;bukan indeks sektor resmi IDX&quot; di atas Heatmap).
         </p>
         <div className="p-4 pt-2 space-y-1.5 max-h-[50vh] overflow-y-auto">
@@ -209,13 +209,13 @@ export function BreadthDetailModal({ direction, stocks, onClose }: { direction: 
         <div className="flex items-center justify-between border-b border-tv-border px-4 py-3">
           <div>
             <h4 className="font-heading text-sm font-bold text-tv-text">{stocks.length} {detail.title}</h4>
-            <p className="mt-0.5 text-[10px] text-tv-muted">Snapshot quote yang sama dengan Market Breadth</p>
+            <p className="mt-0.5 lens-caption">Snapshot quote yang sama dengan Market Breadth</p>
           </div>
           <Button variant="bare" size="none" type="button" onClick={onClose} aria-label="Tutup daftar emiten" className="text-tv-muted transition-colors hover:text-tv-text">
             <X className="h-4 w-4" />
           </Button>
         </div>
-        <p className="px-4 pt-3 text-[10px] leading-relaxed text-tv-muted">{detail.description}</p>
+        <p className="px-4 pt-3 lens-caption">{detail.description}</p>
         <div className="max-h-[55vh] space-y-1.5 overflow-y-auto p-4 pt-2">
           {sortedStocks.map((stock) => (
             <motion.div key={stock.symbol} whileHover={{ scale: 1.015 }} whileTap={{ scale: 0.99 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}>
@@ -266,7 +266,7 @@ export function SectorNarrative({ sectors }: { sectors: { sector: string; change
 
   return (
     <div className="mt-3 pt-3 border-t border-tv-border">
-      <p className="text-[11px] leading-relaxed text-tv-muted">
+      <p className="text-sm leading-relaxed text-tv-muted">
         <span className="font-number font-semibold text-tv-green">{up}</span> dari{' '}
         <span className="font-number font-semibold text-tv-text">{valid.length}</span> sektor menguat. {mood}
       </p>
@@ -292,16 +292,16 @@ export function BreadthBar({ advancing, declining, unchanged, total }: any) {
         aria-label={`${advancing} saham naik, ${unchanged} stagnan, ${declining} turun, dari ${total} saham terpantau`}
       >
         <div className={`bg-tv-green transition-[width] duration-700 ease-settle flex items-center justify-center ${percentageWidthClass(advPct)}`}>
-          {advPct > 10 && <span className="text-[10px] font-number font-bold text-white">{advancing}</span>}
+          {advPct > 10 && <span className="lens-caption font-number font-bold text-white">{advancing}</span>}
         </div>
         <div className={`bg-tv-muted transition-[width] duration-700 ease-settle flex items-center justify-center ${percentageWidthClass(uncPct)}`}>
-          {uncPct > 10 && <span className="text-[10px] font-number font-bold text-white">{unchanged}</span>}
+          {uncPct > 10 && <span className="lens-caption font-number font-bold text-white">{unchanged}</span>}
         </div>
         <div className={`bg-tv-red transition-[width] duration-700 ease-settle flex items-center justify-center ${percentageWidthClass(decPct)}`}>
-          {decPct > 10 && <span className="text-[10px] font-number font-bold text-white">{declining}</span>}
+          {decPct > 10 && <span className="lens-caption font-number font-bold text-white">{declining}</span>}
         </div>
       </div>
-      <div className="flex justify-between text-[10px] font-number">
+      <div className="flex justify-between lens-caption font-number">
         <span className="text-tv-green">▲ Naik: {advancing} ({advPct.toFixed(0)}%)</span>
         <span className="text-tv-muted">— Stagnan: {unchanged}</span>
         <span className="text-tv-red">▼ Turun: {declining} ({decPct.toFixed(0)}%)</span>

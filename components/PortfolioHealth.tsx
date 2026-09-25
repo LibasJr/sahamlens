@@ -88,7 +88,7 @@ export default function PortfolioHealth({ watchlist }: { watchlist: WatchlistIte
           Skor heuristik: {Math.round(diversificationScore)}/100
         </Badge>
       </CardHeader>
-      <p className="px-5 pt-4 text-[10px] leading-relaxed text-tv-muted">
+      <p className="px-5 pt-4 lens-caption">
         Skor ini adalah heuristik konsentrasi posisi berdasarkan bobot nilai saat ini; bukan VaR, probabilitas rugi, atau rating risiko terkalibrasi.
       </p>
 

@@ -152,7 +152,7 @@ function RiskCalculatorContent() {
             </h3>
 
             <div>
-              <label className="text-[11px] text-tv-muted uppercase tracking-wide">Simbol Saham</label>
+              <label className="lens-label">Simbol Saham</label>
               <div className="flex gap-2 mt-1">
                 <SymbolAutocomplete
                   containerClassName="relative flex-1"
@@ -171,7 +171,7 @@ function RiskCalculatorContent() {
                 </Button>
               </div>
               {priceError && (
-                <p className="mt-1.5 flex items-start gap-1.5 text-[11px] text-tv-yellow">
+                <p className="mt-1.5 flex items-start gap-1.5 lens-caption">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
                   {priceError}
                 </p>
@@ -195,7 +195,7 @@ function RiskCalculatorContent() {
                 />
               </div>
               <div>
-                <label htmlFor="risk-pct-input" className="text-[11px] text-tv-muted uppercase tracking-wide">
+                <label htmlFor="risk-pct-input" className="lens-label">
                   {isEn ? 'Risk Per Trade (%)' : 'Risiko per Trade (%)'}
                 </label>
                 <div className="flex gap-1.5 mt-1">
@@ -209,7 +209,7 @@ function RiskCalculatorContent() {
                   <Button variant="bare" size="none"
                     type="button"
                     onClick={() => setRiskPct('1')}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${
+                    className={`px-2 py-1 rounded lens-label border transition-colors ${
                       riskPct === '1' ? 'bg-tv-green/20 border-tv-green text-tv-green' : 'bg-tv-bg border-tv-border text-tv-muted'
                     }`}
                   >
@@ -218,7 +218,7 @@ function RiskCalculatorContent() {
                   <Button variant="bare" size="none"
                     type="button"
                     onClick={() => setRiskPct('2')}
-                    className={`px-2 py-1 rounded text-[11px] font-bold border transition-colors ${
+                    className={`px-2 py-1 rounded lens-label border transition-colors ${
                       riskPct === '2' ? 'bg-tv-blue/20 border-tv-blue text-tv-blue' : 'bg-tv-bg border-tv-border text-tv-muted'
                     }`}
                   >
@@ -298,18 +298,18 @@ function RiskCalculatorContent() {
               <div className="space-y-3">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="p-3 rounded-lg bg-tv-bg border border-tv-border">
-                    <div className="text-[10px] text-tv-muted uppercase tracking-wide">Ukuran Posisi Maksimal</div>
+                    <div className="lens-caption">Ukuran Posisi Maksimal</div>
                     <div className="text-xl font-bold text-white font-number mt-1">
                       <AnimatedNumber value={finalLot} format={(n) => Math.round(n).toLocaleString('id-ID')} /> lot
                     </div>
-                    <div className="text-[10px] text-tv-muted mt-0.5">{finalShares.toLocaleString('id-ID')} lembar</div>
+                    <div className="lens-caption">{finalShares.toLocaleString('id-ID')} lembar</div>
                   </div>
                   <div className="p-3 rounded-lg bg-tv-bg border border-tv-border">
-                    <div className="text-[10px] text-tv-muted uppercase tracking-wide">Modal Dibutuhkan</div>
+                    <div className="lens-caption">Modal Dibutuhkan</div>
                     <div className="text-xl font-bold text-white font-number mt-1">
                       <AnimatedNumber value={capitalNeeded} format={fmtRp} />
                     </div>
-                    <div className="text-[10px] text-tv-muted mt-0.5">dari {fmtRp(modalNum)} tersedia</div>
+                    <div className="lens-caption">dari {fmtRp(modalNum)} tersedia</div>
                   </div>
                 </div>
 
@@ -321,12 +321,12 @@ function RiskCalculatorContent() {
                 )}
 
                 <div className="p-4 rounded-lg bg-tv-red/10 border border-tv-red/30">
-                  <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-tv-red">
+                  <div className="flex items-center gap-1.5 lens-eyebrow text-tv-red">
                     <TrendingDown className="w-3.5 h-3.5" /> Jika Kena Stop Loss
                   </div>
                   <div className="text-lg font-bold text-tv-red font-number mt-1">-{fmtRp(maxLossRp)} ({maxLossPct.toFixed(2)}% dari modal)</div>
                   {consecutiveLossesSurvivable != null && consecutiveLossesSurvivable > 0 && (
-                    <p className="mt-1.5 text-[11px] leading-relaxed text-tv-text/80">
+                    <p className="mt-1.5 lens-body-sm">
                       Pada ukuran ini, modal habis setelah{' '}
                       <span className="font-number font-semibold text-tv-red">{consecutiveLossesSurvivable}</span> kali kalah beruntun.
                       {consecutiveLossesSurvivable < 10 && ' Rentetan kalah 5-10 kali adalah hal biasa, bahkan pada strategi yang menguntungkan.'}
@@ -347,7 +347,7 @@ function RiskCalculatorContent() {
                   </div>
                 ) : rewardPerShare != null && (
                   <div className="p-4 rounded-lg bg-tv-green/10 border border-tv-green/30">
-                    <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-tv-green">
+                    <div className="flex items-center gap-1.5 lens-eyebrow text-tv-green">
                       <TrendingUp className="w-3.5 h-3.5" /> Jika Kena Target
                     </div>
                     <div className="text-lg font-bold text-tv-green font-number mt-1">
@@ -359,15 +359,15 @@ function RiskCalculatorContent() {
                 {riskRewardRatio != null && riskRewardRatio > 0 && (
                   <div className="p-3 rounded-lg bg-tv-hover border border-tv-borderLight">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs text-tv-muted">Risk/Reward Ratio</span>
-                      <span className={`text-sm font-bold font-number ${riskRewardRatio >= 2 ? 'text-tv-green' : riskRewardRatio >= 1 ? 'text-tv-yellow' : 'text-tv-red'}`}>
+                      <span className="lens-label">Risk/Reward Ratio</span>
+                      <span className={`lens-label font-number ${riskRewardRatio >= 2 ? 'text-tv-green' : riskRewardRatio >= 1 ? 'text-tv-yellow' : 'text-tv-red'}`}>
                         1 : {riskRewardRatio.toFixed(2)}
                       </span>
                     </div>
                     {/* Storytelling: rasio itu sendiri tidak memberi tahu apa pun sampai
                         diterjemahkan jadi syarat yang harus dipenuhi. */}
                     {breakevenWinRatePct != null && (
-                      <p className="mt-2 pt-2 border-t border-tv-border text-[11px] leading-relaxed text-tv-muted">
+                      <p className="mt-2 pt-2 border-t border-tv-border lens-body-sm">
                         Dengan rasio ini, kamu perlu menang minimal{' '}
                         <span className="font-number font-semibold text-tv-text">{breakevenWinRatePct.toFixed(0)}%</span>{' '}
                         dari seluruh trade hanya untuk impas - belum termasuk fee dan slippage.

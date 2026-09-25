@@ -70,7 +70,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
           <div>
             <CardTitle className="text-base font-bold text-tv-text flex items-center gap-2">
               Kalkulator Position Sizing ({cleanTicker})
-              <Badge variant="success" className="text-[10px] py-0.5 px-2">Anti-Habis Modal</Badge>
+              <Badge variant="success" className="lens-caption">Anti-Habis Modal</Badge>
             </CardTitle>
             <p className="text-xs text-tv-muted">
               Hitung batas aman jumlah lot agar risiko per trade terkunci di {riskPct}% modal
@@ -125,7 +125,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
                   key={p}
                   type="button"
                   onClick={() => setCapital(p)}
-                  className={`px-2 py-1 rounded-lg text-[10px] font-bold font-number transition-all ${
+                  className={`px-2 py-1 rounded-lg lens-label font-number transition-all ${
                     capital === p
                       ? 'bg-tv-blue/20 text-tv-blue border border-tv-blue/40 shadow-sm'
                       : 'bg-tv-hover text-tv-muted hover:text-tv-text border border-tv-border'
@@ -186,7 +186,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
         <div className="lg:col-span-7 flex flex-col justify-between space-y-4">
           {/* Main Execution Recommendation Box */}
           <div className="p-4 rounded-2xl bg-gradient-to-br from-tv-green/15 via-tv-green/5 to-transparent border border-tv-green/30 shadow-lg">
-            <div className="text-[11px] font-bold text-tv-green uppercase tracking-wider mb-1">
+            <div className="lens-eyebrow font-bold text-tv-green mb-1">
               {t('common.maxPositionRec')}
             </div>
             <div className="flex items-baseline gap-3 flex-wrap">
@@ -219,7 +219,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
               <div className="text-base font-bold text-tv-text font-number">
                 -{formatRupiah(result.actualRiskLossIdr)}
               </div>
-              <div className="text-[10px] text-tv-muted mt-0.5">
+              <div className="lens-meta text-tv-muted mt-0.5">
                 Modal tersisa: {formatRupiah(Math.max(0, capital - result.actualRiskLossIdr))} ({100 - result.actualRiskLossPct}%)
               </div>
             </div>
@@ -234,7 +234,7 @@ ${takeProfit1Price ? `• Take Profit 1: Rp ${takeProfit1Price.toLocaleString('i
                 <div className="text-base font-bold text-emerald-600 dark:text-emerald-300 font-number">
                   +{formatRupiah(result.reward1Idr)}
                 </div>
-                <div className="text-[10px] text-tv-muted mt-0.5">
+                <div className="lens-meta text-tv-muted mt-0.5">
                   Estimasi profit +{result.reward1Pct}% dari modal posisi
                 </div>
               </div>
