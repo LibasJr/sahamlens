@@ -1,4 +1,8 @@
 import { pool } from '@/shared/database/postgres.client';
+import { logger } from '@/shared/logger/logger';
+import { buildHealthUpsert } from './data-source-health.sql';
+
+export { DOWN_AFTER_CONSECUTIVE_FAILURES } from './data-source-health.sql';
 
 export type DataSourceHealthStatus = 'HEALTHY' | 'DEGRADED' | 'DOWN' | 'UNKNOWN';
 export interface DataSourceHealthRow {
@@ -13,7 +17,6 @@ export interface DataSourceHealthRow {
   updatedAt: string;
 }
 
-const DOWN_AFTER_CONSECUTIVE_FAILURES = 3;
 const globalState = globalThis as unknown as { __sourceHealthWriteAt?: Map<string, number> };
 const lastWrite = globalState.__sourceHealthWriteAt ?? (globalState.__sourceHealthWriteAt = new Map());
 
@@ -38,46 +41,19 @@ export async function recordDataSourceHealth(input: {
   if (!input.force && now - (lastWrite.get(key) ?? 0) < 5 * 60_000) return;
   lastWrite.set(key, now);
 
+  const { text, values } = buildHealthUpsert(input);
   try {
-    await pool.query(
-      `INSERT INTO data_source_health
-       (source_id,status,last_success_at,last_failure_at,last_latency_ms,consecutive_failures,data_observed_at,detail,updated_at)
-       VALUES(
-         $1,
-         CASE WHEN $3 THEN 'HEALTHY' ELSE 'DEGRADED' END,
-         CASE WHEN $3 THEN now() END,
-         CASE WHEN NOT $3 THEN now() END,
-         $4,
-         CASE WHEN $3 THEN 0 ELSE 1 END,
-         $5,
-         $6::jsonb,
-         now()
-       )
-       ON CONFLICT(source_id) DO UPDATE SET
-         status=CASE
-           WHEN $3 THEN 'HEALTHY'
-           WHEN data_source_health.consecutive_failures + 1 >= $7 THEN 'DOWN'
-           ELSE 'DEGRADED'
-         END,
-         last_success_at=CASE WHEN $3 THEN now() ELSE data_source_health.last_success_at END,
-         last_failure_at=CASE WHEN NOT $3 THEN now() ELSE data_source_health.last_failure_at END,
-         last_latency_ms=EXCLUDED.last_latency_ms,
-         consecutive_failures=CASE WHEN $3 THEN 0 ELSE data_source_health.consecutive_failures + 1 END,
-         data_observed_at=COALESCE(EXCLUDED.data_observed_at,data_source_health.data_observed_at),
-         detail=EXCLUDED.detail,
-         updated_at=now()`,
-      [
-        input.sourceId,
-        input.ok ? 'HEALTHY' : 'DEGRADED',
-        input.ok,
-        input.latencyMs ?? null,
-        input.dataObservedAt ?? null,
-        JSON.stringify(input.detail ?? {}),
-        DOWN_AFTER_CONSECUTIVE_FAILURES,
-      ],
-    );
-  } catch {
-    // Migration/DB health logging is observability, not a dependency of the operation.
+    await pool.query(text, values);
+  } catch (error) {
+    // Telemetri tidak boleh menghentikan operasi, tetapi juga TIDAK BOLEH senyap:
+    // bug 2026-09-25 (parameter $2 tak dipakai -> Postgres 42P18) membuat tabel
+    // data_source_health berhenti terisi berbulan-bulan tanpa satu pun tanda.
+    logger.warn('data_source_health gagal ditulis', {
+      sourceId: input.sourceId,
+      ok: input.ok,
+      code: (error as { code?: string } | null)?.code ?? null,
+      message: error instanceof Error ? error.message : String(error),
+    });
   }
 }
 
