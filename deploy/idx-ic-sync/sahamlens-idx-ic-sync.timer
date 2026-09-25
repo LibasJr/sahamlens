@@ -16,6 +16,10 @@
 Description=Jadwal SahamLens - sinkron klasifikasi IDX-IC dari daftar resmi BEI
 
 [Timer]
+# Menumpang templat systemd yang sudah ada (rute /api/cron/idx-ic-sync dijalankan lewat
+# /usr/local/bin/sahamlens-cron.mjs) - tanpa baris Unit= berikut, systemd mencari
+# sahamlens-idx-ic-sync.service yang tidak ada dan timer menolak menyala.
+Unit=sahamlens-cron@idx-ic-sync.service
 OnCalendar=Mon *-*-* 07:30:00 Asia/Jakarta
 Persistent=true
 RandomizedDelaySec=600
