@@ -144,6 +144,26 @@ export function PriceChartBlock({
   const dasarVolume = TINGGI_VIEWBOX;
   const awal = bars[0].time;
   const akhir = bars[bars.length - 1].time;
+  /** Label level digeser supaya tidak saling menimpa; garisnya tetap di harga sebenarnya. */
+  const JARAK_LABEL = 15;
+  const labelLevel = nilaiLevel
+    .map((level) => ({ ...level, y: Math.min(Math.max(skalaY(level.value) - 4, 11), tinggiHarga - 4) }))
+    .sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labelLevel.length; i += 1) {
+    if (labelLevel[i].y - labelLevel[i - 1].y < JARAK_LABEL) {
+      labelLevel[i].y = labelLevel[i - 1].y + JARAK_LABEL;
+    }
+  }
+  for (let i = labelLevel.length - 1; i >= 0; i -= 1) {
+    const batasBawah = tinggiHarga - 4;
+    if (labelLevel[i].y > batasBawah) {
+      labelLevel[i].y = batasBawah;
+      if (i > 0 && labelLevel[i].y - labelLevel[i - 1].y < JARAK_LABEL) {
+        labelLevel[i - 1].y = labelLevel[i].y - JARAK_LABEL;
+      }
+    }
+  }
+
   const warnaLevel = (tone: PriceLevel['tone']) => (tone === 'bull' ? BULL : tone === 'bear' ? BEAR : tone === 'neutral' ? INK_3 : accent);
 
   return (
@@ -174,7 +194,7 @@ export function PriceChartBlock({
         <line x1={0} y1={skalaY(terendah)} x2={PLOT_W} y2={skalaY(terendah)} stroke={RULE_SOFT} strokeWidth={1} />
 
         {/* Garis bantu level */}
-        {nilaiLevel.map((level) => {
+        {labelLevel.map((level, index) => {
           const y = skalaY(level.value);
           return (
             <g key={`${level.label}-${level.value}`}>
@@ -189,7 +209,7 @@ export function PriceChartBlock({
               />
               <text
                 x={PLOT_W - 8}
-                y={Math.min(Math.max(y - 4, 11), tinggiHarga - 4)}
+                y={labelLevel[index].y}
                 textAnchor="end"
                 fontSize={12}
                 fill={warnaLevel(level.tone)}
