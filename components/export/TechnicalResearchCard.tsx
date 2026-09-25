@@ -285,7 +285,7 @@ export default function TechnicalResearchCard({
           <div style={{ paddingTop: 18, paddingBottom: 18 }}>
             <SectionTitle
               accent={accent}
-              note="Garis putus-putus adalah level pivot yang berada di dalam rentang gambar"
+              note="Garis putus-putus = level pivot di dalam rentang gambar"
             >
               Grafik Harga Harian
             </SectionTitle>

@@ -14,7 +14,7 @@
  */
 
 import React from 'react';
-import { Absent, BEAR, BULL, INK_3, RULE, RULE_SOFT } from './research-paper';
+import { Absent, BEAR, BULL, INK_3, RULE, RULE_SOFT, SHEET } from './research-paper';
 
 export interface PriceCandle {
   time: string;
@@ -103,7 +103,7 @@ export function siapkanCandle(history: PriceCandle[] | null | undefined, session
 export function PriceChartBlock({
   history,
   accent,
-  title = 'Grafik Harga Harian',
+  title,
   sessions = 90,
   levels = [],
   sourceNote,
@@ -118,13 +118,12 @@ export function PriceChartBlock({
     );
   }
 
-  // Sumbu harga dihitung HANYA dari candle yang digambar. Level di luar rentang itu
-  // dibuang, bukan dipaksa masuk: satu level jauh (mis. batas 52 minggu) akan menekan
-  // seluruh candle menjadi garis datar dan justru menyembunyikan pergerakan yang ingin
-  // diperlihatkan grafik ini.
-  const hargaCandle = bars.flatMap((bar) => [bar.high, bar.low]);
-  const tertinggi = Math.max(...hargaCandle);
-  const terendah = Math.min(...hargaCandle);
+  // Sumbu harga dihitung HANYA dari candle yang digambar, lalu level di luar rentang itu
+  // dibuang - bukan dipaksa ikut. Satu level jauh (mis. batas 52 minggu di luar jendela
+  // gambar) akan menekan seluruh candle menjadi garis datar dan menyembunyikan pergerakan
+  // yang justru sedang diperlihatkan.
+  const tertinggi = Math.max(...bars.map((bar) => bar.high));
+  const terendah = Math.min(...bars.map((bar) => bar.low));
   const nilaiLevel = levels.filter(
     (level) => sah(level.value) && level.value >= terendah && level.value <= tertinggi,
   );
@@ -143,9 +142,13 @@ export function PriceChartBlock({
   return (
     <div>
       <div className="flex items-baseline justify-between" style={{ marginBottom: 6 }}>
-        <span className="uppercase font-bold" style={{ color: INK_3, fontSize: 10.5, letterSpacing: '0.14em' }}>
-          {title}
-        </span>
+        {title ? (
+          <span className="uppercase font-bold" style={{ color: INK_3, fontSize: 10.5, letterSpacing: '0.14em' }}>
+            {title}
+          </span>
+        ) : (
+          <span />
+        )}
         <span className="font-number" style={{ color: INK_3, fontSize: 10.5 }}>
           {bars.length} sesi · {awal} → {akhir}
         </span>
@@ -177,12 +180,43 @@ export function PriceChartBlock({
                 strokeWidth={1}
                 strokeDasharray="4 4"
               />
-              <text x={PLOT_W + 6} y={y + 3.5} fontSize={11} fill={warnaLevel(level.tone)} className="font-number">
+              <text
+                x={PLOT_W - 8}
+                y={Math.min(Math.max(y - 4, 11), PRICE_H - 4)}
+                textAnchor="end"
+                fontSize={12}
+                fill={warnaLevel(level.tone)}
+                stroke={SHEET}
+                strokeWidth={3}
+                paintOrder="stroke"
+                className="font-number"
+              >
                 {level.label} {angka(level.value)}
               </text>
             </g>
           );
         })}
+
+        {/* Garis harga terakhir - pembaca bisa langsung melihat harga kini terhadap level */}
+        {bars.length > 0 && (
+          <g data-last-price={bars[bars.length - 1].close}>
+            <line
+              x1={0}
+              y1={skalaY(bars[bars.length - 1].close)}
+              x2={PLOT_W}
+              y2={skalaY(bars[bars.length - 1].close)}
+              stroke={accent}
+              strokeWidth={1.6}
+              strokeDasharray="1 3"
+            />
+            <circle
+              cx={PLOT_W}
+              cy={skalaY(bars[bars.length - 1].close)}
+              r={3.2}
+              fill={accent}
+            />
+          </g>
+        )}
 
         {/* Label sumbu harga */}
         <text x={PLOT_W + 6} y={skalaY(tertinggi) + 3.5} fontSize={11} fill={INK_3} className="font-number">
@@ -205,7 +239,7 @@ export function PriceChartBlock({
               width={lebarBadan}
               height={tinggi}
               fill={bar.close >= bar.open ? BULL : BEAR}
-              opacity={0.32}
+              opacity={0.45}
             />
           );
         })}
@@ -219,7 +253,7 @@ export function PriceChartBlock({
           const tinggiBadan = Math.max(1.4, Math.abs(skalaY(bar.close) - skalaY(bar.open)));
           return (
             <g key={`c-${bar.time}`} data-candle={bar.time}>
-              <line x1={tengah} y1={skalaY(bar.high)} x2={tengah} y2={skalaY(bar.low)} stroke={warna} strokeWidth={1} />
+              <line x1={tengah} y1={skalaY(bar.high)} x2={tengah} y2={skalaY(bar.low)} stroke={warna} strokeWidth={1.4} />
               <rect
                 x={tengah - lebarBadan / 2}
                 y={yBadan}

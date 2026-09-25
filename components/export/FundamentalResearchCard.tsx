@@ -327,7 +327,7 @@ export default function FundamentalResearchCard({
       {/* 1b. GRAFIK HARGA ──────────────────────────────────────────────── */}
       {priceHistory.length > 0 && (
         <div style={{ paddingTop: 18, paddingBottom: 18 }}>
-          <SectionTitle accent={accent} note="Garis putus-putus adalah nilai wajar (DCF) bila berada di dalam rentang gambar">
+          <SectionTitle accent={accent} note="Garis putus-putus = nilai wajar (DCF) di dalam rentang gambar">
             Grafik Harga Harian
           </SectionTitle>
           <PriceChartBlock history={priceHistory} accent={accent} levels={levelGrafik} />
