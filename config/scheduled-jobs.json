@@ -177,6 +177,13 @@
       "schedule": "10 8 * * 1",
       "scheduleStatus": "known",
       "source": "BARU 2026-09-25. RISK_FREE_RATE_PCT sebelumnya diisi MANUAL dari Monetary Brief DEN (nilai terakhir 7,29% Juli 2026, tidak ada rilis pengganti). Sekarang scripts/sync-sbn-riskfree-official.py menarik berkas RESMI DJPPR Kementerian Keuangan (Daftar Kuotasi Harga SUN Seri Benchmark Mingguan) dan mencatat yield 10Y benchmark sebagai bukti makro; timer systemd mingguan Senin 08:10 WIB."
+    },
+    {
+      "path": "/api/cron/macro-evidence-sync",
+      "provider": "systemd",
+      "schedule": "20 8 1 * *",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-09-25. Dua input makro yang sebelumnya MANUAL: EQUITY_RISK_PREMIUM_PCT (dataset negara Damodaran, edisi Januari/Juli) dan INFLATION_TARGET_MID/UPPER_PCT (sasaran inflasi Bank Indonesia). Skrip menarik berkas resmi apa adanya dan menolak angka cadangan; sasaran inflasi diverifikasi ulang dari halaman resmi bi.go.id dan baris baru hanya ditulis bila angka resminya berubah. Timer bulanan tanggal 1 pukul 08:20 WIB."
     }
   ]
 }

@@ -1,0 +1,21 @@
+# /etc/systemd/system/sahamlens-macro-evidence-sync.timer
+#
+# BULANAN tanggal 1 pukul 08:20 WIB. Dua bukti makro resmi yang sebelumnya MANUAL:
+#   1. EQUITY_RISK_PREMIUM_PCT - dataset negara Damodaran (edisi Januari & Juli, tahunan).
+#   2. INFLATION_TARGET_MID/UPPER_PCT - sasaran inflasi Bank Indonesia (diumumkan tahunan);
+#      skrip memverifikasi ulang halaman resmi yang tercatat dan menulis baris baru HANYA
+#      bila angka resminya berubah.
+# Bulanan dipilih karena berkas resminya terbit beberapa kali setahun: cukup rapat untuk
+# menangkap terbitan baru, cukup jarang untuk tidak membebani situs sumber.
+[Unit]
+Description=SahamLens - tarik bukti makro resmi (ERP Damodaran, sasaran inflasi BI)
+Documentation=https://pages.stern.nyu.edu/~adamodar/New_Home_Page/datacurrent.html
+
+[Timer]
+Unit=sahamlens-cron@macro-evidence-sync.service
+OnCalendar=*-*-01 08:20:00 Asia/Jakarta
+Persistent=true
+AccuracySec=1m
+
+[Install]
+WantedBy=timers.target

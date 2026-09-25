@@ -4,6 +4,7 @@ const job = process.argv[2];
 
 const allowed = new Set([
   "sbn-riskfree-sync",
+  "macro-evidence-sync",
   "idx-ic-sync",
   "lens-bucket-backtest",
   "lens-score-optimizer",
