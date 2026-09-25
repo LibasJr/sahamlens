@@ -184,6 +184,13 @@
       "schedule": "20 8 1 * *",
       "scheduleStatus": "known",
       "source": "BARU 2026-09-25. Dua input makro yang sebelumnya MANUAL: EQUITY_RISK_PREMIUM_PCT (dataset negara Damodaran, edisi Januari/Juli) dan INFLATION_TARGET_MID/UPPER_PCT (sasaran inflasi Bank Indonesia). Skrip menarik berkas resmi apa adanya dan menolak angka cadangan; sasaran inflasi diverifikasi ulang dari halaman resmi bi.go.id dan baris baru hanya ditulis bila angka resminya berubah. Timer bulanan tanggal 1 pukul 08:20 WIB."
+    },
+    {
+      "path": "/api/cron/research-refresh",
+      "provider": "systemd",
+      "schedule": "Sat 05:30 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-09-25. Bukti validasi 'Uji Target & Cut Loss' dan 'Uji Intraday' hanya bisa dijalankan dari tombol panel admin, sehingga membeku tanpa alarm: TP/CL terakhir 2026-08-30, uji intraday terakhir 2026-09-13, sementara pengumpul datanya jalan tiap hari. Rute ini memicu ULANG mesin validasi yang sudah ada (protokol beku, ambang dan bobot tidak diubah) hanya bila hasil terakhir lebih tua dari 7 hari dan tidak ada run yang sedang aktif. Timer systemd Sabtu 05:30 WIB, sesudah pengumpulan data Jumat."
     }
   ]
 }
