@@ -73,7 +73,12 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // (components/export/PriceChartBlock.tsx + pemasangannya di kartu Teknikal & Fundamental).
 // Build CI branch ini terukur 6.093 KB - pertumbuhan 4 KB, tanpa pustaka chart baru (grafik
 // digambar sebagai SVG biasa), seluruhnya di chunk rute admin. Kepala ruang 3 KB.
-const TOTAL_BUDGET_KB = 6_096;
+// Dinaikkan 6.096 -> 6.103 KB pada 2026-09-26 untuk mode kartu Grafik & Analisa: satu
+// komponen kartu halaman 9:16 baru (components/export/ChartAnalysisCard.tsx) dan prop
+// tinggiHarga/tinggiVolume pada PriceChartBlock. Build CI terukur 6.100 KB dari anggaran
+// 6.096 KB - pertumbuhan 4 KB seluruhnya pada chunk rute admin /admin/infographic-studio.
+// Kepala ruang 3 KB dipertahankan sebagai ratchet.
+const TOTAL_BUDGET_KB = 6_103;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri

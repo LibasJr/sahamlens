@@ -12,6 +12,7 @@ import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import TechnicalResearchCard from '@/components/export/TechnicalResearchCard';
 import FundamentalResearchCard from '@/components/export/FundamentalResearchCard';
 import InvestmentSnapshot360Card from '@/components/export/InvestmentSnapshot360Card';
+import ChartAnalysisCard from '@/components/export/ChartAnalysisCard';
 import {
   Card3DTheme,
   THEME_MENU,
@@ -33,7 +34,7 @@ import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { TICKERS } from '@/lib/tickers';
 import { apiRequest } from '@/shared/http/api-client';
 
-type StudioCardMode = 'snapshot_360' | 'technical' | 'fundamental_moat_earnings';
+type StudioCardMode = 'snapshot_360' | 'technical' | 'fundamental_moat_earnings' | 'chart_analysis';
 
 const POPULAR_TICKERS = ['BBCA', 'BBRI', 'BMRI', 'TLKM', 'ASII', 'ITMG', 'BREN', 'UNVR', 'ICBP'];
 
@@ -304,7 +305,9 @@ export default function InfographicStudioClient() {
         ? 'Investment-Snapshot-360'
         : cardMode === 'technical'
           ? 'Technical-Research'
-          : 'Fundamental-Research';
+          : cardMode === 'chart_analysis'
+            ? 'Grafik-Analisa-9x16'
+            : 'Fundamental-Research';
 
       // Kartu dirender 2x lalu dikecilkan ke kanvas preset: teks tetap tajam, ukuran berkas
       // tetap sama berapa pun tinggi isi kartu, dan tidak ada bagian kartu yang terpotong
@@ -503,18 +506,23 @@ export default function InfographicStudioClient() {
         </Card>
 
         <div className="mb-6 rounded-2xl border border-white/[0.08] bg-[#080d18] p-4 shadow-lg">
-          <div className="grid gap-3 lg:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-4">
             {[
               { id: 'snapshot_360' as const, icon: Layers, title: 'Snapshot 360°', note: 'Keputusan cepat & risiko' },
               { id: 'technical' as const, icon: LineChart, title: 'Teknikal', note: 'Timing, level & arus dana' },
               { id: 'fundamental_moat_earnings' as const, icon: Landmark, title: 'Fundamental', note: 'Kualitas, valuasi & earnings' },
+              { id: 'chart_analysis' as const, icon: LineChart, title: 'Grafik & Analisa', note: 'Halaman 9:16, grafik besar' },
             ].map(({ id, icon: Icon, title, note }) => (
               <Button
                 key={id}
                 variant="bare"
                 size="none"
                 type="button"
-                onClick={() => setCardMode(id)}
+                onClick={() => {
+                  setCardMode(id);
+                  // Halaman ini disusun pada ukuran 9:16 asli, jadi presetnya dipilihkan.
+                  if (id === 'chart_analysis') setExportPreset('tiktok_9x16');
+                }}
                 className={`flex min-h-16 items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
                   cardMode === id
                     ? 'border-[#828fff]/60 bg-[#5e6ad2]/20 text-white'
@@ -603,7 +611,9 @@ export default function InfographicStudioClient() {
                   ? 'Investment Snapshot 360°'
                   : cardMode === 'technical'
                     ? 'Catatan Teknikal & Smart Money'
-                    : 'Catatan Fundamental, Moat & Earnings'}
+                    : cardMode === 'chart_analysis'
+                      ? 'Grafik & Analisa 9:16'
+                      : 'Catatan Fundamental, Moat & Earnings'}
               </span>
               <span className="hidden md:inline lens-caption text-slate-400">
                 • Aksen laporan: <b className={activeTheme.accentText}>{activeTheme.sectorLabel}</b>
@@ -686,6 +696,26 @@ export default function InfographicStudioClient() {
                       patternAsOf={data.technical.patternAsOf}
                       flowDetails={data.technical.flowDetails}
                       priceHistory={data.stock.history}
+                      theme={activeTheme}
+                      exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
+                    />
+                  ) : cardMode === 'chart_analysis' ? (
+                    <ChartAnalysisCard
+                      symbol={data.symbol}
+                      stockName={data.stock.name}
+                      currentPrice={data.stock.current_price}
+                      changePct={data.stock.change_pct}
+                      volume={data.stock.volume}
+                      priceHistory={data.stock.history}
+                      score={data.technical.score}
+                      consensusLabel={data.technical.consensusLabel}
+                      consensusTone={data.technical.consensusTone}
+                      pivots={data.technical.pivots}
+                      range52w={data.technical.range52w}
+                      trends={data.technical.trends}
+                      patterns={data.technical.patterns}
+                      patternAsOf={data.technical.patternAsOf}
+                      tradingPlan={data.technical.tradingPlan}
                       theme={activeTheme}
                       exportedAt={data.dataTimestamp ? new Date(data.dataTimestamp) : new Date()}
                     />
