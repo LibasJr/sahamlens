@@ -103,6 +103,13 @@ describe('PriceChartBlock', () => {
     expect(hasil[0].time).toBe('2026-01-01');
   });
 
+  it('menandai harga terakhir supaya posisi kini terbaca terhadap level', () => {
+    const history = deretUji(30);
+    const markah = renderToStaticMarkup(<PriceChartBlock history={history} accent={ACCENT} />);
+    const terakhir = history[history.length - 1].close as number;
+    expect(markah).toContain(`data-last-price="${terakhir}"`);
+  });
+
   it('tidak menghasilkan angka rusak (NaN/Infinity) pada gambar', () => {
     const markah = renderToStaticMarkup(<PriceChartBlock history={deretUji(120)} accent={ACCENT} />);
     expect(markah).not.toMatch(/NaN|Infinity/);
@@ -115,7 +122,9 @@ describe('PriceChartBlock', () => {
     const batasLuar = tertinggi + 5_000;
 
     const tanpaLevel = renderToStaticMarkup(<PriceChartBlock history={history} accent="#1B3A6B" />);
-    expect(tanpaLevel).not.toContain('stroke-dasharray');
+    // Garis harga terakhir memang putus-putus; yang harus tidak ada adalah garis LEVEL ("4 4").
+    expect(tanpaLevel).not.toContain('stroke-dasharray="4 4"');
+    expect(tanpaLevel).toContain('data-last-price');
 
     const denganLevel = renderToStaticMarkup(
       <PriceChartBlock
@@ -130,9 +139,14 @@ describe('PriceChartBlock', () => {
         ]}
       />,
     );
-    expect(denganLevel.match(/stroke-dasharray/g) ?? []).toHaveLength(2);
+    // Hanya garis level yang putus-putus "4 4"; garis harga terakhir polanya beda.
+    expect(denganLevel.match(/stroke-dasharray="4 4"/g) ?? []).toHaveLength(2);
     expect(denganLevel).toContain(`S1 ${angkaBulu(terendah + 25)}`);
     expect(denganLevel).toContain(`R1 ${angkaBulu(tertinggi - 25)}`);
+    // Label level ditulis di DALAM area gambar (rata kanan) supaya tidak bertabrakan dengan
+    // label sumbu harga di selokan kanan.
+    expect(denganLevel).toContain('text-anchor="end"');
+    expect(denganLevel).toContain('paint-order="stroke"');
     expect(denganLevel).not.toContain('52m tertinggi');
 
     // Sumbu tetap mengikuti candle, bukan level di luar rentang.
