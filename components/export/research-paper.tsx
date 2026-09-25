@@ -40,6 +40,11 @@ export const ACCENT_BY_THEME: Record<string, string> = {
   'ruby-health': '#A02531',
   'tokyo-neon': '#463683',
   'obsidian-cyber': '#1D4A54',
+  // Tema konten (bukan sektor): kontrasnya diuji di card-3d-themes.test.ts terhadap PAPER
+  // dan SHEET, jadi tema baru tidak bisa lolos dengan aksen yang tidak terbaca di kertas.
+  'bloomberg-amber': '#8A5A00',
+  'breaking-news': '#B3121B',
+  'regulator-navy': '#123A63',
 };
 
 export const SERIF = "Georgia, 'Iowan Old Style', 'Source Serif Pro', 'Times New Roman', serif";
