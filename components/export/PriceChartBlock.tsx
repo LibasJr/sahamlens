@@ -42,14 +42,18 @@ export interface PriceChartBlockProps {
   levels?: PriceLevel[];
   /** Keterangan asal data pada baris bawah grafik. */
   sourceNote?: string;
+  /** Tinggi area harga (satuan viewBox). Halaman 9:16 memakai nilai besar. */
+  tinggiHarga?: number;
+  /** Tinggi area volume (satuan viewBox). */
+  tinggiVolume?: number;
 }
 
 const SESSION_MINIMUM = 5;
 const VIEW_W = 1000;
-const PRICE_H = 168;
+const TINGGI_HARGA_BAWAAN = 168;
 const GAP = 14;
-const VOL_H = 40;
-const TOTAL_H = PRICE_H + GAP + VOL_H;
+const TINGGI_VOLUME_BAWAAN = 40;
+const TINGGI_VIEWBOX_BAWAAN = TINGGI_HARGA_BAWAAN + GAP + TINGGI_VOLUME_BAWAAN;
 const GUTTER = 78;
 const PLOT_W = VIEW_W - GUTTER;
 
@@ -105,6 +109,8 @@ export function PriceChartBlock({
   accent,
   title,
   sessions = 90,
+  tinggiHarga = TINGGI_HARGA_BAWAAN,
+  tinggiVolume = TINGGI_VOLUME_BAWAAN,
   levels = [],
   sourceNote,
 }: PriceChartBlockProps) {
@@ -128,15 +134,36 @@ export function PriceChartBlock({
     (level) => sah(level.value) && level.value >= terendah && level.value <= tertinggi,
   );
   const rentang = tertinggi - terendah || 1;
-  const tinggiPlot = PRICE_H - 8;
+  const TINGGI_VIEWBOX = tinggiHarga + GAP + tinggiVolume;
+  const tinggiPlot = tinggiHarga - 8;
   const skalaY = (harga: number) => 4 + (1 - (harga - terendah) / rentang) * tinggiPlot;
 
   const langkah = PLOT_W / bars.length;
   const lebarBadan = Math.max(1.2, Math.min(9, langkah * 0.62));
   const volumeTertinggi = Math.max(...bars.map((bar) => bar.volume ?? 0));
-  const dasarVolume = TOTAL_H;
+  const dasarVolume = TINGGI_VIEWBOX;
   const awal = bars[0].time;
   const akhir = bars[bars.length - 1].time;
+  /** Label level digeser supaya tidak saling menimpa; garisnya tetap di harga sebenarnya. */
+  const JARAK_LABEL = 15;
+  const labelLevel = nilaiLevel
+    .map((level) => ({ ...level, y: Math.min(Math.max(skalaY(level.value) - 4, 11), tinggiHarga - 4) }))
+    .sort((a, b) => a.y - b.y);
+  for (let i = 1; i < labelLevel.length; i += 1) {
+    if (labelLevel[i].y - labelLevel[i - 1].y < JARAK_LABEL) {
+      labelLevel[i].y = labelLevel[i - 1].y + JARAK_LABEL;
+    }
+  }
+  for (let i = labelLevel.length - 1; i >= 0; i -= 1) {
+    const batasBawah = tinggiHarga - 4;
+    if (labelLevel[i].y > batasBawah) {
+      labelLevel[i].y = batasBawah;
+      if (i > 0 && labelLevel[i].y - labelLevel[i - 1].y < JARAK_LABEL) {
+        labelLevel[i - 1].y = labelLevel[i].y - JARAK_LABEL;
+      }
+    }
+  }
+
   const warnaLevel = (tone: PriceLevel['tone']) => (tone === 'bull' ? BULL : tone === 'bear' ? BEAR : tone === 'neutral' ? INK_3 : accent);
 
   return (
@@ -155,9 +182,9 @@ export function PriceChartBlock({
       </div>
 
       <svg
-        viewBox={`0 0 ${VIEW_W} ${TOTAL_H}`}
+        viewBox={`0 0 ${VIEW_W} ${TINGGI_VIEWBOX}`}
         width="100%"
-        height={TOTAL_H}
+        height={TINGGI_VIEWBOX}
         role="img"
         aria-label={`Grafik harga harian ${awal} sampai ${akhir}, ${bars.length} sesi`}
         style={{ display: 'block' }}
@@ -167,7 +194,7 @@ export function PriceChartBlock({
         <line x1={0} y1={skalaY(terendah)} x2={PLOT_W} y2={skalaY(terendah)} stroke={RULE_SOFT} strokeWidth={1} />
 
         {/* Garis bantu level */}
-        {nilaiLevel.map((level) => {
+        {labelLevel.map((level, index) => {
           const y = skalaY(level.value);
           return (
             <g key={`${level.label}-${level.value}`}>
@@ -182,7 +209,7 @@ export function PriceChartBlock({
               />
               <text
                 x={PLOT_W - 8}
-                y={Math.min(Math.max(y - 4, 11), PRICE_H - 4)}
+                y={labelLevel[index].y}
                 textAnchor="end"
                 fontSize={12}
                 fill={warnaLevel(level.tone)}
@@ -229,7 +256,7 @@ export function PriceChartBlock({
         {/* Batang volume */}
         {bars.map((bar, index) => {
           if (bar.volume == null || volumeTertinggi <= 0) return null;
-          const tinggi = Math.max(1, (bar.volume / volumeTertinggi) * VOL_H);
+          const tinggi = Math.max(1, (bar.volume / volumeTertinggi) * tinggiVolume);
           return (
             <rect
               key={`v-${bar.time}`}
@@ -268,7 +295,7 @@ export function PriceChartBlock({
         })}
 
         {/* Garis pemisah area harga dan volume */}
-        <line x1={0} y1={PRICE_H + GAP / 2} x2={VIEW_W} y2={PRICE_H + GAP / 2} stroke={RULE_SOFT} strokeWidth={1} />
+        <line x1={0} y1={tinggiHarga + GAP / 2} x2={VIEW_W} y2={tinggiHarga + GAP / 2} stroke={RULE_SOFT} strokeWidth={1} />
       </svg>
 
       <div className="flex items-baseline justify-between" style={{ marginTop: 6, color: INK_3, fontSize: 10.5 }}>

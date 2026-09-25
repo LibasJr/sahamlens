@@ -89,6 +89,25 @@ describe('PriceChartBlock', () => {
     expect(markah).not.toContain('<svg');
   });
 
+  it('merenggangkan label level yang berdekatan supaya tidak saling menimpa', () => {
+    const history = deretUji(60);
+    const tertinggi = Math.max(...history.map((c) => c.high as number));
+    // Dua level hanya 4 poin terpisah: tanpa perenggangan, dua teks 12 px akan bertumpuk.
+    const markah = renderToStaticMarkup(
+      <PriceChartBlock
+        history={history}
+        accent={ACCENT}
+        levels={[
+          { value: tertinggi - 8, label: 'R1', tone: 'bear' },
+          { value: tertinggi - 4, label: 'S1', tone: 'bull' },
+        ]}
+      />,
+    );
+    const posisi = [...markah.matchAll(/<text x="\d+" y="([\d.]+)"/g)].map((m) => Number(m[1]));
+    expect(posisi.length).toBeGreaterThanOrEqual(2);
+    expect(Math.abs(posisi[0] - posisi[1])).toBeGreaterThanOrEqual(15);
+  });
+
   it('menyaring candle tidak sah tanpa menebak angkanya', () => {
     const hasil = siapkanCandle(
       [
