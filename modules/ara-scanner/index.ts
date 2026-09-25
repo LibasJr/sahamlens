@@ -1,3 +1,4 @@
+export { getAraScannerReadinessWithLiveData } from './service/ara-scanner-readiness.service';
 export {
   getAraLiveDataReadiness,
   nilaiLiveCheck,

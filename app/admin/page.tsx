@@ -14,7 +14,7 @@ import CreateTestUserForm from './CreateTestUserForm';
 import ChangeSecretForm from './ChangeSecretForm';
 import { listRecentPaymentOrders } from '@/modules/payment/repository/payment-order.repository';
 import { formatRupiah } from '@/shared/config/pricing';
-import { getAraLiveDataReadiness, getAraScannerReadiness } from '@/modules/ara-scanner';
+import { getAraScannerReadinessWithLiveData } from '@/modules/ara-scanner';
 
 // Root layout menyetel robots index:true untuk seluruh situs. Halaman admin ikut
 // mewarisinya - meski pengunjung non-admin dialihkan, tidak ada alasan rute ini
@@ -83,10 +83,7 @@ export default async function AdminPage() {
     loadPanel('Funnel pendaftaran', () => getProductFunnelSummary()),
     loadPanel('Perjalanan riset (beta)', () => getResearchJourneySummary()),
     loadPanel('Payment Order Terbaru', () => listRecentPaymentOrders(20)),
-    loadPanel('Kesiapan Scanner ARA', async () => {
-      const [dasar, liveData] = await Promise.all([getAraScannerReadiness(), getAraLiveDataReadiness()]);
-      return { ...dasar, liveData };
-    }),
+    loadPanel('Kesiapan Scanner ARA', async () => getAraScannerReadinessWithLiveData()),
   ]);
 
   // Nilai cadangan hanya untuk panel yang bentuk kosongnya memang punya arti ("belum ada
