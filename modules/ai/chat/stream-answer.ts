@@ -8,6 +8,7 @@ import { withDyor } from './dyor';
 import { FollowUpStreamStripper, parseFollowUps } from './follow-ups';
 import { sanitizeChatAnswerText } from './chat-normalize';
 import type { ChatIntent } from './chat-intent';
+import { reportAskAiActivity } from './virtual-office-activity';
 
 /**
  * Jawaban streaming dengan gerbang verifikasi angka.
@@ -44,6 +45,7 @@ export interface StreamChatArgs {
   intent: ChatIntent;
   routing: Record<string, unknown>;
   anonTrial: AnonTrialState | null;
+  activityId: string;
 }
 
 /** Timeout per percobaan provider - sama dengan jalur non-streaming. */
@@ -59,7 +61,9 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
         controller.enqueue(encoder.encode(`${JSON.stringify(event)}\n`));
       };
 
+      let lifecycle: 'completed' | 'failed' = 'failed';
       try {
+        await reportAskAiActivity('started', args.activityId);
         const gate = createStreamGate(args.sources);
         // Marker [[FOLLOWUP]] tidak boleh terlihat mengalir di layar - stripper
         // menahan teks ekor yang berpotensi jadi awal marker dan menelan baris
@@ -201,6 +205,7 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
             numberCheckOk: numberCheck.ok, evidenceCheckOk: finalEvidenceCheck.ok,
           },
         });
+        lifecycle = 'completed';
         send({
           t: 'done',
           followUps,
@@ -228,6 +233,8 @@ export async function streamChatAnswer(args: StreamChatArgs): Promise<NextRespon
           content: 'LensAI mengalami kesalahan internal saat menyiapkan jawaban.',
         });
         controller.close();
+      } finally {
+        await reportAskAiActivity(lifecycle, args.activityId);
       }
     },
   });

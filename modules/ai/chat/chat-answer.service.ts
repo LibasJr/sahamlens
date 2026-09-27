@@ -17,6 +17,7 @@ import { calculateChatQuestion } from './chat-calculator';
 import { getFocusedMenuKnowledge } from './menu-focus-knowledge';
 import { buildExternalUrlContext } from './external-url-context';
 import { providerErrorResponse } from './provider-error';
+import { createAskAiActivityId } from './virtual-office-activity';
 import { getDeterministicProductHelpResponse } from './product-help';
 import { scoringMethodologyBlock } from './blocks/lens-blocks';
 import { asksAboutIssuerProfile, buildIssuerProfileKnowledge, isIssuerProfileOnlyQuestion } from './issuer-profile-knowledge';
@@ -200,7 +201,11 @@ export async function buildChatAnswer(args: ParsedChatRequest & {
   };
 
   if (wantsStream) {
-    return streamChatAnswer({ system: systemPrompt, prompt: fullPrompt, sources: verificationSources, intent: classification.intent, routing: baseRouting, anonTrial });
+    return streamChatAnswer({
+      system: systemPrompt, prompt: fullPrompt, sources: verificationSources,
+      intent: classification.intent, routing: baseRouting, anonTrial,
+      activityId: createAskAiActivityId(),
+    });
   }
 
   const aiResult = await generateAIResult({ system: systemPrompt, prompt: fullPrompt, timeoutMs: 10000 });
