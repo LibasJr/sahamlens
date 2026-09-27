@@ -1,7 +1,8 @@
 import { randomUUID } from 'crypto';
 
 const ACTIVITY_URL = process.env.VIRTUAL_OFFICE_ACTIVITY_URL
-  ?? 'http://127.0.0.1:8088/internal/ask-ai-activity';
+  ?? 'http://192.168.1.120:8088/internal/ask-ai-activity';
+const ACTIVITY_TOKEN = process.env.VIRTUAL_OFFICE_ACTIVITY_TOKEN;
 
 export type AskAiLifecycle = 'started' | 'completed' | 'failed';
 
@@ -17,7 +18,10 @@ export async function reportAskAiActivity(
   try {
     await fetcher(ACTIVITY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(ACTIVITY_TOKEN ? { 'X-Ask-AI-Activity-Token': ACTIVITY_TOKEN } : {}),
+      },
       body: JSON.stringify({ lifecycle, requestId }),
       signal: AbortSignal.timeout(1_000),
     });
