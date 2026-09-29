@@ -6,6 +6,7 @@ import { buildMoatProxy } from '@/modules/fundamental/service/moat-proxy.service
 import { buildMoatDurability } from '@/modules/fundamental/service/moat-durability.service';
 import { getLatestBrokerPeriodSummary } from '@/modules/broker-flow';
 import { analyzeBandarmology, analyzeAccumulationSignal, calculateBeta } from '@/modules/market';
+import { getTickerUmaStatus } from '@/modules/market/service/uma-status.service';
 import { fetchYahooHistory } from '@/modules/technical';
 import { finite, safe, signed, unavailableLine } from './format';
 
@@ -304,6 +305,38 @@ export async function riskBlock(ticker: string): Promise<string> {
   } catch (error) {
     console.warn('[LensAI:emiten-blocks] risk gagal', code, error instanceof Error ? error.message : String(error));
     return [`### ${code}`, unavailableLine('Data risiko/beta', 'gagal dihitung')].join('\n');
+  }
+}
+
+/** Status UMA (Unusual Market Activity) resmi BEI. */
+export async function umaBlock(ticker: string): Promise<string> {
+  const code = plain(ticker);
+  try {
+    const status = getTickerUmaStatus(code);
+    if (!status.isUma) {
+      return [
+        `### ${code}`,
+        status.lastUmaDate
+          ? `- Status UMA BEI: TIDAK AKTIF (riwayat terakhir tercatat ${status.lastUmaDate}, ${status.daysAgo} hari lalu).`
+          : '- Status UMA BEI: TIDAK AKTIF (tidak ada riwayat UMA dalam indeks pantauan resmi BEI).',
+      ].join('\n');
+    }
+
+    return [
+      `### ${code}`,
+      `- Status UMA BEI: ⚠️ AKTIF (Unusual Market Activity).`,
+      `- Tanggal Pengumuman BEI: ${status.lastUmaDate ?? 'terbaru'}${status.daysAgo !== null ? ` (${status.daysAgo} hari lalu)` : ''}.`,
+      status.announcementNo ? `- Nomor Pengumuman BEI: ${status.announcementNo}` : '',
+      status.title ? `- Judul Pengumuman: ${status.title}` : '',
+      '- RISIKO & IMPLIKASI: Saham sedang dalam pengawasan ketat bursa karena pola pergerakan harga/transaksi di luar kebiasaan.',
+      '  Rentan tindakan lanjutan bursa seperti suspensi (penghentian sementara perdagangan) jika fluktuasi liar berlanjut.',
+      '  Investor dihimbau mencermati jawaban konfirmasi bursa dan tidak berspekulasi berlebihan.',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  } catch (error) {
+    console.warn('[LensAI:emiten-blocks] uma block gagal', code, error instanceof Error ? error.message : String(error));
+    return [`### ${code}`, unavailableLine('Data status UMA', 'gagal dibaca dari server')].join('\n');
   }
 }
 

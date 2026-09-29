@@ -18,6 +18,9 @@ describe('calendarBlock', () => {
   });
 
   it('mengurai struktur cache { events: { dateKey: [...] }, coverage: {...} } dengan benar', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-09-28T08:00:00+07:00'));
+
     const mockData = {
       events: {
         '2026-09-28': [
@@ -37,6 +40,8 @@ describe('calendarBlock', () => {
     expect(result).toContain('2026-09-28 | DGWG | RUPSLB | RUPSLB DGWG (10:00 WIB)');
     expect(result).toContain('2026-09-28 | TNCA | RUPSLB | RUPSLB TNCA');
     expect(result).toContain('2026-09-29 | ISAT | RUPSLB | RUPSLB ISAT (14:00 WIB)');
+
+    vi.useRealTimers();
   });
 
   it('menyaring emiten spesifik bila tickers disediakan', async () => {
