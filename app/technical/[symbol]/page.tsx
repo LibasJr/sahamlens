@@ -11,6 +11,8 @@ import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { Card, InsightRow, PageContainer, ResearchProvenanceDetails, SectionHeader, Skeleton, StatusMeta, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import TechnicalExportSection from '@/components/export/TechnicalExportSection';
 import MarketDataIntegrityBanner from '@/components/MarketDataIntegrityBanner';
+import UmaStatusBanner from '@/components/UmaStatusBanner';
+import UmaBadge from '@/components/UmaBadge';
 import { JourneyBeacon, JourneyVisibilityBeacon } from '@/components/analytics/JourneyBeacon';
 import BrokerDistributionPanel from './BrokerDistributionPanel';
 import BandarFlowPro from '@/components/BandarFlowPro';
@@ -810,7 +812,10 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
           <TickerAvatar symbol={symbol} size="lg" />
           <div className="min-w-0">
             <div className="lens-meta mb-0.5 font-bold uppercase tracking-[0.16em] text-tv-muted">LensTechnical</div>
-            <h1 className="lens-page-title">{isIndex ? 'IHSG' : code}</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="lens-page-title">{isIndex ? 'IHSG' : code}</h1>
+              {!isIndex && <UmaBadge ticker={code} />}
+            </div>
             <p className="truncate text-sm text-tv-muted">
               {isIndex ? 'Indeks Harga Saham Gabungan' : (emiten?.name || 'Analisis saham IDX')}
             </p>
@@ -823,6 +828,8 @@ export default async function TechnicalPage({ params }: { params: Promise<{ symb
             sama - menghitungnya akan memendekkan mediannya dengan kunjungan yang tidak
             menjawab pertanyaan siapa pun. */}
         {!isIndex && <JourneyBeacon event="stock_analysis_view" surface="technical" />}
+
+        {!isIndex && <UmaStatusBanner ticker={code} />}
 
         {!isIndex && <MarketDataIntegrityBanner ticker={symbol} />}
 

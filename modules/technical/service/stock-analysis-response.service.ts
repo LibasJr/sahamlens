@@ -4,6 +4,7 @@ import { buildLongTradingSetup } from '@/modules/recommendation/service/trading-
 import { buildTradePlanV1 } from '@/modules/recommendation/service/trade-plan';
 import { evaluateMinimalEligibility, toAdvisoryDecision } from '@/modules/eligibility';
 import { getLatestMarketIntegrity } from '@/modules/market-data-integrity/repository/market-data-reconciliation.repository';
+import { getTickerUmaStatus } from '@/modules/market/service/uma-status.service';
 import { resolvePreviousClose } from '@/shared/market/previous-close';
 import { LENS_SCORE_MODEL_METADATA } from '@/modules/technical/config/lens-score-model';
 import { getEmitenBoard } from '@/shared/market/emiten-list';
@@ -88,6 +89,7 @@ export async function buildStockAnalysisResponse(args: {
     inputSnapshot: lensScoreInputProvenance as unknown as Record<string, unknown>,
   });
   const dataIntegrity = await getLatestMarketIntegrity(ticker);
+  const umaStatus = getTickerUmaStatus(ticker);
   const trust = {
     data_status: freshness.freshness,
     data_timestamp: freshness.dataTimestamp,
@@ -99,6 +101,7 @@ export async function buildStockAnalysisResponse(args: {
     model_actionability: scoringResult.explainability.actionability,
     advisory_enabled: decision.advisory === true,
     blocking_reasons: [
+      ...(umaStatus.isUma ? [`Saham dalam status Unusual Market Activity (UMA) BEI per ${umaStatus.lastUmaDate}`] : []),
       ...scoringResult.explainability.risk_flags,
       ...eligibility.reasonCodes,
     ],
@@ -215,6 +218,7 @@ export async function buildStockAnalysisResponse(args: {
       details: eligibility.details,
     },
     decision,
+    uma: umaStatus,
     stock: {
       symbol: ticker,
       current_price: currentPrice,

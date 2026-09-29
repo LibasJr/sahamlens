@@ -40,7 +40,7 @@ import {
   screenerBlock,
   backtestEvidenceBlock,
 } from './blocks/lens-blocks';
-import { dividendBlock, earningsBlock, calendarBlock, flowBlock, moatBlock, riskBlock } from './blocks/emiten-blocks';
+import { dividendBlock, earningsBlock, calendarBlock, flowBlock, moatBlock, riskBlock, umaBlock } from './blocks/emiten-blocks';
 import { ownershipFlowBlock } from './blocks/ownership-flow-blocks';
 import { decisionBlock, tradingSetupBlock, predictionGuardBlock } from './blocks/decision-blocks';
 import { portfolioBlock, watchlistBlock, LOGIN_REQUIRED_FOR_USER_DATA, type ChatUserContext } from './blocks/user-blocks';
@@ -729,8 +729,12 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
   }
 
   if (request.intent === 'RISK_PROFILE') {
-    const blocks = await Promise.all(tickers.map(riskBlock));
-    return { verifiedBlock: `${verifiedHeader('RISIKO & BETA')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
+    const [riskBlocks, umaBlocks] = await Promise.all([
+      Promise.all(tickers.map(riskBlock)),
+      Promise.all(tickers.map(umaBlock)),
+    ]);
+    const combined = tickers.map((_, idx) => [riskBlocks[idx], umaBlocks[idx]].filter(Boolean).join('\n\n'));
+    return { verifiedBlock: `${verifiedHeader('RISIKO, BETA & STATUS UMA BEI')}\n${combined.join('\n\n')}`, directResponse: null, dataError: null };
   }
 
   if (request.intent === 'MOAT') {
