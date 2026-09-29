@@ -1,0 +1,11 @@
+{
+  "edition": "DAILY",
+  "date": "2026-09-25",
+  "benchmark_value": "IHSG",
+  "regime": {
+    "changePct": null,
+    "trend": "NEUTRAL",
+    "label": null
+  },
+  "candidates": []
+}

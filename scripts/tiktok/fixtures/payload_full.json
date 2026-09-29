@@ -1,0 +1,30 @@
+{
+  "edition": "DAILY",
+  "date": "2026-09-25",
+  "benchmark_value": "IHSG",
+  "regime": {
+    "changePct": 0.85,
+    "trend": "RISK_ON",
+    "label": "BULLISH_MOMENTUM"
+  },
+  "candidates": [
+    {
+      "symbol": "BBCA",
+      "price": 8750,
+      "changePct": 1.42,
+      "metric": "Skor 85"
+    },
+    {
+      "symbol": "BMRI",
+      "price": 5200,
+      "changePct": 2.15,
+      "metric": "RS +3.2%"
+    },
+    {
+      "symbol": "TLKM",
+      "price": 3170,
+      "changePct": -0.63,
+      "metric": "Akumulasi 4 hari"
+    }
+  ]
+}
