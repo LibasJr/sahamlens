@@ -78,7 +78,12 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // tinggiHarga/tinggiVolume pada PriceChartBlock. Build CI terukur 6.100 KB dari anggaran
 // 6.096 KB - pertumbuhan 4 KB seluruhnya pada chunk rute admin /admin/infographic-studio.
 // Kepala ruang 3 KB dipertahankan sebagai ratchet.
-const TOTAL_BUDGET_KB = 6_103;
+// Dinaikkan 6.103 -> 6.115 KB pada 2026-10-10, dan ini SATU-SATUNYA sebabnya: `next`
+// 16.3.5 -> 16.4.0 lewat `npm audit fix` yang menutup dua kerentanan critical produksi
+// (RCE `next/og`, IP spoofing `proxy-addr`) dan 6 high. Diukur di CI pada dua build yang
+// hanya beda lockfile: `main` 6.100 KB (PR #519, ditutup) vs PR #518 6.109 KB, 291 chunk
+// sama persis -> +9 KB murni kode framework/dependency, bukan fitur. Kepala ruang 6 KB.
+const TOTAL_BUDGET_KB = 6_115;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
