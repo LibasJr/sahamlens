@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CACHE_TTL_SEC,
   MARKET_CLOSED_TTL_SEC,
   MARKET_OPEN_TTL_SEC,
   getMarketAwareTtlSec,
@@ -72,5 +73,14 @@ describe('getMarketAwareTtlSec', () => {
 
   it('tepat sebelum pembukaan TTL menyusut, bukan melar', () => {
     expect(getMarketAwareTtlSec(wib('2026-08-24T08:59:00'))).toBe(60);
+  });
+});
+
+describe('CACHE_TTL_SEC menu coverage', () => {
+  it('menyediakan TTL fundamental, ownership flow, kalender, dan dividen', () => {
+    expect(CACHE_TTL_SEC.FUNDAMENTAL).toBeGreaterThan(0);
+    expect(CACHE_TTL_SEC.OWNERSHIP_FLOW).toBeGreaterThan(0);
+    expect(CACHE_TTL_SEC.CORPORATE_CALENDAR).toBeGreaterThan(0);
+    expect(CACHE_TTL_SEC.DIVIDEND_UNIVERSE).toBeGreaterThan(0);
   });
 });

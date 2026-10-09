@@ -37,7 +37,11 @@ export async function GET(request: Request) {
 
     if (mode === 'ticker') {
       const ticker = searchParams.get('ticker') || '';
-      const stock = await fetchTickerDividendStock(ticker);
+      const stock = await getOrCompute(
+        `sahamlens:cache:computed:dividend-ticker:${ticker}`,
+        CACHE_TTL_SEC.DIVIDEND_UNIVERSE,
+        () => fetchTickerDividendStock(ticker),
+      );
       if (!stock) {
         return { status: 503, body: { error: 'Data dividen ticker tidak tersedia dari provider; proyeksi tidak dihitung.', code: 'DIVIDEND_TICKER_UNAVAILABLE' } };
       }

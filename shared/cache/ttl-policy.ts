@@ -348,11 +348,23 @@ export const CACHE_TTL_SEC = {
   // interval cron (24 jam) sebagai toleransi kalau satu run cron sempat gagal/telat.
   BACKTEST_INDICATORS: 36 * 60 * 60,
 
+  // Analisis Fundamental, DCF, & Intrinsic Value per emiten (modules/fundamental,
+  // app/api/intrinsic, app/api/dcf). Laporan keuangan & rasio kuartalan hanya berubah
+  // per rilis LK (3 bulan sekali). 30 menit saat jam bursa menjaga harga intraday tetap
+  // cukup segar tanpa memaksa tiap kunjungan menanggung kalkulasi 1.5-2.0 detik. Di luar
+  // jam bursa & akhir pekan, dipertahankan 3 hari (data penutupan sesi terakhir).
+  get FUNDAMENTAL() { return isIdxMarketOpen() ? 30 * 60 : 3 * 24 * 60 * 60; },
+
+  // Data kepemilikan investor asing vs lokal (app/api/ownership-flow).
+  // Data harian KSEI dirilis 1x sehari sore/malam hari kerja.
+  // 30 menit saat jam bursa, 3 hari di luar jam bursa & akhir pekan.
+  get OWNERSHIP_FLOW() { return isIdxMarketOpen() ? 30 * 60 : 3 * 24 * 60 * 60; },
+
   // Kalender dividen+earnings (app/api/calendar) - BARU. Batch quoteSummary
   // calendarEvents utk ~50 saham, dan tanggal ex-dividend/earnings itu sendiri jarang
-  // berubah dalam hitungan jam - 6 jam cukup segar tanpa membebani Yahoo Finance
-  // di setiap buka halaman /calendar atau /breakout-radar.
-  CORPORATE_CALENDAR: 6 * 60 * 60,
+  // berubah dalam hitungan jam. Di luar jam bursa / akhir pekan lantai 3 hari menjaga
+  // agar menu kalender tidak cold di hari Sabtu & Minggu (cron hanya jalan hari kerja).
+  get CORPORATE_CALENDAR() { return isIdxMarketOpen() ? 6 * 60 * 60 : 3 * 24 * 60 * 60; },
 
   // Snapshot earnings per emiten (jadwal, konsensus, revisi, dan riwayat kuartalan)
   // berubah lebih lambat daripada harga. Satu jam menjaga estimasi tetap cukup segar
@@ -378,10 +390,11 @@ export const CACHE_TTL_SEC = {
 
   // Universe saham dividen (yield/payout/consistency per saham, app/api/dividend-plan)
   // - BARU. Batch quoteSummary+chart(events:dividends) utk ~50 saham, sama mahalnya
-  // dengan SCREENER_UNIVERSE - TTL sama (30 menit). Matematika compounding/income
-  // dari input modal user DIHITUNG ULANG tiap request dari universe yang di-cache ini,
-  // tidak ikut di-cache (beda per user/input).
-  DIVIDEND_UNIVERSE: 30 * 60,
+  // dengan SCREENER_UNIVERSE. Di luar jam bursa / akhir pekan lantai 3 hari menjaga
+  // agar menu tidak cold di akhir pekan (cron dividend-scan hanya jalan hari kerja).
+  // Matematika compounding/income dari input modal user DIHITUNG ULANG tiap request dari
+  // universe yang di-cache ini, tidak ikut di-cache (beda per user/input).
+  get DIVIDEND_UNIVERSE() { return isIdxMarketOpen() ? 30 * 60 : 3 * 24 * 60 * 60; },
 
   // Halaman transparansi LensRadar (app/admin/transparency, internal sejak 23 Agustus
   // 2026) - membaca Postgres
