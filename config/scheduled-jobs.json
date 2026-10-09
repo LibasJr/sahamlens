@@ -53,6 +53,13 @@
       "source": "systemd timer di VPS; cadence dipertahankan dari QStash TZ Asia/Jakarta"
     },
     {
+      "path": "/api/cron/fundamental-warmer",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 08:30,12:30 Asia/Jakarta; Sat,Sun 08:30 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-10-10, warmer cache fundamental LQ45 agar menu /fundamental BBCA/BBRI/dll selalu instan (7-15ms) tanpa cold-cache delay 1.8s."
+    },
+    {
       "path": "/api/cron/idx-financial-sync",
       "provider": "systemd",
       "schedule": "0 20 * * *",

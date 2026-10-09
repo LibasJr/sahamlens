@@ -39,7 +39,7 @@ export async function GET(
     // ticker yang datanya memang tidak tersedia akan tetap menembak live tiap request.
     const wrapped = await getOrCompute(
       `sahamlens:cache:computed:dcf:${ticker}`,
-      CACHE_TTL_SEC.TECHNICAL,
+      CACHE_TTL_SEC.FUNDAMENTAL,
       async () => {
         const result = await calculateDcfModel(ticker);
         return result ?? { notFound: true as const };

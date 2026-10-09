@@ -37,7 +37,7 @@ export async function GET(
 
     const wrapped = await getOrCompute(
       `sahamlens:cache:computed:intrinsic:${ticker}`,
-      CACHE_TTL_SEC.TECHNICAL,
+      CACHE_TTL_SEC.FUNDAMENTAL,
       async () => {
         const result = await calculateIntrinsicValue(ticker);
         return result ?? { notFound: true as const };

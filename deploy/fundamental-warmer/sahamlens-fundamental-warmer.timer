@@ -1,0 +1,11 @@
+[Unit]
+Description=Jadwal SahamLens - fundamental-warmer
+
+[Timer]
+OnCalendar=Mon..Fri 08:30,12:30 Asia/Jakarta
+OnCalendar=Sat,Sun 08:30 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-fundamental-warmer.service
+
+[Install]
+WantedBy=timers.target

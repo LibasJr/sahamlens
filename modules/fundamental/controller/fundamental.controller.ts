@@ -49,7 +49,7 @@ export async function handleGetFundamental(request: Request, rawTicker: string):
 
     const result = await getOrCompute(
       `sahamlens:cache:computed:fundamental:${ticker}`,
-      CACHE_TTL_SEC.TECHNICAL,
+      CACHE_TTL_SEC.FUNDAMENTAL,
       () => computeCurrentFundamentalAnalysis(ticker),
     );
     if ('notFound' in result) {
