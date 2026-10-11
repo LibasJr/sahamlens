@@ -1,8 +1,8 @@
 [Unit]
-Description=Jadwal SahamLens - signal-bot (Senin-Jumat 16:30 WIB)
+Description=Jadwal SahamLens - signal-bot (Senin-Jumat 06:00 WIB)
 
 [Timer]
-OnCalendar=Mon..Fri 16:30 Asia/Jakarta
+OnCalendar=Mon..Fri 06:00 Asia/Jakarta
 Persistent=true
 Unit=sahamlens-signal-bot.service
 
