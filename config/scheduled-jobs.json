@@ -60,6 +60,13 @@
       "source": "BARU 2026-10-10, warmer cache fundamental LQ45 agar menu /fundamental BBCA/BBRI/dll selalu instan (7-15ms) tanpa cold-cache delay 1.8s."
     },
     {
+      "path": "/api/cron/signal-bot",
+      "provider": "systemd",
+      "schedule": "30 16 * * 1-5",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-10-11, bot sinyal trading SahamLens → Telegram. Jalankan Decision Agent scan setelah market tutup (16:30 WIB Senin-Jumat), filter BUY_CANDIDATE qualified (LensScore >= 70, RR >= 1.8), kirim ringkasan + detail ke Telegram chat."
+    },
+    {
       "path": "/api/cron/idx-financial-sync",
       "provider": "systemd",
       "schedule": "0 20 * * *",
