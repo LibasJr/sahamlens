@@ -62,9 +62,9 @@
     {
       "path": "/api/cron/signal-bot",
       "provider": "systemd",
-      "schedule": "30 16 * * 1-5",
+      "schedule": "0 6 * * 1-5",
       "scheduleStatus": "known",
-      "source": "BARU 2026-10-11, bot sinyal trading SahamLens → Telegram. Jalankan Decision Agent scan setelah market tutup (16:30 WIB Senin-Jumat), filter BUY_CANDIDATE qualified (LensScore >= 70, RR >= 1.8), kirim ringkasan + detail ke Telegram chat."
+      "source": "BARU 2026-10-11, bot sinyal trading SahamLens → Telegram. Jalankan Decision Agent scan pre-market pagi (06:00 WIB Senin-Jumat), filter BUY_CANDIDATE qualified (LensScore >= 70, RR >= 1.8), kirim ringkasan + detail ke Telegram chat."
     },
     {
       "path": "/api/cron/idx-financial-sync",
