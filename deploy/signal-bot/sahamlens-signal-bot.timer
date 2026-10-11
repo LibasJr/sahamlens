@@ -1,0 +1,10 @@
+[Unit]
+Description=Jadwal SahamLens - signal-bot (Senin-Jumat 16:30 WIB)
+
+[Timer]
+OnCalendar=Mon..Fri 16:30 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-signal-bot.service
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,16 @@
+[Unit]
+Description=SahamLens - bot sinyal trading Telegram
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+WorkingDirectory=/opt/sahamlens/app
+EnvironmentFile=/opt/sahamlens/app/.env.production
+ExecStart=/usr/bin/curl -sf -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/signal-bot
+TimeoutStartSec=300
+
+[Install]
+WantedBy=multi-user.target
