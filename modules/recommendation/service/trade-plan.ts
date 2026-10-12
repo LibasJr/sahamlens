@@ -1,4 +1,4 @@
-import { buildLongTradingSetup, type LongTradingSetup } from './trading-setup';
+import { buildLongTradingSetup, idxTick, roundToIdxTick, type LongTradingSetup } from './trading-setup';
 import type { SwingBar, StructuralLevel } from '../../technical/service/analyzers/swing-levels';
 
 export const TRADE_PLAN_VERSION = 'TRADE_PLAN_V1_0';
@@ -6,6 +6,24 @@ export const TRADE_PLAN_ENTRY_REFERENCE = 'OPEN_H_PLUS_1';
 
 export type TradePlanRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 export type TradePlanConfidenceLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface TradePlanTranche {
+  tranche: 1 | 2;
+  allocationPercent: number;
+  price: number;
+  label: string;
+  condition: string;
+}
+
+export interface TradePlanPositionSizing {
+  riskPerTradePct: number;
+  minRiskPerTradePct: number;
+  maxRiskPerTradePct: number;
+  portfolioAllocationPct: number;
+  standardAllocationPct: { min: number; max: number };
+  maxHighConvictionPct: number;
+  note: string;
+}
 
 export interface TradePlanInputs {
   history: SwingBar[];
@@ -18,13 +36,16 @@ export interface TradePlanInputs {
   volumeRatio?: number | null;
   officialNetPressure20?: number | null;
   officialPositiveRatio20?: number | null;
+  brokerVwap?: number | null;
+  tranche1Allocation?: number | null;
+  tranche2Allocation?: number | null;
 }
 
 export interface TradePlanDataPoint {
-  key: 'structure' | 'atr' | 'riskReward' | 'adxDmi' | 'bollinger' | 'volume' | 'idxForeignFlow';
+  key: 'structure' | 'atr' | 'riskReward' | 'adxDmi' | 'bollinger' | 'volume' | 'idxForeignFlow' | 'brokerVwap';
   label: string;
   status: 'AVAILABLE' | 'NOT_AVAILABLE';
-  source: 'PRICE_OHLC' | 'VOLUME_OHLC' | 'IDX_OFFICIAL_FOREIGN_FLOW';
+  source: 'PRICE_OHLC' | 'VOLUME_OHLC' | 'IDX_OFFICIAL_FOREIGN_FLOW' | 'BROKER_FLOW';
   value: number | string | null;
 }
 
@@ -50,6 +71,9 @@ export interface TradePlanV1 {
   caveats: string[];
   dataPoints: TradePlanDataPoint[];
   legacySetup: LongTradingSetup;
+  tranches: TradePlanTranche[];
+  positionSizing: TradePlanPositionSizing;
+  brokerVwap: number | null;
 }
 
 function finitePositive(value: unknown): value is number {
@@ -68,6 +92,21 @@ function riskLevel(setup: LongTradingSetup): TradePlanRiskLevel {
   if (setup.riskPct <= 4 && setup.riskAtr <= 1.25) return 'LOW';
   if (setup.riskPct <= 8 && setup.riskAtr <= 2.25) return 'MEDIUM';
   return 'HIGH';
+}
+
+function positionSizing(risk: TradePlanRiskLevel): TradePlanPositionSizing {
+  const portfolioAllocationPct = risk === 'LOW' ? 10 : risk === 'MEDIUM' ? 8 : 5;
+  const riskPerTradePct = risk === 'LOW' ? 2.5 : 2.0;
+
+  return {
+    riskPerTradePct,
+    minRiskPerTradePct: 2.0,
+    maxRiskPerTradePct: 3.0,
+    portfolioAllocationPct,
+    standardAllocationPct: { min: 5, max: 10 },
+    maxHighConvictionPct: 15,
+    note: 'Sesuai profil risiko Libas: Risk per trade 2-3%, alokasi posisi standar 5-10% modal (maksimal 15% high conviction).',
+  };
 }
 
 function confidenceLevel(score: number, missingData: string[]): TradePlanConfidenceLevel {
@@ -204,6 +243,21 @@ export function buildTradePlanV1(input: TradePlanInputs): TradePlanV1 | null {
     missingData.push('Foreign flow IDX resmi 20D');
   }
 
+  if (input.brokerVwap !== undefined) {
+    if (finitePositive(input.brokerVwap)) {
+      availableMax += 10;
+      if (input.currentPrice >= input.brokerVwap) {
+        points += 10;
+        reasons.push(`Harga bertahan di atas referensi Broker VWAP (${input.brokerVwap}).`);
+      } else {
+        points += 4;
+        caveats.push(`Harga berada di bawah referensi Broker VWAP (${input.brokerVwap}).`);
+      }
+    } else {
+      missingData.push('Broker VWAP Reference');
+    }
+  }
+
   const confidenceScore = availableMax > 0 ? roundScore((points / availableMax) * 100) : 0;
   const dataPoints: TradePlanDataPoint[] = [
     dataPoint('structure', 'Support/resistance struktural', 'PRICE_OHLC', setup.supportQuality),
@@ -214,6 +268,68 @@ export function buildTradePlanV1(input: TradePlanInputs): TradePlanV1 | null {
     dataPoint('volume', 'Volume ratio 20D', 'VOLUME_OHLC', finitePositive(input.volumeRatio) ? Number(input.volumeRatio.toFixed(2)) : null),
     dataPoint('idxForeignFlow', 'Foreign flow IDX 20D', 'IDX_OFFICIAL_FOREIGN_FLOW', finiteNumber(input.officialNetPressure20) ? input.officialNetPressure20 : null),
   ];
+
+  if (input.brokerVwap !== undefined) {
+    dataPoints.push(
+      dataPoint(
+        'brokerVwap',
+        'Broker VWAP Reference',
+        'BROKER_FLOW',
+        finitePositive(input.brokerVwap) ? input.brokerVwap : null,
+      ),
+    );
+  }
+
+  const t1Alloc = finitePositive(input.tranche1Allocation) && input.tranche1Allocation < 100
+    ? input.tranche1Allocation
+    : 40;
+  const t2Alloc = finitePositive(input.tranche2Allocation) && input.tranche2Allocation < 100
+    ? input.tranche2Allocation
+    : (100 - t1Alloc > 0 ? 100 - t1Alloc : 60);
+
+  const tranche1Price = setup.entry;
+  let tranche2Price: number;
+  let tranche2Condition: string;
+
+  if (setup.resistance && setup.resistance.price > setup.entry && setup.resistance.price <= setup.tp1) {
+    tranche2Price = roundToIdxTick(setup.resistance.price, 'up');
+    tranche2Condition = `Alokasi ${t2Alloc}% saat konfirmasi breakout di atas resistance ${tranche2Price}`;
+  } else {
+    const midPrice = setup.entry + (setup.tp1 - setup.entry) * 0.5;
+    tranche2Price = roundToIdxTick(midPrice, 'up');
+    if (tranche2Price <= tranche1Price) {
+      tranche2Price = roundToIdxTick(tranche1Price + idxTick(tranche1Price), 'up');
+    }
+    tranche2Condition = `Alokasi ${t2Alloc}% saat konfirmasi penguatan momentum di atas ${tranche2Price}`;
+  }
+
+  const tranche1Condition = setup.support
+    ? `Alokasi ${t1Alloc}% di area support terkonfirmasi (${setup.support.price}) / entry`
+    : setup.nearestSupport
+      ? `Alokasi ${t1Alloc}% di area support terdekat (${setup.nearestSupport.price}) / entry`
+      : `Alokasi ${t1Alloc}% di area entry Open H+1`;
+
+  const tranches: TradePlanTranche[] = [
+    {
+      tranche: 1,
+      allocationPercent: t1Alloc,
+      price: tranche1Price,
+      label: `Tranche 1 (Entry Awal ${t1Alloc}%)`,
+      condition: tranche1Condition,
+    },
+    {
+      tranche: 2,
+      allocationPercent: t2Alloc,
+      price: tranche2Price,
+      label: `Tranche 2 (Konfirmasi ${t2Alloc}%)`,
+      condition: tranche2Condition,
+    },
+  ];
+
+  reasons.push(`Strategi beli bertahap (tranche ${t1Alloc}/${t2Alloc}): Tranche 1 di ${tranche1Price}, Tranche 2 konfirmasi di ${tranche2Price}.`);
+
+  const planRiskLevel = riskLevel(setup);
+  const sizing = positionSizing(planRiskLevel);
 
   return {
     version: TRADE_PLAN_VERSION,
@@ -226,7 +342,7 @@ export function buildTradePlanV1(input: TradePlanInputs): TradePlanV1 | null {
     riskReward: setup.rr,
     riskPercent: setup.riskPct,
     riskAtr: setup.riskAtr,
-    riskLevel: riskLevel(setup),
+    riskLevel: planRiskLevel,
     confidenceScore,
     confidenceLevel: confidenceLevel(confidenceScore, missingData),
     support: setup.support,
@@ -237,5 +353,8 @@ export function buildTradePlanV1(input: TradePlanInputs): TradePlanV1 | null {
     caveats,
     dataPoints,
     legacySetup: setup,
+    tranches,
+    positionSizing: sizing,
+    brokerVwap: finitePositive(input.brokerVwap) ? input.brokerVwap : null,
   };
 }
