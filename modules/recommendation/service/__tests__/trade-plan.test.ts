@@ -91,6 +91,7 @@ describe('buildTradePlanV1', () => {
 
     expect(plan).not.toBeNull();
     if (!plan) throw new Error('plan null');
+    if (!plan.tranches || !plan.positionSizing) throw new Error('tranches or positionSizing missing');
 
     expect(plan.tranches).toHaveLength(2);
 
@@ -133,6 +134,7 @@ describe('buildTradePlanV1', () => {
 
     expect(plan).not.toBeNull();
     if (!plan) throw new Error('plan null');
+    if (!plan.tranches) throw new Error('tranches missing');
 
     expect(plan.tranches[0].allocationPercent).toBe(50);
     expect(plan.tranches[1].allocationPercent).toBe(50);

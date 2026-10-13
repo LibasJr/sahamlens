@@ -71,9 +71,9 @@ export interface TradePlanV1 {
   caveats: string[];
   dataPoints: TradePlanDataPoint[];
   legacySetup: LongTradingSetup;
-  tranches: TradePlanTranche[];
-  positionSizing: TradePlanPositionSizing;
-  brokerVwap: number | null;
+  tranches?: TradePlanTranche[];
+  positionSizing?: TradePlanPositionSizing | null;
+  brokerVwap?: number | null;
 }
 
 function finitePositive(value: unknown): value is number {
