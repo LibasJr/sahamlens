@@ -81,4 +81,118 @@ describe('buildTradePlanV1', () => {
     expect(buildTradePlanV1({ history: baseHistory().slice(0, 14), currentPrice: 106, atr: 5 })).toBeNull();
     expect(buildTradePlanV1({ history: baseHistory(), currentPrice: 106, atr: null })).toBeNull();
   });
+
+  it('menghitung Tranche 1 & 2 (Beli Bertahap 40/60) dan position sizing profil Libas', () => {
+    const plan = buildTradePlanV1({
+      history: baseHistory(),
+      currentPrice: 106,
+      atr: 5,
+    });
+
+    expect(plan).not.toBeNull();
+    if (!plan) throw new Error('plan null');
+    if (!plan.tranches || !plan.positionSizing) throw new Error('tranches or positionSizing missing');
+
+    expect(plan.tranches).toHaveLength(2);
+
+    const [t1, t2] = plan.tranches;
+    // Tranche 1: 40% di area support/entry
+    expect(t1.tranche).toBe(1);
+    expect(t1.allocationPercent).toBe(40);
+    expect(t1.price).toBe(plan.entry);
+    expect(t1.label).toContain('Tranche 1');
+    expect(t1.condition).toContain('40%');
+
+    // Tranche 2: 60% konfirmasi
+    expect(t2.tranche).toBe(2);
+    expect(t2.allocationPercent).toBe(60);
+    expect(t2.price).toBeGreaterThan(plan.entry);
+    expect(t2.price).toBeLessThanOrEqual(plan.takeProfit1);
+    expect(t2.label).toContain('Tranche 2');
+    expect(t2.condition).toContain('60%');
+
+    // Position sizing sesuai profil risiko Libas (Risk per trade 2-3%, posisi 5-10%)
+    expect(plan.positionSizing.minRiskPerTradePct).toBe(2.0);
+    expect(plan.positionSizing.maxRiskPerTradePct).toBe(3.0);
+    expect(plan.positionSizing.riskPerTradePct).toBeGreaterThanOrEqual(2.0);
+    expect(plan.positionSizing.riskPerTradePct).toBeLessThanOrEqual(3.0);
+    expect(plan.positionSizing.standardAllocationPct).toEqual({ min: 5, max: 10 });
+    expect(plan.positionSizing.maxHighConvictionPct).toBe(15);
+    expect(plan.positionSizing.portfolioAllocationPct).toBeGreaterThanOrEqual(5);
+    expect(plan.positionSizing.portfolioAllocationPct).toBeLessThanOrEqual(10);
+    expect(plan.reasons.join(' ')).toContain('tranche 40/60');
+  });
+
+  it('mendukung custom tranche allocation jika ditentukan pengguna', () => {
+    const plan = buildTradePlanV1({
+      history: baseHistory(),
+      currentPrice: 106,
+      atr: 5,
+      tranche1Allocation: 50,
+      tranche2Allocation: 50,
+    });
+
+    expect(plan).not.toBeNull();
+    if (!plan) throw new Error('plan null');
+    if (!plan.tranches) throw new Error('tranches missing');
+
+    expect(plan.tranches[0].allocationPercent).toBe(50);
+    expect(plan.tranches[1].allocationPercent).toBe(50);
+    expect(plan.reasons.join(' ')).toContain('tranche 50/50');
+  });
+
+  it('menyertakan Broker VWAP Reference pada dataPoints saat data tersedia', () => {
+    const plan = buildTradePlanV1({
+      history: baseHistory(),
+      currentPrice: 106,
+      atr: 5,
+      brokerVwap: 104,
+    });
+
+    expect(plan).not.toBeNull();
+    if (!plan) throw new Error('plan null');
+
+    expect(plan.brokerVwap).toBe(104);
+    const vwapPoint = plan.dataPoints.find((p) => p.key === 'brokerVwap');
+    expect(vwapPoint).toBeDefined();
+    expect(vwapPoint?.status).toBe('AVAILABLE');
+    expect(vwapPoint?.source).toBe('BROKER_FLOW');
+    expect(vwapPoint?.value).toBe(104);
+    expect(plan.reasons.join(' ')).toContain('Broker VWAP');
+    expect(plan.reasons.join(' ')).toContain('104');
+  });
+
+  it('memberi catatan kehati-hatian bila harga berada di bawah Broker VWAP', () => {
+    const plan = buildTradePlanV1({
+      history: baseHistory(),
+      currentPrice: 106,
+      atr: 5,
+      brokerVwap: 110,
+    });
+
+    expect(plan).not.toBeNull();
+    if (!plan) throw new Error('plan null');
+
+    expect(plan.brokerVwap).toBe(110);
+    expect(plan.caveats.join(' ')).toContain('di bawah referensi Broker VWAP');
+  });
+
+  it('menandai Broker VWAP Reference NOT_AVAILABLE dan missingData saat diteruskan null', () => {
+    const plan = buildTradePlanV1({
+      history: baseHistory(),
+      currentPrice: 106,
+      atr: 5,
+      brokerVwap: null,
+    });
+
+    expect(plan).not.toBeNull();
+    if (!plan) throw new Error('plan null');
+
+    expect(plan.brokerVwap).toBeNull();
+    const vwapPoint = plan.dataPoints.find((p) => p.key === 'brokerVwap');
+    expect(vwapPoint).toBeDefined();
+    expect(vwapPoint?.status).toBe('NOT_AVAILABLE');
+    expect(vwapPoint?.value).toBeNull();
+    expect(plan.missingData).toContain('Broker VWAP Reference');
+  });
 });

@@ -6,4 +6,7 @@ export {
   TRADE_PLAN_VERSION,
   type TradePlanV1,
   type TradePlanInputs,
+  type TradePlanTranche,
+  type TradePlanPositionSizing,
+  type TradePlanDataPoint,
 } from './service/trade-plan';
