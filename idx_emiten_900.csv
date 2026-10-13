@@ -5,17 +5,17 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 4,ABMM,ABM Investama Tbk.,ABMM.JK,Utama
 5,ACES,Aspirasi Hidup Indonesia Tbk.,ACES.JK,Utama
 6,ACST,Acset Indonusa Tbk.,ACST.JK,Pemantauan Khusus
-7,ADES,Akasha Wira International Tbk.,ADES.JK,Pemantauan Khusus
+7,ADES,Akasha Wira International Tbk.,ADES.JK,Utama
 8,ADHI,Adhi Karya (Persero) Tbk.,ADHI.JK,Utama
 9,AISA,FKS Food Sejahtera Tbk.,AISA.JK,Utama
-10,AKKU,Anugerah Kagum Karya Utama Tbk,AKKU.JK,Pemantauan Khusus
+10,AKKU,Anugerah Kagum Karya Utama Tbk,AKKU.JK,Pengembangan
 11,AKPI,Argha Karya Prima Industry Tbk,AKPI.JK,Pengembangan
 12,AKRA,AKR Corporindo Tbk.,AKRA.JK,Utama
 13,AKSI,Mineral Sumberdaya Mandiri Tbk,AKSI.JK,Pengembangan
 14,ALDO,Alkindo Naratama Tbk.,ALDO.JK,Utama
 15,ALKA,Alakasa Industrindo Tbk,ALKA.JK,Pengembangan
-16,ALMI,Alumindo Light Metal Industry Tbk,ALMI.JK,Pemantauan Khusus
-17,ALTO,Tri Banyan Tirta Tbk.,ALTO.JK,Pemantauan Khusus
+16,ALMI,Alumindo Light Metal Industry Tbk,ALMI.JK,Pengembangan
+17,ALTO,Tri Banyan Tirta Tbk.,ALTO.JK,Utama
 18,AMAG,Asuransi Multi Artha Guna Tbk.,AMAG.JK,Utama
 19,AMFG,Asahimas Flat Glass Tbk.,AMFG.JK,Pengembangan
 20,AMIN,Ateliers Mecaniques D Indonesie Tbk.,AMIN.JK,Pengembangan
@@ -38,7 +38,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 37,ASGR,Astra Graphia Tbk.,ASGR.JK,Utama
 38,ASII,Astra International Tbk.,ASII.JK,Utama
 39,ASJT,Asuransi Jasa Tania Tbk.,ASJT.JK,Pengembangan
-40,ASMI,Asuransi Maximus Graha Persada Tbk.,ASMI.JK,Pemantauan Khusus
+40,ASMI,Asuransi Maximus Graha Persada Tbk.,ASMI.JK,Utama
 41,ASRI,Alam Sutera Realty Tbk.,ASRI.JK,Utama
 42,ASRM,Asuransi Ramayana Tbk.,ASRM.JK,Pengembangan
 43,ASSA,Adi Sarana Armada Tbk.,ASSA.JK,Utama
@@ -65,11 +65,11 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 64,BCIC,Bank JTrust Indonesia Tbk.,BCIC.JK,Pengembangan
 65,BCIP,Bumi Citra Permai Tbk.,BCIP.JK,Pengembangan
 66,BDMN,Bank Danamon Indonesia Tbk.,BDMN.JK,Utama
-67,BEKS,Bank Pembangunan Daerah Banten Tbk.,BEKS.JK,Pemantauan Khusus
+67,BEKS,Bank Pembangunan Daerah Banten Tbk.,BEKS.JK,Pengembangan
 68,BEST,Bekasi Fajar Industrial Estate Tbk,BEST.JK,Utama
 69,BFIN,BFI Finance  Indonesia Tbk.,BFIN.JK,Utama
 70,BGTG,Bank Ganesha Tbk.,BGTG.JK,Utama
-71,BHIT,MNC Asia Holding Tbk.,BHIT.JK,Pemantauan Khusus
+71,BHIT,MNC Asia Holding Tbk.,BHIT.JK,Utama
 72,BIKA,Binakarya Jaya Abadi Tbk.,BIKA.JK,Pemantauan Khusus
 73,BIMA,Primarindo Asia Infrastructure Tbk,BIMA.JK,Pemantauan Khusus
 74,BINA,Bank Ina Perdana Tbk.,BINA.JK,Utama
@@ -82,8 +82,8 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 81,BKDP,Bukit Darmo Property Tbk,BKDP.JK,Pengembangan
 82,BKSL,Sentul City Tbk.,BKSL.JK,Utama
 83,BKSW,Bank QNB Indonesia Tbk.,BKSW.JK,Pengembangan
-84,BLTA,Berlian Laju Tanker Tbk,BLTA.JK,Pemantauan Khusus
-85,BLTZ,Graha Layar Prima Tbk.,BLTZ.JK,Pemantauan Khusus
+84,BLTA,Berlian Laju Tanker Tbk,BLTA.JK,Utama
+85,BLTZ,Graha Layar Prima Tbk.,BLTZ.JK,Pengembangan
 86,BMAS,Bank Kasikorn Indonesia Tbk.,BMAS.JK,Pengembangan
 87,BMRI,Bank Mandiri (Persero) Tbk.,BMRI.JK,Utama
 88,BMSR,Bintang Mitra Semestaraya Tbk,BMSR.JK,Pengembangan
@@ -103,8 +103,8 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 102,BSDE,Bumi Serpong Damai Tbk.,BSDE.JK,Utama
 103,BSIM,Bank Sinarmas Tbk.,BSIM.JK,Utama
 104,BSSR,Baramulti Suksessarana Tbk.,BSSR.JK,Utama
-105,BSWD,Bank Of India Indonesia Tbk.,BSWD.JK,Pemantauan Khusus
-106,BTEK,Bumi Teknokultura Unggul Tbk,BTEK.JK,Pemantauan Khusus
+105,BSWD,Bank Of India Indonesia Tbk.,BSWD.JK,Pengembangan
+106,BTEK,Bumi Teknokultura Unggul Tbk,BTEK.JK,Pengembangan
 107,BTEL,Bakrie Telecom Tbk.,BTEL.JK,Pemantauan Khusus
 108,BTON,Betonjaya Manunggal Tbk.,BTON.JK,Pengembangan
 109,BTPN,Bank SMBC Indonesia Tbk.,BTPN.JK,Utama
@@ -145,17 +145,17 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 144,DNAR,Bank Oke Indonesia Tbk.,DNAR.JK,Pengembangan
 145,DNET,Indoritel Makmur Internasional Tbk.,DNET.JK,Utama
 146,DOID,BUMA Internasional Grup Tbk.,DOID.JK,Pengembangan
-147,DPNS,Duta Pertiwi Nusantara Tbk.,DPNS.JK,Pemantauan Khusus
+147,DPNS,Duta Pertiwi Nusantara Tbk.,DPNS.JK,Pengembangan
 148,DSFI,Dharma Samudera Fishing Indust,DSFI.JK,Pengembangan
 149,DSNG,Dharma Satya Nusantara Tbk.,DSNG.JK,Utama
 150,DSSA,Dian Swastatika Sentosa Tbk,DSSA.JK,Utama
-151,DUTI,Duta Pertiwi Tbk,DUTI.JK,Pemantauan Khusus
+151,DUTI,Duta Pertiwi Tbk,DUTI.JK,Pengembangan
 152,DVLA,Darya-Varia Laboratoria Tbk.,DVLA.JK,Pengembangan
 153,DYAN,Dyandra Media International Tbk.,DYAN.JK,Pengembangan
 154,ECII,Electronic City Indonesia Tbk.,ECII.JK,Pengembangan
 155,EKAD,Ekadharma International Tbk.,EKAD.JK,Pengembangan
 156,ELSA,Elnusa Tbk.,ELSA.JK,Utama
-157,ELTY,Bakrieland Development Tbk.,ELTY.JK,Pemantauan Khusus
+157,ELTY,Bakrieland Development Tbk.,ELTY.JK,Pengembangan
 158,EMDE,Megapolitan Developments Tbk.,EMDE.JK,Pengembangan
 159,EMTK,Elang Mahkota Teknologi Tbk.,EMTK.JK,Utama
 160,ENRG,Energi Mega Persada Tbk.,ENRG.JK,Utama
@@ -167,12 +167,12 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 166,ETWA,Eterindo Wahanatama Tbk,ETWA.JK,Pemantauan Khusus
 167,EXCL,XLSMART Telecom Sejahtera Tbk.,EXCL.JK,Utama
 168,FAST,Fast Food Indonesia Tbk.,FAST.JK,Pengembangan
-169,FASW,Fajar Surya Wisesa Tbk.,FASW.JK,Pemantauan Khusus
+169,FASW,Fajar Surya Wisesa Tbk.,FASW.JK,Utama
 170,FISH,FKS Multi Agro Tbk.,FISH.JK,Utama
 171,FMII,Fortune Mate Indonesia Tbk,FMII.JK,Pengembangan
 172,FORU,Fortune Indonesia Tbk,FORU.JK,Pengembangan
 173,FPNI,Lotte Chemical Titan Tbk.,FPNI.JK,Pengembangan
-174,GAMA,Aksara Global Development Tbk.,GAMA.JK,Pemantauan Khusus
+174,GAMA,Aksara Global Development Tbk.,GAMA.JK,Utama
 175,GDST,Gunawan Dianjaya Steel Tbk.,GDST.JK,Pengembangan
 176,GDYR,Goodyear Indonesia Tbk.,GDYR.JK,Pengembangan
 177,GEMA,Gema Grahasarana Tbk.,GEMA.JK,Pengembangan
@@ -189,23 +189,23 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 188,GTBO,Garda Tujuh Buana Tbk,GTBO.JK,Pemantauan Khusus
 189,GWSA,Greenwood Sejahtera Tbk.,GWSA.JK,Pengembangan
 190,GZCO,Gozco Plantations Tbk.,GZCO.JK,Utama
-191,HADE,Himalaya Energi Perkasa Tbk.,HADE.JK,Pemantauan Khusus
+191,HADE,Himalaya Energi Perkasa Tbk.,HADE.JK,Pengembangan
 192,HDFA,Radana Bhaskara Finance Tbk.,HDFA.JK,Pengembangan
 193,HERO,DFI Retail Nusantara Tbk.,HERO.JK,Utama
 194,HEXA,Hexindo Adiperkasa Tbk.,HEXA.JK,Utama
-195,HITS,Humpuss Intermoda Transportasi Tbk,HITS.JK,Pemantauan Khusus
+195,HITS,Humpuss Intermoda Transportasi Tbk,HITS.JK,Pengembangan
 196,HMSP,H.M. Sampoerna Tbk.,HMSP.JK,Utama
-197,HOME,Hotel Mandarine Regency Tbk.,HOME.JK,Pemantauan Khusus
+197,HOME,Hotel Mandarine Regency Tbk.,HOME.JK,Pengembangan
 198,HOTL,Saraswati Griya Lestari Tbk.,HOTL.JK,Pemantauan Khusus
 199,HRUM,Harum Energy Tbk.,HRUM.JK,Utama
 200,IATA,Karya Pacific Energy Tbk.,IATA.JK,Pengembangan
 201,IBFN,Intan Baru Prana Tbk.,IBFN.JK,Pemantauan Khusus
-202,IBST,Inti Bangun Sejahtera Tbk.,IBST.JK,Pemantauan Khusus
+202,IBST,Inti Bangun Sejahtera Tbk.,IBST.JK,Utama
 203,ICBP,Indofood CBP Sukses Makmur Tbk,ICBP.JK,Utama
 204,ICON,Island Concepts Indonesia Tbk.,ICON.JK,Pengembangan
 205,IGAR,Champion Pacific Indonesia Tbk,IGAR.JK,Pengembangan
-206,IIKP,Inti Agri Resources Tbk,IIKP.JK,Pemantauan Khusus
-207,IKAI,Intikeramik Alamasri Industri Tbk,IKAI.JK,Pemantauan Khusus
+206,IIKP,Inti Agri Resources Tbk,IIKP.JK,Pengembangan
+207,IKAI,Intikeramik Alamasri Industri Tbk,IKAI.JK,Utama
 208,IKBI,Sumi Indo Kabel Tbk.,IKBI.JK,Pengembangan
 209,IMAS,Indomobil Sukses Internasional Tbk,IMAS.JK,Utama
 210,IMJS,Indomobil Multi Jasa Tbk.,IMJS.JK,Pengembangan
@@ -222,7 +222,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 221,INKP,Indah Kiat Pulp & Paper Tbk.,INKP.JK,Utama
 222,INPC,Bank Artha Graha Internasional Tbk,INPC.JK,Utama
 223,INPP,Indonesian Paradise Property Tbk,INPP.JK,Pengembangan
-224,INRU,Toba Pulp Lestari Tbk.,INRU.JK,Pemantauan Khusus
+224,INRU,Toba Pulp Lestari Tbk.,INRU.JK,Pengembangan
 225,INTA,Intraco Penta Tbk.,INTA.JK,Pemantauan Khusus
 226,INTD,Inter Delta Tbk,INTD.JK,Pengembangan
 227,INTP,Indocement Tunggal Prakarsa Tbk,INTP.JK,Utama
@@ -247,7 +247,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 246,KBLV,First Media Tbk.,KBLV.JK,Pengembangan
 247,KBRI,Kertas Basuki Rachmat Indonesia Tbk,KBRI.JK,Pemantauan Khusus
 248,KDSI,Kedawung Setia Industrial Tbk.,KDSI.JK,Pengembangan
-249,KIAS,Keramika Indonesia Assosiasi Tbk,KIAS.JK,Pemantauan Khusus
+249,KIAS,Keramika Indonesia Assosiasi Tbk,KIAS.JK,Pengembangan
 250,KICI,Kedaung Indah Can Tbk,KICI.JK,Pengembangan
 251,KIJA,Kawasan Industri Jababeka Tbk.,KIJA.JK,Utama
 252,KKGI,Resource Alam Indonesia Tbk.,KKGI.JK,Utama
@@ -258,15 +258,15 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 257,KOPI,Mitra Energi Persada Tbk.,KOPI.JK,Pengembangan
 258,KPIG,MNC Tourism Indonesia Tbk.,KPIG.JK,Utama
 259,KRAS,Krakatau Steel (Persero) Tbk.,KRAS.JK,Pengembangan
-260,KREN,Quantum Clovera Investama Tbk.,KREN.JK,Pemantauan Khusus
+260,KREN,Quantum Clovera Investama Tbk.,KREN.JK,Utama
 261,LAPD,Leyand International Tbk.,LAPD.JK,Pengembangan
-262,LCGP,Eureka Prima Jakarta Tbk.,LCGP.JK,Pemantauan Khusus
+262,LCGP,Eureka Prima Jakarta Tbk.,LCGP.JK,Pengembangan
 263,LEAD,Logindo Samudramakmur Tbk.,LEAD.JK,Pengembangan
 264,LINK,Link Net Tbk.,LINK.JK,Pengembangan
 265,LION,Lion Metal Works Tbk.,LION.JK,Pengembangan
 266,LMAS,Limas Indonesia Makmur Tbk,LMAS.JK,Pemantauan Khusus
 267,LMPI,Langgeng Makmur Industri Tbk.,LMPI.JK,Pengembangan
-268,LMSH,Lionmesh Prima Tbk.,LMSH.JK,Pemantauan Khusus
+268,LMSH,Lionmesh Prima Tbk.,LMSH.JK,Pengembangan
 269,LPCK,Lippo Cikarang Tbk,LPCK.JK,Utama
 270,LPGI,Lippo General Insurance Tbk.,LPGI.JK,Pengembangan
 271,LPIN,Multi Prima Sejahtera Tbk,LPIN.JK,Pengembangan
@@ -277,7 +277,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 276,LRNA,Eka Sari Lorena Transport Tbk.,LRNA.JK,Pengembangan
 277,LSIP,PP London Sumatra Indonesia Tbk,LSIP.JK,Utama
 278,LTLS,Lautan Luas Tbk.,LTLS.JK,Utama
-279,MAGP,Multi Agro Gemilang Plantation Tbk,MAGP.JK,Pemantauan Khusus
+279,MAGP,Multi Agro Gemilang Plantation Tbk,MAGP.JK,Pengembangan
 280,MAIN,Malindo Feedmill Tbk.,MAIN.JK,Utama
 281,MAPI,Mitra Adiperkasa Tbk.,MAPI.JK,Utama
 282,MAYA,Bank Mayapada Internasional Tbk,MAYA.JK,Utama
@@ -293,16 +293,16 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 292,MEGA,Bank Mega Tbk.,MEGA.JK,Utama
 293,MERK,Merck Tbk.,MERK.JK,Utama
 294,META,Nusantara Infrastructure Tbk.,META.JK,Pengembangan
-295,MFMI,Multifiling Mitra Indonesia Tbk,MFMI.JK,Pemantauan Khusus
+295,MFMI,Multifiling Mitra Indonesia Tbk,MFMI.JK,Pengembangan
 296,MGNA,Magna Investama Mandiri Tbk.,MGNA.JK,Pengembangan
 297,MICE,Multi Indocitra Tbk.,MICE.JK,Pengembangan
 298,MIDI,Midi Utama Indonesia Tbk.,MIDI.JK,Utama
 299,MIKA,Mitra Keluarga Karyasehat Tbk.,MIKA.JK,Utama
-300,MIRA,Mitra International Resources Tbk,MIRA.JK,Pemantauan Khusus
+300,MIRA,Mitra International Resources Tbk,MIRA.JK,Pengembangan
 301,MITI,Mitra Investindo Tbk.,MITI.JK,Pengembangan
 302,MKPI,Metropolitan Kentjana Tbk.,MKPI.JK,Pengembangan
 303,MLBI,Multi Bintang Indonesia Tbk.,MLBI.JK,Utama
-304,MLIA,Mulia Industrindo Tbk,MLIA.JK,Pemantauan Khusus
+304,MLIA,Mulia Industrindo Tbk,MLIA.JK,Utama
 305,MLPL,Multipolar Tbk.,MLPL.JK,Utama
 306,MLPT,Multipolar Technology Tbk.,MLPT.JK,Pengembangan
 307,MMLP,Mega Manunggal Property Tbk.,MMLP.JK,Pengembangan
@@ -315,7 +315,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 314,MTDL,Metrodata Electronics Tbk.,MTDL.JK,Utama
 315,MTFN,Capitalinc Investment Tbk.,MTFN.JK,Pemantauan Khusus
 316,MTLA,Metropolitan Land Tbk.,MTLA.JK,Utama
-317,MTSM,Metro Realty Tbk.,MTSM.JK,Pemantauan Khusus
+317,MTSM,Metro Realty Tbk.,MTSM.JK,Pengembangan
 318,MYOH,Samindo Resources Tbk.,MYOH.JK,Pengembangan
 319,MYOR,Mayora Indah Tbk.,MYOR.JK,Utama
 320,MYTX,Asia Pacific Investama Tbk.,MYTX.JK,Pemantauan Khusus
@@ -332,7 +332,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 331,PALM,Provident Investasi Bersama Tbk,PALM.JK,Utama
 332,PANR,Panorama Sentrawisata Tbk.,PANR.JK,Pengembangan
 333,PANS,Panin Sekuritas Tbk.,PANS.JK,Utama
-334,PBRX,Pan Brothers Tbk.,PBRX.JK,Pemantauan Khusus
+334,PBRX,Pan Brothers Tbk.,PBRX.JK,Utama
 335,PDES,Destinasi Tirta Nusantara Tbk,PDES.JK,Pengembangan
 336,PEGE,Panca Global Kapital Tbk.,PEGE.JK,Pengembangan
 337,PGAS,Perusahaan Gas Negara (Persero) Tbk,PGAS.JK,Utama
@@ -340,8 +340,8 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 339,PICO,Pelangi Indah Canindo Tbk,PICO.JK,Pengembangan
 340,PJAA,Pembangunan Jaya Ancol Tbk.,PJAA.JK,Pengembangan
 341,PKPK,Paragon Karya Perkasa Tbk.,PKPK.JK,Pengembangan
-342,PLAS,Polaris Investama Tbk,PLAS.JK,Pemantauan Khusus
-343,PLIN,Plaza Indonesia Realty Tbk.,PLIN.JK,Pemantauan Khusus
+342,PLAS,Polaris Investama Tbk,PLAS.JK,Pengembangan
+343,PLIN,Plaza Indonesia Realty Tbk.,PLIN.JK,Utama
 344,PNBN,Bank Pan Indonesia Tbk,PNBN.JK,Utama
 345,PNBS,Bank Panin Dubai Syariah Tbk.,PNBS.JK,Pengembangan
 346,PNIN,Paninvest Tbk.,PNIN.JK,Utama
@@ -366,7 +366,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 365,RELI,Reliance Sekuritas Indonesia Tbk,RELI.JK,Pengembangan
 366,RICY,Ricky Putra Globalindo Tbk,RICY.JK,Pengembangan
 367,RIGS,Rig Tenders Indonesia Tbk.,RIGS.JK,Pengembangan
-368,RIMO,Rimo International Lestari Tbk,RIMO.JK,Pemantauan Khusus
+368,RIMO,Rimo International Lestari Tbk,RIMO.JK,Pengembangan
 369,RODA,Pikko Land Development Tbk.,RODA.JK,Pengembangan
 370,ROTI,Nippon Indosari Corpindo Tbk.,ROTI.JK,Pengembangan
 371,RUIS,Radiant Utama Interinsco Tbk.,RUIS.JK,Pengembangan
@@ -374,7 +374,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 373,SAME,Sarana Meditama Metropolitan Tbk,SAME.JK,Utama
 374,SCCO,Supreme Cable Manufacturing & Commerce Tbk,SCCO.JK,Pengembangan
 375,SCMA,Surya Citra Media Tbk.,SCMA.JK,Utama
-376,SCPI,Organon Pharma Indonesia Tbk.,SCPI.JK,Pemantauan Khusus
+376,SCPI,Organon Pharma Indonesia Tbk.,SCPI.JK,Pengembangan
 377,SDMU,Sidomulyo Selaras Tbk.,SDMU.JK,Pengembangan
 378,SDPC,Millennium Pharmacon International Tbk,SDPC.JK,Pengembangan
 379,SDRA,Bank Woori Saudara Indonesia 1906 Tbk,SDRA.JK,Pengembangan
@@ -387,10 +387,10 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 386,SIPD,Sreeya Sewu Indonesia Tbk.,SIPD.JK,Pengembangan
 387,SKBM,Sekar Bumi Tbk.,SKBM.JK,Pengembangan
 388,SKLT,Sekar Laut Tbk.,SKLT.JK,Pengembangan
-389,SKYB,Northcliff Citranusa Indonesia Tbk.,SKYB.JK,Pemantauan Khusus
+389,SKYB,Northcliff Citranusa Indonesia Tbk.,SKYB.JK,Pengembangan
 390,SMAR,Sinar Mas Agro Resources and Technology Tbk,SMAR.JK,Utama
 391,SMBR,Semen Baturaja (Persero) Tbk.,SMBR.JK,Utama
-392,SMCB,Solusi Bangun Indonesia Tbk.,SMCB.JK,Pemantauan Khusus
+392,SMCB,Solusi Bangun Indonesia Tbk.,SMCB.JK,Utama
 393,SMDM,Suryamas Dutamakmur Tbk.,SMDM.JK,Pengembangan
 394,SMDR,Samudera Indonesia  Tbk.,SMDR.JK,Utama
 395,SMGR,Semen Indonesia (Persero) Tbk.,SMGR.JK,Utama
@@ -400,7 +400,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 399,SMRU,SMR Utama Tbk.,SMRU.JK,Pemantauan Khusus
 400,SMSM,Selamat Sempurna Tbk.,SMSM.JK,Utama
 401,SOCI,Soechi Lines Tbk.,SOCI.JK,Pengembangan
-402,SONA,Sona Topas Tourism Industry Tbk,SONA.JK,Pemantauan Khusus
+402,SONA,Sona Topas Tourism Industry Tbk,SONA.JK,Pengembangan
 403,SPMA,Suparma Tbk.,SPMA.JK,Pengembangan
 404,SQMI,Wilton Makmur Indonesia Tbk.,SQMI.JK,Pengembangan
 405,SRAJ,Sejahteraraya Anugrahjaya Tbk.,SRAJ.JK,Pengembangan
@@ -412,18 +412,18 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 411,SSTM,Sunson Textile Manufacture Tbk,SSTM.JK,Pengembangan
 412,STAR,Calculus Global Ventures Tbk.,STAR.JK,Pengembangan
 413,STTP,Siantar Top Tbk.,STTP.JK,Pengembangan
-414,SUGI,Sugih Energy Tbk.,SUGI.JK,Pemantauan Khusus
+414,SUGI,Sugih Energy Tbk.,SUGI.JK,Pengembangan
 415,SULI,SLJ Global Tbk.,SULI.JK,Pengembangan
-416,SUPR,Solusi Tunas Pratama Tbk.,SUPR.JK,Pemantauan Khusus
+416,SUPR,Solusi Tunas Pratama Tbk.,SUPR.JK,Pengembangan
 417,TALF,Tunas Alfin Tbk.,TALF.JK,Pengembangan
-418,TARA,Agung Semesta Sejahtera Tbk.,TARA.JK,Pemantauan Khusus
-419,TAXI,Express Transindo Utama Tbk.,TAXI.JK,Pemantauan Khusus
+418,TARA,Agung Semesta Sejahtera Tbk.,TARA.JK,Utama
+419,TAXI,Express Transindo Utama Tbk.,TAXI.JK,Utama
 420,TBIG,Tower Bersama Infrastructure Tbk,TBIG.JK,Utama
 421,TBLA,Tunas Baru Lampung Tbk.,TBLA.JK,Utama
 422,TBMS,Tembaga Mulia Semanan Tbk.,TBMS.JK,Pengembangan
 423,TCID,Mandom Indonesia Tbk.,TCID.JK,Pengembangan
 424,TELE,Omni Inovasi Indonesia Tbk.,TELE.JK,Pemantauan Khusus
-425,TFCO,Tifico Fiber Indonesia Tbk.,TFCO.JK,Pemantauan Khusus
+425,TFCO,Tifico Fiber Indonesia Tbk.,TFCO.JK,Pengembangan
 426,TGKA,Tigaraksa Satria Tbk.,TGKA.JK,Pengembangan
 427,TIFA,KDB Tifa Finance Tbk.,TIFA.JK,Pengembangan
 428,TINS,TIMAH (Persero) Tbk.,TINS.JK,Utama
@@ -439,8 +439,8 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 438,TOWR,Sarana Menara Nusantara Tbk.,TOWR.JK,Utama
 439,TPIA,Chandra Asri Pacific Tbk.,TPIA.JK,Utama
 440,TPMA,Trans Power Marine Tbk.,TPMA.JK,Utama
-441,TRAM,Trada Alam Minera Tbk.,TRAM.JK,Pemantauan Khusus
-442,TRIL,Triwira Insanlestari Tbk.,TRIL.JK,Pemantauan Khusus
+441,TRAM,Trada Alam Minera Tbk.,TRAM.JK,Pengembangan
+442,TRIL,Triwira Insanlestari Tbk.,TRIL.JK,Pengembangan
 443,TRIM,Trimegah Sekuritas Indonesia Tbk,TRIM.JK,Utama
 444,TRIO,Trikomsel Oke Tbk.,TRIO.JK,Pemantauan Khusus
 445,TRIS,Trisula International Tbk.,TRIS.JK,Pengembangan
@@ -449,23 +449,23 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 448,TSPC,Tempo Scan Pacific Tbk.,TSPC.JK,Utama
 449,ULTJ,Ultrajaya Milk Industry & Trading Company Tbk,ULTJ.JK,Utama
 450,UNIC,Unggul Indah Cahaya Tbk.,UNIC.JK,Utama
-451,UNIT,Nusantara Inti Corpora Tbk,UNIT.JK,Pemantauan Khusus
+451,UNIT,Nusantara Inti Corpora Tbk,UNIT.JK,Pengembangan
 452,UNSP,Bakrie Sumatera Plantations Tbk,UNSP.JK,Pengembangan
 453,UNTR,United Tractors Tbk.,UNTR.JK,Utama
 454,UNVR,Unilever Indonesia Tbk.,UNVR.JK,Utama
 455,VICO,Victoria Investama Tbk.,VICO.JK,Utama
 456,VINS,Victoria Insurance Tbk.,VINS.JK,Pengembangan
-457,VIVA,Visi Media Asia Tbk.,VIVA.JK,Pemantauan Khusus
+457,VIVA,Visi Media Asia Tbk.,VIVA.JK,Pengembangan
 458,VOKS,Voksel Electric Tbk.,VOKS.JK,Pengembangan
 459,VRNA,Mizuho Leasing Indonesia Tbk.,VRNA.JK,Pengembangan
 460,WAPO,Wahana Pronatural Tbk.,WAPO.JK,Pengembangan
 461,WEHA,WEHA Transportasi Indonesia Tbk,WEHA.JK,Pengembangan
 462,WICO,Wicaksana Overseas International Tbk,WICO.JK,Pemantauan Khusus
 463,WIIM,Wismilak Inti Makmur Tbk.,WIIM.JK,Utama
-464,WIKA,Wijaya Karya (Persero) Tbk.,WIKA.JK,Pemantauan Khusus
+464,WIKA,Wijaya Karya (Persero) Tbk.,WIKA.JK,Pengembangan
 465,WINS,Wintermar Offshore Marine Tbk.,WINS.JK,Utama
 466,WOMF,Wahana Ottomitra Multiartha Tbk,WOMF.JK,Pengembangan
-467,WSKT,Waskita Karya (Persero) Tbk.,WSKT.JK,Pemantauan Khusus
+467,WSKT,Waskita Karya (Persero) Tbk.,WSKT.JK,Utama
 468,WTON,Wijaya Karya Beton Tbk.,WTON.JK,Utama
 469,YPAS,Yanaprima Hastapersada Tbk,YPAS.JK,Pengembangan
 470,YULE,Yulie Sekuritas Indonesia Tbk.,YULE.JK,Pengembangan
@@ -482,7 +482,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 481,MTRA,Mitra Pemuda Tbk.,MTRA.JK,Pemantauan Khusus
 482,OASA,Maharaksa Biru Energi Tbk.,OASA.JK,Pengembangan
 483,POWR,Cikarang Listrindo Tbk.,POWR.JK,Utama
-484,INCF,Indo Komoditi Korpora Tbk.,INCF.JK,Pemantauan Khusus
+484,INCF,Indo Komoditi Korpora Tbk.,INCF.JK,Pengembangan
 485,WSBP,Waskita Beton Precast Tbk.,WSBP.JK,Pemantauan Khusus
 486,PBSA,Paramita Bangun Sarana Tbk.,PBSA.JK,Pengembangan
 487,PRDA,Prodia Widyahusada Tbk.,PRDA.JK,Utama
@@ -492,21 +492,21 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 491,CARS,Industri dan Perdagangan Bintraco Dharma Tbk,CARS.JK,Utama
 492,MINA,Sanurhasta Mitra Tbk.,MINA.JK,Pengembangan
 493,CLEO,Sariguna Primatirta Tbk.,CLEO.JK,Utama
-494,TAMU,Pelayaran Tamarin Samudra Tbk.,TAMU.JK,Pemantauan Khusus
+494,TAMU,Pelayaran Tamarin Samudra Tbk.,TAMU.JK,Pengembangan
 495,CSIS,Cahayasakti Investindo Sukses Tbk,CSIS.JK,Pengembangan
 496,TGRA,Terregra Asia Energy Tbk.,TGRA.JK,Pemantauan Khusus
 497,FIRE,Alfa Energi Investama Tbk.,FIRE.JK,Pengembangan
 498,TOPS,Totalindo Eka Persada Tbk.,TOPS.JK,Pemantauan Khusus
 499,KMTR,Kirana Megatara Tbk.,KMTR.JK,Pengembangan
-500,ARMY,Armidian Karyatama Tbk.,ARMY.JK,Pemantauan Khusus
-501,MAPB,MAP Boga Adiperkasa Tbk.,MAPB.JK,Pemantauan Khusus
+500,ARMY,Armidian Karyatama Tbk.,ARMY.JK,Pengembangan
+501,MAPB,MAP Boga Adiperkasa Tbk.,MAPB.JK,Pengembangan
 502,WOOD,Integra Indocabinet Tbk.,WOOD.JK,Utama
 503,HRTA,Hartadinata Abadi Tbk.,HRTA.JK,Utama
 504,MABA,Marga Abhinaya Abadi Tbk.,MABA.JK,Pemantauan Khusus
 505,HOKI,Buyung Poetra Sembada Tbk.,HOKI.JK,Pengembangan
 506,MPOW,Megapower Makmur Tbk.,MPOW.JK,Pengembangan
 507,MARK,Mark Dynamics Indonesia Tbk.,MARK.JK,Utama
-508,NASA,Andalan Perkasa Abadi Tbk.,NASA.JK,Pemantauan Khusus
+508,NASA,Andalan Perkasa Abadi Tbk.,NASA.JK,Pengembangan
 509,MDKI,Emdeki Utama Tbk.,MDKI.JK,Pengembangan
 510,BELL,Trisula Textile Industries Tbk,BELL.JK,Pengembangan
 511,KIOS,Kioson Komersial Indonesia Tbk,KIOS.JK,Pengembangan
@@ -523,7 +523,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 522,JMAS,Asuransi Jiwa Syariah Jasa Mitra Abadi Tbk,JMAS.JK,Pengembangan
 523,CAMP,Campina Ice Cream Industry Tbk,CAMP.JK,Pengembangan
 524,IPCM,Jasa Armada Indonesia Tbk.,IPCM.JK,Utama
-525,PCAR,Prima Cakrawala Abadi Tbk.,PCAR.JK,Pemantauan Khusus
+525,PCAR,Prima Cakrawala Abadi Tbk.,PCAR.JK,Pengembangan
 526,LCKM,LCK Global Kedaton Tbk.,LCKM.JK,Pengembangan
 527,BOSS,Borneo Olah Sarana Sukses Tbk.,BOSS.JK,Pemantauan Khusus
 528,HELI,Jaya Trishindo Tbk.,HELI.JK,Pengembangan
@@ -537,23 +537,23 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 536,SPTO,Surya Pertiwi Tbk.,SPTO.JK,Utama
 537,PRIM,Royal Prima Tbk.,PRIM.JK,Pengembangan
 538,HEAL,Medikaloka Hermina Tbk.,HEAL.JK,Utama
-539,TRUK,Guna Timur Raya Tbk.,TRUK.JK,Pemantauan Khusus
+539,TRUK,Guna Timur Raya Tbk.,TRUK.JK,Pengembangan
 540,PZZA,Sarimelati Kencana Tbk.,PZZA.JK,Pengembangan
 541,TUGU,Asuransi Tugu Pratama Indonesia Tbk,TUGU.JK,Utama
 542,MSIN,MNC Digital Entertainment Tbk.,MSIN.JK,Utama
-543,SWAT,Sriwahana Adityakarta Tbk.,SWAT.JK,Pemantauan Khusus
+543,SWAT,Sriwahana Adityakarta Tbk.,SWAT.JK,Pengembangan
 544,TNCA,Trimuda Nuansa Citra Tbk.,TNCA.JK,Pengembangan
 545,MAPA,Map Aktif Adiperkasa Tbk.,MAPA.JK,Utama
 546,TCPI,Transcoal Pacific Tbk.,TCPI.JK,Pengembangan
 547,IPCC,Indonesia Kendaraan Terminal Tbk.,IPCC.JK,Utama
 548,RISE,Jaya Sukses Makmur Sentosa Tbk,RISE.JK,Pengembangan
 549,BPTR,Batavia Prosperindo Trans Tbk.,BPTR.JK,Pengembangan
-550,POLL,Pollux Properties Indonesia Tbk.,POLL.JK,Pemantauan Khusus
+550,POLL,Pollux Properties Indonesia Tbk.,POLL.JK,Pengembangan
 551,NFCX,NFC Indonesia Tbk.,NFCX.JK,Pengembangan
 552,MGRO,Mahkota Group Tbk.,MGRO.JK,Pengembangan
-553,NUSA,Sinergi Megah Internusa Tbk.,NUSA.JK,Pemantauan Khusus
+553,NUSA,Sinergi Megah Internusa Tbk.,NUSA.JK,Pengembangan
 554,FILM,MD Entertainment Tbk.,FILM.JK,Utama
-555,ANDI,Andira Agro Tbk.,ANDI.JK,Pemantauan Khusus
+555,ANDI,Andira Agro Tbk.,ANDI.JK,Pengembangan
 556,LAND,Trimitra Propertindo Tbk.,LAND.JK,Pengembangan
 557,MOLI,Madusari Murni Indah Tbk.,MOLI.JK,Pengembangan
 558,PANI,Pantai Indah Kapuk Dua Tbk.,PANI.JK,Utama
@@ -563,18 +563,18 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 562,SURE,Super Energy Tbk.,SURE.JK,Pengembangan
 563,HKMU,HK Metals Utama Tbk.,HKMU.JK,Pemantauan Khusus
 564,MPRO,Maha Properti Indonesia Tbk.,MPRO.JK,Pengembangan
-565,DUCK,Jaya Bersama Indo Tbk.,DUCK.JK,Pemantauan Khusus
+565,DUCK,Jaya Bersama Indo Tbk.,DUCK.JK,Pengembangan
 566,GOOD,Garudafood Putra Putri Jaya Tbk.,GOOD.JK,Utama
 567,SKRN,Superkrane Mitra Utama Tbk.,SKRN.JK,Utama
 568,YELO,Yelooo Integra Datanet Tbk.,YELO.JK,Pengembangan
 569,CAKK,Cahayaputra Asa Keramik Tbk.,CAKK.JK,Pengembangan
 570,SATU,Kota Satu Properti Tbk.,SATU.JK,Pengembangan
-571,SOSS,ALSOK Indonesia Services Tbk.,SOSS.JK,Pemantauan Khusus
+571,SOSS,ALSOK Indonesia Services Tbk.,SOSS.JK,Pengembangan
 572,DEAL,Dewata Freightinternational Tbk.,DEAL.JK,Pemantauan Khusus
 573,POLA,Pool Advista Finance Tbk.,POLA.JK,Pengembangan
 574,DIVA,Distribusi Voucher Nusantara Tbk,DIVA.JK,Pengembangan
 575,LUCK,Sentral Mitra Informatika Tbk.,LUCK.JK,Pengembangan
-576,URBN,Urban Jakarta Propertindo Tbk.,URBN.JK,Pemantauan Khusus
+576,URBN,Urban Jakarta Propertindo Tbk.,URBN.JK,Pengembangan
 577,SOTS,Satria Mega Kencana Tbk.,SOTS.JK,Pengembangan
 578,ZONE,Mega Perintis Tbk.,ZONE.JK,Pengembangan
 579,PEHA,Phapros Tbk.,PEHA.JK,Pengembangan
@@ -586,8 +586,8 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 585,JAYA,Armada Berjaya Trans Tbk.,JAYA.JK,Pengembangan
 586,COCO,Wahana Interfood Nusantara Tbk,COCO.JK,Pengembangan
 587,MTPS,Meta Epsi Tbk.,MTPS.JK,Pemantauan Khusus
-588,CPRI,Capri Nusa Satu Properti Tbk.,CPRI.JK,Pemantauan Khusus
-589,HRME,Menteng Heritage Realty Tbk.,HRME.JK,Pemantauan Khusus
+588,CPRI,Capri Nusa Satu Properti Tbk.,CPRI.JK,Pengembangan
+589,HRME,Menteng Heritage Realty Tbk.,HRME.JK,Pengembangan
 590,POSA,Bliss Properti Indonesia Tbk.,POSA.JK,Pemantauan Khusus
 591,JAST,Jasnita Telekomindo Tbk.,JAST.JK,Pengembangan
 592,FITT,Hotel Fitra International Tbk.,FITT.JK,Pengembangan
@@ -599,19 +599,19 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 598,KAYU,Darmi Bersaudara Tbk.,KAYU.JK,Pemantauan Khusus
 599,ITIC,Indonesian Tobacco Tbk.,ITIC.JK,Pengembangan
 600,PAMG,Bima Sakti Pertiwi Tbk.,PAMG.JK,Pengembangan
-601,IPTV,MNC Vision Networks Tbk.,IPTV.JK,Pemantauan Khusus
+601,IPTV,MNC Vision Networks Tbk.,IPTV.JK,Utama
 602,BLUE,Berkah Prima Perkasa Tbk.,BLUE.JK,Pengembangan
 603,ENVY,Envy Technologies Indonesia Tbk,ENVY.JK,Pemantauan Khusus
 604,EAST,Eastparc Hotel Tbk.,EAST.JK,Pengembangan
-605,LIFE,MSIG Life Insurance Indonesia Tbk.,LIFE.JK,Pemantauan Khusus
+605,LIFE,MSIG Life Insurance Indonesia Tbk.,LIFE.JK,Pengembangan
 606,FUJI,Fuji Finance Indonesia Tbk.,FUJI.JK,Pengembangan
 607,KOTA,DMS Propertindo Tbk.,KOTA.JK,Utama
 608,INOV,Inocycle Technology Group Tbk.,INOV.JK,Pengembangan
-609,ARKA,Arkha Jayanti Persada Tbk.,ARKA.JK,Pemantauan Khusus
+609,ARKA,Arkha Jayanti Persada Tbk.,ARKA.JK,Pengembangan
 610,SMKL,Satyamitra Kemas Lestari Tbk.,SMKL.JK,Pengembangan
 611,HDIT,Hensel Davest Indonesia Tbk.,HDIT.JK,Utama
 612,KEEN,Kencana Energi Lestari Tbk.,KEEN.JK,Utama
-613,BAPI,Bhakti Agung Propertindo Tbk.,BAPI.JK,Pemantauan Khusus
+613,BAPI,Bhakti Agung Propertindo Tbk.,BAPI.JK,Pengembangan
 614,TFAS,Telefast Indonesia Tbk.,TFAS.JK,Pengembangan
 615,GGRP,Gunung Raja Paksi Tbk.,GGRP.JK,Pengembangan
 616,OPMS,Optima Prima Metal Sinergi Tbk,OPMS.JK,Pengembangan
@@ -627,7 +627,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 626,KEJU,Mulia Boga Raya Tbk.,KEJU.JK,Utama
 627,PSGO,Palma Serasih Tbk.,PSGO.JK,Utama
 628,AGAR,Asia Sejahtera Mina Tbk.,AGAR.JK,Pengembangan
-629,IFSH,Ifishdeco Tbk.,IFSH.JK,Pemantauan Khusus
+629,IFSH,Ifishdeco Tbk.,IFSH.JK,Pengembangan
 630,REAL,Repower Asia Indonesia Tbk.,REAL.JK,Pengembangan
 631,IFII,Indonesia Fibreboard Industry Tbk,IFII.JK,Pengembangan
 632,PMJS,Putra Mandiri Jembar Tbk.,PMJS.JK,Pengembangan
@@ -640,20 +640,20 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 639,AMOR,Ashmore Asset Management Indonesia Tbk.,AMOR.JK,Pengembangan
 640,TRIN,Perintis Triniti Properti Tbk.,TRIN.JK,Pengembangan
 641,DMND,Diamond Food Indonesia Tbk.,DMND.JK,Utama
-642,PURA,Putra Rajawali Kencana Tbk.,PURA.JK,Pemantauan Khusus
+642,PURA,Putra Rajawali Kencana Tbk.,PURA.JK,Pengembangan
 643,PTPW,Pratama Widya Tbk.,PTPW.JK,Pengembangan
 644,TAMA,Lancartama Sejati Tbk.,TAMA.JK,Pemantauan Khusus
 645,IKAN,Era Mandiri Cemerlang Tbk.,IKAN.JK,Pengembangan
 646,SAMF,Saraswanti Anugerah Makmur Tbk,SAMF.JK,Utama
 647,SBAT,Sejahtera Bintang Abadi Textile Tbk.,SBAT.JK,Pemantauan Khusus
-648,KBAG,Karya Bersama Anugerah Tbk.,KBAG.JK,Pemantauan Khusus
-649,CBMF,Cahaya Bintang Medan Tbk.,CBMF.JK,Pemantauan Khusus
+648,KBAG,Karya Bersama Anugerah Tbk.,KBAG.JK,Pengembangan
+649,CBMF,Cahaya Bintang Medan Tbk.,CBMF.JK,Pengembangan
 650,RONY,Aracord Nusantara Group Tbk.,RONY.JK,Pengembangan
 651,CSMI,Cipta Selera Murni Tbk.,CSMI.JK,Pengembangan
 652,BBSS,Bumi Benowo Sukses Sejahtera Tbk,BBSS.JK,Pengembangan
 653,BHAT,Bhakti Multi Artha Tbk.,BHAT.JK,Pengembangan
 654,CASH,Cashlez Worldwide Indonesia Tbk.,CASH.JK,Pemantauan Khusus
-655,TECH,Indosterling Technomedia Tbk.,TECH.JK,Pemantauan Khusus
+655,TECH,Indosterling Technomedia Tbk.,TECH.JK,Pengembangan
 656,EPAC,Megalestari Epack Sentosaraya Tbk.,EPAC.JK,Pengembangan
 657,UANG,Pakuan Tbk.,UANG.JK,Pengembangan
 658,PGUN,Pradiksi Gunatama Tbk.,PGUN.JK,Pengembangan
@@ -662,7 +662,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 661,TOYS,Sunindo Adipersada Tbk.,TOYS.JK,Pemantauan Khusus
 662,SGER,Sumber Global Energy Tbk.,SGER.JK,Utama
 663,TRJA,Transkon Jaya Tbk.,TRJA.JK,Pengembangan
-664,PNGO,AEP Pinago Plantations Tbk.,PNGO.JK,Pemantauan Khusus
+664,PNGO,AEP Pinago Plantations Tbk.,PNGO.JK,Utama
 665,SCNP,Selaras Citra Nusantara Perkasa Tbk,SCNP.JK,Pengembangan
 666,BBSI,Krom Bank Indonesia Tbk.,BBSI.JK,Utama
 667,KMDS,Kurniamitra Duta Sentosa Tbk.,KMDS.JK,Pengembangan
@@ -678,13 +678,13 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 677,PMMP,Panca Mitra Multiperdana Tbk.,PMMP.JK,Pemantauan Khusus
 678,BANK,Bank Aladin Syariah Tbk.,BANK.JK,Pengembangan
 679,WMUU,Widodo Makmur Unggas Tbk.,WMUU.JK,Pengembangan
-680,EDGE,Indointernet Tbk.,EDGE.JK,Pemantauan Khusus
+680,EDGE,Indointernet Tbk.,EDGE.JK,Pengembangan
 681,UNIQ,Ulima Nitra Tbk.,UNIQ.JK,Pengembangan
-682,BEBS,Berkah Beton Sadaya Tbk.,BEBS.JK,Pemantauan Khusus
+682,BEBS,Berkah Beton Sadaya Tbk.,BEBS.JK,Pengembangan
 683,SNLK,Sunter Lakeside Hotel Tbk.,SNLK.JK,Pengembangan
 684,ZYRX,Zyrexindo Mandiri Buana Tbk.,ZYRX.JK,Pengembangan
 685,LFLO,Imago Mulia Persada Tbk.,LFLO.JK,Akselerasi
-686,FIMP,Fimperkasa Utama Tbk.,FIMP.JK,Pemantauan Khusus
+686,FIMP,Fimperkasa Utama Tbk.,FIMP.JK,Akselerasi
 687,TAPG,Triputra Agro Persada Tbk.,TAPG.JK,Utama
 688,NPGF,Nusa Palapa Gemilang Tbk.,NPGF.JK,Pengembangan
 689,LUCY,Lima Dua Lima Tiga Tbk.,LUCY.JK,Akselerasi
@@ -723,19 +723,19 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 722,SEMA,Semacom Integrated Tbk.,SEMA.JK,Pengembangan
 723,ASLC,Autopedia Sukses Lestari Tbk.,ASLC.JK,Pengembangan
 724,NETV,MDTV Media Technologies Tbk.,NETV.JK,Pengembangan
-725,BAUT,Mitra Angkasa Sejahtera Tbk.,BAUT.JK,Pemantauan Khusus
+725,BAUT,Mitra Angkasa Sejahtera Tbk.,BAUT.JK,Pengembangan
 726,ENAK,Champ Resto Indonesia Tbk.,ENAK.JK,Pengembangan
 727,NTBK,Nusatama Berkah Tbk.,NTBK.JK,Pengembangan
 728,SMKM,Sumber Mas Konstruksi Tbk.,SMKM.JK,Akselerasi
 729,STAA,Sumber Tani Agung Resources Tbk,STAA.JK,Utama
 730,NANO,Nanotech Indonesia Global Tbk.,NANO.JK,Akselerasi
-731,BIKE,Bhineka Inovasi Ketahanan Energi Tbk,BIKE.JK,Pemantauan Khusus
+731,BIKE,Bhineka Inovasi Ketahanan Energi Tbk,BIKE.JK,Pengembangan
 732,WIRG,WIR ASIA Tbk.,WIRG.JK,Pengembangan
 733,SICO,Sigma Energy Compressindo Tbk.,SICO.JK,Pengembangan
 734,GOTO,GoTo Gojek Tokopedia Tbk.,GOTO.JK,Pengembangan
 735,TLDN,Teladan Prima Agro Tbk.,TLDN.JK,Utama
 736,MTMH,Murni Sadar Tbk.,MTMH.JK,Utama
-737,WINR,Winner Nusantara Jaya Tbk.,WINR.JK,Pemantauan Khusus
+737,WINR,Winner Nusantara Jaya Tbk.,WINR.JK,Utama
 738,IBOS,Indo Boga Sukses Tbk.,IBOS.JK,Akselerasi
 739,OLIV,Atlas Nexus Group Tbk.,OLIV.JK,Akselerasi
 740,ASHA,Cilacap Samudera Fishing Industry Tbk,ASHA.JK,Pengembangan
@@ -751,7 +751,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 750,GULA,Aman Agrindo Tbk.,GULA.JK,Pengembangan
 751,JARR,Jhonlin Agro Raya Tbk.,JARR.JK,Utama
 752,AMMS,Agung Menjangan Mas Tbk.,AMMS.JK,Akselerasi
-753,RAFI,Sari Kreasi Boga Tbk.,RAFI.JK,Pemantauan Khusus
+753,RAFI,Sari Kreasi Boga Tbk.,RAFI.JK,Pengembangan
 754,KKES,Kusuma Kemindo Sentosa Tbk.,KKES.JK,Pengembangan
 755,ELPI,Pelayaran Nasional Ekalya Purnamasari Tbk,ELPI.JK,Utama
 756,EURO,Estee Gold Feet Tbk.,EURO.JK,Akselerasi
@@ -788,7 +788,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 787,FWCT,Wijaya Cahaya Timber Tbk.,FWCT.JK,Pengembangan
 788,NAYZ,Hassana Boga Sejahtera Tbk.,NAYZ.JK,Akselerasi
 789,IRSX,Folago Global Nusantara Tbk.,IRSX.JK,Pengembangan
-790,PACK,Abadi Nusantara Hijau Investama Tbk,PACK.JK,Pemantauan Khusus
+790,PACK,Abadi Nusantara Hijau Investama Tbk,PACK.JK,Akselerasi
 791,VAST,Vastland Indonesia Tbk.,VAST.JK,Pengembangan
 792,CHIP,Pelita Teknologi Global Tbk.,CHIP.JK,Akselerasi
 793,HALO,Haloni Jane Tbk.,HALO.JK,Pengembangan
@@ -798,7 +798,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 797,HILL,Hillcon Tbk.,HILL.JK,Pemantauan Khusus
 798,BDKR,Berdikari Pondasi Perkasa Tbk.,BDKR.JK,Utama
 799,PTMP,Mitra Pack Tbk.,PTMP.JK,Pengembangan
-800,SAGE,Saptausaha Gemilangindah Tbk.,SAGE.JK,Pemantauan Khusus
+800,SAGE,Saptausaha Gemilangindah Tbk.,SAGE.JK,Pengembangan
 801,TRON,Teknologi Karya Digital Nusa Tbk.,TRON.JK,Pengembangan
 802,CUAN,Petrindo Jaya Kreasi Tbk.,CUAN.JK,Utama
 803,NSSS,Nusantara Sawit Sejahtera Tbk.,NSSS.JK,Pengembangan
@@ -848,7 +848,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 847,AYAM,Janu Putra Sejahtera Tbk.,AYAM.JK,Pengembangan
 848,SURI,Maja Agung Latexindo Tbk.,SURI.JK,Pengembangan
 849,ASLI,Asri Karya Lestari Tbk.,ASLI.JK,Pengembangan
-850,GRPH,Griptha Putra Persada Tbk.,GRPH.JK,Pemantauan Khusus
+850,GRPH,Griptha Putra Persada Tbk.,GRPH.JK,Pengembangan
 851,SMGA,Sumber Mineral Global Abadi Tbk,SMGA.JK,Pengembangan
 852,UNTD,Terang Dunia Internusa Tbk.,UNTD.JK,Pengembangan
 853,TOSK,Topindo Solusi Komunika Tbk.,TOSK.JK,Pengembangan
@@ -875,7 +875,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 874,LABS,UBC Medical Indonesia Tbk.,LABS.JK,Pengembangan
 875,DOSS,Global Sukses Digital Tbk.,DOSS.JK,Pengembangan
 876,NEST,Esta Indonesia Tbk.,NEST.JK,Pengembangan
-877,PTMR,Master Print Tbk.,PTMR.JK,Pemantauan Khusus
+877,PTMR,Master Print Tbk.,PTMR.JK,Pengembangan
 878,VERN,Verona Indah Pictures Tbk.,VERN.JK,Pengembangan
 879,DAAZ,Daaz Bara Lestari Tbk.,DAAZ.JK,Utama
 880,BOAT,Newport Marine Services Tbk.,BOAT.JK,Pengembangan
@@ -911,7 +911,7 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 910,CARE,Metro Healthcare Indonesia Tbk,CARE.JK,Pengembangan
 911,PIPA,Oxala Energy International Tbk,PIPA.JK,Pengembangan
 912,NCKL,Trimegah Bangun Persada Tbk.,NCKL.JK,Pengembangan
-913,MENN,Menn Teknologi Indonesia Tbk.,MENN.JK,Pemantauan Khusus
+913,MENN,Menn Teknologi Indonesia Tbk.,MENN.JK,Akselerasi
 914,AWAN,Era Digital Media Tbk.,AWAN.JK,Pengembangan
 915,MBMA,Merdeka Battery Materials Tbk.,MBMA.JK,Utama
 916,RAAM,Tripar Multivision Plus Tbk.,RAAM.JK,Utama
@@ -941,11 +941,11 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 940,BACH,Bach Multi Global Tbk.,BACH.JK,Utama
 941,PRDL,Prodia Diagnostic Line Tbk.,PRDL.JK,Pengembangan
 942,RANS,Rans Entertainmen Indonesia Tbk,RANS.JK,Pengembangan
-943,WMPP,Widodo Makmur Perkasa Tbk.,WMPP.JK,Pemantauan Khusus
+943,WMPP,Widodo Makmur Perkasa Tbk.,WMPP.JK,Utama
 944,RMKE,RMK Energy Tbk.,RMKE.JK,Utama
 945,OBMD,OBM Drilchem Tbk.,OBMD.JK,Pengembangan
 946,AVIA,Avia Avian Tbk.,AVIA.JK,Utama
-947,IPPE,Indo Pureco Pratama Tbk.,IPPE.JK,Pemantauan Khusus
+947,IPPE,Indo Pureco Pratama Tbk.,IPPE.JK,Pengembangan
 948,NASI,Wahana Inti Makmur Tbk.,NASI.JK,Pengembangan
 949,BSML,Bintang Samudera Mandiri Lines Tbk,BSML.JK,Pengembangan
 950,DRMA,Dharma Polimetal Tbk.,DRMA.JK,Utama
@@ -959,5 +959,5 @@ No,Kode,Nama Emiten,Kode_YFinance,Papan
 958,AIMS,Artha Mahiya Investama Tbk.,AIMS.JK,Pengembangan
 959,PNSE,Pudjiadi & Sons Tbk.,PNSE.JK,Pengembangan
 960,POLY,Asia Pacific Fibers Tbk,POLY.JK,Pemantauan Khusus
-961,POOL,Pool Advista Indonesia Tbk.,POOL.JK,Pemantauan Khusus
-962,PPRO,PP Properti Tbk.,PPRO.JK,Pemantauan Khusus
+961,POOL,Pool Advista Indonesia Tbk.,POOL.JK,Pengembangan
+962,PPRO,PP Properti Tbk.,PPRO.JK,Utama
