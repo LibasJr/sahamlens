@@ -1,0 +1,26 @@
+[Unit]
+Description=SahamLens daily vertical MP4 video generator + Telegram document sender
+Wants=network-online.target
+After=network-online.target sahamlens.service
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+EnvironmentFile=/opt/sahamlens/app/.env.production
+Environment=SAHAMLENS_APP_DIR=/opt/sahamlens/app
+Environment=SAHAMLENS_VIDEO_QUEUE=/var/lib/sahamlens/daily-video
+WorkingDirectory=/opt/sahamlens/scripts/tiktok
+ExecStartPre=/usr/bin/mkdir -p /var/lib/sahamlens/daily-video
+ExecStart=/usr/bin/python3 /opt/sahamlens/scripts/tiktok/main.py send --edition DAILY
+TimeoutStartSec=600
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/sahamlens/daily-video
+RestrictAddressFamilies=AF_INET AF_INET6
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target

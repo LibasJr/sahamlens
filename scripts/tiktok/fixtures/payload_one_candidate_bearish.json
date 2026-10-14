@@ -1,0 +1,18 @@
+{
+  "edition": "DAILY",
+  "date": "2026-09-25",
+  "benchmark_value": "IHSG",
+  "regime": {
+    "changePct": -1.35,
+    "trend": "RISK_OFF",
+    "label": "HIGH_VOLATILITY"
+  },
+  "candidates": [
+    {
+      "symbol": "BBRI",
+      "price": 4350,
+      "changePct": -2.1,
+      "metric": "Skor 45"
+    }
+  ]
+}

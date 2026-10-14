@@ -1,0 +1,11 @@
+[Unit]
+Description=Timer for SahamLens daily video generator (Mon–Fri 06:00 Asia/Jakarta)
+Requires=sahamlens-daily-video.service
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 06:00:00 Asia/Jakarta
+Persistent=true
+RandomizedDelaySec=120
+
+[Install]
+WantedBy=timers.target
