@@ -8,6 +8,7 @@ import { useLanguage } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
 import { apiRequest } from '@/shared/http/api-client';
 import type { TradePlanV1 } from '@/modules/recommendation/service/trade-plan';
+import HitungLotSheet from '@/components/HitungLotSheet';
 
 interface StockChartPanelProps {
   symbol: string;
@@ -166,6 +167,15 @@ export default function StockChartPanel({ symbol, tradePlan: externalTradePlan }
             : 'Memuat data teknikal...'}
         </p>
       </div>
+
+      <HitungLotSheet
+        ticker={code}
+        currentPrice={latestCandle?.close ?? null}
+        entryPrice={tradePlan?.entry ?? latestCandle?.close ?? null}
+        cutLossPrice={tradePlan?.stopLoss ?? null}
+        takeProfit1Price={tradePlan?.takeProfit1 ?? null}
+        takeProfit2Price={tradePlan?.takeProfit2 ?? null}
+      />
     </Card>
   );
 }

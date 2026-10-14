@@ -4,6 +4,7 @@ import React from 'react';
 import dynamic from 'next/dynamic';
 import { Sparkles } from 'lucide-react';
 import StockPerspectiveNav from './StockPerspectiveNav';
+import QuickTickerSwitcher from './QuickTickerSwitcher';
 import { trackJourneyEvent } from '@/shared/analytics/product-journey';
 
 const CommandPalette = dynamic(() => import('./CommandPalette'), { ssr: false, loading: () => <div className="h-10 w-full animate-pulse rounded-xl bg-white/[0.035]" /> });
@@ -121,7 +122,14 @@ export default function Header({
           membuat ketiganya saling mendesak. */}
       {stockNav && (
         <div className="mx-auto w-full max-w-[1680px] border-t border-white/[0.045] px-3 py-1.5 md:px-5">
-          <StockPerspectiveNav symbol={currentTicker} />
+          <div className="flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
+            <StockPerspectiveNav symbol={currentTicker} />
+            <QuickTickerSwitcher
+              currentTicker={currentTicker}
+              onSelectTicker={onTickerChange}
+              className="mt-0.5 md:mt-0"
+            />
+          </div>
         </div>
       )}
     </header>
