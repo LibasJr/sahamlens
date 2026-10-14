@@ -7,6 +7,12 @@ import { computeIndicators, computeMiniCouncil, moneyFlowLabel, type Indicators 
 import { useLanguage } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
 import { apiRequest } from '@/shared/http/api-client';
+import type { TradePlanV1 } from '@/modules/recommendation/service/trade-plan';
+
+interface StockChartPanelProps {
+  symbol: string;
+  tradePlan?: TradePlanV1 | null;
+}
 
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
   ssr: false,
@@ -24,7 +30,7 @@ const TIMEFRAMES = ['1D', '3D', '7D', '1M', '3M', '1Y', '10Y', 'ALL'];
 // Grafik candlestick + timeframe switcher + ringkasan LensConsensus (10 agen), dipakai
 // baik di halaman /technical/[symbol] maupun bisa dipakai ulang di tempat lain yang
 // butuh chart+insight ringkas untuk satu simbol.
-export default function StockChartPanel({ symbol }: { symbol: string }) {
+export default function StockChartPanel({ symbol, tradePlan: externalTradePlan }: StockChartPanelProps) {
   const { language } = useLanguage();
   const isEn = language === 'en';
   const code = symbol.replace('.JK', '');
@@ -32,6 +38,21 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
   const [timeframe, setTimeframe] = useState('1Y');
   const [chartData, setChartData] = useState<any[]>([]);
   const [chartError, setChartError] = useState<string | null>(null);
+  const [fetchedTradePlan, setFetchedTradePlan] = useState<TradePlanV1 | null>(null);
+  const tradePlan = externalTradePlan !== undefined ? externalTradePlan : fetchedTradePlan;
+
+  useEffect(() => {
+    if (externalTradePlan !== undefined || isIndex) return;
+    const controller = new AbortController();
+    apiRequest<any>(`/api/stock/${encodeURIComponent(code)}`, { signal: controller.signal })
+      .then((data) => {
+        if (!controller.signal.aborted && data?.tradePlan) {
+          setFetchedTradePlan(data.tradePlan);
+        }
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, [code, externalTradePlan, isIndex]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -110,6 +131,7 @@ export default function StockChartPanel({ symbol }: { symbol: string }) {
           timeframeOptions={TIMEFRAMES}
           onTimeframeChange={setTimeframe}
           variant="full"
+          tradePlan={tradePlan}
           technical={{
             // null (bukan 'NETRAL') kalau MA belum bisa dihitung - "netral" adalah
             // kesimpulan pasar, ketiadaan data bukan (temuan C-1).

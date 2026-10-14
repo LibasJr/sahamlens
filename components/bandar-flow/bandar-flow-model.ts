@@ -82,6 +82,10 @@ export function buildBandarFlowModel(
   const sellVolume = finiteNumber(summary.foreignSellVolume);
   const compositionTotal = (buyVolume ?? 0) + (sellVolume ?? 0);
   const buyPct = compositionTotal > 0 ? ((buyVolume ?? 0) / compositionTotal) * 100 : null;
+  const sellPct = buyPct !== null ? 100 - buyPct : null;
+  const isAccumulationDominant = buyPct !== null && buyPct > 50;
+  const isDistributionDominant = buyPct !== null && buyPct < 50;
+  const isBalanced = buyPct !== null && Math.abs(buyPct - 50) < 0.05;
 
   return {
     accumulationStreak,
@@ -96,6 +100,10 @@ export function buildBandarFlowModel(
     buyVolume,
     sellVolume,
     buyPct,
+    sellPct,
+    isAccumulationDominant,
+    isDistributionDominant,
+    isBalanced,
     borderAccent:
       status === 'AKUMULASI'
         ? 'border-l-tv-green'
@@ -103,4 +111,46 @@ export function buildBandarFlowModel(
           ? 'border-l-tv-red'
           : 'border-l-tv-border',
   } as const;
+}
+
+
+export type HeatDotPoint = {
+  date: string;
+  nominalBillion: number;
+  isNetBuy: boolean;
+  isNetSell: boolean;
+  isFlat: boolean;
+  opacity: number;
+  opacityClass: string;
+};
+
+export function getHeatDotOpacityClass(ratio: number, isFlat: boolean): string {
+  if (isFlat) return 'opacity-30';
+  if (ratio >= 0.85) return 'opacity-100';
+  if (ratio >= 0.65) return 'opacity-90';
+  if (ratio >= 0.45) return 'opacity-75';
+  if (ratio >= 0.25) return 'opacity-60';
+  return 'opacity-40';
+}
+
+export function buildHeatDots(flow: FlowPoint[], maxAbsFlow: number): HeatDotPoint[] {
+  return flow.map((point) => {
+    const val = finiteNumber(point.netValueBillion) ?? finiteNumber(point.netForeignValueBillion) ?? 0;
+    const absVal = Math.abs(val);
+    const isNetBuy = val > 0.001;
+    const isNetSell = val < -0.001;
+    const isFlat = !isNetBuy && !isNetSell;
+    const ratio = maxAbsFlow > 0 ? absVal / maxAbsFlow : 0;
+    const opacity = isFlat ? 0.35 : Math.min(1, Math.max(0.3, 0.3 + 0.7 * ratio));
+    const opacityClass = getHeatDotOpacityClass(ratio, isFlat);
+    return {
+      date: typeof point.date === 'string' ? point.date : '',
+      nominalBillion: val,
+      isNetBuy,
+      isNetSell,
+      isFlat,
+      opacity,
+      opacityClass,
+    };
+  });
 }
