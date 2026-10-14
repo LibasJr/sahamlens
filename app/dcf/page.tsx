@@ -3,30 +3,26 @@
 import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Calculator, TrendingUp, Table as TableIcon, AlertTriangle, Lock, Gauge, ArrowUpRight } from 'lucide-react';
+import { Calculator, TrendingUp, Table as TableIcon, AlertTriangle, Lock, Gauge } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
 import { useLanguage } from '@/lib/i18n';
+import { ApiErrorHint, PageContainer } from '@/components/ui';
 import { Card } from '@/components/ui/Card';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
-// BUG FIX (2026-08-01): halaman ini SEBELUMNYA selalu mulai dari ticker hardcoded
-// 'TLKM' - berapa pun emiten yang sedang dibuka user di Technical Analyzer, begitu
-// klik kartu "DCF Valuation" di bagian bawah, halaman ini diam-diam ganti balik ke
-// TLKM. Sekarang ikut pola yang sama dengan /dashboard & /fundamental: prioritas
-// ?symbol= di URL, lalu localStorage 'last_searched_ticker' (dipakai bersama lintas
-// 3 halaman ini), baru default TLKM kalau memang belum pernah cari apa-apa.
 function DcfContent() {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const isEn = language === 'en';
   const searchParams = useSearchParams();
   const [ticker, setTickerState] = useState('TLKM');
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<any>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadErrorRequestId, setLoadErrorRequestId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
   const setTicker = (newTicker: string) => {
@@ -39,10 +35,6 @@ function DcfContent() {
   useEffect(() => {
     const urlSymbol = searchParams.get('symbol');
     if (urlSymbol) {
-      // WAJIB pakai setTicker (bukan setTickerState) - sebelumnya dibuka via
-      // link ?symbol= dari halaman lain menampilkan ticker yang benar TAPI tidak
-      // ikut menulis localStorage, jadi kunjungan berikutnya ke /dcf tanpa
-      // ?symbol= jatuh ke default TLKM lagi walau baru saja lihat emiten lain.
       setTicker(urlSymbol.toUpperCase());
       return;
     }
@@ -56,11 +48,13 @@ function DcfContent() {
   const fetchDcf = async (symbol: string) => {
     setLoading(true);
     setLoadError(null);
+    setLoadErrorRequestId(null);
     try {
       setData(await apiRequest<any>('/api/dcf/' + symbol));
     } catch (e) {
       console.error(e);
       setData(null);
+      setLoadErrorRequestId(isApiClientError(e) ? e.requestId : null);
       setLoadError(isApiClientError(e) ? e.message : 'Tidak dapat menghubungi layanan DCF. Coba lagi beberapa saat lagi.');
     } finally {
       setLoading(false);
@@ -89,9 +83,6 @@ function DcfContent() {
       accent="blue"
       title={`${(stock.symbol || ticker).replace(/\.JK$/i, '')} Intrinsic Valuation`}
       subtitle={`Discount rate proxy ${discountRatePct != null ? `${discountRatePct}%` : '-'} (asumsi SBN 10Y ${quant.sbn_10y_yield != null ? `${quant.sbn_10y_yield}%` : '-'} + risk premium ${quant.risk_premium != null ? `${quant.risk_premium}%` : '-'})`}
-      // flex-wrap: tiga blok metrik + gap 24px tidak muat di 320-375px, dan karena
-      // <main> memakai overflow-y-auto (yang membuat overflow-x terhitung auto),
-      // luberannya menggulirkan SELURUH halaman menyamping, bukan blok ini saja.
       headerExtra={
         <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
       <MenuUsageGuide
@@ -137,11 +128,13 @@ function DcfContent() {
       )}
 
       {loadError && (
-        <div className="rounded-lg border border-tv-red/30 bg-tv-red/10 p-4 text-sm text-tv-red">
-          {loadError}
+        <div className="space-y-1.5">
+          <div className="rounded-lg border border-tv-red/30 bg-tv-red/10 p-4 text-sm text-tv-red">
+            {loadError}
+          </div>
+          <ApiErrorHint requestId={loadErrorRequestId} />
         </div>
       )}
-      {/* DCF tidak berlaku (bank / data FCF tidak tersedia) */}
       {quant.not_applicable && (
         <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-yellow/40 p-6 flex items-start gap-4">
           <AlertTriangle className="w-6 h-6 text-tv-yellow shrink-0 mt-0.5" />
@@ -152,7 +145,6 @@ function DcfContent() {
         </Card>
       )}
 
-      {/* 5-Year FCF Projections Table */}
       {!quant.not_applicable && (
       <div className={`${viewMode === 'full' ? '' : 'hidden'} grid grid-cols-1 lg:grid-cols-2 gap-6`}>
         <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
@@ -161,10 +153,6 @@ function DcfContent() {
             Proyeksi Cash Flow 5-Tahun (Free Cash Flow Per Share)
           </h3>
 
-          {/* BUG FIX (2026-08-22): tabel ini sebelumnya tidak punya state loading sama
-              sekali - header tabel tampil dengan tbody kosong (baris ringkasan quant.*
-              merender "Rp undefined") saat data belum tiba, tanpa indikasi "sedang
-              memuat" apa pun. */}
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-8 w-full rounded-lg" />
@@ -198,12 +186,6 @@ function DcfContent() {
                   <td className="p-3 text-right text-tv-muted">-</td>
                   <td className="p-3 text-right text-tv-blue font-number">Rp {quant.pv_terminal_value?.toLocaleString('id-ID')}</td>
                 </tr>
-                {/* Temuan H-02 (audit 2026-08-19): baris ini dulu berbunyi "Enterprise
-                    Value / Share" lalu "Less: Net Debt / Share", padahal modelnya
-                    mendiskonto arus kas EKUITAS (sudah setelah bunga) pada biaya
-                    ekuitas - hasilnya sudah nilai ekuitas, dan pengurangan utang bersih
-                    itu menghitung beban utang untuk kedua kalinya. Utang bersih tetap
-                    ditampilkan, tetapi sebagai konteks neraca, bukan langkah rumus. */}
                 <tr className="bg-tv-bg font-bold">
                   <td className="p-3 text-tv-text">Nilai Ekuitas / Saham</td>
                   <td className="p-3 text-right text-tv-muted">-</td>
@@ -233,17 +215,12 @@ function DcfContent() {
           )}
         </Card>
 
-        {/* WACC vs Terminal Growth Sensitivity Matrix */}
         <Card padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-5 shadow-1 space-y-4">
           <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2 border-b border-tv-border pb-3">
             <TableIcon className="w-5 h-5 text-tv-yellow" />
             Tabel Sensitivitas Valuasi Discount Rate vs Terminal Growth
           </h3>
 
-          {/* BUG FIX (2026-08-22): `sensitivity.length === 0` juga TRUE selama halaman
-              masih memuat (data belum tiba) - sebelum ini, user yang SUDAH login pun
-              sekilas melihat panel "Terkunci" ajakan upgrade, padahal itu cuma loading,
-              bukan pembatasan akses. Cabang loading eksplisit dicek lebih dulu. */}
           {loading ? (
             <div className="space-y-2">
               <Skeleton className="h-8 w-full rounded-lg" />
@@ -300,11 +277,6 @@ function DcfContent() {
           </div>
         </Card>
 
-        {/* Temuan M-01 (audit 2026-08-19): saat harga pasar berada di luar rentang yang
-            bisa dijelaskan model, bisection lama mengembalikan batas kurungnya sendiri
-            (tepat +60,0% atau -30,0%) dan angka itu tampil seolah hasil pengukuran.
-            Sekarang backend mengirim status, dan yang ditampilkan adalah batasnya apa
-            adanya - bukan angka presisi yang tidak pernah ditemukan. */}
         {(quant.implied_fcf_growth_status === 'ABOVE_RANGE' || quant.implied_fcf_growth_status === 'BELOW_RANGE') && (
           <div className="col-span-1 lg:col-span-2 rounded-lg border border-tv-yellow/30 bg-tv-yellow/5 p-4 text-xs text-tv-muted">
             <span className="font-bold text-tv-yellow">
@@ -323,7 +295,6 @@ function DcfContent() {
           </div>
         )}
 
-        {/* Reverse DCF / Implied Market Growth Card */}
         {quant.implied_fcf_growth_pct != null && (
           <div className="col-span-1 lg:col-span-2 bg-gradient-to-r from-tv-blue/[0.06] to-tv-card border border-tv-blue/30 rounded-lg p-5 shadow-1 space-y-3">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border pb-3">
@@ -371,9 +342,23 @@ function DcfContent() {
   );
 }
 
+function DcfSuspenseFallback() {
+  return (
+    <div className="flex-1 bg-tv-bg min-h-screen">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <Skeleton className="h-24 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-64 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </PageContainer>
+    </div>
+  );
+}
+
 export default function DcfPage() {
   return (
-    <Suspense fallback={<div className="flex-1 bg-tv-bg min-h-screen" />}>
+    <Suspense fallback={<DcfSuspenseFallback />}>
       <DcfContent />
     </Suspense>
   );

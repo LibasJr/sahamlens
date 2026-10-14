@@ -1,6 +1,20 @@
 import { isIP } from 'node:net';
 import type { HttpResult } from '@/shared/types/http-result.types';
 
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/jpg',
+  'image/gif',
+  'image/webp',
+  'image/x-icon',
+  'image/vnd.microsoft.icon',
+  'image/bmp',
+  'image/avif',
+]);
+
+const MAX_LOGO_BYTES = 512 * 1024;
+
 function normalizeCompanyDomain(value: string): string | null {
   const candidate = value.trim().toLowerCase();
   if (!candidate || candidate.length > 253 || candidate.includes('/') || candidate.includes('@')) return null;
@@ -16,6 +30,13 @@ function normalizeCompanyDomain(value: string): string | null {
   }
 }
 
+function safeImageMimeType(rawContentType: string | null): string | null {
+  if (!rawContentType) return 'image/png';
+  const mime = rawContentType.split(';')[0]?.trim().toLowerCase() || '';
+  if (!mime) return 'image/png';
+  return ALLOWED_IMAGE_MIME_TYPES.has(mime) ? mime : null;
+}
+
 export async function handleCompanyLogo(request: Request): Promise<HttpResult | Response> {
   const rawDomain = new URL(request.url).searchParams.get('domain');
   const domain = rawDomain ? normalizeCompanyDomain(rawDomain) : null;
@@ -28,11 +49,23 @@ export async function handleCompanyLogo(request: Request): Promise<HttpResult | 
     );
     if (!upstream.ok) return { status: 404, body: { error: 'Logo tidak ditemukan', code: 'NOT_FOUND' } };
 
-    return new Response(await upstream.arrayBuffer(), {
+    const contentType = safeImageMimeType(upstream.headers?.get?.('content-type') ?? null);
+    if (!contentType) {
+      return { status: 502, body: { error: 'Tipe konten logo tidak diizinkan', code: 'UPSTREAM_ERROR' } };
+    }
+
+    const bytes = await upstream.arrayBuffer();
+    if (bytes.byteLength > MAX_LOGO_BYTES) {
+      return { status: 502, body: { error: 'Ukuran logo melebihi batas aman', code: 'UPSTREAM_ERROR' } };
+    }
+
+    return new Response(bytes, {
       status: 200,
       headers: {
-        'Content-Type': upstream.headers.get('content-type') || 'image/png',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=86400, s-maxage=86400',
+        'X-Content-Type-Options': 'nosniff',
+        'Content-Security-Policy': "default-src 'none'; sandbox",
       },
     });
   } catch {

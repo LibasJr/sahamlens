@@ -6,8 +6,8 @@ import { runController } from '@/shared/http/next-response.adapter';
 import { handleListAlerts, handleCreateAlert, handleDeleteAlert } from '@/modules/watchlist';
 import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
 
-export async function GET() {
-  return runController(async () => handleListAlerts());
+export async function GET(req: NextRequest) {
+  return runController(async () => handleListAlerts(), req);
 }
 
 export async function POST(req: NextRequest) {

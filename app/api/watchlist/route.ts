@@ -6,8 +6,8 @@ import { runController } from '@/shared/http/next-response.adapter';
 import { handleListWatchlist, handleAddWatchlist, handleRemoveWatchlist } from '@/modules/watchlist';
 import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
 
-export async function GET() {
-  return runController(async () => handleListWatchlist());
+export async function GET(req: NextRequest) {
+  return runController(async () => handleListWatchlist(), req);
 }
 
 export async function POST(req: NextRequest) {
@@ -15,5 +15,5 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  return runController(async () => { assertTrustedSameOrigin(req); return handleRemoveWatchlist(req.nextUrl.searchParams.get('symbol')); }, req);
+  return runController(async () => { assertTrustedSameOrigin(req); return handleRemoveWatchlist(req.nextUrl.searchParams.get('id') ?? req.nextUrl.searchParams.get('symbol')); }, req);
 }

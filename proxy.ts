@@ -106,6 +106,22 @@ function shouldApplyDocumentCsp(req: NextRequest): boolean {
   return true;
 }
 
+const NO_STORE_AUTH_PAGE_PREFIXES = [
+  '/login',
+  '/login-required',
+  '/signup',
+  '/forgot-password',
+  '/reset-password',
+  '/admin-login',
+  '/admin',
+] as const;
+
+function isNoStoreAuthOrAdminPage(pathname: string): boolean {
+  return NO_STORE_AUTH_PAGE_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 function nextResponse(req: NextRequest): NextResponse {
   if (!shouldApplyDocumentCsp(req)) return NextResponse.next();
 
@@ -119,6 +135,11 @@ function nextResponse(req: NextRequest): NextResponse {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set('Content-Security-Policy', csp);
+  // Defense-in-depth (temuan pentest): halaman autentikasi, pemulihan akun, dan admin
+  // tidak boleh disimpan cache bersama (CDN/proxy).
+  if (isNoStoreAuthOrAdminPage(req.nextUrl.pathname)) {
+    response.headers.set('Cache-Control', 'private, no-store, max-age=0');
+  }
   return response;
 }
 
@@ -164,6 +185,7 @@ function hasOwnGuestLimiterApi(pathname: string): boolean {
     // persis kasus "menu bisa diklik tapi datanya kosong" yang dicatat di
     // isPublicGuestApi() di atas, terulang di endpoint lain.
     pathname === '/api/screener' ||
+    pathname === '/api/risk-analysis' ||
     pathname === '/api/chat' ||
     pathname === '/api/council' ||
     pathname === '/api/ai-briefing' ||

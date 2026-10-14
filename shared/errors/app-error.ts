@@ -128,5 +128,11 @@ export function toErrorResponse(err: unknown): ErrorResponseShape {
       headers,
     };
   }
+  if (err instanceof SyntaxError) {
+    return {
+      status: 400,
+      body: { error: 'Format JSON tidak valid', code: 'VALIDATION_ERROR' },
+    };
+  }
   return { status: 500, body: { error: 'Internal Server Error', code: 'INTERNAL_ERROR' } };
 }

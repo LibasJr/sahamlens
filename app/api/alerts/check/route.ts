@@ -31,7 +31,10 @@ export async function GET(req: Request) {
     try {
       const session = await getSession();
       if (!session) {
-        return { status: 401, body: { error: 'Belum login' } };
+        return { status: 401, body: { error: 'Belum login', code: 'UNAUTHENTICATED' } };
+      }
+      if (session.role !== 'admin') {
+        return { status: 403, body: { error: 'Admin access required', code: 'ADMIN_REQUIRED' } };
       }
 
       const ip = getClientIp(req);

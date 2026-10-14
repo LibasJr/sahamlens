@@ -12,11 +12,11 @@ import {
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   return runController(async () => {
     await requireUser();
     return { status: 200, body: getPushClientConfig() };
-  });
+  }, req);
 }
 
 export async function POST(req: NextRequest) {

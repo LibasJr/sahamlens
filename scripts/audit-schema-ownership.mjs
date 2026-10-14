@@ -37,10 +37,36 @@ for (const pattern of [
   /\bUPDATE\s+users\b/i,
 ]) if (pattern.test(migration)) destructive.push(String(pattern));
 
-if (offenders.length || destructive.length) {
+// Cegah duplikasi nomor prefix migrasi baru. Duplikat historis 006 dan 020 dibekukan
+// karena nama berkas terikat SHA-256 di tabel schema_migrations produksi.
+const FROZEN_DUPLICATE_PREFIXES = new Set(['006', '020']);
+const migrationFiles = (await fs.readdir(path.join(ROOT, 'database/migrations')))
+  .filter((name) => name.endsWith('.sql'))
+  .sort();
+const byPrefix = new Map();
+for (const name of migrationFiles) {
+  const match = /^(\d{3})_/.exec(name);
+  if (!match) {
+    offenders.push(`Nama migrasi tidak sesuai format NNN_deskripsi.sql: database/migrations/${name}`);
+    continue;
+  }
+  const prefix = match[1];
+  const list = byPrefix.get(prefix) ?? [];
+  list.push(name);
+  byPrefix.set(prefix, list);
+}
+const duplicatePrefixes = [];
+for (const [prefix, names] of byPrefix.entries()) {
+  if (names.length > 1 && !FROZEN_DUPLICATE_PREFIXES.has(prefix)) {
+    duplicatePrefixes.push(`${prefix}: ${names.join(', ')}`);
+  }
+}
+
+if (offenders.length || destructive.length || duplicatePrefixes.length) {
   console.error('SCHEMA OWNERSHIP AUDIT: FAIL');
   for (const file of offenders) console.error(`Runtime DDL ditemukan: ${file}`);
   for (const pattern of destructive) console.error(`Baseline migration mengandung mutasi data/destruktif: ${pattern}`);
+  for (const dup of duplicatePrefixes) console.error(`Nomor prefix migrasi duplikat baru ditemukan: ${dup}`);
   process.exit(1);
 }
 

@@ -8,6 +8,7 @@ import { Check, Download, Share2, Target, Search, ArrowRightLeft, Lock } from 'l
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
+import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
@@ -21,9 +22,6 @@ import { saveTextExport } from '@/shared/browser/save-text-export';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
-// Pengunjung tetap dapat mencoba perbandingan dasar. Detail momentum/range dan
-// narasi "siapa lebih unggul" adalah alasan utama untuk membuat akun, jadi tidak
-// ditampilkan sampai sesi terverifikasi.
 const GUEST_VISIBLE_COMPARE_KEYS = new Set(['score', 'ma', 'per', 'pbv']);
 const SIMPLE_COMPARE_KEYS = new Set(['score', 'ma', 'per', 'pbv']);
 
@@ -48,7 +46,7 @@ function CompareGuestTeaser({ nextPath, lockedCount }: { nextPath: string; locke
 }
 
 function CompareContent() {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const isEn = language === 'en';
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -57,17 +55,7 @@ function CompareContent() {
   const urlSym1 = searchParams.get('symbol1');
   const urlSym2 = searchParams.get('symbol2');
 
-  // BUG FIX (2026-08-01): symbol1 sebelumnya hardcode 'BBCA.JK' dan symbol2 hardcode
-  // 'BBRI.JK' apa pun ticker yang sedang dilihat user di Teknikal/Fundamental/DCF -
-  // buka /compare tanpa ?symbol1= selalu jatuh ke BBCA, bukan ticker terakhir dicari.
-  // Sekarang ikut pola yang sama dengan /dcf & /fundamental: ?symbol1= dulu, lalu
-  // localStorage 'last_searched_ticker' (dipakai bersama lintas halaman analisa),
-  // baru default BBCA kalau memang belum pernah cari apa-apa.
   const [symbol1, setSymbol1] = useState(urlSym1 || 'BBCA.JK');
-  // symbol2 SENGAJA tidak di-hardcode BBRI - kalau user belum pilih simbol kedua,
-  // dikosongkan supaya /api/compare yang pilihkan peer 1 sektor dengan symbol1
-  // (lihat pickSameSectorPeer di app/api/compare/route.ts), bukan default bank
-  // yang bisa saja beda sektor total dari symbol1.
   const [symbol2, setSymbol2] = useState(urlSym2 || '');
 
   const [input1, setInput1] = useState(urlSym1 || 'BBCA.JK');
@@ -77,20 +65,11 @@ function CompareContent() {
   const [loading, setLoading] = useState(true);
   const [initialRequestReady, setInitialRequestReady] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
-  // Sebelumnya tidak ada state apa pun untuk kegagalan. Cabang render berakhir dengan
-  // `) : null}`, jadi saat fetch gagal atau akses ditolak, seluruh area hasil menjadi
-  // kekosongan mutlak di bawah form - tanpa pesan, tanpa tombol, tanpa petunjuk bahwa
-  // ada yang salah.
   const [fetchError, setFetchError] = useState(false);
   const [fetchErrorRequestId, setFetchErrorRequestId] = useState<string | null>(null);
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
   const [compareMode, setCompareMode] = useState<'simple' | 'advanced'>('simple');
   const [shareStatus, setShareStatus] = useState<ShareStatus>('idle');
-  // Effect restore-dari-localStorage (di bawah) dan effect fetch (setelahnya) sama-sama
-  // jalan saat mount - fetch pertama berangkat dengan symbol1 default 'BBCA.JK' SEBELUM
-  // state ke-update dari localStorage, jadi dua request keluar. Sequence number ini
-  // memastikan hanya response dari request TERAKHIR yang dipakai, walau response duluan
-  // (BBCA) resolve belakangan karena jitter jaringan.
   const fetchSeqRef = useRef(0);
   const trackedGuestLock = useRef(false);
   const shareStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -103,8 +82,6 @@ function CompareContent() {
         setInput1(saved);
       }
     }
-    // Pulihkan ticker terakhir sebelum request pertama. Sebelumnya BBCA dikirim dulu,
-    // lalu ticker dari localStorage langsung memicu request kedua.
     setInitialRequestReady(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -124,33 +101,39 @@ function CompareContent() {
     setLoading(true);
     setFetchError(false);
     setFetchErrorRequestId(null);
+    setGated(null);
     try {
       const qs = `symbol1=${encodeURIComponent(symbol1)}${symbol2 ? `&symbol2=${encodeURIComponent(symbol2)}` : ''}`;
       const json = await apiRequest<any>(`/api/compare?${qs}`);
-      if (seq !== fetchSeqRef.current) return; // response basi, sudah ada request lebih baru
+      if (seq !== fetchSeqRef.current) return;
       if (!json?.data1 || !json?.data2 || !Array.isArray(json?.rows)) {
-        // Server menjawab 200 tapi bentuk payload-nya bukan yang dijanjikan. Di sini ID
-        // request justru paling berguna: tidak ada status galat yang bisa dicari di log,
-        // hanya satu request tertentu yang perlu ditelusuri.
         setFetchErrorRequestId(typeof json?.meta?.requestId === 'string' ? json.meta.requestId : null);
         setFetchError(true);
         return;
       }
 
-      {
-        setGated(null);
-        setData(json);
-        // Peer sektor otomatis hanya diisi ke kotak input. Menulisnya ke state `symbol2`
-        // akan menyalakan effect fetch lagi, sehingga satu halaman menghitung dua kali.
-        // Saat user menekan Bandingkan, nilai di input tetap dikirim secara eksplisit.
-        if (!symbol2 && json.data2?.symbol) {
-          setInput2(json.data2.symbol);
-        }
+      setGated(null);
+      setData(json);
+      if (!symbol2 && json.data2?.symbol) {
+        setInput2(json.data2.symbol);
       }
     } catch (e) {
       if (seq === fetchSeqRef.current) {
         console.error(e);
         setFetchErrorRequestId(isApiClientError(e) ? e.requestId : null);
+        if (isApiClientError(e) && e.code === 'UNAUTHENTICATED') {
+          if (await shouldShowLoginPromptFor401()) {
+            setGated('login');
+          } else {
+            setFetchError(true);
+          }
+          return;
+        }
+        if (isApiClientError(e) && (e.code === 'SUBSCRIPTION_REQUIRED' || e.status === 402)) {
+          setGated('pro');
+          setShowPaywall(true);
+          return;
+        }
         setFetchError(true);
       }
     } finally {
@@ -162,11 +145,7 @@ function CompareContent() {
     e.preventDefault();
     const sym1 = input1.trim().toUpperCase();
     const sym2 = input2.trim().toUpperCase();
-    // Kotak pertama kosong sebelumnya tetap dikirim sebagai `symbol1=` - permintaan
-    // yang pasti gagal, dan (sebelum perbaikan di atas) gagal tanpa jejak di layar.
     if (!sym1) return;
-    // setState dengan nilai identik tidak memicu effect. Tombol Bandingkan harus
-    // tetap dapat dipakai sebagai retry setelah request sebelumnya gagal.
     const unchanged = sym1 === symbol1 && sym2 === symbol2;
     setSymbol1(sym1);
     setSymbol2(sym2);
@@ -175,8 +154,6 @@ function CompareContent() {
     router.push(`/compare?symbol1=${sym1}&symbol2=${sym2}`);
   };
 
-  // Sampai sesi selesai diperiksa, tampilkan teaser. Ini mencegah detail sempat
-  // terlihat saat halaman baru dimuat sebelum /api/auth/me menjawab.
   const lockForGuest = !authResolved || authLoading || !authUser;
   const publicRows = data?.rows?.filter((row: any) => GUEST_VISIBLE_COMPARE_KEYS.has(row.key)) ?? [];
   const lockedRows = data?.rows?.filter((row: any) => !GUEST_VISIBLE_COMPARE_KEYS.has(row.key)) ?? [];
@@ -234,12 +211,8 @@ function CompareContent() {
   }, [authLoading, authResolved, authUser, data, lockForGuest]);
 
   return (
-    // `flex h-screen` + anak `overflow-y-auto` membuat kontainer gulir kedua di dalam
-    // <main> AppShell yang sudah menggulir - dua scrollbar, dan header sticky di
-    // dalamnya menempel ke kontainer dalam, bukan viewport. Disamakan dengan halaman lain.
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <div className="flex-1 flex flex-col">
-        {/* Header */}
         <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -254,7 +227,6 @@ function CompareContent() {
           </div>
         </header>
 
-        {/* max-w-[1600px] menyamakan lebar dengan Technical/Fundamental. */}
         <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
         <MenuUsageGuide
           menuKey="compare"
@@ -333,9 +305,6 @@ function CompareContent() {
             </Card>
           ) : data ? (
             <Card padding="none" radius="lg" elevation="none" overflow="hidden" highlight={false} className="border-tv-border shadow-2 overflow-hidden">
-              {/* Storytelling: tabel di bawah menandai pemenang per baris, tapi tidak
-                  pernah menjumlahkannya. Rekapitulasi ini murni menghitung ulang
-                  `row.winner` yang sudah ada - tidak menambah penilaian baru. */}
               {!lockForGuest && (() => {
                 const win1 = data.rows.filter((r: any) => r.winner === data.data1.symbol).length;
                 const win2 = data.rows.filter((r: any) => r.winner === data.data2.symbol).length;
@@ -406,8 +375,6 @@ function CompareContent() {
                 );
               })()}
 
-              {/* Tabel 4 kolom dengan satu kolom penjelasan panjang tidak terbaca di
-                  lebar ponsel; di bawah lg dipakai daftar kartu dengan isi yang sama. */}
               <div className="lens-table-sticky-col [--lens-sticky-head-bg:rgb(var(--lens-bg))] hidden lg:block overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
@@ -431,18 +398,12 @@ function CompareContent() {
                   <tbody className="divide-y divide-tv-border">
                     <tr className="hover:bg-tv-hover/30 transition-colors">
                       <td className="py-4 px-6 text-tv-muted">Harga Terakhir</td>
-                      {/* `data.priceX.toLocaleString()` tanpa penjaga akan melempar
-                          TypeError kalau harganya null - dan galat saat render
-                          mengosongkan SELURUH halaman, bukan cuma sel ini. */}
                       <td className="py-4 px-6 text-center text-tv-text font-bold border-l border-tv-border font-number">
                         {typeof data.data1.price === 'number' ? `Rp ${data.data1.price.toLocaleString('id-ID')}` : 'N/A'}
                       </td>
                       <td className="py-4 px-6 text-center text-tv-text font-bold border-l border-tv-border font-number">
                         {typeof data.data2.price === 'number' ? `Rp ${data.data2.price.toLocaleString('id-ID')}` : 'N/A'}
                       </td>
-                      {/* Sel ini dulu berisi "-" polos. Harga tidak dibandingkan karena
-                          memang tidak bisa: harga saham antar emiten tidak sebanding
-                          tanpa jumlah lembar saham. Itu yang perlu dikatakan. */}
                       {!lockForGuest && (
                         <td className="py-4 px-6 text-tv-muted border-l border-tv-border lens-body-sm leading-relaxed">
                           Tidak dibandingkan - harga per lembar antar emiten tidak sebanding tanpa memperhitungkan jumlah saham beredar.
@@ -512,8 +473,6 @@ function CompareContent() {
 
         </PageContainer>
       </div>
-      {/* Blok <style> .custom-scrollbar dihapus bersama kontainer gulirnya - warnanya
-          hex palet lama, dan scrollbar global sudah ditata di app/globals.css. */}
       <PaywallModal
         open={showPaywall}
         onClose={() => setShowPaywall(false)}
@@ -530,12 +489,6 @@ function CompareContent() {
   );
 }
 
-// BUG FIX (2026-08-22): fallback sebelumnya sudah diperbaiki dari `<div>Loading...</div>`
-// telanjang ke `<div>` polos ber-kelas latar - tapi itu masih blank tanpa indikator
-// visual apa pun. CompareContent sendiri sudah punya skeleton ketat (lihat blok
-// `loading ?` di atas); fallback ini memakai bentuk skeleton yang sama supaya transisi
-// blank->skeleton->konten tidak pernah terjadi, konsisten dengan prinsip "jangan pernah
-// blank" yang dipegang di tempat lain pada halaman ini.
 function CompareSuspenseFallback() {
   return (
     <div className="flex-1 bg-tv-bg min-h-screen p-4 md:p-6">

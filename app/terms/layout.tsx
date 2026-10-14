@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'Ketentuan Penggunaan | SahamLens',
+  title: 'Ketentuan Penggunaan',
   description:
     'Riset, bukan penasihat. Tanggung jawab keputusan pengguna, keterbatasan data pasar, dan batasan tanggung jawab SahamLens — sesuai implementasi nyata.',
   alternates: { canonical: '/terms' },

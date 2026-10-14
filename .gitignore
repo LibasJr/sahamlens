@@ -20,11 +20,13 @@ local.properties
 .vercel
 scratch/
 
-# Konfigurasi tool lokal (Claude Code) di root - bukan bagian dari aplikasi. Diberi
+# Konfigurasi tool lokal (Claude Code, Hermes, Strix) di root - bukan bagian dari aplikasi. Diberi
 # awalan "/" supaya HANYA root yang di-ignore, bukan sahamlens-android/.claude/
 # (error-learning log itu dokumentasi kerja Android yang sengaja tetap di-commit).
 /.claude/
 /.agents/
+/.hermes/
+/strix_runs/
 # Konfigurasi IDE JetBrains - lokal per mesin (masih menyebut nama proyek lama
 # "trading" & path library mesin developer), tidak ada hubungannya dengan build.
 /.idea/

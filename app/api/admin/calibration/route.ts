@@ -10,7 +10,7 @@ import { getLatestWeightProposal } from '@/modules/lens-radar/service/lens-score
 
 export const maxDuration = 300;
 
-export async function GET() {
+export async function GET(request: Request) {
   return runController(async () => {
     if (!await isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
     const [calibration, latestWeightProposal] = await Promise.all([
@@ -18,5 +18,5 @@ export async function GET() {
       getLatestWeightProposal(),
     ]);
     return { status: 200, body: { ...calibration, latestWeightProposal } };
-  });
+  }, request);
 }

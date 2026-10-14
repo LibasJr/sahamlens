@@ -1,5 +1,9 @@
+import { redirect } from 'next/navigation';
+import { isAdminServer } from '@/modules/user';
+import { Card } from '@/components/ui/Card';
+
 export const metadata = {
-  title: 'Decision Lab Stack Role | SahamLens',
+  title: 'Decision Lab Stack Role',
   robots: { index: false, follow: false },
 };
 
@@ -13,7 +17,9 @@ const roles = [
   ['Research', 'Cari konteks berita dan evidence.', 'Evidensi pendukung'],
 ];
 
-export default function DecisionLabRoleStackPage() {
+export default async function DecisionLabRoleStackPage() {
+  if (!(await isAdminServer())) redirect('/admin-login');
+
   return (
     <main className="min-h-screen bg-tv-bg px-4 py-8 text-tv-text sm:px-8">
       <div className="mx-auto max-w-5xl space-y-6">
@@ -21,7 +27,7 @@ export default function DecisionLabRoleStackPage() {
         <p className="max-w-3xl text-sm text-tv-muted">
           Struktur role SahamLens untuk decision lab. LensScore v1.6.1 tetap sumber skor, review layer hanya menguatkan atau menolak berbasis evidence real.
         </p>
-        <section className="rounded-2xl border border-tv-border bg-tv-card p-5">
+        <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} className="rounded-2xl border-tv-border p-5">
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="rounded-xl border border-tv-green/30 bg-tv-green/10 p-4">
               <div className="text-xs font-semibold uppercase tracking-[0.2em] text-tv-muted">1. Otomatis</div>
@@ -39,7 +45,7 @@ export default function DecisionLabRoleStackPage() {
               <p className="mt-2 text-sm text-tv-muted">Hybrid review hanya untuk kandidat lolos syarat, lalu model fallback dicoba berurutan memakai evidence real.</p>
             </div>
           </div>
-        </section>
+        </Card>
         <section className="grid gap-4 md:grid-cols-2">
           {roles.map(([role, task, output], index) => {
             const palette = [
@@ -50,13 +56,13 @@ export default function DecisionLabRoleStackPage() {
               'border-tv-purple/30 bg-tv-purple/10',
               'border-tv-border bg-tv-bg/70',
               'border-tv-border bg-tv-bg/70',
-            ][index] ?? 'border-tv-border bg-tv-card';
+            ][index] ?? 'border-tv-border bg-tv-bg/70';
             return (
-              <article key={role} className={`rounded-2xl border p-5 ${palette}`}>
+              <Card as="article" key={role} padding="none" radius="xl" elevation="none" highlight={false} className={`rounded-2xl p-5 ${palette}`}>
                 <h2 className="text-xl font-semibold">{role}</h2>
                 <p className="mt-2 text-sm text-tv-muted">{task}</p>
                 <p className="mt-3 text-sm font-medium text-tv-text">Output: {output}</p>
-              </article>
+              </Card>
             );
           })}
         </section>

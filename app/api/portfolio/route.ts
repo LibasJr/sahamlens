@@ -4,6 +4,6 @@ guard();
 import { runController } from '@/shared/http/next-response.adapter';
 import { handleGetPortfolio } from '@/modules/portfolio';
 
-export async function GET() {
-  return runController(async () => handleGetPortfolio());
+export async function GET(request: Request) {
+  return runController(async () => handleGetPortfolio(), request);
 }
