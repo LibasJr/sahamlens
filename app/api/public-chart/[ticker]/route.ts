@@ -53,17 +53,10 @@ export async function GET(
     const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?range=${range}&interval=${interval}&events=div%7Csplit&includeAdjustedClose=true`;
     const res = await fetch(yahooUrl, {
       headers: { 'User-Agent': 'Mozilla/5.0' },
-      // TTL market-aware SALAH untuk deret candle. Saat bursa tutup ia mengembalikan 6 jam
-      // (MARKET_CLOSED_TTL_SEC), padahal justru di jendela itulah bar terakhir baru
-      // terbentuk - payload Yahoo yang ditarik pra-bursa dibekukan sampai siang, isinya
-      // belum punya bar hari ini. Diperparah `revalidate` Next yang stale-while-revalidate:
-      // lewat TTL pun pembaca PERTAMA tetap disajikan payload basi. Terukur 2026-08-18 pada
-      // ANTM: request #1 balas lilin terakhir 13 Agu (3030), request #2 balas 18 Agu (3100),
-      // sementara header /api/stock/ANTM menampilkan 3100 sepanjang waktu.
-      //
-      // Fallback penyusun lilin sesi berjalan di bawah tidak bisa menambal ini karena
-      // `meta` yang dibacanya berasal dari payload basi yang sama.
-      next: { revalidate: 60 }
+      // `cache: 'no-store'` wajib: menghindari disk fetch-cache Next.js yang
+      // stale-while-revalidate menyajikan payload basi berminggu-minggu ke pengunjung pertama.
+      // Caching publik dikelola di layer CDN edge via publicCacheHeaders.
+      cache: 'no-store',
     });
 
     // Body dibaca SEBELUM memeriksa `res.ok`, karena Yahoo memakai status non-2xx untuk
