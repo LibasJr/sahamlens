@@ -127,5 +127,5 @@ jobs:
           path: |
             desktop/src-tauri/target/release/bundle/nsis/*.exe
             desktop/src-tauri/target/release/bundle/msi/*.msi
-            desktop/src-tauri/target/release/sahamlens-desktop-pro.exe
+            desktop/src-tauri/target/release/sahamlens-desktop.exe
           if-no-files-found: error

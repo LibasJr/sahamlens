@@ -40,8 +40,20 @@ describe('GET /api/company-logo', () => {
     const res = await GET(makeRequest('telkom.co.id'));
     expect(res.status).toBe(200);
     expect(res.headers.get('Content-Type')).toBe('image/png');
+    expect(res.headers.get('X-Content-Type-Options')).toBe('nosniff');
     const body = await res.arrayBuffer();
     expect(new Uint8Array(body)).toEqual(new Uint8Array(fakeBytes));
+  });
+
+  it('rejects non-raster content-types such as text/html or image/svg+xml', async () => {
+    (global.fetch as any).mockResolvedValue({
+      ok: true,
+      headers: { get: () => 'image/svg+xml' },
+      arrayBuffer: async () => new Uint8Array([60, 115, 118, 103]).buffer,
+    });
+
+    const res = await GET(makeRequest('telkom.co.id'));
+    expect(res.status).toBe(502);
   });
 
   // Google favicon service mengembalikan HTTP 404 (bukan hanya gagal fetch) untuk domain

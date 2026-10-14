@@ -15,6 +15,9 @@ import { generateAI, hasAnyAIProvider } from '@/lib/aiProviders';
 import { calculateIntrinsicValue } from '@/modules/fundamental';
 import { getOrCompute } from '@/shared/cache/redis-cache';
 import { CACHE_TTL_SEC } from '@/shared/cache/ttl-policy';
+import { normalizeIdxTickerParam } from '@/shared/market/ticker-validation';
+import { assertTrustedSameOrigin } from '@/shared/http/same-origin';
+import { isNativeBearerRequest } from '@/shared/auth/admin-session';
 
 // Penjelasan "kenapa harga wajar segini" untuk Intrinsic Value Engine (components/
 // IntrinsicValue.tsx) - dulu kartu ini cuma tampilkan angka tanpa narasi. Pola ikuti
@@ -47,71 +50,78 @@ function fallbackExplanation(input: ExplainInput): string {
 
 export async function POST(req: NextRequest) {
   return runController(async () => {
-  const session = await getSession();
-  if (!session) {
-    return { status: 401, body: { error: 'Belum login' } };
-  }
+    if (!isNativeBearerRequest(req)) {
+      assertTrustedSameOrigin(req);
+    }
 
-  const budget = await checkAiAccountBudget(session.id, 'intrinsic-explain');
-  if (!budget.allowed) return rateLimitResult(budget, 'Batas penggunaan AI sementara tercapai. Coba lagi nanti.');
+    const session = await getSession();
+    if (!session) {
+      return { status: 401, body: { error: 'Belum login' } };
+    }
 
-  const body = (await req.json()) as { symbol?: string };
-  const symbol = typeof body?.symbol === 'string' ? body.symbol.trim().toUpperCase() : '';
-  if (!symbol) {
-    return { status: 400, body: { error: 'Simbol tidak valid' } };
-  }
+    const budget = await checkAiAccountBudget(session.id, 'intrinsic-explain');
+    if (!budget.allowed) return rateLimitResult(budget, 'Batas penggunaan AI sementara tercapai. Coba lagi nanti.');
 
-  // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-12): endpoint ini SEBELUMNYA
-  // menerima `fairValue`, `harga`, `mos`, dan `methods` LANGSUNG dari body request lalu
-  // menyuruh AI menjelaskan "kenapa harga wajarnya segitu". Artinya siapa pun bisa
-  // mengirim angka karangan dan mendapatkan narasi meyakinkan dari LensAI yang
-  // membenarkannya - persis pola yang dilarang di seluruh audit ini, cuma pintu masuknya
-  // dari client. Sekarang HANYA simbol yang diterima; seluruh angka dihitung ulang di
-  // server dengan fungsi yang sama dipakai kartu valuasi (calculateIntrinsicValue).
-  // Hitung tetap dari server, tetapi pakai cache valuasi yang sama dengan kartu publik
-  // supaya klik Penjelasan LensAI tidak menghitung ulang DCF/PBV/PER yang baru dilihat.
-  const cachedIntrinsic = await getOrCompute(
-    `sahamlens:cache:computed:intrinsic:${symbol}`,
-    CACHE_TTL_SEC.TECHNICAL,
-    async () => (await calculateIntrinsicValue(symbol).catch(() => null)) ?? { notFound: true as const },
-  );
-  if ('notFound' in cachedIntrinsic || !(cachedIntrinsic.fair_value > 0)) {
-    return { status: 503, body: { error: 'Data valuasi tidak tersedia', detail: `Nilai wajar ${symbol} tidak bisa dihitung dari data yang ada saat ini.` } };
-  }
+    const body = (await req.json().catch(() => null)) as { symbol?: string } | null;
+    // Normalisasi ke simbol kanonik berakhiran .JK supaya key cache cocok dengan
+    // /api/intrinsic/[ticker] dan menolak input non-ticker masuk ke key Redis.
+    const ticker = normalizeIdxTickerParam(body?.symbol ?? '');
+    if (!ticker) {
+      return { status: 400, body: { error: 'Simbol tidak valid' } };
+    }
+    const displaySymbol = ticker.replace(/\.JK$/, '');
 
-  const intrinsic = cachedIntrinsic;
+    // BUG FIX (audit logika & algoritma 2026-08-05, temuan H-12): endpoint ini SEBELUMNYA
+    // menerima `fairValue`, `harga`, `mos`, dan `methods` LANGSUNG dari body request lalu
+    // menyuruh AI menjelaskan "kenapa harga wajarnya segitu". Artinya siapa pun bisa
+    // mengirim angka karangan dan mendapatkan narasi meyakinkan dari LensAI yang
+    // membenarkannya - persis pola yang dilarang di seluruh audit ini, cuma pintu masuknya
+    // dari client. Sekarang HANYA simbol yang diterima; seluruh angka dihitung ulang di
+    // server dengan fungsi yang sama dipakai kartu valuasi (calculateIntrinsicValue).
+    // Hitung tetap dari server, tetapi pakai cache valuasi yang sama dengan kartu publik
+    // supaya klik Penjelasan LensAI tidak menghitung ulang DCF/PBV/PER yang baru dilihat.
+    const cachedIntrinsic = await getOrCompute(
+      `sahamlens:cache:computed:intrinsic:${ticker}`,
+      CACHE_TTL_SEC.FUNDAMENTAL,
+      async () => (await calculateIntrinsicValue(ticker).catch(() => null)) ?? { notFound: true as const },
+    );
+    if ('notFound' in cachedIntrinsic || !(cachedIntrinsic.fair_value > 0)) {
+      return { status: 503, body: { error: 'Data valuasi tidak tersedia', detail: `Nilai wajar ${displaySymbol} tidak bisa dihitung dari data yang ada saat ini.` } };
+    }
 
-  const input: ExplainInput = {
-    symbol,
-    fairValue: intrinsic.fair_value,
-    harga: intrinsic.harga,
-    mos: intrinsic.mos,
-    sektor: intrinsic.sektor,
-    methods: intrinsic.methods,
-  };
+    const intrinsic = cachedIntrinsic;
 
-  const methodLines = Object.values(input.methods || {})
-    .map((m) => `${m.name}: Rp ${Math.round(m.value).toLocaleString('id-ID')}`)
-    .join(', ') || 'tidak tersedia';
+    const input: ExplainInput = {
+      symbol: displaySymbol,
+      fairValue: intrinsic.fair_value,
+      harga: intrinsic.harga,
+      mos: intrinsic.mos,
+      sektor: intrinsic.sektor,
+      methods: intrinsic.methods,
+    };
 
-  // Tidak ada data akun pada prompt. Fingerprint menjaga jawaban AI lama tidak dipakai
-  // ketika harga atau hasil valuasi berubah.
-  const snapshotFingerprint = [
-    Math.round(input.fairValue),
-    Math.round(input.harga),
-    input.mos.toFixed(2),
-    input.sektor || 'unknown',
-  ].join(':');
-  const response = await getOrCompute(
-    `sahamlens:cache:computed:intrinsic-explain:v1:${input.symbol}:${snapshotFingerprint}`,
-    CACHE_TTL_SEC.INTRINSIC_EXPLANATION,
-    async () => {
-      // BUG FIX (audit integritas data 2026-08-03, temuan M-05): sebelumnya lewat getModel()
-      // (satu model Gemini acak, tanpa retry) - disamakan dengan ai-briefing/route.ts, pakai
-      // generateAI() yang mencoba semua kombinasi Gemini+Groq+OpenRouter yang terkonfigurasi.
-      if (!hasAnyAIProvider()) return { explanation: fallbackExplanation(input), source: 'fallback' as const };
+    const methodLines = Object.values(input.methods || {})
+      .map((m) => `${m.name}: Rp ${Math.round(m.value).toLocaleString('id-ID')}`)
+      .join(', ') || 'tidak tersedia';
 
-      const prompt = `Kamu adalah anggota LensAI SahamLens yang bertugas menjelaskan hasil valuasi ke investor awam. Tulis SATU paragraf pendek (maksimal 4 kalimat, Bahasa Indonesia, substantif tapi mudah dipahami orang yang baru belajar saham) yang menjelaskan KENAPA harga wajar saham ${input.symbol} sebesar Rp ${Math.round(input.fairValue).toLocaleString('id-ID')} bisa muncul dari data berikut. Jangan cuma mengulang angka, jelaskan logikanya. Jangan beri anjuran beli/jual eksplisit.
+    // Tidak ada data akun pada prompt. Fingerprint menjaga jawaban AI lama tidak dipakai
+    // ketika harga atau hasil valuasi berubah.
+    const snapshotFingerprint = [
+      Math.round(input.fairValue),
+      Math.round(input.harga),
+      input.mos.toFixed(2),
+      input.sektor || 'unknown',
+    ].join(':');
+    const response = await getOrCompute(
+      `sahamlens:cache:computed:intrinsic-explain:v1:${ticker}:${snapshotFingerprint}`,
+      CACHE_TTL_SEC.INTRINSIC_EXPLANATION,
+      async () => {
+        // BUG FIX (audit integritas data 2026-08-03, temuan M-05): sebelumnya lewat getModel()
+        // (satu model Gemini acak, tanpa retry) - disamakan dengan ai-briefing/route.ts, pakai
+        // generateAI() yang mencoba semua kombinasi Gemini+Groq+OpenRouter yang terkonfigurasi.
+        if (!hasAnyAIProvider()) return { explanation: fallbackExplanation(input), source: 'fallback' as const };
+
+        const prompt = `Kamu adalah anggota LensAI SahamLens yang bertugas menjelaskan hasil valuasi ke investor awam. Tulis SATU paragraf pendek (maksimal 4 kalimat, Bahasa Indonesia, substantif tapi mudah dipahami orang yang baru belajar saham) yang menjelaskan KENAPA harga wajar saham ${input.symbol} sebesar Rp ${Math.round(input.fairValue).toLocaleString('id-ID')} bisa muncul dari data berikut. Jangan cuma mengulang angka, jelaskan logikanya. Jangan beri anjuran beli/jual eksplisit.
 
 Data:
 - Sektor: ${input.sektor || 'tidak diketahui'}
@@ -121,12 +131,12 @@ Data:
 
 Balas hanya dengan paragraf penjelasannya, tanpa embel-embel lain.`;
 
-      const text = await generateAI({ prompt, timeoutMs: 8000 });
-      return text
-        ? { explanation: text.trim(), source: 'ai' as const }
-        : { explanation: fallbackExplanation(input), source: 'fallback' as const };
-    },
-  );
-  return { status: 200, body: response };
+        const text = await generateAI({ prompt, timeoutMs: 8000 });
+        return text
+          ? { explanation: text.trim(), source: 'ai' as const }
+          : { explanation: fallbackExplanation(input), source: 'fallback' as const };
+      },
+    );
+    return { status: 200, body: response };
   }, req);
 }

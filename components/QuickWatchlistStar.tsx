@@ -19,6 +19,7 @@ export function QuickWatchlistStar({
   showLabel = false,
 }: QuickWatchlistStarProps) {
   const cleanTicker = ticker.replace('.JK', '').toUpperCase();
+  const canonicalSymbol = `${cleanTicker}.JK`;
   const [isSaved, setIsSaved] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
 
@@ -33,18 +34,18 @@ export function QuickWatchlistStar({
         }
       }
 
-      // Check server API if logged in
+      // Check server API if logged in (/api/watchlist returns { data: [...] })
       apiRequest<any>('/api/watchlist')
-        .then((data) => {
-          if (Array.isArray(data)) {
-            const hasTicker = data.some(
-              (item: any) => (item.symbol || item.ticker || '').toUpperCase() === cleanTicker
+        .then((payload) => {
+          const items = Array.isArray(payload) ? payload : Array.isArray(payload?.data) ? payload.data : [];
+          if (items.length > 0) {
+            const hasTicker = items.some(
+              (item: any) => String(item.symbol || item.ticker || '').replace('.JK', '').toUpperCase() === cleanTicker
             );
             if (hasTicker) {
               setIsSaved(true);
-              // Sync to local
               const storedList = JSON.parse(localStorage.getItem(LOCAL_STORAGE_KEY) || '[]');
-              if (!storedList.includes(cleanTicker)) {
+              if (Array.isArray(storedList) && !storedList.includes(cleanTicker)) {
                 storedList.push(cleanTicker);
                 localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(storedList));
               }
@@ -81,16 +82,16 @@ export function QuickWatchlistStar({
       localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
     } catch {}
 
-    // Sync to API (fail-silent if guest)
+    // Sync to API using canonical .JK symbol (fail-silent if guest)
     try {
       if (nextState) {
         await apiRequest('/api/watchlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ symbol: cleanTicker }),
+          body: JSON.stringify({ symbol: canonicalSymbol }),
         });
       } else {
-        await apiRequest(`/api/watchlist?symbol=${encodeURIComponent(cleanTicker)}`, {
+        await apiRequest(`/api/watchlist?symbol=${encodeURIComponent(canonicalSymbol)}`, {
           method: 'DELETE',
         });
       }

@@ -13,5 +13,5 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ symbo
     assertTrustedSameOrigin(req);
     const { symbol } = await params;
     return handleRemoveWatchlist(decodeURIComponent(symbol));
-  });
+  }, req);
 }

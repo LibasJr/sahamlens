@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { ShieldAlert, Activity, PieChart, Plus, Trash2, AlertTriangle, RefreshCw, Download } from 'lucide-react';
 import { TickerAnalysisShell } from '@/components/TickerAnalysisShell';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Input, Button, Skeleton } from '@/components/ui';
+import { ApiErrorHint, Input, Button, Skeleton } from '@/components/ui';
 import { Card } from '@/components/ui/Card';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
@@ -13,15 +13,6 @@ import { Lock } from 'lucide-react';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 
-// AUDIT DATA INTEGRITY 2026-08-03 (temuan M-09): 4 kartu stress test di halaman ini
-// SEBELUMNYA angka TETAP ("-5.75%", "-12.5%", "-4.2%", "-6.8%") - halaman sudah jujur
-// mengakui ini lewat disclaimer ("belum dihitung dari portofolio Anda"), tapi angkanya
-// sendiri tetap karangan, tidak pernah berubah walau alokasi diedit. Sekarang memanggil
-// /api/risk-analysis yang menghitung BETA HISTORIS riil (regresi return harian 1 tahun,
-// data Yahoo Finance) tiap saham terhadap IHSG dan kurs USD/IDR, dibobot alokasi
-// portofolio pengguna. BI Rate TETAP tidak ditampilkan sebagai angka - aplikasi ini
-// tidak punya data historis BI Rate, jadi endpoint mengembalikan status "tidak
-// tersedia" dan itu yang ditampilkan, bukan angka tebakan.
 interface RiskAnalysisResult {
   portfolioBetaIhsg: number | null;
   portfolioBetaUsdIdr: number | null;
@@ -35,39 +26,24 @@ interface RiskAnalysisResult {
 
 export default function RiskPage() {
   const [ticker, setTicker] = useState('BBCA');
-  // Tidak ada akses ke portofolio transaksi pengguna di halaman ini. Jangan gunakan
-  // contoh hardcoded lalu menyebutnya portofolio user; pengguna mengisi simulasi sendiri.
   const [portfolio, setPortfolio] = useState<{ ticker: string; weight: number }[]>([]);
   const [newTicker, setNewTicker] = useState('');
   const [newWeight, setNewWeight] = useState(10);
   const [analysis, setAnalysis] = useState<RiskAnalysisResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorRequestId, setErrorRequestId] = useState<string | null>(null);
   const { loading: authLoading, resolved: authResolved, user: authUser } = useAuthUser();
-  // GEMBOK TAMU (2026-08-23). Beta vs IHSG TETAP terbuka beserta terjemahannya - itu
-  // yang membuktikan halaman ini berguna, dan tanpanya tidak ada yang cukup paham
-  // untuk mau mendaftar. Yang dikunci: tiga skenario stres dan beta USD/IDR.
   const lockForGuest = !authResolved || authLoading || !authUser;
   const [importing, setImporting] = useState(false);
   const [importNote, setImportNote] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<'compact' | 'full'>('compact');
 
-  /**
-   * Impor komposisi dari portofolio NYATA pengguna (2026-08-23).
-   *
-   * Sebelumnya halaman ini menyuruh mengetik ulang tiap posisi padahal pengguna sudah
-   * mengisinya di /portfolio - keluhan "bingung cara pakainya" berawal dari situ.
-   * Catatan lama di berkas ini menyatakan halaman tidak punya akses ke portofolio user;
-   * itu tidak lagi benar, /api/portfolio menyediakannya.
-   *
-   * Bobot diturunkan dari NILAI PEROLEHAN (totalCost), bukan nilai pasar, karena itulah
-   * yang tersedia di respons - dan itu DINYATAKAN ke pengguna alih-alih disamarkan
-   * seolah bobot pasar terkini.
-   */
   const importFromPortfolio = useCallback(async () => {
     setImporting(true);
     setImportNote(null);
     setError(null);
+    setErrorRequestId(null);
     try {
       const res = await apiRequest<{ holdings?: { symbol: string; totalCost: number }[] }>('/api/portfolio');
       const holdings = (res?.holdings ?? []).filter((h) => h?.symbol && Number(h.totalCost) > 0);
@@ -78,8 +54,9 @@ export default function RiskPage() {
       const total = holdings.reduce((sum, h) => sum + Number(h.totalCost), 0);
       setPortfolio(holdings.map((h) => ({
         ticker: h.symbol.replace(/\.JK$/, '').toUpperCase(),
-        weight: Math.round((Number(h.totalCost) / total) * 1000) / 10,
+        weight: Math.max(0.1, Math.round((Number(h.totalCost) / total) * 1000) / 10),
       })));
+      setAnalysis(null);
       setImportNote(`${holdings.length} posisi diimpor. Bobot dihitung dari nilai perolehan, bukan nilai pasar terkini.`);
     } catch (err) {
       setImportNote(isApiClientError(err) ? 'Perlu masuk dulu untuk mengimpor portofolio Anda.' : 'Gagal mengimpor portofolio.');
@@ -92,6 +69,7 @@ export default function RiskPage() {
     if (portfolio.length === 0) return;
     setLoading(true);
     setError(null);
+    setErrorRequestId(null);
     try {
       const json = await apiRequest<RiskAnalysisResult>('/api/risk-analysis', {
         method: 'POST',
@@ -101,6 +79,7 @@ export default function RiskPage() {
       setAnalysis(json);
     } catch (e) {
       setError(isApiClientError(e) ? e.message : 'Gagal menghubungi server analisis risiko');
+      setErrorRequestId(isApiClientError(e) ? e.requestId : null);
       setAnalysis(null);
     } finally {
       setLoading(false);
@@ -113,18 +92,24 @@ export default function RiskPage() {
   }, []);
 
   const addPosition = () => {
-    // SymbolAutocomplete mengembalikan BBCA.JK, sedangkan Risk Matrix menyimpan
-    // kode IDX ringkas (BBCA). Normalisasi di satu titik juga mencegah BBCA dan
-    // BBCA.JK masuk sebagai dua posisi yang sebetulnya sama.
     const tickerToAdd = newTicker.trim().toUpperCase().replace(/\.JK$/, '');
-    if (tickerToAdd && !portfolio.some((item) => item.ticker === tickerToAdd)) {
-      setPortfolio([...portfolio, { ticker: tickerToAdd, weight: Number(newWeight) }]);
+    const parsedWeight = Number(newWeight);
+    if (!tickerToAdd) return;
+    if (!Number.isFinite(parsedWeight) || parsedWeight <= 0) {
+      setError('Bobot posisi harus berupa angka lebih besar dari 0%.');
+      return;
+    }
+    setError(null);
+    if (!portfolio.some((item) => item.ticker === tickerToAdd)) {
+      setPortfolio([...portfolio, { ticker: tickerToAdd, weight: parsedWeight }]);
+      setAnalysis(null);
       setNewTicker('');
     }
   };
 
   const removePosition = (idx: number) => {
     setPortfolio(portfolio.filter((_, i) => i !== idx));
+    setAnalysis(null);
   };
 
   const fmtPct = (v: number | null) => (v == null ? 'N/A' : `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`);
@@ -190,11 +175,6 @@ export default function RiskPage() {
             ))}
           </div>
 
-          {/* BUG FIX (2026-08-22): backend menormalisasi ulang bobot saham yang beta-nya
-              GAGAL dihitung dari sisa saham yang berhasil (lihat app/api/risk-analysis/
-              route.ts) - tapi UI ini tidak pernah menampilkan total bobot atau menyebut
-              normalisasi itu, jadi user yang menambah mis. 3 posisi @10% tidak tahu
-              apakah sisa 70% dianggap "kas" atau ada penjelasan lain. */}
           {portfolio.length > 0 && (() => {
             const totalWeight = portfolio.reduce((sum, item) => sum + item.weight, 0);
             const isBalanced = Math.abs(totalWeight - 100) < 0.5;
@@ -241,6 +221,8 @@ export default function RiskPage() {
             <Input
               size="sm"
               type="number"
+              min="0.1"
+              step="any"
               value={newWeight}
               onChange={(e) => setNewWeight(Number(e.target.value))}
               placeholder="%"
@@ -251,7 +233,7 @@ export default function RiskPage() {
             </Button>
           </div>
 
-          <Button size="sm" variant="secondary" onClick={runAnalysis} disabled={loading} className="w-full">
+          <Button size="sm" variant="secondary" onClick={runAnalysis} disabled={loading || portfolio.length === 0} className="w-full">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> {loading ? 'Menghitung...' : 'Hitung Ulang Beta Portofolio'}
           </Button>
         </Card>
@@ -264,13 +246,12 @@ export default function RiskPage() {
           </h3>
 
           {error && (
-            <div className="p-3 rounded-md bg-tv-red/10 border border-tv-red/30 text-xs text-tv-red">{error}</div>
+            <div className="space-y-1.5">
+              <div className="p-3 rounded-md bg-tv-red/10 border border-tv-red/30 text-xs text-tv-red">{error}</div>
+              <ApiErrorHint requestId={errorRequestId} />
+            </div>
           )}
 
-          {/* BUG FIX (2026-08-22): sebelumnya tidak ada skeleton di sini sama sekali -
-              hanya tombol yang menunjukkan spinner ("Menghitung..."), sementara kartu
-              metrik ini tetap menampilkan nilai LAMA (atau N/A) tanpa indikasi visual
-              bahwa sedang dihitung ulang. */}
           {lockForGuest ? (
             <div className="flex flex-col items-center gap-3 rounded-md border border-dashed border-tv-border py-8 text-center">
               <Lock className="h-5 w-5 text-tv-yellow" />
@@ -317,9 +298,6 @@ export default function RiskPage() {
             <div className="p-3 rounded-md bg-tv-bg border border-tv-border">
               <div className="lens-meta text-tv-muted uppercase">Beta Portofolio vs IHSG</div>
               {loading ? <Skeleton className="h-5 w-12 mt-1" /> : <div className="text-tv-text font-bold font-number mt-1">{analysis?.portfolioBetaIhsg ?? 'N/A'}</div>}
-              {/* Angka beta tidak berarti apa-apa bagi yang belum tahu beta - dan itulah
-                  mayoritas pengguna. Diterjemahkan ke kalimat yang bisa langsung dipakai,
-                  memakai angka portofolionya sendiri, bukan contoh umum. */}
               {!loading && typeof analysis?.portfolioBetaIhsg === 'number' && (
                 <p className="mt-1 lens-body-sm text-tv-muted">
                   Artinya: kalau IHSG turun 10%, portofolio ini secara historis bergerak

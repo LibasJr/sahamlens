@@ -12,6 +12,7 @@ import { handleGetProStatus } from '@/modules/user';
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   return runController(async () =>
-    handleGetProStatus(await cookies(), { email: searchParams.get('email') ?? undefined })
+    handleGetProStatus(await cookies(), { email: searchParams.get('email') ?? undefined }),
+    request,
   );
 }

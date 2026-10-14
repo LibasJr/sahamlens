@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { ArrowLeft, Bot, BrainCircuit, ClipboardCheck, ShieldCheck, Sparkles, Target } from 'lucide-react';
+import { Card } from '@/components/ui/Card';
 
 export const metadata = {
-  title: 'Multi-Agent AI Team | SahamLens',
+  title: 'Multi-Agent AI Team',
   description: 'Ringkasan tim AI multi-agent SahamLens untuk riset, validasi, dan eksekusi aman.',
   robots: { index: false, follow: false },
 };
@@ -23,7 +24,7 @@ export default function MultiAgentPage() {
         <Link href="/" className="mb-6 inline-flex items-center gap-2 text-sm text-tv-muted hover:text-tv-text">
           <ArrowLeft className="h-4 w-4" /> Kembali
         </Link>
-        <div className="rounded-3xl border border-tv-border bg-tv-card p-6 sm:p-8 shadow-xl">
+        <Card padding="none" radius="xl" elevation="none" highlight={false} className="rounded-3xl border-tv-border p-6 sm:p-8 shadow-xl">
           <p className="text-xs uppercase tracking-[0.3em] text-tv-yellow">AI Team Preview</p>
           <h1 className="mt-3 text-3xl font-bold sm:text-4xl">Tim AI multi-agent SahamLens</h1>
           <p className="mt-4 max-w-3xl text-sm leading-6 text-tv-muted">
@@ -49,7 +50,7 @@ export default function MultiAgentPage() {
           <div className="mt-8 rounded-2xl border border-tv-green/30 bg-tv-green/10 p-4 text-sm text-tv-text">
             Cocok untuk alur: riset → validasi → shortlist → keputusan akhir manusia.
           </div>
-        </div>
+        </Card>
       </div>
     </main>
   );

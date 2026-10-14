@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { ArrowLeft } from 'lucide-react';
 import { isAdminServer } from '@/modules/user';
 import { getDecisionAgentDashboard } from '@/modules/decision-agent';
+import { Card } from '@/components/ui/Card';
 import DecisionLabClient from './DecisionLabClient';
 
 export const metadata = { robots: { index: false, follow: false } };
@@ -21,7 +22,7 @@ export default async function DecisionLabPage() {
         <p className="mt-2 max-w-4xl text-sm text-tv-muted">
           Simulasi keputusan dan paper execution berbasis snapshot SahamLens yang benar-benar tersedia. Data kurang atau kedaluwarsa menghasilkan NO_SIGNAL; live broker tetap terkunci.
         </p>
-        <div className="mt-4 rounded-2xl border border-tv-border bg-tv-card p-4 text-sm text-tv-muted">
+        <Card padding="none" radius="xl" elevation="none" highlight={false} className="mt-4 rounded-2xl border-tv-border p-4 text-sm text-tv-muted">
           <div className="font-semibold text-tv-text">Diagram 3 lapis</div>
           <div className="mt-3 grid gap-3 lg:grid-cols-3">
             <div className="rounded-xl border border-tv-green/30 bg-tv-green/10 p-4">
@@ -58,7 +59,7 @@ export default async function DecisionLabPage() {
           <div className="mt-4 text-xs text-tv-muted">
             Detail struktur role tersedia di <a className="text-tv-blue hover:underline" href="/docs/admin/decision-lab-role-stack">dokumen stack role</a>.
           </div>
-        </div>
+        </Card>
         <DecisionLabClient initialDashboard={initialDashboard} />
       </div>
     </main>

@@ -120,8 +120,23 @@ export async function handleResetPassword(rawBody: unknown): Promise<HttpResult>
   return { status: 200, body: { success: true, message: 'Password berhasil diubah. Silakan login.' } };
 }
 
-export async function handleLogout(): Promise<HttpResult> {
-  return { status: 200, body: { success: true }, cookiesToClear: [SESSION_COOKIE, ADMIN_COOKIE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE, 'sahamlens_demo_session'] };
+export async function handleLogout(requestMeta?: AuthRequestMeta): Promise<HttpResult> {
+  if (requestMeta) {
+    const session = await getSession().catch(() => null);
+    if (session?.email) {
+      await recordAuthEventSafely({
+        userId: session.id,
+        email: session.email,
+        eventType: 'logout',
+        requestMeta,
+      });
+    }
+  }
+  return {
+    status: 200,
+    body: { success: true },
+    cookiesToClear: [SESSION_COOKIE, ADMIN_COOKIE, ADMIN_BADGE_COOKIE, ROLE_BADGE_COOKIE, 'sahamlens_demo_session'],
+  };
 }
 
 export async function handleMe(): Promise<HttpResult> {

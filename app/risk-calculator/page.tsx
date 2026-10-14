@@ -4,25 +4,14 @@ import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ShieldAlert, Calculator, RefreshCw, TrendingDown, TrendingUp, AlertTriangle } from 'lucide-react';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
-import { Button, Input, PageContainer, EmptyState, AnimatedNumber } from '@/components/ui';
+import { Button, Input, PageContainer, EmptyState, AnimatedNumber, Skeleton } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
 import { Card } from '@/components/ui/Card';
 import { apiRequest } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
 
-// Risk Calculator - murni kalkulator matematika dari input pengguna (position sizing +
-// risk/reward), TIDAK ada angka yang dikarang/ditebak. Satu-satunya panggilan API adalah
-// mengambil harga live buat prefill "Harga Entry" (opsional, boleh ditimpa manual).
-// Ukuran posisi dibatasi oleh DUA hal sekaligus: budget risiko (modal x risk%) DAN modal
-// yang tersedia - lot final adalah yang lebih kecil dari keduanya, supaya tidak pernah
-// menyarankan posisi yang sebenarnya tidak terjangkau modal.
-//
-// BUG FIX (2026-08-01): symbol sebelumnya hardcode 'BBCA.JK' - buka Risk Calculator
-// setelah analisis TLKM di halaman lain tetap mulai dari BBCA. Sekarang ikut pola yang
-// sama dengan /compare, /dcf, /fundamental: ?symbol= di URL dulu, lalu localStorage
-// 'last_searched_ticker' (dipakai bersama lintas halaman analisa), baru default BBCA.
 function RiskCalculatorContent() {
-  const { t, language } = useLanguage();
+  const { language } = useLanguage();
   const isEn = language === 'en';
   const searchParams = useSearchParams();
   const [symbol, setSymbolState] = useState('BBCA.JK');
@@ -62,10 +51,6 @@ function RiskCalculatorContent() {
     try {
       const code = symbol.replace('.JK', '');
       const json = await apiRequest<any>(`/api/live/${code}`);
-      // BUG FIX (2026-08-06): kegagalan di sini sebelumnya hanya masuk console.
-      // Pengguna menekan "Ambil Harga Live", tidak ada yang terjadi di layar, dan
-      // tidak ada cara mengetahui apakah tombolnya rusak, simbolnya salah, atau
-      // harganya memang tidak tersedia.
       if (typeof json?.price !== 'number' || !Number.isFinite(json.price)) {
         setPriceError(`Harga live ${code} tidak tersedia. Isi Harga Entry secara manual.`);
         return;
@@ -100,19 +85,11 @@ function RiskCalculatorContent() {
   const rewardPerShare = targetNum > 0 ? targetNum - entryNum : null;
   const potentialProfitRp = rewardPerShare != null ? finalShares * rewardPerShare : null;
   const riskRewardRatio = rewardPerShare != null && riskPerShare > 0 ? rewardPerShare / riskPerShare : null;
-  // Target di BAWAH harga entry menghasilkan reward negatif. Sebelumnya keadaan ini
-  // tetap dirender di kotak hijau berjudul "Jika Kena Target" - sebuah kerugian yang
-  // dibingkai sebagai keuntungan.
   const targetBelowEntry = rewardPerShare != null && rewardPerShare <= 0;
 
   const boundByCapital = hasValidInput && maxLotByCapital < maxLotByRisk;
 
-  // Berapa kali kalah beruntun yang masih bisa ditanggung modal pada ukuran risiko ini.
-  // Pakai kerugian NYATA per trade (maxLossRp), bukan budget risiko teoretis, karena
-  // pembulatan ke lot penuh membuat keduanya sering berbeda.
   const consecutiveLossesSurvivable = maxLossRp > 0 ? Math.floor(modalNum / maxLossRp) : null;
-  // Titik impas: dengan rasio R, persentase kemenangan minimum agar tidak rugi adalah
-  // 1 / (1 + R). Ini aritmetika ekspektasi, bukan prediksi.
   const breakevenWinRatePct = riskRewardRatio != null && riskRewardRatio > 0
     ? (1 / (1 + riskRewardRatio)) * 100
     : null;
@@ -132,8 +109,6 @@ function RiskCalculatorContent() {
           ]}
         />
         <div className="flex items-center gap-3">
-          {/* red-500/red-400 mentah diganti tv-red - satu-satunya merah di halaman ini
-              yang berbeda dari merah palet yang dipakai kotak kerugian di bawahnya. */}
           <div className="w-10 h-10 rounded-lg bg-tv-red/10 border border-tv-red/30 flex items-center justify-center text-tv-red shrink-0">
             <ShieldAlert className="w-5 h-5" />
           </div>
@@ -180,11 +155,6 @@ function RiskCalculatorContent() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                {/* BUG FIX (2026-08-22): 5 field di form ini sebelumnya <input> mentah
-                    tanpa id/htmlFor - label tampil di layar tapi tidak tersambung secara
-                    program ke input-nya (pembaca layar tidak tahu field mana yang sedang
-                    diisi). Diganti komponen Input bersama yang sudah menangani ini -
-                    lihat komentar di components/ui/Input.tsx. */}
                 <Input
                   label="Modal (Rp)"
                   type="number"
@@ -334,9 +304,6 @@ function RiskCalculatorContent() {
                   )}
                 </div>
 
-                {/* Target di bawah entry: sebelumnya tetap dirender di kotak HIJAU
-                    berjudul "Jika Kena Target" dengan angka negatif - kerugian yang
-                    dibingkai sebagai keuntungan. */}
                 {targetBelowEntry ? (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-tv-yellow/10 border border-tv-yellow/30 text-tv-yellow text-xs">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -364,8 +331,6 @@ function RiskCalculatorContent() {
                         1 : {riskRewardRatio.toFixed(2)}
                       </span>
                     </div>
-                    {/* Storytelling: rasio itu sendiri tidak memberi tahu apa pun sampai
-                        diterjemahkan jadi syarat yang harus dipenuhi. */}
                     {breakevenWinRatePct != null && (
                       <p className="mt-2 pt-2 border-t border-tv-border lens-body-sm">
                         Dengan rasio ini, kamu perlu menang minimal{' '}
@@ -393,9 +358,23 @@ function RiskCalculatorContent() {
   );
 }
 
+function RiskCalculatorSuspenseFallback() {
+  return (
+    <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <Skeleton className="h-20 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Skeleton className="h-80 w-full" />
+          <Skeleton className="h-80 w-full" />
+        </div>
+      </PageContainer>
+    </div>
+  );
+}
+
 export default function RiskCalculatorPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<RiskCalculatorSuspenseFallback />}>
       <RiskCalculatorContent />
     </Suspense>
   );

@@ -48,7 +48,11 @@ export async function upsertWatchlistItem(
     `INSERT INTO watchlists (id, user_id, symbol, buy_price, alert_price, lot, journal_note)
      VALUES ($1,$2,$3,$4,$5,$6,$7)
      ON CONFLICT (user_id, symbol) DO UPDATE SET
-       buy_price = EXCLUDED.buy_price, alert_price = EXCLUDED.alert_price, lot = EXCLUDED.lot, journal_note = EXCLUDED.journal_note
+       buy_price = COALESCE(EXCLUDED.buy_price, watchlists.buy_price),
+       alert_price = COALESCE(EXCLUDED.alert_price, watchlists.alert_price),
+       lot = COALESCE(EXCLUDED.lot, watchlists.lot),
+       journal_note = COALESCE(EXCLUDED.journal_note, watchlists.journal_note),
+       updated_at = now()
      RETURNING *`,
     [crypto.randomUUID(), userId, input.symbol, input.buy_price ?? null, input.alert_price ?? null, input.lot ?? null, input.journal_note ?? null]
   );
@@ -57,7 +61,11 @@ export async function upsertWatchlistItem(
 
 export async function deleteWatchlistItem(userId: string, symbol: string): Promise<void> {
   await ensureSharedSchema();
-  await pool.query('DELETE FROM watchlists WHERE user_id = $1 AND symbol = $2', [userId, symbol]);
+  const clean = symbol.trim().toUpperCase().replace(/\.JK$/, '');
+  await pool.query(
+    'DELETE FROM watchlists WHERE user_id = $1 AND symbol IN ($2, $3, $4)',
+    [userId, symbol, clean, `${clean}.JK`],
+  );
 }
 
 export async function updateWatchlistJournal(

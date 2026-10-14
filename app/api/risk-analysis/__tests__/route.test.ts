@@ -9,11 +9,16 @@ vi.mock('@/modules/market', () => ({
 vi.mock('@/shared/cache/redis-cache', () => ({
   getOrCompute: vi.fn(),
 }));
+vi.mock('@/shared/security/api-rate-limit', () => ({
+  checkPublicComputeBudget: vi.fn(),
+  rateLimitResult: vi.fn(),
+}));
 
 import { POST } from '../route';
 import { fetchYahooHistory } from '@/modules/technical';
 import { calculateBeta } from '@/modules/market';
 import { getOrCompute } from '@/shared/cache/redis-cache';
+import { checkPublicComputeBudget } from '@/shared/security/api-rate-limit';
 
 function makeRequest(portfolio: unknown): Request {
   return new Request('http://localhost/api/risk-analysis', {
@@ -32,6 +37,7 @@ const oneYearHistory = { history: [{ Date: '2026-01-01', Close: 100 }], currentP
 describe('POST /api/risk-analysis', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(checkPublicComputeBudget).mockResolvedValue({ allowed: true, degraded: false, unavailable: false });
     vi.mocked(getOrCompute).mockImplementation(async (_key, _ttl, compute) => compute());
     vi.mocked(fetchYahooHistory).mockResolvedValue(oneYearHistory as any);
     vi.mocked(calculateBeta).mockReturnValue({ beta: 1.1 } as any);
@@ -70,5 +76,15 @@ describe('POST /api/risk-analysis', () => {
   it('portofolio kosong -> 400', async () => {
     const res = await POST(makeRequest([]));
     expect(res.status).toBe(400);
+  });
+
+  it('menolak ticker non-IDX atau bobot tidak valid -> 400 tanpa menyentuh cache', async () => {
+    const resInvalidTicker = await POST(makeRequest([{ ticker: '../../etc/passwd', weight: 100 }]));
+    expect(resInvalidTicker.status).toBe(400);
+    expect(getOrCompute).not.toHaveBeenCalled();
+
+    const resZeroWeight = await POST(makeRequest([{ ticker: 'BBCA', weight: 0 }]));
+    expect(resZeroWeight.status).toBe(400);
+    expect(getOrCompute).not.toHaveBeenCalled();
   });
 });

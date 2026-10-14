@@ -14,10 +14,10 @@ import { getOwnershipFlowMonitor } from '@/modules/ownership-flow/service/owners
 
 export const maxDuration = 60;
 
-export async function GET() {
+export async function GET(request: Request) {
   return runController(async () => {
     await requireAdminSession();
     const monitor = await getOwnershipFlowMonitor();
     return { status: 200, body: monitor };
-  });
+  }, request);
 }

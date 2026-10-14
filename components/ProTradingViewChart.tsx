@@ -1,6 +1,6 @@
 'use client';
 
-import { Button } from '@/components/ui';
+import { Button, Card } from '@/components/ui';
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   createChart,
@@ -13,9 +13,8 @@ import {
   LineData,
   Time,
 } from 'lightweight-charts';
-import { Eye, EyeOff, Maximize2, RotateCcw, BarChart2, Layers } from 'lucide-react';
-import { formatRupiah } from '@/shared/config/pricing';
-import { computeVolumeProfile, type VolumeProfileResult } from '@/lib/utils/volume-profile';
+import { RotateCcw, BarChart2 } from 'lucide-react';
+import { computeVolumeProfile } from '@/lib/utils/volume-profile';
 import { calculateBollingerBands } from '@/modules/technical/service/bollinger-bands';
 import {
   adxSeriesForChart,
@@ -25,13 +24,6 @@ import {
   type ChartCandle,
 } from '@/lib/chart-indicators';
 
-// Oscillator bawah (2026-08-22): satu pita sub-panel, satu indikator aktif sekaligus -
-// bukan 4 pita ditumpuk bersamaan. Chart ini punya tinggi tetap 420px (lihat JSX di
-// bawah); menumpuk Stochastic + Williams %R + ADX + OBV sekaligus di tinggi segitu
-// akan membuat masing-masing pita terlalu tipis untuk dibaca. Selector tunggal dipilih
-// secara sadar - lihat lib/chart-indicators.ts + TradingViewChart.tsx untuk versi yang
-// BISA menumpuk banyak oscillator (dipakai di /technical/[symbol] dan /backtest, yang
-// tinggi chart-nya menyesuaikan otomatis ke jumlah indikator aktif).
 type OscillatorKind = 'NONE' | 'STOCH' | 'WILLIAMS_R' | 'ADX' | 'OBV';
 
 export interface RawCandle {
@@ -55,7 +47,6 @@ function calculateEMA(data: { time: Time; close: number }[], period: number): Li
   const k = 2 / (period + 1);
   const emaData: LineData[] = [];
 
-  // Start with simple moving average for the first point
   let sum = 0;
   for (let i = 0; i < period; i++) {
     sum += data[i].close;
@@ -73,11 +64,6 @@ function calculateEMA(data: { time: Time; close: number }[], period: number): Li
   return emaData;
 }
 
-/** Deret Bollinger Bands untuk chart - dihitung lewat calculateBollingerBands kanonis
- * (modules/technical/service/bollinger-bands.ts) per bar, bukan ditulis ulang di sini
- * (beda dengan calculateEMA di atas, yang formulanya sendiri sudah benar tapi memang
- * salinan lokal - lihat catatan di lib/chart-indicators.ts soal kenapa indikator BARU
- * sengaja tidak menambah salinan serupa). */
 function calculateBollingerBandsSeries(data: { time: Time; close: number }[], period = 20, k = 2): { upper: LineData[]; middle: LineData[]; lower: LineData[] } {
   const closes = data.map((d) => d.close);
   const upper: LineData[] = [];
@@ -127,9 +113,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
   const bbUpperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbMiddleSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
   const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
-  // 3 slot generik dipakai bergantian tergantung oscillator aktif (Stochastic butuh 2,
-  // ADX butuh 3, Williams %R/OBV butuh 1) - bukan 1 ref per jenis oscillator, supaya
-  // tidak ada 4x(sampai 3) = 12 series nganggur setiap kali chart dibuat.
   const oscLine1Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const oscLine2Ref = useRef<ISeriesApi<'Line'> | null>(null);
   const oscLine3Ref = useRef<ISeriesApi<'Line'> | null>(null);
@@ -145,12 +128,10 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
   const [showVPVR, setShowVPVR] = useState(true);
   const [activeRange, setActiveRange] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('6M');
 
-  // Compute Volume Profile
   const volumeProfile = useMemo(() => {
     return computeVolumeProfile(candles || [], 20);
   }, [candles]);
 
-  // Crosshair live status
   const [hoverData, setHoverData] = useState<{
     dateStr: string;
     open: number;
@@ -161,7 +142,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     changePct: number;
   } | null>(null);
 
-  // Parse and format data
   const formattedData = useMemo(() => {
     if (!candles || candles.length === 0) return { candlesticks: [], volumes: [], emaSource: [], chartCandles: [] as ChartCandle[], volumeComplete: false };
 
@@ -211,17 +191,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
 
     const emaSource = sorted.map((c) => ({ time: c.time, close: c.close }));
 
-    // Bentuk ChartCandle (lib/chart-indicators.ts) untuk Bollinger/Stochastic/Williams
-    // %R/ADX/OBV.
-    //
-    // BUG FIX (2026-08-22): versi pertama menulis `volume: c.volume ?? 0` dengan alasan
-    // "konsisten dengan TR=0 di atr.ts". Itu ANALOGI YANG SALAH: TR = 0 adalah hasil
-    // pengukuran nyata (high = low = close, rentangnya memang nol), sedangkan volume
-    // null berarti DATANYA TIDAK ADA. OBV menjumlahkan volume secara kumulatif, jadi
-    // satu volume hilang yang dijadikan 0 menggeser seluruh garis sesudahnya secara
-    // permanen - dan garisnya tetap tampil mulus tanpa tanda apa pun bahwa ia salah.
-    // NaN dipakai sengaja: calculateObvSeries() fail-closed menolak deret yang memuatnya,
-    // sehingga OBV tidak digambar sama sekali alih-alih digambar salah.
     const chartCandles: ChartCandle[] = sorted.map((c) => ({
       time: c.time as string,
       open: c.open,
@@ -235,22 +204,16 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     return { candlesticks, volumes, emaSource, chartCandles, volumeComplete };
   }, [candles]);
 
-  // Initialize chart
   useEffect(() => {
     if (!chartContainerRef.current) return;
 
     const palet = bacaPaletChart();
 
-    // Create TradingView Chart
     const chart = createChart(chartContainerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: palet.latar },
         textColor: palet.teks,
         fontSize: 11,
-        // --font-geist-mono tidak pernah didefinisikan di mana pun (app/layout.tsx hanya
-        // menyediakan --font-inter dan --font-jetbrains-mono), jadi label harga & sumbu
-        // selama ini jatuh ke monospace generik - satu-satunya angka di aplikasi yang
-        // fontnya berbeda dari sisanya.
         fontFamily: 'var(--font-jetbrains-mono), ui-monospace, monospace',
       },
       grid: {
@@ -299,7 +262,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
 
     chartRef.current = chart;
 
-    // 1. Candlestick Series
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#22c55e',
       downColor: '#ef4444',
@@ -309,12 +271,11 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     });
     candleSeriesRef.current = candleSeries;
 
-    // 2. Volume Series (sub-layer)
     const volumeSeries = chart.addHistogramSeries({
       priceFormat: {
         type: 'volume',
       },
-      priceScaleId: '', // overlay
+      priceScaleId: '',
     });
     chart.priceScale('').applyOptions({
       scaleMargins: {
@@ -324,9 +285,8 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     });
     volumeSeriesRef.current = volumeSeries;
 
-    // 3. EMA Line Overlays
     const ema20Series = chart.addLineSeries({
-      color: '#06b6d4', // cyan
+      color: '#06b6d4',
       lineWidth: 2,
       title: 'EMA 20',
       priceLineVisible: false,
@@ -335,7 +295,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     ema20SeriesRef.current = ema20Series;
 
     const ema50Series = chart.addLineSeries({
-      color: '#f97316', // orange
+      color: '#f97316',
       lineWidth: 2,
       title: 'EMA 50',
       priceLineVisible: false,
@@ -344,7 +304,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     ema50SeriesRef.current = ema50Series;
 
     const ema200Series = chart.addLineSeries({
-      color: '#a855f7', // purple
+      color: '#a855f7',
       lineWidth: 2,
       title: 'EMA 200',
       priceLineVisible: false,
@@ -352,9 +312,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     });
     ema200SeriesRef.current = ema200Series;
 
-    // 4. Bollinger Bands - overlay di skala harga utama (default priceScaleId, sama
-    // seperti EMA di atas), bukan skala terpisah - band-nya memang berada di kisaran
-    // harga yang sama dengan candle.
     const bbUpperSeries = chart.addLineSeries({
       color: 'rgba(56, 189, 248, 0.55)', title: 'BB Upper', lineWidth: 1,
       priceLineVisible: false, crosshairMarkerVisible: false, lastValueVisible: false,
@@ -371,10 +328,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     });
     bbLowerSeriesRef.current = bbLowerSeries;
 
-    // 5. Oscillator sub-panel - satu skala 'oscillator' dipaksa ke pita bawah lewat
-    // scaleMargins (lightweight-charts v4 tidak punya pane bawaan, lihat komentar
-    // OscillatorKind di atas). 3 slot generik + 2 garis panduan overbought/oversold,
-    // dipakai bergantian sesuai `oscillator` yang aktif - lihat efek update data.
     const makeOscLine = (color: string, title: string, lineWidth: 1 | 2 = 2) => chart.addLineSeries({
       color, title, lineWidth, priceScaleId: 'oscillator',
       priceLineVisible: false, crosshairMarkerVisible: false, lastValueVisible: false,
@@ -387,7 +340,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     oscGuideLowRef.current.applyOptions({ lineStyle: 2 });
     oscGuideHighRef.current.applyOptions({ lineStyle: 2 });
 
-    // Subscribe to crosshair moves for interactive HUD
     chart.subscribeCrosshairMove((param) => {
       if (!param.time || !param.seriesData || !candleSeriesRef.current) {
         setHoverData(null);
@@ -411,7 +363,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
       }
     });
 
-    // Auto-resize
     const handleResize = () => {
       if (chartContainerRef.current && chartRef.current) {
         chartRef.current.applyOptions({
@@ -425,7 +376,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     const resizeObserver = new ResizeObserver(handleResize);
     resizeObserver.observe(chartContainerRef.current);
 
-    // Theme mutation observer
     const themeObserver = new MutationObserver(() => {
       if (!chartRef.current) return;
       const p = bacaPaletChart();
@@ -456,7 +406,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
     };
   }, []);
 
-  // Update data when formattedData changes
   useEffect(() => {
     if (!chartRef.current || !candleSeriesRef.current) return;
 
@@ -495,10 +444,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         }
       }
 
-      // Oscillator sub-panel: satu indikator aktif sekaligus (lihat catatan OscillatorKind
-      // di atas). scaleMargins dari 'right'/'' (volume) dan 'oscillator' harus diubah
-      // BERSAMAAN supaya ketiga pita tidak saling tumpang tindih - lihat komentar di JSX
-      // toolbar untuk kenapa ini satu selector, bukan 4 toggle independen.
       if (chartRef.current) {
         const hasOscillator = oscillator !== 'NONE';
         chartRef.current.priceScale('right').applyOptions({
@@ -550,7 +495,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
         }
       }
 
-      // Default view: last 120 bars (~6 months)
       const totalBars = formattedData.candlesticks.length;
       chartRef.current.timeScale().setVisibleLogicalRange({
         from: Math.max(0, totalBars - 120),
@@ -608,7 +552,7 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
   } : null);
 
   return (
-    <div className={`relative flex flex-col rounded-2xl border border-tv-border bg-tv-card overflow-hidden shadow-2 ${className}`}>
+    <Card padding="none" radius="xl" elevation="none" highlight={false} overflow="hidden" className={`relative flex flex-col rounded-2xl border-tv-border shadow-2 ${className}`}>
       {/* Top Interactive Toolbar & Live HUD */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-tv-border bg-tv-card/95 px-4 py-2.5 backdrop-blur-md">
         {/* Left: Ticker & Live OHLCV HUD */}
@@ -723,10 +667,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
             </Button>
           </div>
 
-          {/* Oscillator sub-panel selector - satu aktif sekaligus (lihat komentar
-              OscillatorKind di atas file). "Tidak ada" sengaja jadi pilihan eksplisit
-              di grup ini, bukan diwakili tombol terpisah, supaya jelas ini SATU pilihan
-              yang saling meniadakan, bukan checklist independen seperti EMA/BB. */}
           <div className="flex items-center gap-1 bg-tv-hover/50 p-0.5 rounded-lg border border-tv-border">
             {([
               { value: 'NONE', label: 'Tanpa Osc' },
@@ -735,10 +675,6 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
               { value: 'ADX', label: 'ADX' },
               { value: 'OBV', label: 'OBV' },
             ] as const).map((opt) => {
-              // OBV dinonaktifkan (bukan diam-diam menggambar garis kosong) saat ada bar
-              // tanpa volume - lihat catatan fail-closed di formattedData. Alasannya
-              // dinyatakan di tooltip supaya pengguna tahu ini keterbatasan data, bukan
-              // tombol rusak.
               const obvUnavailable = opt.value === 'OBV' && !formattedData.volumeComplete;
               return (
                 <Button variant="bare" size="none"
@@ -795,21 +731,20 @@ export function ProTradingViewChart({ candles, ticker, className = '' }: ProTrad
 
       {/* Chart Canvas Area */}
       <div className="relative h-[420px] w-full">
-        {/* Floating VPVR / POC Legend Badge */}
         {showVPVR && volumeProfile && (
           <div className="absolute top-3 left-4 z-10 flex items-center gap-2 flex-wrap pointer-events-none">
-            <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2.5 py-1 border border-amber-500/30 lens-label lens-number text-amber-500 dark:text-amber-300 shadow-md">
+            <Card padding="none" radius="md" elevation="none" highlight={false} className="flex items-center gap-1.5 bg-tv-card/90 backdrop-blur-md px-2.5 py-1 border-amber-500/30 lens-label lens-number text-amber-500 dark:text-amber-300 shadow-md">
               <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
               <span>POC (Point of Control): <strong>Rp {volumeProfile.pocPrice.toLocaleString('id-ID')}</strong></span>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-lg bg-tv-card/90 backdrop-blur-md px-2 py-1 border border-tv-border lens-label lens-number text-tv-muted">
+            </Card>
+            <Card padding="none" radius="md" elevation="none" highlight={false} className="flex items-center gap-1.5 bg-tv-card/90 backdrop-blur-md px-2 py-1 border-tv-border lens-label lens-number text-tv-muted">
               <span>Value Area (70% Vol): <strong className="text-tv-text">Rp {volumeProfile.valPrice.toLocaleString('id-ID')} - {volumeProfile.vahPrice.toLocaleString('id-ID')}</strong></span>
-            </div>
+            </Card>
           </div>
         )}
 
         <div ref={chartContainerRef} className="h-full w-full" />
       </div>
-    </div>
+    </Card>
   );
 }

@@ -40,7 +40,7 @@ export interface InactiveUserRow {
   last_active_at: string | null;
 }
 
-export type AuthEventType = 'signup' | 'login' | 'verify';
+export type AuthEventType = 'signup' | 'login' | 'verify' | 'logout';
 
 export interface AuthEventRow {
   id: number;
@@ -242,45 +242,6 @@ const UPDATABLE_COLUMNS = new Set<keyof User>([
   'reset_code_expires',
 ]);
 
-/**
- * Menukar OTP reset dengan password baru dalam SATU operasi database.
- *
- * ===================================================================================
- * MASALAH YANG DIPECAHKAN
- * ===================================================================================
- * Sebelumnya alurnya tiga langkah terpisah di service:
- *
- *     const user = await getUserByEmail(email);   // 1. BACA
- *     if (user.reset_code !== code) throw ...;    // 2. PERIKSA
- *     await updateUser(user.id, { ... });         // 3. TULIS
- *
- * Di antara langkah 1 dan 3 tidak ada yang menahan apa pun. Dua request yang datang
- * bersamaan dengan OTP valid yang sama akan SAMA-SAMA membaca `reset_code` yang masih
- * terisi, SAMA-SAMA lolos pemeriksaan, dan SAMA-SAMA menulis password baru. OTP yang
- * seharusnya sekali pakai menjadi bisa dipakai berkali-kali selama request-nya
- * berbarengan.
- *
- * ===================================================================================
- * CARA KERJA
- * ===================================================================================
- * Syaratnya dipindah ke dalam `WHERE` milik `UPDATE` itu sendiri. Postgres menjamin
- * satu baris hanya bisa dikunci satu transaksi pada satu waktu, jadi request kedua
- * akan mengevaluasi `WHERE` SETELAH request pertama menghapus `reset_code` -
- * dan gagal mencocokkan.
- *
- * `RETURNING id` membuat pemanggil tahu apakah barisnya benar-benar berubah:
- *   - 1 baris  -> OTP sah, belum kedaluwarsa, dan baru saja DIKONSUMSI.
- *   - 0 baris  -> kode salah, ATAU kedaluwarsa, ATAU sudah dipakai duluan.
- *
- * Tidak ada celah di antaranya karena tidak ada "di antara".
- *
- * ===================================================================================
- * KENAPA KEDALUWARSA DIPERIKSA DENGAN NOW() MILIK DATABASE
- * ===================================================================================
- * Memakai `Date.now()` dari aplikasi berarti kedaluwarsa dinilai memakai jam mesin
- * aplikasi, yang bisa berbeda dari jam database. Satu sumber waktu lebih sedikit
- * berarti satu ketidaksesuaian lebih sedikit.
- */
 export async function consumeResetCodeAndSetPassword(
   email: string,
   code: string,

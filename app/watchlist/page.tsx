@@ -163,13 +163,6 @@ export default function WatchlistPage() {
   const isAdmin = authResolved && authUser?.role === 'admin';
   const hasPro = authResolved && hasProAccessFor(authUser);
   const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
-  // BUG FIX (2026-08-22): `watchlist` di-init `[]` SEBELUM fetchWatchlist() sempat
-  // resolve. Efek live-data di bawah dulu membaca `watchlist.length === 0` di render
-  // pertama itu dan langsung setLoading(false) - untuk user yang SUNGGUHAN punya isi
-  // watchlist, ini membuat EmptyState "Belum ada saham" berkedip sekilas sebelum data
-  // asli masuk dan menggantikannya. Flag ini membedakan "belum tahu isinya" dari
-  // "sudah tahu, dan memang kosong" - live-data effect hanya boleh menyerah ke
-  // setLoading(false) pada kasus KEDUA.
   const [watchlistLoaded, setWatchlistLoaded] = useState(false);
   const [watchlistError, setWatchlistError] = useState(false);
   const [watchlistErrorRequestId, setWatchlistErrorRequestId] = useState<string | null>(null);
@@ -191,9 +184,6 @@ export default function WatchlistPage() {
 
   const [showPaywall, setShowPaywall] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
-  // Batas watchlist gratis hanya berlaku kalau user memang TIDAK punya akses Pro.
-  // Sebelumnya diendus dari cookie yang tidak pernah ditulis untuk pelanggan Pro,
-  // jadi pelanggan berbayar tetap mentok di 3 saham (lihat lib/limits.ts).
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [toastVariant, setToastVariant] = useState<ToastVariant>('info');
 
@@ -218,14 +208,7 @@ export default function WatchlistPage() {
       setWatchlistErrorRequestId(null);
       setWatchlistLoaded(true);
     } catch (error) {
-      // Diabaikan lewat, TANPA menandai watchlistLoaded - abort berarti request ini
-      // disusul/dibatalkan (mis. React StrictMode me-render efek dua kali di dev),
-      // bukan "sudah selesai dan hasilnya diketahui". Menandai loaded di sini akan
-      // membuka lagi celah race yang sama seperti bug yang diperbaiki ini.
       if (error instanceof DOMException && error.name === 'AbortError') return;
-      // Toast menghilang sendiri setelah beberapa detik, jadi ID yang hanya lewat di sana
-      // praktis tidak bisa disalin ke tiket dukungan. Panel galat di bawah yang menetap -
-      // ID-nya disimpan supaya ikut dirender di situ juga.
       setWatchlistErrorRequestId(isApiClientError(error) ? error.requestId : null);
       if (isApiClientError(error) && error.code === 'UNAUTHENTICATED') {
         if (await shouldShowLoginPromptFor401()) setShowLoginPrompt(true);
@@ -244,13 +227,9 @@ export default function WatchlistPage() {
 
   useEffect(() => {
     const controller = new AbortController();
-    // Fetch live data for watchlist items. Request lama dibatalkan bila isi watchlist
-    // berubah supaya harga dari daftar lama tidak menimpa daftar yang baru.
     if (watchlist.length > 0) {
       fetchLiveData(controller.signal);
     } else if (watchlistLoaded) {
-      // Baru boleh menyerah ke "memang kosong" SETELAH fetchWatchlist() benar-benar
-      // resolve - bukan pada render pertama saat `watchlist` masih `[]` bawaan useState.
       setLoading(false);
     }
     return () => controller.abort();
@@ -259,7 +238,15 @@ export default function WatchlistPage() {
   const fetchAlerts = async (signal?: AbortSignal) => {
     try {
       const json = await apiRequest<any>('/api/alert', { signal });
-      setAlerts(json?.data || []);
+      const rawAlerts = Array.isArray(json?.data) ? json.data : [];
+      setAlerts(rawAlerts.map((a: any) => ({
+        id: String(a.id),
+        symbol: String(a.symbol ?? ''),
+        conditionType: String(a.conditionType ?? a.condition_type ?? 'PRICE_BELOW'),
+        targetValue: a.targetValue != null ? String(a.targetValue) : a.target_value != null ? String(a.target_value) : '',
+        isActive: typeof a.isActive === 'boolean' ? a.isActive : !Boolean(a.triggered),
+        createdAt: String(a.createdAt ?? a.created_at ?? ''),
+      })));
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') return;
       console.error('Failed to fetch alerts', error);
@@ -296,7 +283,10 @@ export default function WatchlistPage() {
     if (!newSymbol) return;
 
     const symbol = newSymbol.toUpperCase().replace('.JK', '') + '.JK';
-    const price = parseFloat(buyPrice) || 0;
+    const parsedPrice = buyPrice.trim() ? parseFloat(buyPrice) : null;
+    const price = parsedPrice !== null && Number.isFinite(parsedPrice) && parsedPrice > 0 ? parsedPrice : null;
+    const parsedLot = lotAmount.trim() ? parseInt(lotAmount, 10) : null;
+    const lot = parsedLot !== null && Number.isFinite(parsedLot) && parsedLot > 0 ? parsedLot : null;
     const isNewSymbol = !watchlist.some((item) => item.symbol === symbol);
     if (isNewSymbol) {
       const limit = checkWatchlistLimit(watchlist.length, hasPro);
@@ -307,7 +297,7 @@ export default function WatchlistPage() {
       await apiRequest('/api/watchlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, buy_price: price, lot: lotAmount ? parseInt(lotAmount) : null }),
+        body: JSON.stringify({ symbol, buy_price: price, lot }),
       });
       void fetchWatchlist();
       setNewSymbol('');
@@ -433,9 +423,6 @@ export default function WatchlistPage() {
 
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
-      {/* "Pemakaian Watchlist berulang" (PRD, Beta evaluation) dihitung dari browser yang
-          kembali di HARI yang berbeda - lihat query di
-          modules/user/repository/product-journey.repository.ts. */}
       <JourneyBeacon event="watchlist_view" surface="watchlist" />
       <Toast message={toastMessage} variant={toastVariant} />
       <WatchlistHeader
@@ -488,6 +475,7 @@ export default function WatchlistPage() {
                   placeholder="Contoh: BBCA"
                   value={newSymbol}
                   onChange={(val) => setNewSymbol(val)}
+                  showSearchIcon
                   className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md pl-9 pr-3 py-2 text-sm focus:outline-none focus:border-tv-blue transition-colors"
                   required
                 />
@@ -497,6 +485,7 @@ export default function WatchlistPage() {
                   <label className="lens-meta text-tv-muted uppercase tracking-wide mb-1 block">Harga Beli (opsional)</label>
                   <Input
                     type="number"
+                    min="0"
                     placeholder="0"
                     value={buyPrice}
                     onChange={(e) => setBuyPrice(e.target.value)}
@@ -507,6 +496,7 @@ export default function WatchlistPage() {
                   <label className="lens-meta text-tv-muted uppercase tracking-wide mb-1 block">Total Lot</label>
                   <Input
                     type="number"
+                    min="0"
                     placeholder="0"
                     value={lotAmount}
                     onChange={(e) => setLotAmount(e.target.value)}
@@ -543,10 +533,6 @@ export default function WatchlistPage() {
                 const scoreSignal = scorePresentation?.actionable
                   ? data?.decision?.action
                   : scorePresentation?.modelSignal;
-                // Jangan membuat threshold BUY/HOLD/SELL kedua di UI. Arah sinyal selalu
-                // memakai kategori dari scoring engine; action hanya dari decision.action.
-                // Warna lewat token, bukan hex mati: hex tidak ikut berganti saat tema
-                // berubah, dan badge ini muncul di halaman yang punya mode terang.
                 const scoreToneClass = scoreVal == null
                   ? 'bg-tv-muted/15 border-tv-muted/40 text-tv-muted'
                   : scoreSignal === 'STRONG BUY' || scoreSignal === 'BUY'
@@ -580,9 +566,6 @@ export default function WatchlistPage() {
 
                 return (
                   <div key={item.symbol} className="group rounded-lg border border-tv-border bg-tv-bg hover:border-tv-blue/40 hover:bg-tv-hover/40 transition-colors p-3.5 flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
-                    {/* Avatar lama memakai warna biru yang SAMA untuk setiap emiten -
-                        tidak membantu membedakan baris. TickerAvatar memberi warna
-                        deterministik per kode, konsisten dengan halaman lain. */}
                     <TickerAvatar symbol={item.symbol} size="lg" />
 
                     <div className="min-w-0 flex-1">
@@ -593,9 +576,6 @@ export default function WatchlistPage() {
                         >
                           {scoreLabel}
                         </span>
-                        {/* Decision Journal badge: deterministik hanya kalau ada baseline
-                            (buy_price ATAU alert_price sudah diisi). Kalau dua-duanya
-                            null, tidak ada badge — bukan "regime changed" yang dibuat. */}
                         {currentPrice != null && (item.buy_price || item.alert_price) && (
                           <JournalBadge item={item} currentPrice={currentPrice} />
                         )}
@@ -632,13 +612,6 @@ export default function WatchlistPage() {
                           )}
                         </div>
                       )}
-                      {/* Di bawah 640px kolom kanan (`hidden sm:flex`) hilang seluruhnya - dan
-                          bersamanya HARGA TERKINI, bukan cuma cap kesegaran. Yang tersisa di
-                          layar telepon tinggal persentase P&L: angka turunan tanpa angka
-                          asalnya. Watchlist justru permukaan yang paling sering dibuka dari
-                          telepon di sela jam bursa (PRD SEC.24), jadi keduanya dibawa kembali
-                          ke kolom kiri di lebar itu - menambah tinggi, bukan kolom, supaya
-                          nama emiten tidak terjepit di 375px. */}
                       <div className="sm:hidden mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
                         {currentPrice != null ? (
                           <span className="text-tv-text font-bold text-xs font-number">Rp {currentPrice.toLocaleString('id-ID')}</span>
@@ -687,10 +660,6 @@ export default function WatchlistPage() {
                           ? `Beli: Rp ${item.buy_price.toLocaleString('id-ID')}${item.lot ? ` • ${item.lot} lot` : ''}`
                           : 'harga beli belum diisi'}
                       </span>
-                      {/* Watchlist adalah ruang PEMANTAUAN (PRD §24): angka di sini
-                          dipandangi berulang kali sepanjang hari, jadi umurnya harus
-                          ikut terlihat. Diambil dari payload /api/stock yang sudah
-                          dimuat baris ini - tidak ada request tambahan. */}
                       {kesegaran && (
                         <span className={`lens-meta ${kesegaran.tone}`} title={kesegaran.detail}>
                           {kesegaran.shortLabel}
@@ -705,9 +674,6 @@ export default function WatchlistPage() {
                           {pnl >= 0 ? '+' : ''}{pnl.toFixed(1)}%
                         </span>
                       ) : (
-                        // Sebelumnya '-' polos. Dua sebab berbeda dinamai: harga beli
-                        // belum diisi (P&L memang tidak bisa dihitung) vs harga pasar
-                        // belum masuk (perhitungannya tertunda, bukan mustahil).
                         <span className="lens-meta text-tv-muted leading-tight">
                           {!item.buy_price ? 'P&L perlu harga beli' : 'menunggu harga'}
                         </span>
@@ -744,9 +710,6 @@ export default function WatchlistPage() {
 
               {loading && watchlist.length > 0 && <LoadingFact className="mt-3" />}
 
-              {/* Storytelling: daftar menampilkan P&L per baris, tapi tidak pernah
-                  menyebut mana yang paling menopang dan paling menekan portofolio -
-                  padahal itu yang dicari orang saat membuka halaman ini. */}
               {(() => {
                 const withPnl = positioned
                   .map((w) => ({
@@ -772,11 +735,6 @@ export default function WatchlistPage() {
           </Card>
         </div>
 
-        {/* Alerts Section - h-full pada kartu ini WAJIB, bukan cuma pada pembungkusnya.
-            Grid 3 kolom di atas default align-items:stretch, jadi pembungkus
-            "space-y-6" ini sudah otomatis setinggi kolom kiri (Health Check + My
-            Watchlist) - tapi kartu di DALAMNYA tidak ikut memanjang tanpa h-full,
-            menyisakan celah kosong tak terlihat di bawah kartu sampai batas kolom. */}
         <div className="space-y-6 h-full">
           <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border p-5 h-full flex flex-col">
             <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
@@ -784,12 +742,6 @@ export default function WatchlistPage() {
                 <Bell className="w-5 h-5 text-tv-yellow" />
                 LensAlert
               </h3>
-              {/* BUG FIX (2026-08-06): `isAdmin` dihitung dari /api/auth/me sejak awal
-                  (lihat checkAdmin) tapi TIDAK PERNAH dibaca di mana pun, sehingga
-                  tombol debug ini tampil untuk semua pengguna. Menekannya memicu
-                  pemeriksaan cron manual dan menampilkan notifikasi hasil
-                  mentahnya - tampilan internal yang tidak seharusnya sampai ke
-                  pengguna biasa. Sekarang benar-benar digerbangi. */}
               {isAdmin && (
                 <Button variant="bare" size="none" onClick={triggerCron} className="lens-meta text-tv-muted hover:text-tv-text underline">
                   Test Cron
@@ -826,12 +778,6 @@ export default function WatchlistPage() {
               </Button>
             </form>
 
-            {/* flex-1 supaya area ini mengisi sisa tinggi kartu (bukan cuma numpuk di
-                atas), max-h-[400px] tetap dipertahankan untuk membatasi scroll kalau
-                alert-nya banyak. */}
-            {/* Kelas `custom-scrollbar` dilepas: tidak ada blok <style> yang
-                mendefinisikannya di file ini, jadi selama ini inert. Scrollbar
-                sudah ditata global di app/globals.css. */}
             <div className="space-y-2 flex-1 min-h-[120px] max-h-[400px] overflow-y-auto pr-1">
               {alerts.map(alert => {
                 const AlertIcon = alert.conditionType === 'PRICE_BELOW' ? ArrowDownCircle

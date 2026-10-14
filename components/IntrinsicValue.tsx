@@ -66,7 +66,10 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
     setLoadingExplanation(true);
     setExplanation(null);
     setExplanationUnavailable(false);
-    apiRequest<any>('/api/intrinsic-explain', {
+    // apiRequest sudah me-return objek JSON yang ter-parse dan melempar ApiClientError
+    // untuk status non-2xx. Memanggil .then((r) => (r.ok ? r.json() : null)) sebelumnya
+    // selalu menghasilkan null karena r.ok === undefined.
+    apiRequest<{ explanation?: string }>('/api/intrinsic-explain', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       // Hanya simbol yang dikirim (audit 2026-08-05, temuan H-12) - angka valuasinya
@@ -74,7 +77,6 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
       // angka yang dikirim dari browser.
       body: JSON.stringify({ symbol }),
     })
-      .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled) return;
         if (d?.explanation) setExplanation(d.explanation);
@@ -83,8 +85,7 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
       .catch(() => { if (!cancelled) setExplanationUnavailable(true); })
       .finally(() => { if (!cancelled) setLoadingExplanation(false); });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, authResolved, isAuthenticated]);
+  }, [data, authResolved, isAuthenticated, symbol]);
 
   if (loading) {
     return (
@@ -138,12 +139,6 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
     typeof val === 'number' && Number.isFinite(val) ? val.toFixed(digits) : '—';
 
   let mosStatus = 'FAIR';
-  let mosColor = 'tv-yellow';
-  // BARU (2026-08-14): dulu `#f59e0b` dikunci mati - itu nilai tema GELAP dari
-  // --lens-warning (245,158,11); di tema terang seharusnya jadi #9D4808 (kontras
-  // sudah diukur & lolos AA, lihat catatan besar di app/globals.css). Diganti ke
-  // token tv-warning yang sudah peka-tema, konsisten dengan mosBg/mosBorder/mosText
-  // untuk UNDERVALUED/OVERVALUED di bawah yang sudah memakai tv-green/tv-red.
   let mosBg = 'bg-tv-warning';
   let mosBorder = 'border-tv-warning';
   let mosText = 'text-tv-warning';
@@ -152,7 +147,6 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
 
   if (mos >= 15) {
     mosStatus = 'UNDERVALUED';
-    mosColor = 'tv-green';
     mosBg = 'bg-tv-green';
     mosBorder = 'border-tv-green';
     mosText = 'text-tv-green';
@@ -160,7 +154,6 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
     Icon = TrendingUp;
   } else if (mos <= -15) {
     mosStatus = 'OVERVALUED';
-    mosColor = 'tv-red';
     mosBg = 'bg-tv-red';
     mosBorder = 'border-tv-red';
     mosText = 'text-tv-red';
@@ -187,13 +180,6 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
         <div className="col-span-1 flex flex-col justify-center space-y-4">
           <div className="bg-tv-bg border border-tv-border rounded-lg p-4 text-center relative overflow-hidden">
             <div className={`absolute top-0 left-0 w-full h-1 ${mosBg}`}></div>
-            {/* BUG FIX (audit logika & algoritma 2026-08-05, temuan H-3/H-4): label ini
-                dulu berbunyi "Estimasi Harga Wajar (Median)" - dua klaim yang keliru
-                sekaligus. (1) Angkanya BUKAN median, melainkan rata-rata BERBOBOT menurut
-                router sektor (median cuma dipakai di satu cabang cadangan yang jarang
-                terjadi). (2) Tidak ada penanda bahwa ini keluaran MODEL dengan asumsi
-                tetap (discount rate 12%, pertumbuhan perpetuitas 5%, PER wajar 15x yang
-                SAMA untuk semua emiten), sehingga terbaca seperti pengukuran. */}
             <div className="text-xs text-tv-muted uppercase mb-2">Estimasi Nilai Wajar (Model)</div>
             <div className="font-number text-3xl font-bold text-white mb-1">
               Rp {formatIDR(fair_value)}
@@ -201,10 +187,6 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
             <div className="font-number text-sm text-tv-muted flex items-center justify-center gap-2">
               Harga saat ini: Rp {formatIDR(harga)}
             </div>
-            {/* Perbaikan C-05: PBV & PER wajar tidak lagi memakai pengali tetap yang sama
-                untuk semua emiten. Keduanya kini dari model Gordon dengan biaya ekuitas
-                CAPM per emiten - model yang SAMA dengan komponen Valuasi LensScore, jadi
-                dua angka di layar tidak lagi berasal dari dua model yang berbeda. */}
             <div className="text-[10px] text-tv-muted/80 mt-2 leading-relaxed">
               {detailsUnlocked && data?.assumptions?.cost_of_equity_pct != null ? (
                 <>
@@ -235,7 +217,7 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
             </div>
           </div>
 
-          <div className={`border rounded-lg p-4 text-center bg-opacity-10 ${mosBorder}/30 ${mosText}`} style={{ backgroundColor: mosStatus === 'FAIR' ? 'rgb(var(--lens-warning) / 0.1)' : undefined }}>
+          <div className={`border rounded-lg p-4 text-center ${mosBg}/10 ${mosBorder}/30 ${mosText}`}>
             <div className="flex items-center justify-center gap-2 mb-1">
               <Icon className="w-5 h-5" />
               <span className="font-bold">Margin of Safety (MOS)</span>
@@ -356,9 +338,6 @@ export default function IntrinsicValue({ symbol, isAuthenticated, authResolved }
         </div>
       </div>
 
-      {/* Penjelasan LensAI - substantif tapi mudah dipahami, kenapa harga wajar
-          bisa segitu (bukan cuma ulang angka). Fallback rule-based kalau Gemini
-          tidak tersedia, lihat app/api/intrinsic-explain/route.ts. */}
       <div className="mt-4 pt-4 border-t border-tv-border">
         <h4 className="text-xs font-bold text-tv-text uppercase tracking-wide font-heading mb-2 flex items-center gap-1.5">
           <Target className="w-3 h-3 text-tv-accent" /> Penjelasan LensAI

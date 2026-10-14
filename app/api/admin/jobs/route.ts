@@ -79,7 +79,7 @@ function jobNameFromPath(path: string): string {
   return path.split('/').filter(Boolean).pop() ?? path;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   return runController(async () => {
     if (!await isAdminFromRequestCookies(await cookies())) throw new ForbiddenError();
 
@@ -177,5 +177,5 @@ export async function GET() {
     });
 
     return { status: 200, body: { asOf: new Date().toISOString(), jobs, caches, sourceHealth, weeklyMaintenance } };
-  });
+  }, request);
 }

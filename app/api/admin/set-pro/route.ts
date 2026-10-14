@@ -11,5 +11,5 @@ export async function POST(request: Request) {
     assertTrustedSameOrigin(request);
     const body = await request.json().catch(() => ({}));
     return handleSetProStatus(await cookies(), body);
-  });
+  }, request);
 }

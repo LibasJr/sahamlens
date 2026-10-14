@@ -12,10 +12,10 @@ import { getIntradayDashboard } from '@/modules/intraday';
 export const maxDuration = 60;
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: Request) {
   return runController(async () => {
     if (!(await isAdminFromRequestCookies(await cookies()))) throw new ForbiddenError();
     const data = await getIntradayDashboard();
     return { status: 200, body: data };
-  });
+  }, request);
 }
