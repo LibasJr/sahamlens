@@ -12,6 +12,7 @@ import {
 import { useLanguage } from '@/lib/i18n';
 import {
   buildBandarFlowModel,
+  buildHeatDots,
   finiteNumber,
   formatFlowBillion,
   formatFlowInteger,
@@ -153,8 +154,14 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
     buyVolume,
     sellVolume,
     buyPct,
+    sellPct,
+    isAccumulationDominant,
+    isDistributionDominant,
+    isBalanced,
     borderAccent,
   } = buildBandarFlowModel(flow, summary, activeFlowIdx);
+
+  const heatDots = buildHeatDots(flow, maxAbsFlow);
 
   let insightColor = 'bg-tv-hover border-tv-border text-tv-muted';
   let insightBadge = 'bg-gray-500 text-white';
@@ -379,30 +386,153 @@ export default function BandarFlowPro({ symbol }: BandarFlowProProps) {
               <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-tv-red inline-block" /> {isEn ? 'Outflow' : 'Dana Keluar'}</span>
               <span className="flex items-center gap-1"><span className="w-4 h-0.5 bg-tv-blue inline-block" /> {isEn ? 'Close price' : 'Harga penutupan'}</span>
             </div>
+
+            {/* Foreign Flow Heat-Dots Timeline (20D) */}
+            {flow.length > 0 && (
+              <div className="mt-4 pt-3 border-t border-tv-border space-y-2">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-xs font-bold text-white font-heading">
+                    {isEn ? 'Foreign Flow Heat-Dots (20 Days)' : 'Heat-Dots Arus Asing (20 Hari)'}
+                  </span>
+                  <span className="lens-meta font-sans text-tv-muted">
+                    {isEn ? 'Opacity = volume weight' : 'Kepekatan = bobot nominal'}
+                  </span>
+                </div>
+
+                {/* 20-Dot Timeline Row */}
+                <div
+                  className="flex items-center justify-between gap-1 w-full py-2 px-2.5 bg-tv-bg rounded-lg border border-tv-border/80"
+                  role="group"
+                  aria-label={isEn ? '20-day foreign flow heat-dots timeline' : 'Timeline heat-dots arus dana asing 20 hari'}
+                >
+                  {heatDots.map((dot, i) => {
+                    const isNetBuy = dot.isNetBuy;
+                    const isNetSell = dot.isNetSell;
+                    const dotColor = isNetBuy ? 'bg-[#089981]' : isNetSell ? 'bg-[#f23645]' : 'bg-tv-muted';
+                    const formattedNominal = `${dot.nominalBillion > 0 ? '+' : ''}${dot.nominalBillion.toFixed(2)} M`;
+                    const label = `${dot.date}: ${formattedNominal} (${isNetBuy ? (isEn ? 'Net Buy' : 'Net Beli') : isNetSell ? (isEn ? 'Net Sell' : 'Net Jual') : (isEn ? 'Flat' : 'Netral')})`;
+                    const isActive = i === activeIdx;
+
+                    return (
+                      <div key={i} className="relative group flex items-center justify-center">
+                        <Button
+                          variant="bare"
+                          size="none"
+                          type="button"
+                          onClick={() => setActiveFlowIdx(i)}
+                          onFocus={() => setActiveFlowIdx(i)}
+                          onMouseEnter={() => setActiveFlowIdx(i)}
+                          aria-label={label}
+                          aria-pressed={isActive}
+                          title={label}
+                          className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full transition-transform duration-150 cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-tv-blue ${
+                            isActive ? 'scale-125 ring-2 ring-tv-blue ring-offset-1 ring-offset-tv-bg z-10' : 'hover:scale-110'
+                          } ${dotColor} ${dot.opacityClass}`}
+                        />
+                        {/* Tooltip on hover / focus */}
+                        <div
+                          role="tooltip"
+                          className="absolute bottom-full mb-2 hidden group-hover:flex group-focus-within:flex flex-col items-center pointer-events-none z-30"
+                        >
+                          <div className="bg-tv-card border border-tv-border text-tv-text rounded shadow-lg px-2 py-1 text-xs whitespace-nowrap font-mono text-center">
+                            <div className="text-tv-muted font-sans text-xs">{dot.date}</div>
+                            <div className={`font-bold ${isNetBuy ? 'text-tv-green' : isNetSell ? 'text-tv-red' : 'text-tv-muted'}`}>
+                              {formattedNominal}
+                            </div>
+                          </div>
+                          <div className="w-1.5 h-1.5 bg-tv-card border-r border-b border-tv-border rotate-45 -mt-1" />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Timeline date bounds */}
+                <div className="flex justify-between items-center lens-meta font-sans text-tv-muted px-1">
+                  <span>{flow[0]?.date ?? 'T-20'}</span>
+                  <span>{flow[flow.length - 1]?.date ?? 'T-1'}</span>
+                </div>
+              </div>
+            )}
           </Card>
         </div>
 
-        {/* Komposisi transaksi asing hari terakhir - langsung dari ForeignBuy/ForeignSell BEI. */}
+        {/* Komposisi transaksi asing hari terakhir (Tug-of-War Bar) */}
           <Card padding="none" radius="lg" elevation="none" overflow="visible" highlight={false} className="p-4 border-tv-border">
-            <h4 className="text-sm font-bold text-tv-text font-heading mb-4">
-              {isEn ? 'Foreign Buy vs Sell (Latest Session)' : 'Komposisi Beli vs Jual Asing (Sesi Terakhir)'}
-            </h4>
+            <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
+              <h4 className="text-sm font-bold text-tv-text font-heading">
+                {isEn ? 'Foreign Buy vs Sell (Tug-of-War)' : 'Komposisi Beli vs Jual (Tarik Tambang)'}
+              </h4>
+              {buyPct !== null && (
+                <span
+                  className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+                    isAccumulationDominant
+                      ? 'bg-tv-green/15 text-tv-green border-tv-green/30'
+                      : isDistributionDominant
+                        ? 'bg-tv-red/15 text-tv-red border-tv-red/30'
+                        : 'bg-tv-hover text-tv-muted border-tv-border'
+                  }`}
+                >
+                  {isAccumulationDominant
+                    ? (isEn ? 'Accumulation Wins' : 'Dominasi Akumulasi')
+                    : isDistributionDominant
+                      ? (isEn ? 'Distribution Wins' : 'Dominasi Distribusi')
+                      : (isEn ? 'Balanced (50:50)' : 'Seimbang (50:50)')}
+                </span>
+              )}
+            </div>
 
             {buyPct === null ? (
               <p className="text-xs text-tv-muted font-sans">
                 {isEn ? 'Volume composition unavailable for this session.' : 'Komposisi volume tidak tersedia untuk sesi ini.'}
               </p>
             ) : (
-              <>
-                <div className="flex h-4 w-full rounded-full overflow-hidden border border-tv-border">
-                  <div className={`bg-tv-green h-full ${percentageWidthClass(buyPct)}`} />
-                  <div className={`bg-tv-red h-full ${percentageWidthClass(100 - buyPct)}`} />
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs font-mono">
+                  <span className="text-tv-green font-bold flex items-center gap-1">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    {isEn ? 'Accumulation' : 'Akumulasi'} {buyPct.toFixed(1)}%
+                  </span>
+                  <span className="text-tv-red font-bold flex items-center gap-1">
+                    {isEn ? 'Distribution' : 'Distribusi'} {(100 - buyPct).toFixed(1)}%
+                    <TrendingDown className="w-3.5 h-3.5" />
+                  </span>
                 </div>
-                <div className="mt-2 flex justify-between lens-meta font-mono">
-                  <span className="text-tv-green">{buyPct.toFixed(1)}%</span>
-                  <span className="text-tv-red">{(100 - buyPct).toFixed(1)}%</span>
+
+                {/* Tug-of-War Horizontal Bar with 50% Center Marker */}
+                <div className="relative h-6 w-full rounded-md overflow-hidden bg-tv-bg border border-tv-border flex items-stretch">
+                  {/* Sisi Akumulasi Hijau (#089981) */}
+                  <div
+                    className={`h-full bg-[#089981] transition-all duration-300 ${percentageWidthClass(buyPct)}`}
+                  />
+                  {/* Sisi Distribusi Merah (#f23645) */}
+                  <div
+                    className={`h-full bg-[#f23645] transition-all duration-300 ${percentageWidthClass(100 - buyPct)}`}
+                  />
+
+                  {/* Titik Netral 50% Center Marker / Pin */}
+                  <div
+                    className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-white shadow-md z-10 -translate-x-1/2 pointer-events-none"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-1/2 w-2 h-2 bg-white rotate-45 z-10 pointer-events-none"
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="absolute left-1/2 bottom-0 -translate-x-1/2 translate-y-1/2 w-2 h-2 bg-white rotate-45 z-10 pointer-events-none"
+                    aria-hidden="true"
+                  />
                 </div>
-              </>
+
+                <div className="flex justify-between items-center lens-meta text-tv-muted font-sans">
+                  <span>0%</span>
+                  <span className="font-semibold text-tv-muted uppercase tracking-wider">
+                    {isEn ? 'Neutral 50%' : 'Titik Netral 50%'}
+                  </span>
+                  <span>100%</span>
+                </div>
+              </div>
             )}
 
             <div className="grid grid-cols-2 gap-4 mt-4">

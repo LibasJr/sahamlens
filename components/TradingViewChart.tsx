@@ -25,6 +25,63 @@ import {
   type IndicatorConfig,
 } from '@/lib/chart-indicators';
 import { Card } from '@/components/ui/Card';
+import type { TradePlanV1 } from '@/modules/recommendation/service/trade-plan';
+
+export interface TradePlanPriceLineConfig {
+  price: number;
+  color: string;
+  lineWidth?: number;
+  lineStyle?: number;
+  axisLabelVisible: boolean;
+  title: string;
+}
+
+export function buildTradePlanPriceLines(tradePlan: TradePlanV1 | null | undefined): TradePlanPriceLineConfig[] {
+  if (!tradePlan) return [];
+  const lines: TradePlanPriceLineConfig[] = [];
+  const formatInt = (value: number) => Math.round(value).toLocaleString('id-ID');
+
+  if (typeof tradePlan.entry === 'number' && Number.isFinite(tradePlan.entry) && tradePlan.entry > 0) {
+    lines.push({
+      price: tradePlan.entry,
+      color: '#2962ff',
+      lineWidth: 2,
+      axisLabelVisible: true,
+      title: 'Entry ' + formatInt(tradePlan.entry),
+    });
+  }
+  if (typeof tradePlan.stopLoss === 'number' && Number.isFinite(tradePlan.stopLoss) && tradePlan.stopLoss > 0) {
+    lines.push({
+      price: tradePlan.stopLoss,
+      color: '#f23645',
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+      title: 'SL ' + formatInt(tradePlan.stopLoss),
+    });
+  }
+  if (typeof tradePlan.takeProfit1 === 'number' && Number.isFinite(tradePlan.takeProfit1) && tradePlan.takeProfit1 > 0) {
+    lines.push({
+      price: tradePlan.takeProfit1,
+      color: '#089981',
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+      title: 'TP1 ' + formatInt(tradePlan.takeProfit1),
+    });
+  }
+  if (typeof tradePlan.takeProfit2 === 'number' && Number.isFinite(tradePlan.takeProfit2) && tradePlan.takeProfit2 > 0) {
+    lines.push({
+      price: tradePlan.takeProfit2,
+      color: '#089981',
+      lineWidth: 1,
+      lineStyle: 2,
+      axisLabelVisible: true,
+      title: 'TP2 ' + formatInt(tradePlan.takeProfit2),
+    });
+  }
+  return lines;
+}
 
 interface CandleData extends ChartCandle {}
 
@@ -50,6 +107,7 @@ interface TradingViewChartProps {
   onTimeframeChange?: (timeframe: string) => void;
   variant?: 'compact' | 'full';
   onHoverCandle?: (time: string | null) => void;
+  tradePlan?: TradePlanV1 | null;
 }
 
 type HoverIndicatorValue = { label: string; value: string };
@@ -180,6 +238,7 @@ export default function TradingViewChart({
   onTimeframeChange,
   variant = 'full',
   onHoverCandle,
+  tradePlan,
 }: TradingViewChartProps) {
   const isIndexSymbol = symbol.startsWith('^');
   const shellRef = useRef<HTMLDivElement>(null);
@@ -378,6 +437,11 @@ export default function TradingViewChart({
         title: `R1 ${Math.round(technical.resistance_1).toLocaleString('id-ID')}`,
       });
     }
+
+    const tradePlanLines = buildTradePlanPriceLines(tradePlan);
+    tradePlanLines.forEach((cfg) => {
+      priceSeries.createPriceLine(cfg);
+    });
 
     const hoverSeries: HoverSeriesRef[] = [];
     let overlayColorIndex = 0;
@@ -603,7 +667,7 @@ export default function TradingViewChart({
       chart.remove();
       if (chartRef.current === chart) chartRef.current = null;
     };
-  }, [candles, chartType, height, isIndexSymbol, technical.resistance_1, technical.support_1, variant, visibleIndicators]);
+  }, [candles, chartType, height, isIndexSymbol, technical.resistance_1, technical.support_1, variant, visibleIndicators, tradePlan]);
 
   const toggleFullscreen = async () => {
     try {

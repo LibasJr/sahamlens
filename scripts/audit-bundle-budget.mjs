@@ -83,7 +83,12 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // (RCE `next/og`, IP spoofing `proxy-addr`) dan 6 high. Diukur di CI pada dua build yang
 // hanya beda lockfile: `main` 6.100 KB (PR #519, ditutup) vs PR #518 6.109 KB, 291 chunk
 // sama persis -> +9 KB murni kode framework/dependency, bukan fitur. Kepala ruang 6 KB.
-const TOTAL_BUDGET_KB = 6_115;
+// Dinaikkan 6.115 -> 6.125 KB pada 2026-10-14 untuk komponen visual baru:
+// Trade Plan Chart Overlay (TradingViewChart.tsx + StockChartPanel.tsx) dan
+// Bandarmology Tug-of-War bar + 20-day Heat-Dots timeline (BandarFlowPro.tsx).
+// Build CI terukur 6.119 KB (+4 KB) murni kode interaktif komponen, tanpa dependensi baru.
+// Kepala ruang 6 KB dipertahankan sebagai ratchet.
+const TOTAL_BUDGET_KB = 6_125;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri

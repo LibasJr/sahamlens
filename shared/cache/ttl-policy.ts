@@ -150,8 +150,9 @@ export const CDN_FRESHNESS_SEC = {
   // Skor LensRadar diisi cron breakout-scan tiap 5 menit selama jam bursa.
   LENS_RADAR: 150,
 
-  // Deret harga historis untuk chart publik; bar harian tidak berubah intraday.
-  PUBLIC_CHART: 10 * 60,
+  // Deret harga historis untuk chart publik; dipangkas menjadi 60s agar candle sesi berjalan
+  // terbarui di level edge tanpa tertinggal jauh dari pergerakan bursa.
+  PUBLIC_CHART: 60,
 } as const;
 
 export function publicCacheHeaders(ttlSec: number, swrSec = ttlSec): Record<string, string> {
