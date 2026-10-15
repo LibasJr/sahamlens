@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 import { AnimatedNumber, Card, TickerAvatar } from '@/components/ui';
 import { formatPct, toneClass } from '@/components/dashboard/dashboard-analysis';
+import { DashboardAiBriefingCard } from '@/components/dashboard/DashboardAiBriefingCard';
 
 const TradingViewChart = dynamic(() => import('@/components/TradingViewChart'), {
   ssr: false,
@@ -49,6 +50,8 @@ export function DashboardIndexSection(props: {
           </div>
         </div>
       </Card>
+
+      <DashboardAiBriefingCard changePct={stock.change_pct} />
 
       <TradingViewChart
         candles={candles}

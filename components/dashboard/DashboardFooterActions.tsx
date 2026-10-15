@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, Calculator, ChevronRight, LineChart, Newspaper } from 'lucide-react';
+import { ArrowUpRight, Calculator, ChevronRight, LineChart, Newspaper, Sparkles } from 'lucide-react';
 import { stockCodeFor } from '@/components/StockPerspectiveNav';
 import PaywallModal from '@/components/PaywallModal';
 import StockNewsModal from '@/components/StockNewsModal';
@@ -77,6 +77,22 @@ export function DashboardFooterActions(props: {
           </div>
           <ArrowUpRight className="h-4 w-4 text-tv-muted transition-colors group-hover:text-tv-gold" />
         </Link>
+
+        {stockCode && (
+          <Link
+            href={`/fundamental?symbol=${stockCode}.JK#intrinsic`}
+            className="group flex items-center gap-4 rounded-lg border border-tv-border bg-tv-card p-4 transition-all duration-250 ease-settle hover:border-tv-borderLight hover:shadow-2"
+          >
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-tv-purple/15 text-tv-purple">
+              <Sparkles className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="font-heading text-sm font-semibold text-white">Intrinsic AI Explainer</h3>
+              <p className="text-xs text-tv-muted">Analisis narasi nilai wajar & margin of safety LensAI</p>
+            </div>
+            <ArrowUpRight className="h-4 w-4 text-tv-muted transition-colors group-hover:text-tv-purple" />
+          </Link>
+        )}
 
         {stockCode && (
           <Link
