@@ -192,7 +192,7 @@ export function calculatePerformanceMetrics(input: PerformanceMetricsInput): Per
   // pengamatan. Membaginya hanya dengan jumlah hari rugi akan menaikkan Sortino setiap kali
   // strategi jarang rugi - persis kebalikan dari yang seharusnya diukur.
   const downside = Math.sqrt(
-    excess.reduce((sum, value) => sum + Math.min(0, value) ** 2, 0) / excess.length
+    excess.reduce((sum, value) => sum + Math.min(0, value) ** 2, 0) / (excess.length - 1)
   );
   if (downside > 0) {
     result.sortino = round((mean(excess) / downside) * Math.sqrt(periodsPerYear), 3);

@@ -1,3 +1,5 @@
+import { calculateRsi } from "@/modules/technical/service/rsi";
+
 export const MARKET_REGIME_WEIGHTS = {
   trend: 25,
   breadth: 25,
@@ -106,18 +108,7 @@ function rateOfChange(values: number[], period: number): number | null {
 }
 
 function rsi(values: number[], period = 14): number | null {
-  if (values.length <= period) return null;
-  const window = values.slice(-(period + 1));
-  let gains = 0;
-  let losses = 0;
-  for (let index = 1; index < window.length; index += 1) {
-    const change = window[index] - window[index - 1];
-    if (change > 0) gains += change;
-    if (change < 0) losses += Math.abs(change);
-  }
-  if (losses === 0) return gains > 0 ? 100 : 50;
-  const relativeStrength = (gains / period) / (losses / period);
-  return 100 - (100 / (1 + relativeStrength));
+  return calculateRsi(values, period);
 }
 
 function dailyLogReturns(closes: number[]): number[] {

@@ -20,20 +20,6 @@ export interface LivePriceResult {
   headers?: Record<string, string>;
 }
 
-/**
- * Fetch one IDX/Yahoo chart snapshot and derive previous-close/freshness from the same
- * source payload. Provider failure remains fail-closed: no fabricated or silent provider
- * fallback is returned from this service.
- */
-/**
- * Koreksi acuan close-to-close untuk ^JKSE (insiden 2026-09-23, laporan operator:
- * banner menampilkan -1% saat IHSG live +0,64%). Yahoo sering mengembalikan
- * meta.previousClose yang basi untuk indeks IDX (menunjuk sesi sebelum terakhir),
- * sementara artefak EOD resmi BEI (data/idx-index/ihsg.json) memuat close sesi
- * terakhir yang benar. Kalau tanggal artefak LEBIH BARU dari tanggal bar harian
- * Yahoo yang dijadikan acuan previousClose, pakai close artefak - fail-closed ke
- * data resmi, bukan angka karangan.
- */
 function jakartaDateFromTimestamp(value: string | null): string | null {
   if (!value) return null;
   const timestamp = new Date(value).getTime();
@@ -43,11 +29,6 @@ function jakartaDateFromTimestamp(value: string | null): string | null {
   }).format(timestamp);
 }
 
-/**
- * Setelah sesi selesai, artefak Index Summary resmi BEI adalah sumber final IHSG.
- * Yahoo boleh terlambat/revisi, sehingga tidak boleh menimpa close resmi pada tanggal
- * yang sama. Saat sesi masih berjalan, Yahoo tetap dipakai agar harga intraday hidup.
- */
 export function applyOfficialIhsgEodAfterClose(
   ticker: string,
   yahoo: { price: number; changePercent: number | null; previousClose: number | null; dataTimestamp: string | null },
@@ -83,10 +64,6 @@ export function correctIhsgPreviousClose(
   const jakartaDate = (ts: number) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit' }).format(ts * 1000);
   const todayJakarta = jakartaDate(Date.now() / 1000);
-  // Tanggal bar TERAKHIR dengan close valid yang BUKAN bar sesi berjalan.
-  // (a) Yahoo bisa punya bar dengan close null (nyata 22 Sep 2026);
-  // (b) bar hari ini adalah bar LIVE - close-nya harga berjalan, bukan close
-  //     sesi yang selesai, jadi tidak boleh jadi acuan close-to-close.
   let prevCloseBarDate: string | null = null;
   if (Array.isArray(closes)) {
     for (let i = Math.min(timestamps.length, closes.length) - 1; i >= 0; i--) {
@@ -127,13 +104,31 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
       const lastPrice = meta?.regularMarketPrice;
 
       if (isFinitePositive(lastPrice)) {
+        const quoteCloses = result?.indicators?.quote?.[0]?.close;
+        const quoteVolumes = result?.indicators?.quote?.[0]?.volume;
+        let adtv20d: number | null = null;
+        if (Array.isArray(quoteCloses) && Array.isArray(quoteVolumes)) {
+          const dailyValues: number[] = [];
+          const len = Math.min(quoteCloses.length, quoteVolumes.length);
+          for (let i = Math.max(0, len - 20); i < len; i++) {
+            const c = quoteCloses[i];
+            const v = quoteVolumes[i];
+            if (isFinitePositive(c) && isFinitePositive(v)) {
+              dailyValues.push(c * v);
+            }
+          }
+          if (dailyValues.length >= 3) {
+            adtv20d = Math.round(dailyValues.reduce((sum, val) => sum + val, 0) / dailyValues.length);
+          }
+        }
+
         const resolved = resolvePreviousClose({
           timestamps: result?.timestamp,
-          closes: result?.indicators?.quote?.[0]?.close,
+          closes: quoteCloses,
           metaPreviousClose: meta?.previousClose,
           metaChartPreviousClose: meta?.chartPreviousClose,
         });
-        const corrected = correctIhsgPreviousClose(ticker, result?.timestamp, result?.indicators?.quote?.[0]?.close, resolved.previousClose);
+        const corrected = correctIhsgPreviousClose(ticker, result?.timestamp, quoteCloses, resolved.previousClose);
         if (corrected.source === 'IDX_OFFICIAL_INDEX_SUMMARY' && process.env.NODE_ENV !== 'test') {
           console.warn(`[live:${ticker}] previousClose Yahoo basi (${resolved.previousClose}) dikoreksi ke close resmi BEI ${corrected.previousClose}`);
         }
@@ -173,8 +168,8 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
             changePercent: finalIhsg.changePercent,
             previousClose: finalIhsg.previousClose,
             volume,
+            adtv20d,
             lastUpdate: finalIhsg.dataTimestamp,
-            // Setelah close, nilai resmi BEI menang atas Yahoo yang bisa terlambat.
             asOfLabel: finalIhsg.dataTimestamp == null
               ? null
               : marketOpen
@@ -215,6 +210,7 @@ export async function fetchLivePriceSnapshot(ticker: string): Promise<LivePriceR
       price: null,
       changePercent: null,
       volume: null,
+      adtv20d: null,
       lastUpdate: null,
       dataTimestamp: null,
       ageSeconds: null,

@@ -2,23 +2,21 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Bookmark, Download, Lock, Sliders, X } from 'lucide-react';
+import { Bookmark, Download, FlaskConical, Lock, Sliders, X } from 'lucide-react';
 import { Button, Card } from '@/components/ui';
-import AnalysisViewModeToggle from '@/components/AnalysisViewModeToggle';
 import { trackSignupClick } from '@/shared/analytics/product-funnel';
 import type { ScreenerTemplate } from './screener-model';
 
 type RiskProfile = 'Konservatif' | 'Moderat' | 'Agresif';
 
+const BACKTEST_FILTERS_BY_PROFILE: Record<RiskProfile, string[]> = {
+  Konservatif: ['MA Trend IDX (20,50,200)', 'Support & Resistance', 'RSI 14'],
+  Moderat: ['EMA 20/50 Cross', 'RSI 14', 'Volume vs Avg 20D'],
+  Agresif: ['EMA 20/50 Cross', 'MACD', 'Volume vs Avg 20D', 'Market Flow Index'],
+};
+
 interface ScreenerControlsProps {
-  // Daftar sektor, BUKAN seluruh objek `data`. Dulu dropdown membacanya dari
-  // data?.availableSectors, sehingga satu request gagal (data=null) ikut mengosongkan
-  // pilihan sektor padahal daftarnya tidak berubah - lihat komentar di app/screener/page.tsx.
   availableSectors: string[];
-  // false = universe dihitung saat bursa buka, jadi vol_ratio null untuk semua emiten
-  // dan komponen momentum TIDAK ikut menentukan peringkat (bobot sisanya dinormalisasi
-  // ulang). Teks bobot di bawah harus mengatakan itu, bukan menjanjikan "momentum 30%"
-  // tanpa syarat.
   momentumScored: boolean;
   riskProfile: RiskProfile;
   setRiskProfile: (value: RiskProfile) => void;
@@ -75,6 +73,10 @@ export default function ScreenerControls({
     setMinLiquidityInput('');
   };
 
+  const backtestHref = `/backtest?profile=${encodeURIComponent(riskProfile)}&filters=${encodeURIComponent(
+    BACKTEST_FILTERS_BY_PROFILE[riskProfile].join(','),
+  )}`;
+
   return (
     <>
       <Card padding="none" radius="xl" elevation="sm" overflow="visible" highlight={false} className="border-tv-border p-5 flex flex-col md:flex-row items-center justify-between gap-4">
@@ -83,11 +85,6 @@ export default function ScreenerControls({
             <Sliders className="w-6 h-6" />
           </div>
           <div>
-            {/* h2, bukan h1: halaman ini sudah punya SATU h1 dari AppShell
-                ("LensScanner - Filter Saham Multi-Faktor"). Dua h1 di satu dokumen
-                membuat struktur heading tidak lagi menunjuk satu topik utama.
-                Konvensi yang sama sudah dipakai WatchlistHeader dan Corporate
-                Calendar, yang juga memakai <h2 className="lens-page-title">. */}
             <h2 className="lens-page-title">Seleksi Profil Risiko Investor</h2>
             <p className="text-xs text-tv-muted">Pilih toleransi risiko untuk memfilter 10 saham IDX terbaik berdasarkan skor total dan kualitas datanya.</p>
           </div>
@@ -153,6 +150,13 @@ export default function ScreenerControls({
           )}
 
           <div className="ml-auto flex flex-wrap items-end gap-2">
+            <Link
+              href={backtestHref}
+              title={`Uji strategi teknikal untuk profil ${riskProfile} di Backtester`}
+              className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-green/35 bg-tv-green/10 px-3 text-xs font-semibold text-tv-green transition-colors hover:bg-tv-green/15"
+            >
+              <FlaskConical className="h-3.5 w-3.5" /> Uji di Backtest
+            </Link>
             {isConfirmedGuest ? (
               <Link onClick={() => trackSignupClick('screener_results')} href="/login?next=%2Fscreener" className="flex h-9 items-center gap-1.5 rounded-lg border border-tv-blue/40 bg-tv-blue/10 px-3 text-xs font-semibold text-tv-blue transition-colors hover:bg-tv-blue/15"><Lock className="h-3.5 w-3.5" /> Masuk untuk simpan & ekspor</Link>
             ) : (

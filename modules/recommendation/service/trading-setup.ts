@@ -96,14 +96,14 @@ export function idxTick(price: number): number {
 }
 
 export function roundToIdxTick(value: number, mode: 'down' | 'up' | 'nearest'): number {
-  const tick = idxTick(value);
-  const quotient = value / tick;
-  const rounded = mode === 'down'
-    ? Math.floor(quotient)
-    : mode === 'up'
-      ? Math.ceil(quotient)
-      : Math.round(quotient);
-  return rounded * tick;
+  const roundWithTick = (v: number, t: number) => {
+    const q = v / t;
+    const r = mode === 'down' ? Math.floor(q) : mode === 'up' ? Math.ceil(q) : Math.round(q);
+    return r * t;
+  };
+  const firstPass = roundWithTick(value, idxTick(value));
+  const finalTick = idxTick(firstPass);
+  return firstPass % finalTick === 0 ? firstPass : roundWithTick(firstPass, finalTick);
 }
 
 /**

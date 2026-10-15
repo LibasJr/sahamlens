@@ -9,6 +9,7 @@
 export interface OhlcPoint {
   Date: string;
   Close: number;
+  AdjClose?: number | null;
 }
 
 export interface BetaResult {
@@ -16,10 +17,23 @@ export interface BetaResult {
   sampleSize: number;
 }
 
+/** Jarak maksimum hari kalender antar dua bar berurutan agar tetap dihitung return harian
+ *  (mencegah lompatan harga pasca-suspensi multi-minggu merusak kemiringan regresi beta). */
+const MAX_CALENDAR_GAP_DAYS = 7;
+
+function effectiveClose(point: OhlcPoint): number {
+  return typeof point.AdjClose === 'number' && Number.isFinite(point.AdjClose) && point.AdjClose > 0
+    ? point.AdjClose
+    : point.Close;
+}
+
 function toDateCloseMap(history: OhlcPoint[]): Map<string, number> {
   const map = new Map<string, number>();
   for (const h of history) {
-    map.set(h.Date.split('T')[0], h.Close);
+    const close = effectiveClose(h);
+    if (typeof close === 'number' && Number.isFinite(close) && close > 0) {
+      map.set(h.Date.split('T')[0], close);
+    }
   }
   return map;
 }
@@ -33,13 +47,20 @@ function pairedDailyReturns(assetHistory: OhlcPoint[], benchmarkHistory: OhlcPoi
 
   const assetCloses: { date: string; close: number }[] = assetHistory
     .filter((h) => dateSet.has(h.Date.split('T')[0]))
-    .map((h) => ({ date: h.Date.split('T')[0], close: h.Close }));
+    .map((h) => ({ date: h.Date.split('T')[0], close: effectiveClose(h) }))
+    .filter((h) => typeof h.close === 'number' && Number.isFinite(h.close) && h.close > 0);
 
   const assetReturns: number[] = [];
   const benchmarkReturns: number[] = [];
   for (let i = 1; i < assetCloses.length; i++) {
     const prevDate = assetCloses[i - 1].date;
     const currDate = assetCloses[i].date;
+    const prevMs = Date.parse(`${prevDate}T00:00:00Z`);
+    const currMs = Date.parse(`${currDate}T00:00:00Z`);
+    if (Number.isFinite(prevMs) && Number.isFinite(currMs)) {
+      const gapDays = (currMs - prevMs) / 86_400_000;
+      if (gapDays <= 0 || gapDays > MAX_CALENDAR_GAP_DAYS) continue;
+    }
     const prevBenchmark = benchmarkMap.get(prevDate);
     const currBenchmark = benchmarkMap.get(currDate);
     const prevAsset = assetCloses[i - 1].close;
