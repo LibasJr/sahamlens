@@ -1,21 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { Target, Play, Settings2, CheckSquare, Square, Zap, Lock } from 'lucide-react';
 
-import { Card, Input, Select, Button, PageContainer } from '@/components/ui';
+import { Card, Input, Select, Button, PageContainer, Skeleton } from '@/components/ui';
 import PaywallModal from '@/components/PaywallModal';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { type ReplayCandle } from '@/components/backtest/CandleReplayChart';
 import SingleStockReplayPanel from '@/components/backtest/SingleStockReplayPanel';
 import BacktestResultsPanel from '@/components/backtest/BacktestResultsPanel';
-// Import LANGSUNG dari file konstanta (bukan barrel modules/backtest) - pengecualian
-// disengaja: komponen ini 'use client', barrel modules/backtest re-export service yang
-// pakai fetch/logger server-only (precompute/simulate/live-filter-check), ikut kebawa ke
-// bundle client kalau lewat barrel. File ini murni data (cuma import type), aman diimpor
-// langsung. Sama BACKTEST_PRESETS dipakai modules/market/service/screener.service.ts
-// (server, lewat barrel) supaya preset Backtest & tag pola Screener tidak bercabang.
 import { BACKTEST_PRESETS } from '@/modules/backtest/constants/presets';
 import { BACKTEST_PERIOD_MONTHS, TRADING_DAYS_PER_MONTH } from '@/modules/backtest/constants/backtest-periods';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
@@ -27,7 +22,20 @@ import type {
   PublicChartReplayResponse,
 } from '@/modules/backtest/contracts';
 
-export default function BacktestPage() {
+const AVAILABLE_FILTERS = [
+  'EMA 20/50 Cross',
+  'Volume vs Avg 20D',
+  'RSI 14',
+  'MACD',
+  'Volatility (ATR 14)',
+  'MA Trend IDX (20,50,200)',
+  'Support & Resistance',
+  'Market Flow Index',
+  'SMA Score (5,10,20)',
+];
+
+function BacktestContent() {
+  const searchParams = useSearchParams();
   const { user, resolved: authResolved, loading: authLoading } = useAuthUser();
   const isGuest = authResolved && !authLoading && !user;
   const isPresetLocked = (index: number) => isGuest && index >= 2;
@@ -35,11 +43,6 @@ export default function BacktestPage() {
   const [modal, setModal] = useState(100000000);
   const [period, setPeriod] = useState(12);
 
-  // BARU (2026-08-14, permintaan pengguna) - "Backtest Saham Tunggal": pilih SATU emiten
-  // lewat search, pilih periode, klik Backtest -> chart candle-nya "terbuka" bertahap kiri
-  // ke kanan (lihat components/backtest/CandleReplayChart.tsx). SENGAJA state terpisah
-  // dari builder filter di atas (modal/period/selectedFilters) - keduanya independen,
-  // fitur ini murni visualisasi harga histori, bukan simulasi strategi multi-saham.
   const [replayInput, setReplayInput] = useState('');
   const [replaySymbol, setReplaySymbol] = useState('');
   const [replayPeriod, setReplayPeriod] = useState(12);
@@ -47,11 +50,29 @@ export default function BacktestPage() {
   const [replayLoading, setReplayLoading] = useState(false);
   const [replayError, setReplayError] = useState('');
   const [replayToken, setReplayToken] = useState(0);
-  // BARU (2026-08-14, permintaan pengguna: "tombol bactes, start, stop") - tiga tombol
-  // terpisah dengan urutan jelas: Backtest MENYIAPKAN data (fetch, TIDAK langsung
-  // memutar), Start memulai/melanjutkan animasi, Stop membekukan pada candle yang
-  // sedang tampil. replayPlaying dikontrol di sini, BUKAN state internal chart.
   const [replayPlaying, setReplayPlaying] = useState(false);
+
+  const presets = BACKTEST_PRESETS;
+  const [selectedFilters, setSelectedFilters] = useState<string[]>(presets[0].filters);
+
+  useEffect(() => {
+    const rawFilters = searchParams.get('filters');
+    if (rawFilters) {
+      const requested = rawFilters
+        .split(',')
+        .map((f) => f.trim())
+        .filter((f) => AVAILABLE_FILTERS.includes(f));
+      if (requested.length > 0) {
+        setSelectedFilters(requested);
+      }
+    }
+    const urlSym = searchParams.get('symbol');
+    if (urlSym) {
+      const clean = urlSym.trim().toUpperCase();
+      setReplayInput(clean);
+      setReplaySymbol(clean);
+    }
+  }, [searchParams]);
 
   const runReplay = async () => {
     const raw = (replaySymbol || replayInput).trim().toUpperCase();
@@ -61,19 +82,12 @@ export default function BacktestPage() {
     setReplayPlaying(false);
     setReplayLoading(true);
     try {
-      // tf=10Y selalu diminta (satu jalur kode untuk semua periode, bukan tf=1Y vs tf=10Y
-      // bercabang) - candle yang dipakai TETAP dipotong ke jendela periode di bawah, jadi
-      // permintaan Yahoo-nya sama persis dengan yang dipakai StockChartPanel untuk 10Y.
       const data = await apiRequest<PublicChartReplayResponse>(`/api/public-chart/${encodeURIComponent(code)}?tf=10Y`);
       const history: ReplayCandle[] = Array.isArray(data?.history) ? data.history : [];
       if (history.length === 0) { setReplayError('Data harga tidak tersedia untuk emiten ini'); setReplayCandles([]); return; }
-      // Jendela periode dipotong dari BELAKANG (candle terbaru), konsisten dengan
-      // TRADING_DAYS_PER_MONTH yang sudah dipakai builder filter di atas (satu sumber,
-      // bukan aproksimasi baru yang berbeda sendiri).
       const windowSize = Math.min(history.length, replayPeriod * TRADING_DAYS_PER_MONTH);
       setReplayCandles(history.slice(-windowSize));
       setReplayToken(Date.now());
-      // TIDAK langsung setReplayPlaying(true) - tunggu tombol Start ditekan.
     } catch (e: unknown) {
       setReplayError(apiErrorMessage(e, 'Gagal memuat data harga', true));
       setReplayCandles([]);
@@ -82,22 +96,6 @@ export default function BacktestPage() {
     }
   };
 
-  const availableFilters = [
-    'EMA 20/50 Cross',
-    'Volume vs Avg 20D',
-    'RSI 14',
-    'MACD',
-    'Volatility (ATR 14)',
-    'MA Trend IDX (20,50,200)',
-    'Support & Resistance',
-    'Market Flow Index',
-    'SMA Score (5,10,20)'
-  ];
-
-  const presets = BACKTEST_PRESETS;
-
-  const [selectedFilters, setSelectedFilters] = useState<string[]>(presets[0].filters);
-
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<BacktestApiResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -105,10 +103,6 @@ export default function BacktestPage() {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
-  // "Live Filter Check" - BUKAN versi lama "Sinyal Hari Ini" yang dihapus 2026-08-03
-  // (itu baca cache precompute harian, bisa berjam-jam basi). Ini fetch LIVE ke Yahoo
-  // saat tombol diklik - state terpisah dari `results` (historis) supaya dua mode
-  // tidak saling menimpa tampilan.
   const [liveLoading, setLiveLoading] = useState(false);
   const [liveResults, setLiveResults] = useState<BacktestLiveFilterResponse | null>(null);
   const [liveError, setLiveError] = useState<string | null>(null);
@@ -121,9 +115,6 @@ export default function BacktestPage() {
     }
   };
 
-  // Semua filter preset harus BULLISH bareng (lihat allBullish() di simulate.service.ts) -
-  // makin banyak filter, sinyal makin jarang. Win rate tetap dihitung live dari data
-  // historis tiap kombinasi, bukan angka tetap yang diklaim di sini.
   const applyPreset = (filters: string[]) => setSelectedFilters(filters);
 
   const runBacktest = async () => {
@@ -189,8 +180,6 @@ export default function BacktestPage() {
     : null;
 
   return (
-    // `flex h-screen` + anak `overflow-y-auto` membuat kontainer gulir kedua di dalam
-    // <main> AppShell yang sudah menggulir. Disamakan dengan halaman lain.
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <div className="flex-1 flex flex-col">
         <header className="sticky top-0 z-20 border-b border-white/[0.055] bg-tv-bg/80 px-4 py-4 backdrop-blur-xl md:px-6">
@@ -205,13 +194,6 @@ export default function BacktestPage() {
           </div>
         </header>
 
-        {/* Tab "Sinyal Hari Ini" (baca cache precompute harian, bisa berjam-jam basi)
-            dihapus 2026-08-03, dianggap tumpang tindih dengan AI Pick. Dibangun ulang
-            sebagai "Live Filter Check" (arsitektur beda: fetch live ke Yahoo saat
-            diklik, bukan baca cache) - beda dari AI Pick karena mengecek kombinasi
-            filter SPESIFIK pilihan pengguna sendiri (mis. buat menerjemahkan bonus
-            "Golden Cross" AI Pick ke saham lain yang kondisinya serupa SEKARANG),
-            bukan skor komposit generik. */}
         <PageContainer className="px-6 pt-6">
         <MenuUsageGuide
           menuKey="backtest"
@@ -306,7 +288,7 @@ export default function BacktestPage() {
                 <Settings2 className="w-5 h-5 text-tv-blue" /> LensTechnical
               </h3>
               <div className="space-y-2 mb-6 max-h-[300px] overflow-y-auto pr-2">
-                {availableFilters.map(f => {
+                {AVAILABLE_FILTERS.map(f => {
                   const isSelected = selectedFilters.includes(f);
                   return (
                     <div
@@ -323,9 +305,6 @@ export default function BacktestPage() {
 
               <div className="space-y-4 pt-4 border-t border-tv-border">
                 <Input label="Modal Awal (Rp)" type="number" value={modal} onChange={e => setModal(Number(e.target.value))} className="font-number" />
-                {/* Daftar periode dari satu sumber bersama dengan API dan precompute -
-                    lihat modules/backtest/constants/backtest-periods.ts. Menulisnya ulang
-                    di sini pernah menjadi cara ketiganya berpisah tanpa ada yang tahu. */}
                 <Select
                   label="Periode (Bulan)"
                   value={period}
@@ -345,28 +324,6 @@ export default function BacktestPage() {
                   ))}
                 </Select>
 
-                {/* BARU (2026-08-14) - dua tombol ini SEBELUMNYA variant="secondary"
-                    (basisnya bg-white/[0.045]) ditimpa `!bg-tv-blue`/`!bg-tv-green
-                    !text-white`. Di tema terang, `.light .bg-white\/\[0.045\] {... !important}`
-                    (app/globals.css) punya SPESIFISITAS LEBIH TINGGI (dua class selector)
-                    daripada `.\!bg-tv-blue`/`.\!bg-tv-green` (satu class selector) - importance
-                    keduanya sama, jadi spesifisitas yang menang, dan latar tombol jatuh balik
-                    ke bg-white/[0.045] yang di-patch jadi nyaris transparan (rgb(15 23 42 / .035)).
-                    Hasilnya teks putih di atas latar nyaris putih - persis laporan pengguna
-                    "tulisan Backtest Sekarang dan Live Filter Check tidak kelihatan" di tema
-                    terang.
-                    - Tombol biru: variant="primary" memakai bg-tv-blue+text-white POLOS
-                      (bukan `!`), sudah cocok dengan carve-out kontras di globals.css.
-                    - Tombol hijau: variant="ghost" (basis bg-transparent, bukan
-                      bg-white/[0.045]) + class POLOS `bg-tv-green text-white` (bukan `!`) -
-                      dites lolos build Tailwind: .bg-tv-green ditulis SETELAH .bg-transparent
-                      di CSS terkompilasi jadi menang tanpa !important. Sengaja TIDAK
-                      memakai `!text-white` di sini: warna teks di atas hijau harus BERBEDA
-                      per tema (gelap di tema gelap, putih di tema terang - lihat carve-out
-                      `[class~='bg-tv-green'] .text-white{color:rgb(var(--lens-on-accent))}`)
-                      - memaksa putih lewat `!` akan lolos di tema terang tapi merusak
-                      kontras di tema gelap (2,26:1, persis bug yang sudah pernah diperbaiki
-                      untuk lencana lain). */}
                 <Button
                   onClick={runBacktest}
                   disabled={loading || selectedFilters.length === 0}
@@ -430,8 +387,28 @@ export default function BacktestPage() {
           'Watchlist & Alert unlimited',
         ]}
       />
-      {/* Blok <style> .custom-scrollbar dihapus - warna hex palet lama, dan scrollbar
-          global sudah ditata di app/globals.css. */}
     </div>
+  );
+}
+
+function BacktestSuspenseFallback() {
+  return (
+    <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
+      <PageContainer className="p-4 md:p-6 lg:p-7 space-y-6">
+        <Skeleton className="h-24 w-full" />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-96 w-full" />
+          <Skeleton className="lg:col-span-2 h-96 w-full" />
+        </div>
+      </PageContainer>
+    </div>
+  );
+}
+
+export default function BacktestPage() {
+  return (
+    <Suspense fallback={<BacktestSuspenseFallback />}>
+      <BacktestContent />
+    </Suspense>
   );
 }

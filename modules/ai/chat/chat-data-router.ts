@@ -1,4 +1,4 @@
-import { asOf } from '@/modules/fundamental/repository/fundamental-history.repository';
+import { asOf, listHistory } from '@/modules/fundamental/repository/fundamental-history.repository';
 import { fundamentalPitToAnalyzerPayload } from '@/modules/fundamental/service/fundamental-pit-adapter';
 import {
   analyzePe,
@@ -45,8 +45,6 @@ import { ownershipFlowBlock } from './blocks/ownership-flow-blocks';
 import { decisionBlock, tradingSetupBlock, predictionGuardBlock } from './blocks/decision-blocks';
 import { portfolioBlock, watchlistBlock, LOGIN_REQUIRED_FOR_USER_DATA, type ChatUserContext } from './blocks/user-blocks';
 
-/** Pertanyaan yang menanyakan SEBAB, bukan cuma angka. Dipakai memutuskan apakah blok
- * berita perlu ikut diambil untuk pertanyaan pasar. */
 const CAUSAL_QUESTION = /\b(kenapa|knp|mengapa|kok|penyebab|sebab|pemicu|katalis|sentimen|sentiment|berita|news|gara-?gara)\b/;
 
 function idxSessionLines(window: AiPickScanWindow, marketHoliday: string | null): string[] {
@@ -86,12 +84,7 @@ export interface ChatDataRequest {
   tickers: string[];
   date: ChatDateResolution;
   prompt: string;
-  /** Topik lain yang ikut disebut di pertanyaan yang sama. */
   alsoIntents?: ChatIntent[];
-  /**
-   * Pengguna yang SEDANG LOGIN, dari getSession() di route - bukan dari body request.
-   * null untuk pengunjung anonim. Hanya blok portofolio/watchlist yang memakainya.
-   */
   user?: ChatUserContext | null;
 }
 
@@ -101,8 +94,6 @@ export interface ChatVerifiedDataResult {
   dataError: string | null;
 }
 
-/** Metadata ringkas untuk UI chat. Angka tetap hanya berasal dari verifiedBlock; metadata
- * ini hanya membantu pengguna melihat asal dan umur data tanpa menambah klaim baru. */
 export interface ChatDataProvenance {
   sourceLabel: string;
   timestamp: string | null;
@@ -133,8 +124,42 @@ async function fetchCurrentFundamentalPayload(ticker: string): Promise<any | nul
   }
 }
 
+async function recentFundamentalDeltaLines(ticker: string): Promise<string[]> {
+  if (typeof listHistory !== 'function') return [];
+  try {
+    const rows = await listHistory(ticker);
+    if (!Array.isArray(rows) || rows.length < 2) return [];
+    const latest = rows[rows.length - 1]!;
+    const prev = rows[rows.length - 2]!;
+    const fmtDelta = (currVal: number | null, prevVal: number | null, unit = '') => {
+      if (currVal == null || prevVal == null || !Number.isFinite(currVal) || !Number.isFinite(prevVal)) return null;
+      const diff = currVal - prevVal;
+      const sign = diff >= 0 ? '+' : '';
+      return `${prevVal.toFixed(2)}${unit} -> ${currVal.toFixed(2)}${unit} (${sign}${diff.toFixed(2)}${unit})`;
+    };
+    const deltas = [
+      ['ROE', fmtDelta(latest.roe, prev.roe, '%')],
+      ['PER', fmtDelta(latest.per, prev.per, 'x')],
+      ['PBV', fmtDelta(latest.pbv, prev.pbv, 'x')],
+      ['DER', fmtDelta(latest.der, prev.der, 'x')],
+      ['Revenue Growth', fmtDelta(latest.revenueGrowth, prev.revenueGrowth, '%')],
+    ].filter(([, val]) => val !== null);
+
+    if (deltas.length === 0) return [];
+    return [
+      `- Perubahan Historis Arsip PIT (${prev.observedDate} -> ${latest.observedDate}):`,
+      ...deltas.map(([label, val]) => `  - ${label}: ${val}`),
+    ];
+  } catch {
+    return [];
+  }
+}
+
 async function currentFundamentalBlock(ticker: string): Promise<string> {
-  const data = await fetchCurrentFundamentalPayload(ticker);
+  const [data, deltaLines] = await Promise.all([
+    fetchCurrentFundamentalPayload(ticker),
+    recentFundamentalDeltaLines(ticker),
+  ]);
   if (!data) {
     return [
       `### ${ticker}`,
@@ -159,6 +184,7 @@ async function currentFundamentalBlock(ticker: string): Promise<string> {
     analyzerLine(der),
     analyzerLine(currentRatio),
     analyzerLine(revenueGrowth),
+    ...deltaLines,
   ].join('\n');
 }
 
@@ -221,12 +247,6 @@ async function currentValuationBlock(ticker: string, requestedMetrics: string[])
       return `${fundamental}\n- Valuasi intrinsic current: tidak tersedia.`;
     }
 
-    // ASUMSI IKUT DIKIRIM (2026-08-13). Sebelumnya blok ini hanya memuat nilai wajar
-    // dan MoS - dua angka hasil, tanpa satu pun dasar. Akibatnya LensAI menyampaikan
-    // "harga wajarnya sekian" seolah itu pengukuran, dan ketika pengguna bertanya
-    // "dari mana angkanya", tidak ada yang bisa dijawab. Asumsi model SUDAH diekspos
-    // `calculateIntrinsicValue()` justru supaya dasarnya sampai ke pengguna (temuan
-    // H-3 audit 2026-08-05); halaman DCF sudah memakainya, chat belum.
     const a: any = dcf.assumptions ?? {};
     const usedMethods = Object.keys(dcf.methods ?? {});
 
@@ -244,8 +264,6 @@ async function currentValuationBlock(ticker: string, requestedMetrics: string[])
       `  - Pertumbuhan yang diasumsikan: ${safe(a.growth_pct, '%')}, pertumbuhan perpetual ${safe(a.perpetual_growth_pct, '%')}`,
       `  - PER wajar: ${safe(a.fair_per)}x${a.fair_per_basis ? ` (basis: ${a.fair_per_basis})` : ''}, PBV wajar: ${safe(a.fair_pbv)}x`,
       a.multiples_model ? `  - Model multiple: ${a.multiples_model}` : '',
-      // Dua tingkat diskonto memang berbeda, dan itu HARUS terbaca. Meleburnya jadi satu
-      // angka membuat "harga wajar" tampak berasal dari satu model padahal dari dua.
       `  - PENTING: PBV*/PER* memakai biaya ekuitas CAPM per emiten di atas, sedangkan DDM dan`,
       `    perpetuitas FCF masih memakai tingkat diskonto TETAP ${safe(a.discount_rate_pct, '%')} untuk semua emiten.`,
       '    Jangan menyebutnya satu tingkat diskonto tunggal.',
@@ -336,13 +354,6 @@ async function stockGeneralBlock(ticker: string, requestedMetrics: string[]): Pr
   return `${fundamental}\n${technical.replace(`### ${ticker}\n`, '')}`;
 }
 
-// BUG FIX (2026-08-11, dari screenshot user): blok ini dulu hanya mengirim level & RSI,
-// TANPA perubahan harga - padahal pertanyaan paling umum tentang IHSG justru "kenapa
-// turun". Model tidak punya angka perubahan di Data Terverifikasi, jadi mengisi sendiri
-// lubang itu: menjawab "turun sekitar 0,25%" sementara header aplikasi menampilkan
-// -1,52% dari /api/live/^JKSE. Angka perubahan sekarang IKUT dikirim, dihitung dari
-// `meta.previousClose` yang SAMA dengan sumber header, jadi dua angka di layar tidak
-// bisa lagi saling bertentangan.
 async function marketBlock(): Promise<string> {
   try {
     const chart = await fetchYahooHistory('^JKSE', '3mo');
@@ -382,14 +393,6 @@ async function marketBlock(): Promise<string> {
   }
 }
 
-// BUG FIX (2026-08-11, dari screenshot user): "ada sentimen apa kok skrg turun" dijawab
-// "Maaf, saya tidak bisa menjawab pertanyaan tersebut." Penyebabnya BUKAN model yang
-// bandel - router ini memang tidak pernah punya jalur berita/sentimen sama sekali, jadi
-// pertanyaan itu jatuh ke UNKNOWN tanpa satu pun data terverifikasi, dan aturan #16 di
-// system prompt (dilarang mengisi dari pengetahuan model) benar-benar menutup jawaban.
-// modules/news SUDAH menyediakan getMarketNews()/getStockNews() lengkap dengan klasifikasi
-// sentimen - dipakai halaman /news dan Technical Analyzer - tapi tidak pernah tersambung
-// ke LensAI. Ini penyambungannya.
 const NEWS_ITEM_LIMIT = 6;
 
 function newsLines(items: NewsItem[]): string[] {
@@ -410,14 +413,6 @@ function sentimentTally(items: NewsItem[]): string {
   return `- Hitungan sentimen evidence berita: ${positif} positif, ${netral} netral, ${negatif} negatif (dari ${counted.length} berita)`;
 }
 
-/**
- * PERBAIKAN 2026-08-13: dulu memanggil getMarketNews() LANGSUNG, tanpa cache. Fungsi itu
- * menarik ~10 feed RSS lalu meminta satu klasifikasi sentimen ke AI - jadi setiap
- * pertanyaan "kenapa turun" menanggung seluruh biaya itu di dalam request chat,
- * padahal /api/news sudah menyimpan hasil yang sama persis di Redis. Sekarang keduanya
- * berbagi satu kunci: halaman yang sudah dibuka pengguna menghangatkan cache untuk chat,
- * dan sebaliknya.
- */
 async function marketNewsBlock(): Promise<string> {
   try {
     const news = await getOrCompute(COMPUTED_CACHE_KEY.MARKET_NEWS, getMarketAwareTtlSec(), getMarketNews);
@@ -488,15 +483,7 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
     return { verifiedBlock: '', directResponse: null, dataError: null };
   }
 
-  // ---------------------------------------------------------------------------
-  // Intent yang ditambahkan 2026-08-13. Semua blok di bawah membaca cache hasil cron
-  // dan tidak pernah memicu pemindaian penuh dari dalam request chat.
-  // ---------------------------------------------------------------------------
-
   if (request.intent === 'SCORING_METHOD') {
-    // Metodologi selalu ikut. Kalau pengguna juga menyebut emiten ("kenapa BBCA cuma
-    // 62"), data emitennya ikut - pertanyaannya butuh keduanya: cara menghitung DAN
-    // angka yang dihitung.
     const methodology = scoringMethodologyBlock();
     if (request.tickers.length === 0) {
       return { verifiedBlock: `${verifiedHeader('METODOLOGI LENSSCORE')}\n${methodology}`, directResponse: null, dataError: null };
@@ -526,9 +513,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
 
   if (request.intent === 'LENSRADAR_PICKS') {
     const [picks, methodology] = await Promise.all([lensRadarPicksBlock(), Promise.resolve(scoringMethodologyBlock())]);
-    // "Saham apa yang patut dipantau BESOK dari hasil market hari ini" - peringkat
-    // hari ini memang jawaban yang benar, tapi tanpa bingkai ini daftar pantauan
-    // gampang berubah nada menjadi daftar ramalan.
     const future = asksAboutFuture(normalizeChatText(request.prompt))
       ? `\n${verifiedHeader('BINGKAI WAJIB - PERTANYAAN BERBINGKAI MASA DEPAN')}\n${predictionGuardBlock()}`
       : '';
@@ -540,9 +524,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
   }
 
   if (request.intent === 'MARKET_MOVERS' || request.intent === 'SECTOR_ROTATION') {
-    // Berita ikut kalau pertanyaannya menanyakan SEBAB - pola yang sama dengan
-    // MARKET_GENERAL di bawah, dan alasan yang sama: daftar peringkat tidak pernah
-    // menjelaskan kenapa, dan lubang "kenapa" itulah yang dulu diisi karangan.
     const wantsCause = CAUSAL_QUESTION.test(normalizeChatText(request.prompt));
     const [movers, sector, news] = await Promise.all([
       request.intent === 'MARKET_MOVERS' ? marketMoversBlock() : Promise.resolve(null),
@@ -590,15 +571,11 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
     };
   }
 
-  // CALENDAR boleh tanpa emiten ("ada agenda apa minggu ini"), jadi diperiksa sebelum
-  // gerbang "wajib ada ticker".
   if (request.intent === 'CALENDAR') {
     const block = await calendarBlock(request.tickers.map(normalizeIdxTicker));
     return { verifiedBlock: `${verifiedHeader('KALENDER KORPORASI')}\n${block}`, directResponse: null, dataError: null };
   }
 
-  // NEWS_SENTIMENT sengaja diperiksa SEBELUM gerbang "wajib ada ticker" di bawah:
-  // "sentimen pasar hari ini apa" adalah pertanyaan sah yang memang tidak punya emiten.
   if (request.intent === 'NEWS_SENTIMENT') {
     if (request.date.mode === 'HISTORICAL') {
       return {
@@ -633,10 +610,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
         dataError: 'HISTORICAL_MARKET_UNAVAILABLE',
       };
     }
-    // Pertanyaan "kenapa/kok turun" butuh berita, bukan cuma level & RSI - itu persis
-    // pertanyaan yang bikin model mengarang sebelumnya. Berita hanya diambil kalau
-    // pertanyaannya memang menanyakan SEBAB: getMarketNews() menarik ~10 feed RSS plus
-    // satu klasifikasi AI, terlalu mahal untuk dijalankan di setiap pertanyaan pasar.
     const wantsCause = CAUSAL_QUESTION.test(normalizeChatText(request.prompt));
     const [block, news] = await Promise.all([
       marketBlock(),
@@ -682,7 +655,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
     return { verifiedBlock, directResponse: null, dataError: available < results.length ? 'PARTIAL_DATA' : null };
   }
 
-  // --- Fitur per emiten yang ditambahkan 2026-08-13.
   if (request.intent === 'DIVIDEND') {
     const blocks = await Promise.all(tickers.map(dividendBlock));
     return { verifiedBlock: `${verifiedHeader('DIVIDEN')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
@@ -694,11 +666,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
   }
 
   if (request.intent === 'FLOW_BROKER') {
-    // Pertanyaan "sedang akumulasi atau distribusi?" tidak selalu bisa dijawab data
-    // broker (periode broker summary kerap belum tersedia). Karena itu blok ini
-    // sengaja MEMBAWA juga bukti komposisi kepemilikan KSEI (bulanan, data nyata)
-    // sebagai pendukung - tetap di bawah header terpisah supaya model tidak
-    // menyilangkan "komposisi bulanan" dengan "transaksi broker".
     const [flows, ownerships] = await Promise.all([
       Promise.all(tickers.map(flowBlock)),
       Promise.all(tickers.map(ownershipFlowBlock)),
@@ -719,10 +686,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
     return { verifiedBlock: combined, directResponse: null, dataError: null };
   }
 
-  // Blok TERPISAH dari ARUS DANA & BROKER di atas, dan itu disengaja. Menyatukan
-  // keduanya dalam satu header akan mengundang model menarik kesimpulan silang
-  // ("porsi asing naik, berarti broker asing net buy") - kesimpulan yang tidak
-  // punya dasar tanpa data broker-level.
   if (request.intent === 'OWNERSHIP_FLOW') {
     const blocks = await Promise.all(tickers.map(ownershipFlowBlock));
     return { verifiedBlock: `${verifiedHeader('OWNERSHIP FLOW - KOMPOSISI KEPEMILIKAN (BUKAN TRANSAKSI BROKER)')}\n${blocks.join('\n\n')}`, directResponse: null, dataError: null };
@@ -738,9 +701,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
   }
 
   if (request.intent === 'MOAT') {
-    // Moat dibangun DARI analyzer fundamental yang sama dengan blok fundamental -
-    // bukan sumber kedua. Kalau dihitung terpisah, dua bagian jawaban yang sama bisa
-    // memakai angka PER/ROE yang berbeda umur.
     const blocks = await Promise.all(
       tickers.map(async (ticker) => {
         const payload = await fetchCurrentFundamentalPayload(ticker);
@@ -779,10 +739,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
       blocks = await Promise.all(tickers.map((ticker) => stockGeneralBlock(ticker, request.requestedMetrics)));
     }
   } else if (request.intent === 'BUY_SELL_RECOMMENDATION') {
-    // Pertanyaan "bagus gak / layak beli / TP-CL berapa" dijawab dari MESIN yang sama
-    // dengan halaman Recommendations dan LensRadar - bukan dari kesimpulan yang disusun
-    // sendiri oleh model dari blok fundamental + teknikal. Sebelum ini, chat dan halaman
-    // bisa memberi kesimpulan berbeda untuk emiten yang sama pada menit yang sama.
     blocks = await Promise.all(
       tickers.map(async (ticker) => {
         const [general, decision, setup] = await Promise.all([
@@ -794,11 +750,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
       }),
     );
   } else if (request.intent === 'PRICE_PREDICTION') {
-    // Pertanyaan "besok naik gak" dijawab dengan SEMUA yang memang diketahui - tren,
-    // level, setup, dan base rate historis - plus bingkai yang melarang menyebut angka
-    // besok. Menolak mentah-mentah lebih mudah, tapi pengguna yang bertanya begini
-    // sebenarnya ingin tahu "apa yang bisa saya simpulkan dari data"; itu pertanyaan
-    // yang layak dijawab.
     const [stockBlocks, evidence] = await Promise.all([
       Promise.all(
         tickers.map(async (ticker) => {
@@ -837,19 +788,6 @@ async function buildPrimaryVerifiedData(request: ChatDataRequest): Promise<ChatV
   };
 }
 
-/**
- * Satu pertanyaan bisa menyentuh lebih dari satu topik: "fundamental BBCA gimana, ada
- * berita apa?" atau "IHSG hari ini gimana, sektor apa yang kuat?".
- *
- * Sebelum ini router memilih SATU intent dan topik kedua hilang tanpa jejak - LensAI
- * lalu menjawab bagian pertama dengan baik dan bilang tidak punya data untuk bagian
- * kedua, padahal datanya ada dan cuma tidak diminta.
- *
- * Blok tambahan dibangun lewat jalur yang sama persis (rekursi dengan alsoIntents
- * kosong), jadi seluruh aturan fail-closed dan batas metodologi ikut apa adanya.
- * `directResponse` blok tambahan sengaja DIABAIKAN: penolakan atas topik sampingan
- * tidak boleh membatalkan jawaban atas pertanyaan utama.
- */
 export async function buildChatVerifiedData(request: ChatDataRequest): Promise<ChatVerifiedDataResult> {
   const primary = await buildPrimaryVerifiedData(request);
   const extras = (request.alsoIntents ?? []).filter((intent) => intent !== request.intent);

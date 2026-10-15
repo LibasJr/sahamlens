@@ -82,7 +82,7 @@ const PILLAR_RULES: Array<{
     label: 'Pertumbuhan',
     description: 'Pertumbuhan pendapatan dan laba per saham terbaru.',
     metrics: [
-      ['eps growth (qoq)', 'eps growth'],
+      ['pertumbuhan laba (yoy, kuartalan)', 'eps growth (qoq)', 'eps growth'],
       ['revenue growth (yoy)', 'revenue growth'],
     ],
   },
@@ -144,12 +144,12 @@ export function computeDuPontAnalysis(byLabel: Map<string, MoatProxyIndicator>):
   const der = parseNumericValue(derInd?.value);
 
   let assetTurnover: number | null = null;
-  if (roa != null && npm != null && npm > 0) {
+  if (roa != null && npm != null && npm !== 0 && (roa / npm) > 0) {
     assetTurnover = Math.round((roa / npm) * 100) / 100;
   }
 
   let equityMultiplier: number | null = null;
-  if (roe != null && roa != null && roa > 0) {
+  if (roe != null && roa != null && roa !== 0 && (roe / roa) > 0) {
     equityMultiplier = Math.round((roe / roa) * 100) / 100;
   } else if (der != null) {
     equityMultiplier = Math.round((1 + der) * 100) / 100;

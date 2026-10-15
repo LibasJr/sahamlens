@@ -92,8 +92,9 @@ async function fetchDividendStock(ticker: string, options: FetchDividendStockOpt
     const yearsWithDividend = new Set(dividendEvents.map((d) => new Date(d.date).getFullYear()));
     const observedYears = [...yearsWithDividend].sort((a, b) => b - a);
     const latestDividendYear = observedYears[0] ?? null;
+    const currentYear = new Date().getUTCFullYear();
     let consistencyYears = 0;
-    if (latestDividendYear != null) {
+    if (latestDividendYear != null && latestDividendYear >= currentYear - 1) {
       for (let y = latestDividendYear; y >= latestDividendYear - 15; y--) {
         if (yearsWithDividend.has(y)) consistencyYears++;
         else break;

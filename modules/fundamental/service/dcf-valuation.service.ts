@@ -1,5 +1,5 @@
 import { getUsdIdrRate } from '../../../shared/market/usd-idr-rate';
-import { impliedMultiples, MACRO_ASSUMPTIONS } from './fair-multiples.service';
+import { costOfEquity, impliedMultiples, MACRO_ASSUMPTIONS } from './fair-multiples.service';
 import { resolveSectorProfile } from '../../sector/service/sector-classifier.service';
 import { fetchYahooFundamentalQuote } from '../provider/yahoo-fundamental-quote.provider';
 
@@ -396,10 +396,10 @@ export async function calculateIntrinsicValue(rawTicker: string) {
 // "lebih baru" tanpa sumber justru lebih buruk), tapi sekarang ditandai eksplisit sebagai
 // asumsi lewat `is_assumption: true` + tanggal penetapan, supaya UI bisa melabelinya
 // jujur alih-alih menyajikannya sebagai kondisi pasar terkini.
-const SBN_10Y_YIELD_PCT = 6.7;
-const EQUITY_RISK_PREMIUM_PCT = 5.2;
+const SBN_10Y_YIELD_PCT = MACRO_ASSUMPTIONS.RISK_FREE_RATE_PCT;
+const EQUITY_RISK_PREMIUM_PCT = MACRO_ASSUMPTIONS.EQUITY_RISK_PREMIUM_PCT;
 /** Kapan kedua asumsi di atas terakhir ditinjau manusia. Ditampilkan bersama angkanya. */
-const MACRO_ASSUMPTION_SET_ON = '2026-08-03';
+const MACRO_ASSUMPTION_SET_ON = MACRO_ASSUMPTIONS.SET_ON;
 const TERMINAL_GROWTH_PCT = 3.5;
 const PROJECTION_YEARS = 5;
 
@@ -601,8 +601,15 @@ export async function calculateDcfModel(rawTicker: string) {
     };
   }
 
-  const discountRatePct = SBN_10Y_YIELD_PCT + EQUITY_RISK_PREMIUM_PCT;
-  const discountRate = discountRatePct / 100;
+  const reportedBeta = isFiniteNumber(quoteSummary.defaultKeyStatistics?.beta)
+    ? quoteSummary.defaultKeyStatistics.beta
+    : isFiniteNumber(quoteSummary.summaryDetail?.beta)
+      ? quoteSummary.summaryDetail.beta
+      : null;
+  const sectorProfile = resolveSectorProfile(sector, quoteSummary.assetProfile?.industry);
+  const capm = costOfEquity({ beta: reportedBeta, fallbackBeta: sectorProfile.defaultBeta });
+  const discountRate = capm.rate;
+  const discountRatePct = capm.rate * 100;
   const netDebtPerShare = (totalDebt - totalCash) / shares;
 
   // Growth rate proyeksi 5 tahun: sustainable growth rate riil (ROE x retention ratio)
