@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
 import Link from 'next/link';
-import { Check, Download, Share2, Target, Search, ArrowRightLeft, Lock } from 'lucide-react';
+import { Check, Download, Image as ImageIcon, Share2, Target, Search, ArrowRightLeft, Lock } from 'lucide-react';
 import { FREE_LIMITS } from '@/shared/constants/limits';
 import { MONTHLY_PRICE, formatRupiah } from '@/shared/config/pricing';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
@@ -12,6 +12,7 @@ import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { trackProductFunnelEvent, trackSignupClick } from '@/shared/analytics/product-funnel';
 import PaywallModal from '@/components/PaywallModal';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
+import CompareExportCard from '@/components/export/CompareExportCard';
 import { ApiErrorHint, Button, Card, PageContainer, Skeleton, EmptyState, LoadingFact, TickerAvatar } from '@/components/ui';
 import { useLanguage } from '@/lib/i18n';
 import { apiRequest, isApiClientError } from '@/shared/http/api-client';
@@ -19,6 +20,7 @@ import MenuUsageGuide from '@/components/MenuUsageGuide';
 import { buildCompareCsv } from '@/shared/format/compare-export';
 import { copyText } from '@/shared/browser/copy-text';
 import { saveTextExport } from '@/shared/browser/save-text-export';
+import { saveBinaryExport } from '@/shared/browser/save-binary-export';
 
 const displayTicker = (s: string) => s.replace('.JK', '').replace('.JK', '');
 
@@ -70,9 +72,11 @@ function CompareContent() {
   const [gated, setGated] = useState<null | 'login' | 'pro'>(null);
   const [compareMode, setCompareMode] = useState<'simple' | 'advanced'>('simple');
   const [shareStatus, setShareStatus] = useState<ShareStatus>('idle');
+  const [exportingPng, setExportingPng] = useState(false);
   const fetchSeqRef = useRef(0);
   const trackedGuestLock = useRef(false);
   const shareStatusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const exportCardRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!urlSym1) {
@@ -202,6 +206,23 @@ function CompareContent() {
       `sahamlens-compare-${displayTicker(data.data1.symbol)}-${displayTicker(data.data2.symbol)}.csv`,
       csv,
     );
+  };
+
+  const downloadPngCard = async () => {
+    if (!data || !exportCardRef.current || exportingPng) return;
+    setExportingPng(true);
+    try {
+      const { toPng } = await import('html-to-image');
+      const dataUrl = await toPng(exportCardRef.current, { pixelRatio: 2, cacheBust: true });
+      await saveBinaryExport(
+        `sahamlens-compare-${displayTicker(data.data1.symbol)}-vs-${displayTicker(data.data2.symbol)}.png`,
+        dataUrl,
+      );
+    } catch (error) {
+      console.error('Failed to export compare PNG card:', error);
+    } finally {
+      setExportingPng(false);
+    }
   };
 
   useEffect(() => {
@@ -370,6 +391,17 @@ function CompareContent() {
                         <Download className="h-3.5 w-3.5" />
                         Export CSV
                       </Button>
+                      <Button
+                        variant="bare"
+                        size="none"
+                        type="button"
+                        onClick={downloadPngCard}
+                        disabled={exportingPng}
+                        className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-tv-blue/40 bg-tv-blue/10 px-2.5 py-1 lens-label font-semibold text-tv-blue hover:bg-tv-blue/15 disabled:opacity-50"
+                      >
+                        <ImageIcon className="h-3.5 w-3.5" />
+                        {exportingPng ? 'Mengekspor...' : 'Kartu PNG'}
+                      </Button>
                     </div>
                   </div>
                 );
@@ -466,6 +498,22 @@ function CompareContent() {
                   <p className="font-sans text-sm font-normal text-tv-text leading-relaxed sm:text-base">
                     {data.conclusion}
                   </p>
+                </div>
+              )}
+
+              {!lockForGuest && (
+                <div className="fixed -left-[9999px] top-0 pointer-events-none" aria-hidden="true">
+                  <div ref={exportCardRef}>
+                    <CompareExportCard
+                      symbol1={data.data1.symbol}
+                      symbol2={data.data2.symbol}
+                      price1={typeof data.data1.price === 'number' ? data.data1.price : null}
+                      price2={typeof data.data2.price === 'number' ? data.data2.price : null}
+                      rows={data.rows}
+                      conclusion={data.conclusion ?? null}
+                      exportedAt={new Date()}
+                    />
+                  </div>
                 </div>
               )}
             </Card>

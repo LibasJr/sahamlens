@@ -17,6 +17,7 @@ function RiskCalculatorContent() {
   const [symbol, setSymbolState] = useState('BBCA.JK');
   const [loadingPrice, setLoadingPrice] = useState(false);
   const [priceError, setPriceError] = useState<string | null>(null);
+  const [adtv20d, setAdtv20d] = useState<number | null>(null);
   const [modal, setModal] = useState('10000000');
   const [riskPct, setRiskPct] = useState('1');
   const [entry, setEntry] = useState('');
@@ -26,6 +27,7 @@ function RiskCalculatorContent() {
   const setSymbol = (newSymbol: string) => {
     const formatted = newSymbol.includes('.JK') ? newSymbol : `${newSymbol}.JK`;
     setSymbolState(formatted);
+    setAdtv20d(null);
     if (typeof window !== 'undefined') {
       localStorage.setItem('last_searched_ticker', formatted);
     }
@@ -56,6 +58,7 @@ function RiskCalculatorContent() {
         return;
       }
       setEntry(String(json.price));
+      setAdtv20d(typeof json?.adtv20d === 'number' && Number.isFinite(json.adtv20d) && json.adtv20d > 0 ? json.adtv20d : null);
     } catch (e) {
       console.error('Failed to fetch live price', e);
       setPriceError('Gagal mengambil harga live. Periksa sambungan, atau isi Harga Entry manual.');
@@ -92,6 +95,10 @@ function RiskCalculatorContent() {
   const consecutiveLossesSurvivable = maxLossRp > 0 ? Math.floor(modalNum / maxLossRp) : null;
   const breakevenWinRatePct = riskRewardRatio != null && riskRewardRatio > 0
     ? (1 / (1 + riskRewardRatio)) * 100
+    : null;
+
+  const adtvParticipationPct = adtv20d && adtv20d > 0 && capitalNeeded > 0
+    ? (capitalNeeded / adtv20d) * 100
     : null;
 
   const fmtRp = (n: number) => `Rp ${Math.round(n).toLocaleString('id-ID')}`;
@@ -149,6 +156,12 @@ function RiskCalculatorContent() {
                 <p className="mt-1.5 flex items-start gap-1.5 lens-caption">
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-px" />
                   {priceError}
+                </p>
+              )}
+              {adtv20d != null && (
+                <p className="mt-1.5 lens-caption text-tv-muted">
+                  Rata-rata nilai transaksi harian 20H ({symbol.replace('.JK', '')}):{' '}
+                  <span className="font-number font-semibold text-tv-text">{fmtRp(adtv20d)}/hari</span>
                 </p>
               )}
             </div>
@@ -287,6 +300,23 @@ function RiskCalculatorContent() {
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-tv-blue/10 border border-tv-blue/30 text-tv-blue text-xs">
                     <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
                     <span>Ukuran posisi dibatasi oleh MODAL (bukan budget risiko) - modal Anda tidak cukup untuk mencapai lot maksimal sesuai risk budget.</span>
+                  </div>
+                )}
+
+                {adtvParticipationPct != null && adtvParticipationPct >= 1 && (
+                  <div className={`flex items-start gap-2 p-3 rounded-lg border text-xs ${
+                    adtvParticipationPct >= 5
+                      ? 'bg-tv-red/10 border-tv-red/30 text-tv-red'
+                      : 'bg-tv-yellow/10 border-tv-yellow/30 text-tv-yellow'
+                  }`}>
+                    <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+                    <span>
+                      <strong>Peringatan Likuiditas &amp; Slippage BEI:</strong> Nilai posisi ini ({fmtRp(capitalNeeded)}) setara dengan{' '}
+                      <span className="font-number font-bold">{adtvParticipationPct.toFixed(2)}%</span> dari rata-rata transaksi harian 20H emiten ({fmtRp(adtv20d!)}/hari).{' '}
+                      {adtvParticipationPct >= 5
+                        ? 'Eksekusi sekali jalan berisiko tinggi menggerakkan antrean bid/offer dan membuat harga keluar saat stop loss meleset jauh (slippage berat).'
+                        : 'Pertimbangkan memecah order secara bertahap agar tidak terkena slippage pada antrean tipis.'}
+                    </span>
                   </div>
                 )}
 
