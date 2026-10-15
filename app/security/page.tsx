@@ -27,8 +27,8 @@ export default function SecurityPolicyPage() {
         </h2>
         <p>
           Apabila Anda menemukan indikasi celah keamanan pada aplikasi web, API, maupun klien desktop SahamLens, mohon laporkan langsung melalui email ke{' '}
-          <a href="mailto:security@sahamlens.id" className="font-medium text-tv-blue hover:underline">
-            security@sahamlens.id
+          <a href="mailto:support@sahamlens.id" className="font-medium text-tv-blue hover:underline">
+            support@sahamlens.id
           </a>{' '}
           dalam bahasa Indonesia atau Inggris. Sertakan langkah reproduksi yang jelas, endpoint atau halaman yang terdampak, serta bukti konsep (PoC) minimal tanpa mengeksploitasi data pengguna lain.
         </p>
