@@ -88,7 +88,10 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // Bandarmology Tug-of-War bar + 20-day Heat-Dots timeline (BandarFlowPro.tsx).
 // Build CI terukur 6.119 KB (+4 KB) murni kode interaktif komponen, tanpa dependensi baru.
 // Kepala ruang 6 KB dipertahankan sebagai ratchet.
-const TOTAL_BUDGET_KB = 6_125;
+// Dinaikkan 6.125 -> 6.138 KB pada 2026-10-15 untuk integrasi UI Stock Risk Stress-Test Card
+// pada dashboard utama (StockRiskStressTestCard.tsx). Build terukur 6.130 KB (+5 KB)
+// murni kode komponen analisis risiko, tanpa dependensi baru. Kepala ruang 8 KB.
+const TOTAL_BUDGET_KB = 6_138;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri

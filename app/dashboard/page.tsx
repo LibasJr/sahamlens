@@ -14,6 +14,7 @@ import { DashboardInsightSummary } from '@/components/dashboard/DashboardInsight
 import { DashboardFooterActions } from '@/components/dashboard/DashboardFooterActions';
 import { GuestLockedSection } from '@/components/dashboard/GuestLockedSection';
 import { TradePlanDisclosure } from '@/components/dashboard/TradePlanDisclosure';
+import { StockRiskStressTestCard } from '@/components/dashboard/StockRiskStressTestCard';
 import { downloadTechnicalReport } from '@/components/dashboard/downloadTechnicalReport';
 import {
   buildChartTechnical,
@@ -529,6 +530,8 @@ function DashboardContent() {
             </div>
           )}
         </div>
+
+        <StockRiskStressTestCard ticker={ticker} />
         </>
         )}
 
