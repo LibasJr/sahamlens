@@ -42,7 +42,6 @@ const RSS_FEEDS = [
   { name: 'Bloomberg Technoz', url: 'https://www.bloombergtechnoz.com/rss' },
   { name: 'Tempo Bisnis', url: 'https://rss.tempo.co/bisnis' },
   { name: 'Kontan', url: 'https://investasi.kontan.co.id/rss' },
-  { name: 'Antara Ekonomi', url: 'https://www.antaranews.com/rss/ekonomi.xml' },
 ];
 
 const parser = new Parser({

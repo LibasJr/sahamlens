@@ -113,4 +113,17 @@ data/idx-index/
 # Laporan job perawatan mingguan (scripts/weekly-maintenance.mjs). Artefak runtime di
 # VPS, di-rotate otomatis (keepReports), tidak untuk di-commit.
 /reports/
+
+# Artefak broker summary harian & profil IDX-IC dari sync resmi BEI
+data/broker-summary/
+data/idx-ic/
+
+# Bukti pengujian & checkpoint scripts
+.tmp-proof/
+scripts/.v161-*-checkpoint.json
+
+# Artefak video generator TikTok & verifikasi domain publik
+public/tiktok/
+public/tiktok*.txt
+
 node_modules
