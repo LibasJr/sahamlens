@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Trash2, AlertCircle, Plus, Activity, Bell, ArrowDownCircle, ArrowUpCircle, Gauge, Sparkles, Target, ShieldAlert, Pencil, X, Check } from 'lucide-react';
+import { Trash2, AlertCircle, Plus, Activity, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import PortfolioHealth from '@/components/PortfolioHealth';
 import SymbolAutocomplete from '@/components/SymbolAutocomplete';
 import PaywallModal from '@/components/PaywallModal';
@@ -10,153 +10,19 @@ import { FREE_LIMITS } from '@/shared/constants/limits';
 import { hasProAccessFor, useAuthUser } from '@/lib/hooks/useAuthUser';
 import { shouldShowLoginPromptFor401 } from '@/lib/auth-gate';
 import { getTickerName } from '@/lib/trendingTickers';
-import { ApiErrorHint, Card, Input, Select, Button, Badge, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar } from '@/components/ui';
+import { ApiErrorHint, Card, Input, Button, EmptyState, PageContainer, Skeleton, LoadingFact, TickerAvatar } from '@/components/ui';
 import { getDecisionPresentation } from '@/modules/eligibility';
 import { getKategoriPresentationLabel } from '@/shared/presentation/signal-labels';
 import { describeFreshness } from '@/shared/presentation/freshness-labels';
 import { describeUserConfidenceLabel, describeUserResearchLabel } from '@/shared/presentation/user-status-labels';
 import Toast, { type ToastVariant } from '@/components/ui/Toast';
 import { WatchlistHeader } from '@/components/watchlist/WatchlistHeader';
+import { WatchlistAlertsPanel, getAlertOption, type AlertItem } from '@/components/watchlist/WatchlistAlertsPanel';
+import { WatchlistDigestBanner, type WatchlistDigestData } from '@/components/watchlist/WatchlistDigestBanner';
+import { JournalBadge, JournalSection, type WatchlistItem } from '@/components/watchlist/WatchlistJournalItem';
 import { JourneyBeacon } from '@/components/analytics/JourneyBeacon';
 import { apiErrorMessage, apiRequest, isApiClientError } from '@/shared/http/api-client';
 import MenuUsageGuide from '@/components/MenuUsageGuide';
-
-interface WatchlistItem {
-  symbol: string;
-  buy_price: number;
-  alert_price?: number;
-  lot?: number;
-  journal_note?: string | null;
-  created_at: string;
-  updated_at: string | null;
-}
-
-interface AlertItem {
-  id: string;
-  symbol: string;
-  conditionType: string;
-  targetValue: string;
-  isActive: boolean;
-  createdAt: string;
-}
-
-const ALERT_OPTIONS = [
-  { value: 'PRICE_BELOW', label: 'Harga Turun Di Bawah', needsValue: true, placeholder: 'Target harga' },
-  { value: 'PRICE_ABOVE', label: 'Harga Naik Di Atas', needsValue: true, placeholder: 'Target harga' },
-  { value: 'LENS_SCORE_ABOVE', label: 'LensScore Minimal', needsValue: true, placeholder: 'Target skor 0-100' },
-  { value: 'LENS_CONFIDENCE_BELOW', label: 'Keyakinan Skor Turun Di Bawah', needsValue: true, placeholder: 'Target keyakinan %' },
-  { value: 'BREAKOUT_SCORE_ABOVE', label: 'LensRadar Score Minimal', needsValue: true, placeholder: 'Target score radar' },
-  { value: 'BREADTH_ADVANCING_BELOW', label: 'Market Breadth Melemah', needsValue: true, placeholder: 'Jumlah saham naik maksimal' },
-  { value: 'CONSENSUS_STRONG_BUY', label: 'Konsensus Sangat Positif', needsValue: false, placeholder: '' },
-  { value: 'RSI_OVERSOLD', label: 'RSI Oversold (< 30)', needsValue: false, placeholder: '' },
-] as const;
-
-function JournalBadge({ item, currentPrice }: { item: WatchlistItem; currentPrice: number }) {
-  if (!item.buy_price && !item.alert_price) return null;
-  if (item.alert_price && currentPrice <= item.alert_price) {
-    return (
-      <span className="lens-chip font-bold px-1.5 py-0.5 rounded border bg-tv-red/15 border-tv-red/50 text-tv-red">
-        ⚠ Stop Terlihat
-      </span>
-    );
-  }
-  if (item.buy_price && currentPrice <= item.buy_price * 0.95) {
-    return (
-      <span className="lens-chip font-bold px-1.5 py-0.5 rounded border bg-tv-yellow/15 border-tv-yellow/50 text-tv-yellow">
-        📉 Di Bawah Entry
-      </span>
-    );
-  }
-  if (item.buy_price && currentPrice >= item.buy_price * 1.1) {
-    return (
-      <span className="lens-chip font-bold px-1.5 py-0.5 rounded border bg-tv-green/15 border-tv-green/50 text-tv-green">
-        📈 Di Atas Entry
-      </span>
-    );
-  }
-  return null;
-}
-
-function JournalSection({
-  item, isEditing, onStartEdit, onCancelEdit, onSave, journalNote, setJournalNote, saving,
-}: {
-  item: WatchlistItem;
-  isEditing: boolean;
-  onStartEdit: () => void;
-  onCancelEdit: () => void;
-  onSave: (note: string) => void;
-  journalNote: string;
-  setJournalNote: (v: string) => void;
-  saving: boolean;
-}) {
-  const notePreview = item.journal_note ? item.journal_note.slice(0, 60) + (item.journal_note.length > 60 ? '…' : '') : null;
-  const savedDate = item.updated_at ? new Date(item.updated_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
-
-  if (isEditing) {
-    return (
-      <div className="mt-1.5 flex flex-col gap-1.5">
-        <textarea
-          value={journalNote}
-          onChange={(e) => setJournalNote(e.target.value)}
-          placeholder="Catatan thesis: alasan beli, target, invalidasi..."
-          maxLength={500}
-          rows={2}
-          className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md px-2 py-1.5 text-xs focus:outline-none focus:border-tv-blue resize-none"
-        />
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-xs text-white/40">{journalNote.length}/500</span>
-          <div className="flex items-center gap-1.5">
-            <Button variant="bare" size="none" onClick={onCancelEdit} className="p-1 text-tv-muted hover:text-tv-text" aria-label={`Batalkan edit catatan ${item.symbol}`}>
-              <X className="w-3.5 h-3.5" />
-            </Button>
-            <Button variant="bare" size="none" onClick={() => onSave(journalNote)} disabled={saving} className="p-1 text-tv-green hover:text-tv-green/80 disabled:opacity-50" aria-label={journalNote.trim() ? `Simpan catatan ${item.symbol}` : `Hapus catatan ${item.symbol}`}>
-              <Check className="w-3.5 h-3.5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="mt-1.5">
-      {notePreview ? (
-        <div className="flex items-start gap-1.5">
-          <span className="text-xs text-white/50 italic leading-snug">
-            📝 {notePreview}
-            {savedDate && <span className="text-white/30 ml-1">— {savedDate}</span>}
-          </span>
-          <Button variant="bare" size="none" onClick={onStartEdit} className="p-0.5 text-tv-muted hover:text-tv-blue shrink-0" aria-label={`Edit catatan ${item.symbol}`}>
-            <Pencil className="w-3 h-3" />
-          </Button>
-        </div>
-      ) : (
-        <Button variant="bare" size="none" onClick={onStartEdit} className="text-xs text-tv-muted hover:text-tv-blue flex items-center gap-1 transition-colors">
-          <Pencil className="w-3 h-3" /> Tambah catatan
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function getAlertOption(conditionType: string) {
-  return ALERT_OPTIONS.find((option) => option.value === conditionType);
-}
-
-function alertConditionText(alert: AlertItem) {
-  const value = alert.targetValue;
-  switch (alert.conditionType) {
-    case 'PRICE_BELOW': return `Harga < ${value}`;
-    case 'PRICE_ABOVE': return `Harga > ${value}`;
-    case 'LENS_SCORE_ABOVE': return `LensScore >= ${value}`;
-    case 'LENS_CONFIDENCE_BELOW': return `Keyakinan skor < ${value}%`;
-    case 'BREAKOUT_SCORE_ABOVE': return `LensRadar score >= ${value}`;
-    case 'BREADTH_ADVANCING_BELOW': return `Market breadth naik < ${value}`;
-    case 'CONSENSUS_STRONG_BUY': return 'Konsensus Sangat Positif';
-    case 'RSI_OVERSOLD': return 'RSI Oversold';
-    default: return getAlertOption(alert.conditionType)?.label ?? alert.conditionType;
-  }
-}
 
 export default function WatchlistPage() {
   const { user: authUser, resolved: authResolved } = useAuthUser();
@@ -167,6 +33,7 @@ export default function WatchlistPage() {
   const [watchlistError, setWatchlistError] = useState(false);
   const [watchlistErrorRequestId, setWatchlistErrorRequestId] = useState<string | null>(null);
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [digest, setDigest] = useState<WatchlistDigestData | null>(null);
   const [loading, setLoading] = useState(true);
   const [liveData, setLiveData] = useState<Record<string, any>>({});
 
@@ -197,8 +64,18 @@ export default function WatchlistPage() {
     const controller = new AbortController();
     fetchWatchlist(controller.signal);
     fetchAlerts(controller.signal);
+    fetchDigest(controller.signal);
     return () => controller.abort();
   }, []);
+
+  const fetchDigest = async (signal?: AbortSignal) => {
+    try {
+      const json = await apiRequest<WatchlistDigestData>('/api/watchlist/digest', { signal });
+      if (json && typeof json === 'object') setDigest(json);
+    } catch {
+      // Digest bersifat pengaya; kegagalan atau tamu 401 tidak boleh mengganggu fungsi utama watchlist.
+    }
+  };
 
   const fetchWatchlist = async (signal?: AbortSignal) => {
     try {
@@ -233,6 +110,7 @@ export default function WatchlistPage() {
       setLoading(false);
     }
     return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [watchlist, watchlistLoaded]);
 
   const fetchAlerts = async (signal?: AbortSignal) => {
@@ -256,19 +134,14 @@ export default function WatchlistPage() {
   const fetchLiveData = async (signal?: AbortSignal) => {
     setLoading(true);
     try {
-      const results = await Promise.all(watchlist.map(async (item) => {
-        try {
-          const data = await apiRequest<any>(`/api/stock/${item.symbol.replace('.JK', '')}`, { signal });
-          return [item.symbol, data] as const;
-        } catch (error) {
-          if (error instanceof DOMException && error.name === 'AbortError') throw error;
-          console.error(`Failed to fetch data for ${item.symbol}`, error);
-          return null;
-        }
-      }));
-      const newData: Record<string, any> = {};
-      results.forEach((result) => { if (result) newData[result[0]] = result[1]; });
-      if (!signal?.aborted) setLiveData(newData);
+      const symbolsParam = watchlist.map((item) => item.symbol).join(',');
+      const batchRes = await apiRequest<{ data?: Record<string, any> }>(
+        `/api/stock/batch?symbols=${encodeURIComponent(symbolsParam)}`,
+        { signal },
+      );
+      if (!signal?.aborted && batchRes?.data && typeof batchRes.data === 'object') {
+        setLiveData(batchRes.data);
+      }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) {
         console.error('Failed to refresh watchlist prices', error);
@@ -300,6 +173,7 @@ export default function WatchlistPage() {
         body: JSON.stringify({ symbol, buy_price: price, lot }),
       });
       void fetchWatchlist();
+      void fetchDigest();
       setNewSymbol('');
       setBuyPrice('');
       setLotAmount('');
@@ -313,6 +187,7 @@ export default function WatchlistPage() {
     try {
       await apiRequest(`/api/watchlist?symbol=${encodeURIComponent(symbol)}`, { method: 'DELETE' });
       void fetchWatchlist();
+      void fetchDigest();
       setLiveData((current) => {
         const next = { ...current };
         delete next[symbol];
@@ -350,6 +225,7 @@ export default function WatchlistPage() {
         }),
       });
       void fetchAlerts();
+      void fetchDigest();
       setAlertSymbol('');
       setAlertValue('');
       showToast('Alert berhasil dibuat.', 'success');
@@ -363,6 +239,7 @@ export default function WatchlistPage() {
     try {
       await apiRequest(`/api/alert?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
       void fetchAlerts();
+      void fetchDigest();
     } catch (error) {
       console.error('Failed to remove alert', error);
       showToast(apiErrorMessage(error, 'Gagal menghapus alert.', true), 'error');
@@ -378,6 +255,7 @@ export default function WatchlistPage() {
         body: JSON.stringify({ symbol, journal_note: note }),
       });
       void fetchWatchlist();
+      void fetchDigest();
       setJournalSymbol(null);
       setJournalNote('');
       showToast(note.trim() ? 'Catatan berhasil disimpan.' : 'Catatan berhasil dihapus.', 'success');
@@ -421,6 +299,23 @@ export default function WatchlistPage() {
   const totalPnlPct = totalInvested > 0 ? ((totalCurrent - totalInvested) / totalInvested) * 100 : 0;
   const activeAlertsCount = alerts.filter(a => a.isActive).length;
 
+  const nearStopSymbols = watchlist
+    .filter((w) => {
+      const p = liveData[w.symbol]?.price;
+      if (typeof p !== 'number' || p <= 0) return false;
+      if (w.alert_price && p <= w.alert_price) return true;
+      if (w.buy_price > 0 && p <= w.buy_price * 0.95) return true;
+      return false;
+    })
+    .map((w) => displayTicker(w.symbol));
+
+  const aboveTargetSymbols = watchlist
+    .filter((w) => {
+      const p = liveData[w.symbol]?.price;
+      return typeof p === 'number' && p > 0 && w.buy_price > 0 && p >= w.buy_price * 1.1;
+    })
+    .map((w) => displayTicker(w.symbol));
+
   return (
     <div className="flex-1 flex flex-col bg-tv-bg min-h-screen">
       <JourneyBeacon event="watchlist_view" surface="watchlist" />
@@ -447,18 +342,22 @@ export default function WatchlistPage() {
           ]}
         />
 
+        <WatchlistDigestBanner
+          digest={digest}
+          nearStopSymbols={nearStopSymbols}
+          aboveTargetSymbols={aboveTargetSymbols}
+        />
+
         {/* Watchlist Section */}
         <div className="lg:col-span-2 space-y-6">
           <PortfolioHealth
-            watchlist={watchlist.map(item => {
-              return {
-                simbol: item.symbol,
-                hargaBeli: item.buy_price,
-                hargaSekarang: liveData[item.symbol]?.price,
-                lot: item.lot,
-                pnl: item.buy_price > 0 && liveData[item.symbol]?.price > 0 ? ((liveData[item.symbol]?.price - item.buy_price) / item.buy_price) * 100 : 0
-              };
-            })}
+            watchlist={watchlist.map(item => ({
+              simbol: item.symbol,
+              hargaBeli: item.buy_price,
+              hargaSekarang: liveData[item.symbol]?.price,
+              lot: item.lot,
+              pnl: item.buy_price > 0 && liveData[item.symbol]?.price > 0 ? ((liveData[item.symbol]?.price - item.buy_price) / item.buy_price) * 100 : 0,
+            }))}
           />
 
           <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border p-5">
@@ -571,9 +470,7 @@ export default function WatchlistPage() {
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-bold text-tv-text font-number">{code}</span>
-                        <span
-                          className={`lens-chip font-bold px-1.5 py-0.5 rounded border ${scoreToneClass}`}
-                        >
+                        <span className={`lens-chip font-bold px-1.5 py-0.5 rounded border ${scoreToneClass}`}>
                           {scoreLabel}
                         </span>
                         {currentPrice != null && (item.buy_price || item.alert_price) && (
@@ -735,85 +632,19 @@ export default function WatchlistPage() {
           </Card>
         </div>
 
-        <div className="space-y-6 h-full">
-          <Card padding="none" radius="lg" elevation="sm" highlight={false} className="border-tv-border p-5 h-full flex flex-col">
-            <div className="flex items-center justify-between border-b border-tv-border pb-3 mb-4">
-              <h3 className="font-heading text-base font-bold text-tv-text flex items-center gap-2">
-                <Bell className="w-5 h-5 text-tv-yellow" />
-                LensAlert
-              </h3>
-              {isAdmin && (
-                <Button variant="bare" size="none" onClick={triggerCron} className="lens-meta text-tv-muted hover:text-tv-text underline">
-                  Test Cron
-                </Button>
-              )}
-            </div>
-
-            <form onSubmit={addAlert} className="space-y-3 mb-6">
-              <SymbolAutocomplete
-                containerClassName="relative w-full"
-                placeholder="Simbol (BBCA)"
-                value={alertSymbol}
-                onChange={(val) => setAlertSymbol(val)}
-                className="w-full bg-tv-bg/60 border border-tv-border text-tv-text rounded-md px-3 py-2 text-sm focus:outline-none focus:border-tv-yellow transition-colors"
-                required
-              />
-              <Select value={alertCondition} onChange={(e) => setAlertCondition(e.target.value)}>
-                {ALERT_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </Select>
-              {getAlertOption(alertCondition)?.needsValue && (
-                <Input
-                  type="number"
-                  placeholder={getAlertOption(alertCondition)?.placeholder || 'Target nilai'}
-                  value={alertValue}
-                  onChange={(e) => setAlertValue(e.target.value)}
-                  required
-                  className="font-number"
-                />
-              )}
-              <Button type="submit" variant="secondary" className="w-full">
-                <Plus className="w-4 h-4" /> Set Alert
-              </Button>
-            </form>
-
-            <div className="space-y-2 flex-1 min-h-[120px] max-h-[400px] overflow-y-auto pr-1">
-              {alerts.map(alert => {
-                const AlertIcon = alert.conditionType === 'PRICE_BELOW' ? ArrowDownCircle
-                  : alert.conditionType === 'PRICE_ABOVE' ? ArrowUpCircle
-                  : alert.conditionType === 'RSI_OVERSOLD' ? Gauge
-                  : alert.conditionType === 'LENS_SCORE_ABOVE' ? Target
-                  : alert.conditionType === 'LENS_CONFIDENCE_BELOW' ? ShieldAlert
-                  : Sparkles;
-                return (
-                  <div key={alert.id} className={`p-3 rounded-md border flex flex-col gap-2 ${alert.isActive ? 'bg-tv-bg border-tv-border' : 'bg-tv-bg/50 border-tv-border/50 opacity-50'}`}>
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-tv-text font-number">{displayTicker(alert.symbol)}</span>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={alert.isActive ? 'success' : 'neutral'}>{alert.isActive ? 'Active' : 'Triggered'}</Badge>
-                        <Button variant="bare" size="none" aria-label={`Hapus alert ${displayTicker(alert.symbol)}`} onClick={() => removeAlert(alert.id)} className="text-tv-muted hover:text-tv-red">
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </div>
-                    <div className="text-xs text-tv-muted flex items-center gap-1.5">
-                      <AlertIcon className="w-3.5 h-3.5 shrink-0" />
-                      {alertConditionText(alert)}
-                    </div>
-                  </div>
-                );
-              })}
-              {alerts.length === 0 && (
-                <EmptyState
-                  illustration="empty"
-                  title="Belum ada alert"
-                  description="Alert berjalan di server, jadi tetap aktif walau halaman ini ditutup. Notifikasi hp butuh izin browser - izinnya diminta saat alert pertama dibuat."
-                />
-              )}
-            </div>
-          </Card>
-        </div>
+        <WatchlistAlertsPanel
+          alerts={alerts}
+          isAdmin={isAdmin}
+          alertSymbol={alertSymbol}
+          setAlertSymbol={setAlertSymbol}
+          alertCondition={alertCondition}
+          setAlertCondition={setAlertCondition}
+          alertValue={alertValue}
+          setAlertValue={setAlertValue}
+          onAddAlert={addAlert}
+          onRemoveAlert={removeAlert}
+          onTriggerCron={triggerCron}
+        />
       </PageContainer>
 
       <PaywallModal
