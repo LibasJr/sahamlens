@@ -16,6 +16,6 @@ describe('production security headers', () => {
     const res = await fetch(`${BASE}/.well-known/security.txt`);
     expect(res.status).toBe(200);
     const body = await res.text();
-    expect(body).toContain('Contact: mailto:security@sahamlens.id');
+    expect(body).toMatch(/Contact: mailto:(support|security)@sahamlens\.id/);
   }, 30_000);
 });

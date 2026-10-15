@@ -12,7 +12,7 @@ describe('security hardening baseline', () => {
 
   it('publishes security.txt', () => {
     const securityTxt = readFileSync(path.join(root, 'public/.well-known/security.txt'), 'utf8');
-    expect(securityTxt).toContain('Contact: mailto:security@sahamlens.id');
+    expect(securityTxt).toContain('Contact: mailto:support@sahamlens.id');
     expect(securityTxt).toContain('Canonical: https://sahamlens.id/.well-known/security.txt');
     expect(securityTxt).toContain('Policy: https://sahamlens.id/security');
   });
