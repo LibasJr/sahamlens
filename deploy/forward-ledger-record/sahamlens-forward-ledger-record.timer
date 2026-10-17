@@ -1,0 +1,10 @@
+[Unit]
+Description=Jadwal SahamLens - forward paper-trade signal ledger daily record
+
+[Timer]
+OnCalendar=Mon..Fri 16:30 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-forward-ledger-record.service
+
+[Install]
+WantedBy=timers.target

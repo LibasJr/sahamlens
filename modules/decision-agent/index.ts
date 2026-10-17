@@ -13,6 +13,14 @@ export { decisionAgentActionSchema } from './validator/decision-agent.validator'
 export { freezePilotProtocol, importIdxIcCsv, importStockbitCsv } from './service/pilot-control.service';
 export { applyHybridAnalysis, buildSignalEvidence, resolveHybridModel, resolveHybridModels } from './service/hybrid-analyst.service';
 export { getLatestOfflinePolicyLearning, runOfflinePolicyLearning } from './service/offline-policy-learning.service';
+export {
+  recordDailyForwardSignals,
+  evaluateForwardOutcomes,
+  getForwardLedgerTransparencySummary,
+  calculateNextSessionEntryRef,
+  simulateForwardTrade,
+  type PublicForwardLedgerSummary,
+} from './service/forward-signal-ledger.service';
 export type {
   DecisionAgentDashboard,
   DecisionAction,

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { ArrowLeft, AlertTriangle, CheckCircle2, Info } from 'lucide-react';
 import { Card } from '@/components/ui/Card';
 import { getPublicTransparencyData } from '@/modules/lens-radar/service/transparency.service';
+import { getForwardLedgerTransparencySummary } from '@/modules/decision-agent';
 import { cookies } from 'next/headers';
 import { LANG_COOKIE } from '@/shared/constants/cookie-names';
 
@@ -20,7 +21,10 @@ function fmt(value: number | null | undefined, suffix = '', isEn = false) {
 }
 
 export default async function PublicTransparencyPage() {
-  const data = await getPublicTransparencyData();
+  const [data, forwardLedger] = await Promise.all([
+    getPublicTransparencyData(),
+    getForwardLedgerTransparencySummary(),
+  ]);
   const isEn = (await cookies()).get(LANG_COOKIE)?.value === 'en';
   const isValidated = data.modelStatus === 'VALIDATED_OUT_OF_SAMPLE';
   const StatusIcon = isValidated ? CheckCircle2 : AlertTriangle;
@@ -93,6 +97,73 @@ export default async function PublicTransparencyPage() {
             <div><dt className="text-tv-muted">Price basis</dt><dd className="mt-1 font-mono text-tv-text">{data.model.priceBasis}</dd></div>
             <div><dt className="text-tv-muted">Price data version</dt><dd className="mt-1 font-mono text-tv-text">{data.model.priceDataVersion}</dd></div>
           </dl>
+        </Card>
+
+        <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mb-6 border-tv-border p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-heading text-lg font-bold">
+              {isEn ? 'Forward Paper-Trade Ledger (Genuine OOS, Zero Lookahead)' : 'Forward Paper-Trade Ledger (OOS Maju, Tanpa Lookahead)'}
+            </h2>
+            <span className="rounded bg-tv-yellow/20 px-2 py-0.5 text-xs font-semibold text-tv-yellow">
+              {forwardLedger.modelStatus}
+            </span>
+          </div>
+          <p className="mt-2 text-xs leading-relaxed text-tv-muted">
+            {isEn
+              ? 'To prevent historical backtest contamination, every daily signal is frozen at market close into an append-only ledger with next-session entry reference (paper-fill adverse slippage 10 bps + tick rounding), stop loss, and target. T+5 and T+20 outcomes are evaluated in a separate table strictly after the market horizon has elapsed.'
+              : 'Menghindari pencemaran backtest historis, seluruh sinyal harian dibekukan saat penutupan bursa ke dalam ledger append-only dengan harga acuan entry sesi berikutnya (adverse slippage 10 bps + pembulatan tick BEI), batas batal (stop), dan target. Hasil T+5 dan T+20 dinilai di tabel terpisah HANYA setelah horizon hari bursa terlewati.'}
+          </p>
+
+          {forwardLedger.insufficientSample ? (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-tv-yellow/40 bg-tv-yellow/10 p-3 text-xs text-tv-muted">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-tv-yellow" />
+              <div>
+                <span className="font-semibold text-tv-text">
+                  {isEn ? 'n < 30: Insufficient Sample Size' : 'n < 30: Sampel Belum Cukup'}
+                </span>
+                <p className="mt-1">
+                  {isEn
+                    ? `Only ${forwardLedger.totalEvaluatedT20} forward T+20 samples have matured (minimum 30 required for statistical evaluation). Forward data collection is actively running without backfill.`
+                    : `Baru ${forwardLedger.totalEvaluatedT20} sampel T+20 maju yang matang (minimum 30 sampel untuk evaluasi statistik). Pengumpulan data maju sedang berlangsung tanpa backfill.`}
+                </p>
+              </div>
+            </div>
+          ) : null}
+
+          <div className="mt-4 grid gap-3 text-xs sm:grid-cols-2 lg:grid-cols-4">
+            <Card as="div" padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-3">
+              <div className="text-tv-muted">{isEn ? 'Forward signals (candidates)' : 'Sinyal forward (kandidat)'}</div>
+              <div className="mt-1 font-number text-lg font-bold">{fmt(forwardLedger.totalCandidateSignals, '', isEn)}</div>
+            </Card>
+            <Card as="div" padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-3">
+              <div className="text-tv-muted">{isEn ? 'Matured T+20 outcomes' : 'Outcome T+20 matang'}</div>
+              <div className="mt-1 font-number text-lg font-bold">{fmt(forwardLedger.totalEvaluatedT20, '', isEn)}</div>
+            </Card>
+            <Card as="div" padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-3">
+              <div className="text-tv-muted">{isEn ? 'Median net T+20 (0.60% cost)' : 'Median netto T+20 (biaya 0,60%)'}</div>
+              <div className="mt-1 font-number text-lg font-bold">{fmt(forwardLedger.metricsT20.medianNet60Pct, '%', isEn)}</div>
+            </Card>
+            <Card as="div" padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-3">
+              <div className="text-tv-muted">{isEn ? 'Mean net T+20 (0.60% cost)' : 'Rata-rata netto T+20 (biaya 0,60%)'}</div>
+              <div className="mt-1 font-number text-lg font-bold">{fmt(forwardLedger.metricsT20.meanNet60Pct, '%', isEn)}</div>
+            </Card>
+            <Card as="div" padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-3">
+              <div className="text-tv-muted">{isEn ? 'Win-rate T+20' : 'Win-rate T+20'}</div>
+              <div className="mt-1 font-number text-lg font-bold">{fmt(forwardLedger.metricsT20.winRatePct, '%', isEn)}</div>
+            </Card>
+            <Card as="div" padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-3">
+              <div className="text-tv-muted">{isEn ? 'Excess vs liquid baseline' : 'Excess vs baseline likuid'}</div>
+              <div className="mt-1 font-number text-lg font-bold">{fmt(forwardLedger.metricsT20.excessVsBaselineMeanPct, '%', isEn)}</div>
+            </Card>
+            <Card as="div" padding="none" radius="lg" elevation="none" highlight={false} overflow="visible" className="border-tv-border p-3 sm:col-span-2">
+              <div className="text-tv-muted">{isEn ? 'Rough 95% Confidence Interval' : 'Confidence Interval 95% Kasar'}</div>
+              <div className="mt-1 font-number text-sm font-semibold">
+                {forwardLedger.metricsT20.ci95RoughPct
+                  ? `${forwardLedger.metricsT20.ci95RoughPct.lower}% s/d ${forwardLedger.metricsT20.ci95RoughPct.upper}%`
+                  : (isEn ? 'Requires n >= 5' : 'Membutuhkan n >= 5')}
+              </div>
+            </Card>
+          </div>
         </Card>
 
         <Card as="section" padding="none" radius="xl" elevation="none" highlight={false} overflow="visible" className="mb-6 border-tv-border p-5">

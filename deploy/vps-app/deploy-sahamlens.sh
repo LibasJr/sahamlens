@@ -170,6 +170,20 @@ $SUDO /usr/bin/install -m 0644 deploy/intraday-watchdog/sahamlens-intraday-watch
 $SUDO /usr/bin/systemctl daemon-reload
 $SUDO /usr/bin/systemctl enable sahamlens-intraday-watchdog.timer
 
+echo "Installing forward-ledger systemd units..."
+# Ledger append-only sinyal forward harian point-in-time dan evaluasi outcome tanpa lookahead.
+$SUDO /usr/bin/install -m 0644 deploy/forward-ledger-record/sahamlens-forward-ledger-record.service \
+  /etc/systemd/system/sahamlens-forward-ledger-record.service
+$SUDO /usr/bin/install -m 0644 deploy/forward-ledger-record/sahamlens-forward-ledger-record.timer \
+  /etc/systemd/system/sahamlens-forward-ledger-record.timer
+$SUDO /usr/bin/install -m 0644 deploy/forward-ledger-evaluate/sahamlens-forward-ledger-evaluate.service \
+  /etc/systemd/system/sahamlens-forward-ledger-evaluate.service
+$SUDO /usr/bin/install -m 0644 deploy/forward-ledger-evaluate/sahamlens-forward-ledger-evaluate.timer \
+  /etc/systemd/system/sahamlens-forward-ledger-evaluate.timer
+$SUDO /usr/bin/systemctl daemon-reload
+$SUDO /usr/bin/systemctl enable sahamlens-forward-ledger-record.timer
+$SUDO /usr/bin/systemctl enable sahamlens-forward-ledger-evaluate.timer
+
 echo "Restarting SahamLens..."
 $SUDO /usr/bin/systemctl restart sahamlens
 
