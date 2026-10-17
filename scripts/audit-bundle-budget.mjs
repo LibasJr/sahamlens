@@ -96,7 +96,9 @@ const CHUNKS_DIR = path.join(process.cwd(), '.next', 'static', 'chunks');
 // serta rute batch stock & watchlist digest. Build terukur 6.141 KB (+3 KB). Kepala ruang 7 KB.
 // Dinaikkan 6.148 -> 6.160 KB pada 2026-10-15 untuk integrasi CompareExportCard di /compare
 // serta WatchlistAlertsPanel & WatchlistDigestBanner di /watchlist. Build terukur 6.154 KB (+6 KB). Kepala ruang 6 KB.
-const TOTAL_BUDGET_KB = 6_160;
+// Dinaikkan 6.160 -> 6.172 KB pada 2026-10-18 untuk panel transparansi forward paper-trade ledger
+// di /transparency serta route publik /api/transparency/forward-ledger. Build terukur 6.160 KB (+1 KB). Kepala ruang 11 KB.
+const TOTAL_BUDGET_KB = 6_172;
 // Dinaikkan 440 -> 480 pada 2026-08-23, dan ini SATU-SATUNYA sebabnya: `xlsx` dipindah dari
 // registry npm (0.18.5, dua advisory high tanpa tambalan selamanya) ke tarball resmi SheetJS
 // 0.20.3. Chunk terbesar ikut naik 415 -> 469 KB - 0.20.3 memuat sendiri
