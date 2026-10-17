@@ -1,0 +1,10 @@
+[Unit]
+Description=Jadwal SahamLens - forward paper-trade signal ledger outcome evaluation
+
+[Timer]
+OnCalendar=Mon..Fri 17:30 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-forward-ledger-evaluate.service
+
+[Install]
+WantedBy=timers.target

@@ -46,6 +46,20 @@
       "source": "BARU 2026-08-14, audit lanjutan cache menu terkait cron (bareng screener-scan/calendar-scan) - /api/dividend-plan (menu Dividend Plan) sama sekali tidak punya cron warmer, TTL 30 menit. Timer dipasang & dikonfirmasi jalan pengguna 2026-08-14 (curl manual balas success, systemctl list-timers terdaftar)."
     },
     {
+      "path": "/api/cron/forward-ledger-evaluate",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 17:30 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-10-18, evaluasi hasil forward T+5 & T+20 tanpa lookahead strictly setelah horizon hari bursa terlewati."
+    },
+    {
+      "path": "/api/cron/forward-ledger-record",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 16:30 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-10-18, pencatatan harian append-only forward paper-trade ledger point-in-time pada penutupan bursa."
+    },
+    {
       "path": "/api/cron/fundamental-snapshot",
       "provider": "systemd",
       "schedule": "0 5 * * 1-5",
