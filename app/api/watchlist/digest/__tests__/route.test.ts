@@ -27,7 +27,7 @@ vi.mock('@/modules/market/service/corporate-calendar.service', () => ({
   readKseiCalendarArtifact: vi.fn(() => ({
     events: [
       {
-        date: '2026-10-20',
+        date: new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Jakarta' }).format(new Date()),
         symbol: 'BBCA',
         type: 'DIVIDEND',
         title: 'Cum Date Dividen Interim',
