@@ -9,6 +9,11 @@ import {
   calculateRsLine,
   checkIsLeadingVsIhsg,
   checkIsBlueSkyRs,
+  calculateUpperCloseRatio,
+  checkIsVolumeAbsorption,
+  checkIsShakeoutSpring,
+  calculateTradeSizeProxy,
+  calculateForeignAccumulation,
   parseIhsgBenchmarkResponse,
   fetchTradingViewIhsg,
   checkIsPocketPivot,
@@ -777,6 +782,172 @@ describe('tradingview-scanner.service', () => {
       const mockFetchErr = vi.fn().mockRejectedValue(new Error('Network fail'));
       const ihsg = await fetchTradingViewIhsg({ fetchFn: mockFetchErr as any });
       expect(ihsg).toBeNull();
+    });
+  });
+
+  describe('Smart Money & VSA (Pilar 3)', () => {
+    describe('calculateUpperCloseRatio', () => {
+      it('menghitung rasio penutupan terhadap rentang harian (UCR)', () => {
+        // High 1000, Low 900, Close 975 -> (975 - 900) / (1000 - 900) = 0.75
+        expect(calculateUpperCloseRatio(975, 1000, 900)).toBe(0.75);
+
+        // High 1000, Low 900, Close 910 -> (910 - 900) / 100 = 0.1
+        expect(calculateUpperCloseRatio(910, 1000, 900)).toBe(0.1);
+      });
+
+      it('mengembalikan 0.5 jika spread nol atau high <= low (Doji)', () => {
+        expect(calculateUpperCloseRatio(1000, 1000, 1000)).toBe(0.5);
+      });
+
+      it('mengembalikan null jika ada input null', () => {
+        expect(calculateUpperCloseRatio(null, 1000, 900)).toBeNull();
+        expect(calculateUpperCloseRatio(950, null, 900)).toBeNull();
+        expect(calculateUpperCloseRatio(950, 1000, null)).toBeNull();
+      });
+    });
+
+    describe('checkIsVolumeAbsorption', () => {
+      it('mendeteksi penyerapan volume saat spread sempit, rvol tinggi, dan ucr tinggi', () => {
+        const isAbsorbed = checkIsVolumeAbsorption({
+          spreadRatio: 0.70, // <= 0.85
+          rvol: 2.1,         // >= 1.50
+          ucr: 0.75,         // >= 0.55
+          isLiquid: true,
+        });
+        expect(isAbsorbed).toBe(true);
+      });
+
+      it('menolak jika spread terlalu lebar vs ATR', () => {
+        const isAbsorbed = checkIsVolumeAbsorption({
+          spreadRatio: 1.10, // > 0.85
+          rvol: 2.5,
+          ucr: 0.80,
+          isLiquid: true,
+        });
+        expect(isAbsorbed).toBe(false);
+      });
+
+      it('menolak jika volume tidak memadai', () => {
+        const isAbsorbed = checkIsVolumeAbsorption({
+          spreadRatio: 0.60,
+          rvol: 1.2, // < 1.50
+          ucr: 0.80,
+          isLiquid: true,
+        });
+        expect(isAbsorbed).toBe(false);
+      });
+
+      it('menolak jika penutupan di paruh bawah (UCR rendah)', () => {
+        const isAbsorbed = checkIsVolumeAbsorption({
+          spreadRatio: 0.60,
+          rvol: 2.0,
+          ucr: 0.40, // < 0.55
+          isLiquid: true,
+        });
+        expect(isAbsorbed).toBe(false);
+      });
+    });
+
+    describe('checkIsShakeoutSpring', () => {
+      it('mendeteksi shakeout spring saat low menusuk bawah EMA20 tetapi close memantul di atasnya', () => {
+        const isShakeout = checkIsShakeoutSpring({
+          low: 720,
+          close: 760,
+          ema20: 740,
+          sma50: 700,
+          ucr: 0.85,
+          rvol: 1.6,
+          isLiquid: true,
+        });
+        expect(isShakeout).toBe(true);
+      });
+
+      it('mendeteksi shakeout spring saat low menusuk bawah SMA50 tetapi close memantul di atasnya', () => {
+        const isShakeout = checkIsShakeoutSpring({
+          low: 680,
+          close: 710,
+          ema20: 750,
+          sma50: 700,
+          ucr: 0.70,
+          rvol: 1.4,
+          isLiquid: true,
+        });
+        expect(isShakeout).toBe(true);
+      });
+
+      it('menolak jika harga ditutup di bawah support (bukan spring)', () => {
+        const isShakeout = checkIsShakeoutSpring({
+          low: 680,
+          close: 690, // Tetap di bawah SMA50 (700)
+          ema20: 750,
+          sma50: 700,
+          ucr: 0.70,
+          rvol: 1.8,
+          isLiquid: true,
+        });
+        expect(isShakeout).toBe(false);
+      });
+    });
+
+    describe('calculateTradeSizeProxy', () => {
+      it('menghitung rata-rata rupiah per transaksi dan mendeteksi akumulasi diam-diam', () => {
+        const history: Array<{ value: number; frequency: number; change?: number }> = [];
+        // 20 hari normal: value 10 Miliar, frekuensi 1000 order -> TSP Rp 10.000.000
+        for (let i = 0; i < 20; i++) {
+          history.push({ value: 10_000_000_000, frequency: 1_000, change: 0.5 });
+        }
+        // Hari ini: value 25 Miliar, frekuensi cuma 1000 order -> TSP Rp 25.000.000 (TSP Ratio = 2.5x)
+        history.push({ value: 25_000_000_000, frequency: 1_000, change: 1.2 });
+
+        const tsp = calculateTradeSizeProxy(history);
+        expect(tsp.currentTsp).toBe(25_000_000);
+        expect(tsp.avg20dTsp).toBe(10_000_000);
+        expect(tsp.tspRatio).toBe(2.5);
+        expect(tsp.isQuietAccumulation).toBe(true);
+      });
+
+      it('menolak akumulasi diam-diam jika harga melonjak terlalu liar (> 3%)', () => {
+        const history: Array<{ value: number; frequency: number; change?: number }> = [];
+        for (let i = 0; i < 20; i++) {
+          history.push({ value: 10_000_000_000, frequency: 1_000, change: 0.5 });
+        }
+        // TSP melonjak tapi harga terbang +10% (bukan quiet accumulation lagi)
+        history.push({ value: 30_000_000_000, frequency: 1_000, change: 10.0 });
+
+        const tsp = calculateTradeSizeProxy(history);
+        expect(tsp.tspRatio).toBe(3.0);
+        expect(tsp.isQuietAccumulation).toBe(false);
+      });
+
+      it('menangani data riwayat kosong dengan aman', () => {
+        const tsp = calculateTradeSizeProxy([]);
+        expect(tsp.currentTsp).toBeNull();
+        expect(tsp.tspRatio).toBeNull();
+        expect(tsp.isQuietAccumulation).toBe(false);
+      });
+    });
+
+    describe('calculateForeignAccumulation', () => {
+      it('mendeteksi akumulasi investor asing signifikan dengan net foreign value 5 hari positif dan FPR tinggi', () => {
+        const history = [
+          { netForeignValueBillion: 10, foreignBuy: 30e9, foreignSell: 10e9, value: 50e9, close: 1000 },
+          { netForeignValueBillion: 15, foreignBuy: 35e9, foreignSell: 10e9, value: 50e9, close: 1010 },
+          { netForeignValueBillion: 5, foreignBuy: 25e9, foreignSell: 10e9, value: 50e9, close: 1020 },
+          { netForeignValueBillion: 8, foreignBuy: 28e9, foreignSell: 10e9, value: 50e9, close: 1030 },
+          { netForeignValueBillion: 12, foreignBuy: 32e9, foreignSell: 10e9, value: 50e9, close: 1050 },
+        ];
+
+        const res = calculateForeignAccumulation(history, 950);
+        expect(res.nfv5d).toBe(50); // 10 + 15 + 5 + 8 + 12
+        expect(res.fpr).toBeGreaterThan(40);
+        expect(res.isForeignAccumulation).toBe(true);
+      });
+
+      it('menangani history kosong', () => {
+        const res = calculateForeignAccumulation([]);
+        expect(res.nfv5d).toBeNull();
+        expect(res.isForeignAccumulation).toBe(false);
+      });
     });
   });
 });

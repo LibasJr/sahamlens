@@ -96,7 +96,16 @@ async function main() {
   const flagPocketPivot = args.includes('--pocket-pivot');
   const flagBlueSky = args.includes('--blue-sky');
   const flagLeading = args.includes('--leading');
-  const hasFilter = flagStage2 || flagNear52w || flagPocketPivot || flagBlueSky || flagLeading;
+  const flagAbsorption = args.includes('--absorption');
+  const flagShakeout = args.includes('--shakeout');
+  const hasFilter =
+    flagStage2 ||
+    flagNear52w ||
+    flagPocketPivot ||
+    flagBlueSky ||
+    flagLeading ||
+    flagAbsorption ||
+    flagShakeout;
 
   const uninstallHook = installTypeScriptRequireHook(repoRoot);
   let scanIdxMarket;
@@ -151,6 +160,14 @@ async function main() {
     printQuantitativeStockTable('EMITEN OUTPERFORMING VS IHSG (Alpha 1M & 3M Positif)', result.leadingStocks, 50);
   }
 
+  if (flagAbsorption) {
+    printQuantitativeStockTable('SMART MONEY VOLUME ABSORPTION / STOPPING VOLUME (Spread Narrow, RVOL >= 1.5x, UCR >= 0.55)', result.volumeAbsorptionStocks, 50);
+  }
+
+  if (flagShakeout) {
+    printQuantitativeStockTable('SHAKEOUT SPRING / REVERSAL TRAP (Intraday Dip Under EMA20/SMA50, UCR >= 0.60, RVOL >= 1.3x)', result.shakeoutSpringStocks, 50);
+  }
+
   if (!hasFilter) {
     console.log('TOP 10 RELATIVE STRENGTH (RS 1-99 Minervini/IBD Style):');
     console.log(
@@ -182,6 +199,12 @@ async function main() {
     printQuantitativeStockTable('TOP 5 BLUE SKY RS LEADING DIVERGENCE (Stage 2 + Near 52W High + RS >= 80)', result.blueSkyRsStocks, 5);
     console.log('-'.repeat(78));
 
+    printQuantitativeStockTable('TOP 5 SMART MONEY ABSORPTION (Narrow Spread + RVOL >= 1.5x + UCR >= 0.55)', result.volumeAbsorptionStocks, 5);
+    console.log('-'.repeat(78));
+
+    printQuantitativeStockTable('TOP 5 SHAKEOUT SPRING REVERSAL TRAP (Dip < EMA20/SMA50 + High UCR)', result.shakeoutSpringStocks, 5);
+    console.log('-'.repeat(78));
+
     console.log('TOP 5 SEKTOR BERDASARKAN TURNOVER:');
     result.sectors.slice(0, 5).forEach((sec, idx) => {
       const num = String(idx + 1).padStart(2);
@@ -209,7 +232,7 @@ async function main() {
 
   console.log('='.repeat(78));
   if (!hasFilter) {
-    console.log('Flag filter CLI: --near-52w, --pocket-pivot, --stage2, --blue-sky, --leading');
+    console.log('Flag filter CLI: --near-52w, --pocket-pivot, --stage2, --blue-sky, --leading, --absorption, --shakeout');
   }
   console.log('\n');
 }
