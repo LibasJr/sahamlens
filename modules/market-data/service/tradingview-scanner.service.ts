@@ -34,6 +34,9 @@ export const TRADINGVIEW_COLUMNS = [
   'SMA20',
   'gap',
   'change_from_open',
+  'open',
+  'high',
+  'low',
 ] as const;
 
 export type TradingViewColumnName = (typeof TRADINGVIEW_COLUMNS)[number];
@@ -135,6 +138,15 @@ export interface TradingViewStockItem {
   alphaVsIhsgYear: number | null;
   isLeadingVsIhsg: boolean;
   isBlueSkyRs: boolean;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  spread: number | null;
+  spreadRatio: number | null;
+  ucr: number | null;
+  vwap: number | null;
+  isVolumeAbsorption: boolean;
+  isShakeoutSpring: boolean;
 }
 
 export interface MarketBreadthSummary {
@@ -174,6 +186,8 @@ export interface IdxMarketScanResult {
   pocketPivotStocks: TradingViewStockItem[];
   leadingStocks: TradingViewStockItem[];
   blueSkyRsStocks: TradingViewStockItem[];
+  volumeAbsorptionStocks: TradingViewStockItem[];
+  shakeoutSpringStocks: TradingViewStockItem[];
 }
 
 export interface TradingViewScannerOptions {
@@ -347,6 +361,165 @@ export function checkIsBlueSkyRs(
   return true;
 }
 
+export function calculateUpperCloseRatio(
+  close: number | null,
+  high: number | null,
+  low: number | null
+): number | null {
+  if (close === null || high === null || low === null) {
+    return null;
+  }
+  if (high <= low) {
+    return 0.5;
+  }
+  const ucr = (close - low) / (high - low);
+  return Math.round(Math.max(0, Math.min(1, ucr)) * 1000) / 1000;
+}
+
+export function checkIsVolumeAbsorption(params: {
+  spreadRatio: number | null;
+  rvol: number | null;
+  ucr: number | null;
+  isLiquid?: boolean;
+}): boolean {
+  const { spreadRatio, rvol, ucr, isLiquid } = params;
+  if (isLiquid === false) return false;
+  if (spreadRatio === null || rvol === null || ucr === null) return false;
+  return spreadRatio <= 0.85 && rvol >= 1.5 && ucr >= 0.55;
+}
+
+export function checkIsShakeoutSpring(params: {
+  low: number | null;
+  close: number | null;
+  ema20?: number | null;
+  sma50?: number | null;
+  ucr: number | null;
+  rvol: number | null;
+  isLiquid?: boolean;
+}): boolean {
+  const { low, close, ema20, sma50, ucr, rvol, isLiquid } = params;
+  if (isLiquid === false) return false;
+  if (low === null || close === null || ucr === null || rvol === null) return false;
+  if (rvol < 1.3 || ucr < 0.6) return false;
+
+  const piercedEma20 = ema20 !== null && ema20 !== undefined && low < ema20 && close > ema20;
+  const piercedSma50 = sma50 !== null && sma50 !== undefined && low < sma50 && close > sma50;
+
+  return piercedEma20 || piercedSma50;
+}
+
+export interface TradeSizeProxyResult {
+  currentTsp: number | null;
+  avg20dTsp: number | null;
+  tspRatio: number | null;
+  isQuietAccumulation: boolean;
+}
+
+export function calculateTradeSizeProxy(
+  history: Array<{ value: number; frequency: number; change?: number | null }>
+): TradeSizeProxyResult {
+  if (!history || history.length < 2) {
+    return {
+      currentTsp: null,
+      avg20dTsp: null,
+      tspRatio: null,
+      isQuietAccumulation: false,
+    };
+  }
+
+  const validEntries = history.filter((h) => h.value > 0 && h.frequency > 0);
+  if (validEntries.length < 2) {
+    return {
+      currentTsp: null,
+      avg20dTsp: null,
+      tspRatio: null,
+      isQuietAccumulation: false,
+    };
+  }
+
+  const latest = validEntries[validEntries.length - 1];
+  const currentTsp = latest.value / latest.frequency;
+
+  const lookback = validEntries.slice(Math.max(0, validEntries.length - 21), validEntries.length - 1);
+  if (lookback.length === 0) {
+    return {
+      currentTsp: Math.round(currentTsp),
+      avg20dTsp: null,
+      tspRatio: null,
+      isQuietAccumulation: false,
+    };
+  }
+
+  const avg20dTsp =
+    lookback.reduce((acc, item) => acc + item.value / item.frequency, 0) / lookback.length;
+
+  const tspRatio = avg20dTsp > 0 ? Math.round((currentTsp / avg20dTsp) * 100) / 100 : null;
+  const change = latest.change ?? 0;
+  const isQuietAccumulation = tspRatio !== null && tspRatio >= 2.0 && change >= -1.0 && change <= 3.0;
+
+  return {
+    currentTsp: Math.round(currentTsp),
+    avg20dTsp: Math.round(avg20dTsp),
+    tspRatio,
+    isQuietAccumulation,
+  };
+}
+
+export interface ForeignAccumulationResult {
+  nfv5d: number | null;
+  fpr: number | null;
+  isForeignAccumulation: boolean;
+}
+
+export function calculateForeignAccumulation(
+  history: Array<{
+    netForeignValueBillion?: number | null;
+    foreignBuy?: number | null;
+    foreignSell?: number | null;
+    value?: number | null;
+    close?: number | null;
+  }>,
+  sma50?: number | null
+): ForeignAccumulationResult {
+  if (!history || history.length === 0) {
+    return { nfv5d: null, fpr: null, isForeignAccumulation: false };
+  }
+
+  const last5 = history.slice(-5);
+  let sumNfv5d = 0;
+  let hasNfv = false;
+  for (const item of last5) {
+    if (typeof item.netForeignValueBillion === 'number') {
+      sumNfv5d += item.netForeignValueBillion;
+      hasNfv = true;
+    }
+  }
+
+  const latest = history[history.length - 1];
+  let fpr: number | null = null;
+  if (
+    typeof latest?.foreignBuy === 'number' &&
+    typeof latest?.foreignSell === 'number' &&
+    typeof latest?.value === 'number' &&
+    latest.value > 0
+  ) {
+    fpr = Math.round(((latest.foreignBuy + latest.foreignSell) / (2 * latest.value)) * 100 * 100) / 100;
+  }
+
+  const nfv5d = hasNfv ? Math.round(sumNfv5d * 100) / 100 : null;
+  const latestClose = latest?.close ?? null;
+  const closeAboveSma50 = sma50 !== null && sma50 !== undefined && latestClose !== null ? latestClose >= sma50 : true;
+
+  const isForeignAccumulation =
+    nfv5d !== null && nfv5d >= 25.0 && fpr !== null && fpr >= 30.0 && closeAboveSma50;
+
+  return {
+    nfv5d,
+    fpr,
+    isForeignAccumulation,
+  };
+}
+
 export function parseIhsgBenchmarkResponse(json: unknown): IhsgBenchmark | null {
   if (!json || typeof json !== 'object') return null;
   const rawList = (json as { data?: Array<{ s?: unknown; d?: unknown[] }> }).data;
@@ -438,6 +611,9 @@ export function parseTradingViewScanResponse(
   const idxSma20 = colIndex.get('SMA20');
   const idxGap = colIndex.get('gap');
   const idxChangeFromOpen = colIndex.get('change_from_open');
+  const idxOpen = colIndex.get('open');
+  const idxHigh = colIndex.get('high');
+  const idxLow = colIndex.get('low');
 
   const rawList = (json as { data: Array<{ s?: unknown; d?: unknown[] }> }).data;
 
@@ -479,6 +655,18 @@ export function parseTradingViewScanResponse(
     const sma20 = idxSma20 !== undefined ? parseNumber(d[idxSma20]) : null;
     const gap = idxGap !== undefined ? parseNumber(d[idxGap]) : null;
     const changeFromOpen = idxChangeFromOpen !== undefined ? parseNumber(d[idxChangeFromOpen]) : null;
+    const open = idxOpen !== undefined ? parseNumber(d[idxOpen]) : null;
+    const high = idxHigh !== undefined ? parseNumber(d[idxHigh]) : null;
+    const low = idxLow !== undefined ? parseNumber(d[idxLow]) : null;
+
+    const spread = high !== null && low !== null ? Math.round((high - low) * 100) / 100 : null;
+    const spreadRatio =
+      spread !== null && atr !== null && atr > 0 ? Math.round((spread / atr) * 100) / 100 : null;
+    const ucr = calculateUpperCloseRatio(close, high, low);
+    const vwap =
+      volume !== null && volume > 0 && turnover !== null && turnover > 0
+        ? Math.round(turnover / volume)
+        : null;
 
     const aboveSma200 = close !== null && sma200 !== null ? close > sma200 : null;
 
@@ -501,6 +689,21 @@ export function parseTradingViewScanResponse(
       rvol,
       change,
       dist52wHighPct,
+    });
+
+    const isVolumeAbsorption = checkIsVolumeAbsorption({
+      spreadRatio,
+      rvol,
+      ucr,
+    });
+
+    const isShakeoutSpring = checkIsShakeoutSpring({
+      low,
+      close,
+      ema20,
+      sma50,
+      ucr,
+      rvol,
     });
 
     return {
@@ -537,6 +740,15 @@ export function parseTradingViewScanResponse(
       sma20,
       gap,
       changeFromOpen,
+      open,
+      high,
+      low,
+      spread,
+      spreadRatio,
+      ucr,
+      vwap,
+      isVolumeAbsorption,
+      isShakeoutSpring,
       dist52wHighPct,
       isStage2,
       near52wHigh,
@@ -863,6 +1075,12 @@ export async function scanIdxMarket(
   const blueSkyRsStocks = stocks
     .filter((s) => s.isBlueSkyRs)
     .sort((a, b) => (b.rsScore ?? 0) - (a.rsScore ?? 0) || (a.dist52wHighPct ?? 999) - (b.dist52wHighPct ?? 999));
+  const volumeAbsorptionStocks = stocks
+    .filter((s) => s.isVolumeAbsorption && s.isLiquid)
+    .sort((a, b) => (b.rvol ?? 0) - (a.rvol ?? 0) || (b.turnover ?? 0) - (a.turnover ?? 0));
+  const shakeoutSpringStocks = stocks
+    .filter((s) => s.isShakeoutSpring && s.isLiquid)
+    .sort((a, b) => (b.rvol ?? 0) - (a.rvol ?? 0) || (b.turnover ?? 0) - (a.turnover ?? 0));
 
   const nowWib = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Jakarta',
@@ -889,5 +1107,7 @@ export async function scanIdxMarket(
     pocketPivotStocks,
     leadingStocks,
     blueSkyRsStocks,
+    volumeAbsorptionStocks,
+    shakeoutSpringStocks,
   };
 }
