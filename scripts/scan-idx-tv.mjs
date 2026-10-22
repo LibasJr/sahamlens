@@ -94,7 +94,9 @@ async function main() {
   const flagStage2 = args.includes('--stage2');
   const flagNear52w = args.includes('--near-52w');
   const flagPocketPivot = args.includes('--pocket-pivot');
-  const hasFilter = flagStage2 || flagNear52w || flagPocketPivot;
+  const flagBlueSky = args.includes('--blue-sky');
+  const flagLeading = args.includes('--leading');
+  const hasFilter = flagStage2 || flagNear52w || flagPocketPivot || flagBlueSky || flagLeading;
 
   const uninstallHook = installTypeScriptRequireHook(repoRoot);
   let scanIdxMarket;
@@ -117,6 +119,13 @@ async function main() {
   console.log(`IDX MARKET SCANNER REPORT | ${result.timestamp} (${elapsedMs}ms)`);
   console.log('='.repeat(78));
   console.log(`Total Emiten     : ${result.totalCount} dipindai | ${result.liquidCount} universe likuid (Turnover >= Rp 1 Miliar)`);
+  if (result.ihsg) {
+    const ih = result.ihsg;
+    const ihClose = ih.close !== null ? ih.close.toLocaleString('id-ID') : '-';
+    const ihChg = ih.change !== null ? (ih.change >= 0 ? `+${ih.change.toFixed(2)}%` : `${ih.change.toFixed(2)}%`) : '-';
+    const ihDist52w = ih.dist52wHighPct !== null ? `${ih.dist52wHighPct.toFixed(2)}%` : '-';
+    console.log(`IHSG Benchmark   : ${ihClose} (${ihChg}) | Trend: ${ih.trend} | Dist 52W: ${ihDist52w}`);
+  }
   console.log(`Market Breadth   : Naik: ${mb.advances} | Turun: ${mb.declines} | Stagnan: ${mb.unchanged}`);
   console.log(`A/D Ratio        : ${mb.advanceDeclineRatio}x | Sentimen: ${mb.sentiment}`);
   console.log(`Total Turnover   : Rp ${mb.totalTurnoverTrillion} Triliun`);
@@ -132,6 +141,14 @@ async function main() {
 
   if (flagStage2) {
     printQuantitativeStockTable('UNIVERSE STAGE 2 MOMENTUM (Close > SMA50 > SMA200)', result.stage2Stocks, 50);
+  }
+
+  if (flagBlueSky) {
+    printQuantitativeStockTable('BLUE SKY RS LEADING DIVERGENCE (Stage 2 + Dist <= 15% + RS >= 80)', result.blueSkyRsStocks, 50);
+  }
+
+  if (flagLeading) {
+    printQuantitativeStockTable('EMITEN OUTPERFORMING VS IHSG (Alpha 1M & 3M Positif)', result.leadingStocks, 50);
   }
 
   if (!hasFilter) {
@@ -162,6 +179,9 @@ async function main() {
     printQuantitativeStockTable('TOP 10 STAGE 2 TERDEKAT DARI 52W HIGH (<= 15%)', result.near52wStocks, 10);
     console.log('-'.repeat(78));
 
+    printQuantitativeStockTable('TOP 5 BLUE SKY RS LEADING DIVERGENCE (Stage 2 + Near 52W High + RS >= 80)', result.blueSkyRsStocks, 5);
+    console.log('-'.repeat(78));
+
     console.log('TOP 5 SEKTOR BERDASARKAN TURNOVER:');
     result.sectors.slice(0, 5).forEach((sec, idx) => {
       const num = String(idx + 1).padStart(2);
@@ -189,7 +209,7 @@ async function main() {
 
   console.log('='.repeat(78));
   if (!hasFilter) {
-    console.log('Flag filter CLI: --near-52w, --pocket-pivot, --stage2');
+    console.log('Flag filter CLI: --near-52w, --pocket-pivot, --stage2, --blue-sky, --leading');
   }
   console.log('\n');
 }
