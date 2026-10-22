@@ -98,6 +98,8 @@ async function main() {
   const flagLeading = args.includes('--leading');
   const flagAbsorption = args.includes('--absorption');
   const flagShakeout = args.includes('--shakeout');
+  const flagAlert = args.includes('--alert');
+  const flagSend = args.includes('--send');
   const hasFilter =
     flagStage2 ||
     flagNear52w ||
@@ -105,13 +107,21 @@ async function main() {
     flagBlueSky ||
     flagLeading ||
     flagAbsorption ||
-    flagShakeout;
+    flagShakeout ||
+    flagAlert;
 
   const uninstallHook = installTypeScriptRequireHook(repoRoot);
   let scanIdxMarket;
+  let formatSwingMomentumAlert;
+  let formatSwingScannerBatchSummary;
+  let sendTelegramMessage;
   try {
     const serviceModule = require(path.join(repoRoot, 'modules/market-data/service/tradingview-scanner.service.ts'));
     scanIdxMarket = serviceModule.scanIdxMarket;
+    const notifModule = require(path.join(repoRoot, 'modules/notification/service/telegram-signal.service.ts'));
+    formatSwingMomentumAlert = notifModule.formatSwingMomentumAlert;
+    formatSwingScannerBatchSummary = notifModule.formatSwingScannerBatchSummary;
+    sendTelegramMessage = notifModule.sendTelegramMessage;
   } finally {
     uninstallHook();
   }
@@ -166,6 +176,44 @@ async function main() {
 
   if (flagShakeout) {
     printQuantitativeStockTable('SHAKEOUT SPRING / REVERSAL TRAP (Intraday Dip Under EMA20/SMA50, UCR >= 0.60, RVOL >= 1.3x)', result.shakeoutSpringStocks, 50);
+  }
+
+  if (flagAlert) {
+    console.log('\n' + '='.repeat(78));
+    console.log('TELEGRAM ALERT PREVIEW (ACTIONABLE RISK-MANAGED TEMPLATE)');
+    console.log('='.repeat(78) + '\n');
+
+    const summaryText = formatSwingScannerBatchSummary(result);
+    console.log(summaryText);
+    console.log('\n');
+
+    const candidates = [
+      ...result.blueSkyRsStocks.slice(0, 2),
+      ...result.shakeoutSpringStocks.slice(0, 2),
+      ...result.pocketPivotStocks.slice(0, 1),
+    ];
+    const seen = new Set();
+    const unique = candidates.filter((c) => {
+      if (seen.has(c.ticker)) return false;
+      seen.add(c.ticker);
+      return true;
+    });
+
+    for (const stock of unique.slice(0, 3)) {
+      const alertCard = formatSwingMomentumAlert(stock);
+      console.log(alertCard);
+      console.log('\n');
+
+      if (flagSend) {
+        console.log(`Mengirim notifikasi #${stock.ticker} ke Telegram...`);
+        const sendRes = await sendTelegramMessage(alertCard);
+        if (sendRes.ok) {
+          console.log(`✅ Berhasil dikirim ke Telegram (Message ID: ${sendRes.messageId})`);
+        } else {
+          console.log(`❌ Gagal kirim: ${sendRes.error}`);
+        }
+      }
+    }
   }
 
   if (!hasFilter) {
@@ -232,7 +280,7 @@ async function main() {
 
   console.log('='.repeat(78));
   if (!hasFilter) {
-    console.log('Flag filter CLI: --near-52w, --pocket-pivot, --stage2, --blue-sky, --leading, --absorption, --shakeout');
+    console.log('Flag filter CLI: --near-52w, --pocket-pivot, --stage2, --blue-sky, --leading, --absorption, --shakeout, --alert, --send');
   }
   console.log('\n');
 }
