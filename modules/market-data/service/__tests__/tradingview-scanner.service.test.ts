@@ -2,9 +2,13 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   buildTradingViewPayload,
   calculateCompositePerformance,
+  calculateDist52wHighPct,
   calculateMarketBreadth,
   calculateRelativeStrength,
   calculateSectorSummary,
+  checkIsPocketPivot,
+  checkIsStage2,
+  checkNear52wHigh,
   fetchTradingViewScan,
   parseTradingViewScanResponse,
   scanIdxMarket,
@@ -124,6 +128,52 @@ describe('tradingview-scanner.service', () => {
       expect(parsed[0].aboveSma200).toBeNull();
       expect(parsed[0].compositePerf).toBe(0);
       expect(parsed[0].sector).toBe('Other / Diversified');
+      expect(parsed[0].price52wHigh).toBeNull();
+      expect(parsed[0].dist52wHighPct).toBeNull();
+      expect(parsed[0].isStage2).toBe(false);
+      expect(parsed[0].near52wHigh).toBe(false);
+      expect(parsed[0].isPocketPivot).toBe(false);
+    });
+
+    it('mem-parsing kolom-kolom baru (52W, RVOL, ATR, EMA10, gap) dan menghasilkan metrik kuantitatif', () => {
+      const mockRawFull = {
+        totalCount: 1,
+        data: [
+          {
+            s: 'IDX:MEDC',
+            d: [
+              'MEDC', 1400, 3.5, 5000000, 7000000000, 65.0,
+              'Energy Minerals', 'Oil & Gas Production', 35000000000000, 6.5, 1.1,
+              1320, 1250, 1100, 2.5, 8.0, 15.0, 25.0, 40.0,
+              1500, 1000, 2.1, 8000000, 3.2, 45, 1350, 1280, 0.5, 1.2,
+            ],
+          },
+        ],
+      };
+
+      const parsed = parseTradingViewScanResponse(mockRawFull);
+      expect(parsed).toHaveLength(1);
+      const stock = parsed[0];
+      expect(stock.ticker).toBe('MEDC');
+      expect(stock.price52wHigh).toBe(1500);
+      expect(stock.price52wLow).toBe(1000);
+      expect(stock.rvol).toBe(2.1);
+      expect(stock.avgVolume30d).toBe(8000000);
+      expect(stock.volatilityD).toBe(3.2);
+      expect(stock.atr).toBe(45);
+      expect(stock.ema10).toBe(1350);
+      expect(stock.sma20).toBe(1280);
+      expect(stock.gap).toBe(0.5);
+      expect(stock.changeFromOpen).toBe(1.2);
+
+      // dist52wHighPct: ((1500 - 1400) / 1500) * 100 = 6.67%
+      expect(stock.dist52wHighPct).toBe(6.67);
+      // isStage2: 1400 > 1250 (sma50) && 1250 > 1100 (sma200) && 1400 > 1320 (ema20) -> true
+      expect(stock.isStage2).toBe(true);
+      // near52wHigh: isStage2 && 6.67 <= 15.0 -> true
+      expect(stock.near52wHigh).toBe(true);
+      // isPocketPivot: close >= ema10 (1400 >= 1350) && rvol 2.1 >= 1.5 && change 3.5 > 0 && dist 6.67 <= 25.0 -> true
+      expect(stock.isPocketPivot).toBe(true);
     });
   });
 
@@ -321,6 +371,203 @@ describe('tradingview-scanner.service', () => {
       await expect(fetchTradingViewScan({ fetchFn: mockFetch })).rejects.toThrow(
         /response bukan JSON valid/
       );
+    });
+  });
+
+  describe('calculateDist52wHighPct', () => {
+    it('menghitung persentase jarak terhadap 52W High dengan pembulatan 2 desimal', () => {
+      // High 1000, Close 850 -> ((1000 - 850) / 1000) * 100 = 15.0%
+      expect(calculateDist52wHighPct(1000, 850)).toBe(15);
+      // High 1500, Close 1400 -> ((1500 - 1400) / 1500) * 100 = 6.666... -> 6.67%
+      expect(calculateDist52wHighPct(1500, 1400)).toBe(6.67);
+      // At High -> 0%
+      expect(calculateDist52wHighPct(1000, 1000)).toBe(0);
+      // Breakout di atas High -> -5%
+      expect(calculateDist52wHighPct(1000, 1050)).toBe(-5);
+    });
+
+    it('mengembalikan null jika data tidak lengkap atau invalid', () => {
+      expect(calculateDist52wHighPct(null, 1000)).toBeNull();
+      expect(calculateDist52wHighPct(1000, null)).toBeNull();
+      expect(calculateDist52wHighPct(0, 1000)).toBeNull();
+      expect(calculateDist52wHighPct(-100, 1000)).toBeNull();
+    });
+  });
+
+  describe('checkIsStage2', () => {
+    it('mengembalikan true jika Close > SMA50 > SMA200 dan Close > EMA20', () => {
+      // Close: 150, SMA50: 130, SMA200: 100, EMA20: 140
+      expect(checkIsStage2(150, 130, 100, 140)).toBe(true);
+    });
+
+    it('mengembalikan true jika Close > SMA50 > SMA200 dan EMA20 null/tidak ada', () => {
+      expect(checkIsStage2(150, 130, 100, null)).toBe(true);
+      expect(checkIsStage2(150, 130, 100)).toBe(true);
+    });
+
+    it('mengembalikan false jika Close <= SMA50', () => {
+      expect(checkIsStage2(120, 130, 100, 115)).toBe(false);
+    });
+
+    it('mengembalikan false jika SMA50 <= SMA200 (Stage 4 / Downtrend)', () => {
+      expect(checkIsStage2(150, 90, 100, 140)).toBe(false);
+    });
+
+    it('mengembalikan false jika EMA20 ada namun Close <= EMA20', () => {
+      expect(checkIsStage2(135, 130, 100, 140)).toBe(false);
+    });
+
+    it('mengembalikan false jika parameter esensial bernilai null', () => {
+      expect(checkIsStage2(null, 130, 100, 140)).toBe(false);
+      expect(checkIsStage2(150, null, 100, 140)).toBe(false);
+      expect(checkIsStage2(150, 130, null, 140)).toBe(false);
+    });
+  });
+
+  describe('checkNear52wHigh', () => {
+    it('mengembalikan true jika Stage 2 dan dist52wHighPct <= 15%', () => {
+      expect(checkNear52wHigh(true, 0)).toBe(true);
+      expect(checkNear52wHigh(true, 5.5)).toBe(true);
+      expect(checkNear52wHigh(true, 15.0)).toBe(true);
+    });
+
+    it('mengembalikan false jika dist52wHighPct > 15%', () => {
+      expect(checkNear52wHigh(true, 15.01)).toBe(false);
+      expect(checkNear52wHigh(true, 25.0)).toBe(false);
+    });
+
+    it('mengembalikan false jika bukan Stage 2', () => {
+      expect(checkNear52wHigh(false, 5.0)).toBe(false);
+    });
+
+    it('mengembalikan false jika dist52wHighPct null', () => {
+      expect(checkNear52wHigh(true, null)).toBe(false);
+    });
+  });
+
+  describe('checkIsPocketPivot', () => {
+    it('mengembalikan true jika Close >= EMA10, RVOL >= 1.5, Change > 0, dan dist <= 25%', () => {
+      expect(
+        checkIsPocketPivot({
+          close: 100,
+          ema10: 95,
+          ema20: 90,
+          rvol: 2.0,
+          change: 3.5,
+          dist52wHighPct: 10,
+        })
+      ).toBe(true);
+    });
+
+    it('mengembalikan true jika memantul di EMA20 saat Close < EMA10', () => {
+      expect(
+        checkIsPocketPivot({
+          close: 98,
+          ema10: 100,
+          ema20: 95,
+          rvol: 1.8,
+          change: 1.5,
+          dist52wHighPct: 12,
+        })
+      ).toBe(true);
+    });
+
+    it('mengembalikan false jika RVOL < 1.5 (tidak ada lonjakan volume)', () => {
+      expect(
+        checkIsPocketPivot({
+          close: 100,
+          ema10: 95,
+          ema20: 90,
+          rvol: 1.49,
+          change: 2.0,
+          dist52wHighPct: 10,
+        })
+      ).toBe(false);
+    });
+
+    it('mengembalikan false jika Change <= 0 (bukan hari akumulasi naik)', () => {
+      expect(
+        checkIsPocketPivot({
+          close: 100,
+          ema10: 95,
+          ema20: 90,
+          rvol: 2.5,
+          change: 0,
+          dist52wHighPct: 10,
+        })
+      ).toBe(false);
+      expect(
+        checkIsPocketPivot({
+          close: 100,
+          ema10: 95,
+          ema20: 90,
+          rvol: 2.5,
+          change: -1.5,
+          dist52wHighPct: 10,
+        })
+      ).toBe(false);
+    });
+
+    it('mengembalikan false jika dist52wHighPct > 25% (terlalu jauh dari puncak dasar)', () => {
+      expect(
+        checkIsPocketPivot({
+          close: 100,
+          ema10: 95,
+          ema20: 90,
+          rvol: 2.0,
+          change: 4.0,
+          dist52wHighPct: 25.1,
+        })
+      ).toBe(false);
+    });
+
+    it('mengembalikan false jika Close di bawah kedua EMA (EMA10 & EMA20)', () => {
+      expect(
+        checkIsPocketPivot({
+          close: 85,
+          ema10: 95,
+          ema20: 90,
+          rvol: 3.0,
+          change: 2.0,
+          dist52wHighPct: 10,
+        })
+      ).toBe(false);
+    });
+
+    it('mengembalikan false jika salah satu data esensial null', () => {
+      expect(
+        checkIsPocketPivot({
+          close: null,
+          ema10: 95,
+          rvol: 2.0,
+          change: 2.0,
+          dist52wHighPct: 10,
+        })
+      ).toBe(false);
+      expect(
+        checkIsPocketPivot({
+          close: 100,
+          rvol: null,
+          change: 2.0,
+          dist52wHighPct: 10,
+        })
+      ).toBe(false);
+      expect(
+        checkIsPocketPivot({
+          close: 100,
+          rvol: 2.0,
+          change: null,
+          dist52wHighPct: 10,
+        })
+      ).toBe(false);
+      expect(
+        checkIsPocketPivot({
+          close: 100,
+          rvol: 2.0,
+          change: 2.0,
+          dist52wHighPct: null,
+        })
+      ).toBe(false);
     });
   });
 });
