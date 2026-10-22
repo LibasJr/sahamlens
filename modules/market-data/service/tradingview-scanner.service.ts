@@ -24,6 +24,16 @@ export const TRADINGVIEW_COLUMNS = [
   'Perf.3M',
   'Perf.6M',
   'Perf.Y',
+  'price_52_week_high',
+  'price_52_week_low',
+  'relative_volume_10d_calc',
+  'average_volume_30d_calc',
+  'Volatility.D',
+  'ATR',
+  'EMA10',
+  'SMA20',
+  'gap',
+  'change_from_open',
 ] as const;
 
 export type TradingViewColumnName = (typeof TRADINGVIEW_COLUMNS)[number];
@@ -69,6 +79,20 @@ export interface TradingViewStockItem {
   rsScore: number | null;
   isLiquid: boolean;
   aboveSma200: boolean | null;
+  price52wHigh: number | null;
+  price52wLow: number | null;
+  rvol: number | null;
+  avgVolume30d: number | null;
+  volatilityD: number | null;
+  atr: number | null;
+  ema10: number | null;
+  sma20: number | null;
+  gap: number | null;
+  changeFromOpen: number | null;
+  dist52wHighPct: number | null;
+  isStage2: boolean;
+  near52wHigh: boolean;
+  isPocketPivot: boolean;
 }
 
 export interface MarketBreadthSummary {
@@ -102,6 +126,9 @@ export interface IdxMarketScanResult {
   stocks: TradingViewStockItem[];
   topRs: TradingViewStockItem[];
   topTurnover: TradingViewStockItem[];
+  stage2Stocks: TradingViewStockItem[];
+  near52wStocks: TradingViewStockItem[];
+  pocketPivotStocks: TradingViewStockItem[];
 }
 
 export interface TradingViewScannerOptions {
@@ -165,6 +192,58 @@ export function calculateCompositePerformance(perf: {
   return Math.round(composite * 1000) / 1000;
 }
 
+export function calculateDist52wHighPct(
+  price52wHigh: number | null,
+  close: number | null
+): number | null {
+  if (price52wHigh === null || close === null || price52wHigh <= 0) {
+    return null;
+  }
+  const pct = ((price52wHigh - close) / price52wHigh) * 100;
+  return Math.round(pct * 100) / 100;
+}
+
+export function checkIsStage2(
+  close: number | null,
+  sma50: number | null,
+  sma200: number | null,
+  ema20?: number | null
+): boolean {
+  if (close === null || sma50 === null || sma200 === null) {
+    return false;
+  }
+  const ema20Pass = ema20 !== null && ema20 !== undefined && ema20 > 0 ? close > ema20 : true;
+  return close > sma50 && sma50 > sma200 && ema20Pass;
+}
+
+export function checkNear52wHigh(
+  isStage2: boolean,
+  dist52wHighPct: number | null
+): boolean {
+  if (!isStage2 || dist52wHighPct === null) {
+    return false;
+  }
+  return dist52wHighPct <= 15.0;
+}
+
+export function checkIsPocketPivot(params: {
+  close: number | null;
+  ema10?: number | null;
+  ema20?: number | null;
+  rvol: number | null;
+  change: number | null;
+  dist52wHighPct: number | null;
+}): boolean {
+  const { close, ema10, ema20, rvol, change, dist52wHighPct } = params;
+  if (close === null || rvol === null || change === null || dist52wHighPct === null) {
+    return false;
+  }
+  const pivotRef = ema10 ?? ema20 ?? 0;
+  const ema20Ref = ema20 ?? 0;
+  const emaCondition = close >= pivotRef || close >= ema20Ref;
+  return emaCondition && rvol >= 1.5 && change > 0 && dist52wHighPct <= 25.0;
+}
+
 export function parseTradingViewScanResponse(
   json: unknown,
   columns: readonly string[] = TRADINGVIEW_COLUMNS
@@ -195,6 +274,16 @@ export function parseTradingViewScanResponse(
   const idxPerf3M = colIndex.get('Perf.3M') ?? 16;
   const idxPerf6M = colIndex.get('Perf.6M') ?? 17;
   const idxPerfY = colIndex.get('Perf.Y') ?? 18;
+  const idx52wHigh = colIndex.get('price_52_week_high');
+  const idx52wLow = colIndex.get('price_52_week_low');
+  const idxRvol = colIndex.get('relative_volume_10d_calc');
+  const idxAvgVol30d = colIndex.get('average_volume_30d_calc');
+  const idxVolatilityD = colIndex.get('Volatility.D');
+  const idxAtr = colIndex.get('ATR');
+  const idxEma10 = colIndex.get('EMA10');
+  const idxSma20 = colIndex.get('SMA20');
+  const idxGap = colIndex.get('gap');
+  const idxChangeFromOpen = colIndex.get('change_from_open');
 
   const rawList = (json as { data: Array<{ s?: unknown; d?: unknown[] }> }).data;
 
@@ -226,6 +315,17 @@ export function parseTradingViewScanResponse(
     const perf6M = parseNumber(d[idxPerf6M]);
     const perfYear = parseNumber(d[idxPerfY]);
 
+    const price52wHigh = idx52wHigh !== undefined ? parseNumber(d[idx52wHigh]) : null;
+    const price52wLow = idx52wLow !== undefined ? parseNumber(d[idx52wLow]) : null;
+    const rvol = idxRvol !== undefined ? parseNumber(d[idxRvol]) : null;
+    const avgVolume30d = idxAvgVol30d !== undefined ? parseNumber(d[idxAvgVol30d]) : null;
+    const volatilityD = idxVolatilityD !== undefined ? parseNumber(d[idxVolatilityD]) : null;
+    const atr = idxAtr !== undefined ? parseNumber(d[idxAtr]) : null;
+    const ema10 = idxEma10 !== undefined ? parseNumber(d[idxEma10]) : null;
+    const sma20 = idxSma20 !== undefined ? parseNumber(d[idxSma20]) : null;
+    const gap = idxGap !== undefined ? parseNumber(d[idxGap]) : null;
+    const changeFromOpen = idxChangeFromOpen !== undefined ? parseNumber(d[idxChangeFromOpen]) : null;
+
     const aboveSma200 = close !== null && sma200 !== null ? close > sma200 : null;
 
     const compositePerf = calculateCompositePerformance({
@@ -235,6 +335,18 @@ export function parseTradingViewScanResponse(
       perf3M,
       perf6M,
       perfYear,
+    });
+
+    const dist52wHighPct = calculateDist52wHighPct(price52wHigh, close);
+    const isStage2 = checkIsStage2(close, sma50, sma200, ema20);
+    const near52wHigh = checkNear52wHigh(isStage2, dist52wHighPct);
+    const isPocketPivot = checkIsPocketPivot({
+      close,
+      ema10,
+      ema20,
+      rvol,
+      change,
+      dist52wHighPct,
     });
 
     return {
@@ -261,6 +373,20 @@ export function parseTradingViewScanResponse(
       perfYear,
       compositePerf,
       aboveSma200,
+      price52wHigh,
+      price52wLow,
+      rvol,
+      avgVolume30d,
+      volatilityD,
+      atr,
+      ema10,
+      sma20,
+      gap,
+      changeFromOpen,
+      dist52wHighPct,
+      isStage2,
+      near52wHigh,
+      isPocketPivot,
     };
   });
 }
@@ -493,6 +619,14 @@ export async function scanIdxMarket(
     .sort((a, b) => (b.turnover ?? 0) - (a.turnover ?? 0))
     .slice(0, 15);
 
+  const stage2Stocks = stocks.filter((s) => s.isStage2);
+  const near52wStocks = stocks
+    .filter((s) => s.near52wHigh)
+    .sort((a, b) => (a.dist52wHighPct ?? 999) - (b.dist52wHighPct ?? 999) || (b.turnover ?? 0) - (a.turnover ?? 0));
+  const pocketPivotStocks = stocks
+    .filter((s) => s.isPocketPivot)
+    .sort((a, b) => (b.rvol ?? 0) - (a.rvol ?? 0) || (b.turnover ?? 0) - (a.turnover ?? 0));
+
   const nowWib = new Intl.DateTimeFormat('sv-SE', {
     timeZone: 'Asia/Jakarta',
     year: 'numeric',
@@ -512,5 +646,8 @@ export async function scanIdxMarket(
     stocks,
     topRs,
     topTurnover,
+    stage2Stocks,
+    near52wStocks,
+    pocketPivotStocks,
   };
 }
