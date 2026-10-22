@@ -6,6 +6,11 @@ import {
   calculateMarketBreadth,
   calculateRelativeStrength,
   calculateSectorSummary,
+  calculateRsLine,
+  checkIsLeadingVsIhsg,
+  checkIsBlueSkyRs,
+  parseIhsgBenchmarkResponse,
+  fetchTradingViewIhsg,
   checkIsPocketPivot,
   checkIsStage2,
   checkNear52wHigh,
@@ -335,7 +340,7 @@ describe('tradingview-scanner.service', () => {
       expect(result.stocks[0].ticker).toBe('BBCA');
       expect(result.stocks[0].rsScore).toBe(99);
       expect(result.topRs[0].ticker).toBe('BBCA');
-      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(2);
     });
 
     it('fail-closed: melempar ProviderUnavailableError jika HTTP error (502)', async () => {
@@ -568,6 +573,210 @@ describe('tradingview-scanner.service', () => {
           dist52wHighPct: null,
         })
       ).toBe(false);
+    });
+  });
+
+  describe('calculateRsLine', () => {
+    it('menghitung rasio harga saham terhadap IHSG dikali 1000', () => {
+      // Misal saham 5.000, IHSG 7.000 -> (5000 / 7000) * 1000 = 714.2857
+      const rsLine = calculateRsLine(5000, 7000);
+      expect(rsLine).toBe(714.2857);
+    });
+
+    it('mengembalikan null jika harga saham atau IHSG null atau non-positif', () => {
+      expect(calculateRsLine(null, 7000)).toBeNull();
+      expect(calculateRsLine(5000, null)).toBeNull();
+      expect(calculateRsLine(5000, 0)).toBeNull();
+      expect(calculateRsLine(-100, 7000)).toBeNull();
+    });
+  });
+
+  describe('checkIsLeadingVsIhsg', () => {
+    it('mengembalikan true saat emiten likuid dengan alpha 1M dan 3M positif', () => {
+      const isLeading = checkIsLeadingVsIhsg(
+        {
+          isLiquid: true,
+          alphaVsIhsg1M: 5.5,
+          alphaVsIhsg3M: 12.0,
+          isStage2: true,
+          change: 2.0,
+        },
+        {
+          trend: 'UPTREND',
+          perfMonth: 1.0,
+        }
+      );
+      expect(isLeading).toBe(true);
+    });
+
+    it('mengembalikan false jika saham tidak likuid atau salah satu alpha non-positif', () => {
+      expect(
+        checkIsLeadingVsIhsg(
+          { isLiquid: false, alphaVsIhsg1M: 5.0, alphaVsIhsg3M: 10.0 },
+          null
+        )
+      ).toBe(false);
+
+      expect(
+        checkIsLeadingVsIhsg(
+          { isLiquid: true, alphaVsIhsg1M: -1.0, alphaVsIhsg3M: 10.0 },
+          null
+        )
+      ).toBe(false);
+
+      expect(
+        checkIsLeadingVsIhsg(
+          { isLiquid: true, alphaVsIhsg1M: 5.0, alphaVsIhsg3M: -2.0 },
+          null
+        )
+      ).toBe(false);
+    });
+
+    it('memvalidasi saham saat IHSG downtrend (wajib Stage 2 atau hijau hari ini)', () => {
+      const ihsgDown = { trend: 'DOWNTREND' as const, perfMonth: -3.0 };
+
+      // Lolos karena Stage 2
+      expect(
+        checkIsLeadingVsIhsg(
+          { isLiquid: true, alphaVsIhsg1M: 4.0, alphaVsIhsg3M: 8.0, isStage2: true, change: -1.0 },
+          ihsgDown
+        )
+      ).toBe(true);
+
+      // Lolos karena hari ini hijau
+      expect(
+        checkIsLeadingVsIhsg(
+          { isLiquid: true, alphaVsIhsg1M: 4.0, alphaVsIhsg3M: 8.0, isStage2: false, change: 1.5 },
+          ihsgDown
+        )
+      ).toBe(true);
+
+      // Gagal karena bukan Stage 2 dan hari ini merah saat IHSG downtrend
+      expect(
+        checkIsLeadingVsIhsg(
+          { isLiquid: true, alphaVsIhsg1M: 4.0, alphaVsIhsg3M: 8.0, isStage2: false, change: -2.0 },
+          ihsgDown
+        )
+      ).toBe(false);
+    });
+  });
+
+  describe('checkIsBlueSkyRs', () => {
+    it('mengembalikan true untuk saham Stage 2 + near 52W High (<=15%) + RS >= 80 saat IHSG lagging', () => {
+      const isBlueSky = checkIsBlueSkyRs(
+        {
+          isStage2: true,
+          near52wHigh: true,
+          rsScore: 92,
+        },
+        {
+          dist52wHighPct: 20.0, // IHSG jauh dari 52W High
+          trend: 'DOWNTREND',
+        }
+      );
+      expect(isBlueSky).toBe(true);
+    });
+
+    it('mengembalikan false jika RS score < 80 atau bukan Stage 2', () => {
+      expect(
+        checkIsBlueSkyRs(
+          { isStage2: true, near52wHigh: true, rsScore: 78 },
+          { dist52wHighPct: 20, trend: 'DOWNTREND' }
+        )
+      ).toBe(false);
+
+      expect(
+        checkIsBlueSkyRs(
+          { isStage2: false, near52wHigh: true, rsScore: 95 },
+          { dist52wHighPct: 20, trend: 'DOWNTREND' }
+        )
+      ).toBe(false);
+    });
+  });
+
+  describe('parseIhsgBenchmarkResponse', () => {
+    it('mem-parsing payload IHSG dari TradingView secara akurat', () => {
+      const mockTvResponse = {
+        totalCount: 1,
+        data: [
+          {
+            s: 'IDX:COMPOSITE',
+            d: [
+              'COMPOSITE',
+              7200,
+              1.25,
+              7100, // SMA50
+              7000, // SMA200
+              7150, // EMA20
+              0.5,  // Perf.W
+              2.0,  // Perf.1M
+              5.0,  // Perf.3M
+              8.0,  // Perf.6M
+              12.0, // Perf.Y
+              7400, // price_52_week_high
+              6500, // price_52_week_low
+            ],
+          },
+        ],
+      };
+
+      const benchmark = parseIhsgBenchmarkResponse(mockTvResponse);
+      expect(benchmark).not.toBeNull();
+      expect(benchmark?.ticker).toBe('COMPOSITE');
+      expect(benchmark?.symbol).toBe('IDX:COMPOSITE');
+      expect(benchmark?.close).toBe(7200);
+      expect(benchmark?.change).toBe(1.25);
+      expect(benchmark?.sma50).toBe(7100);
+      expect(benchmark?.sma200).toBe(7000);
+      expect(benchmark?.trend).toBe('UPTREND');
+      expect(benchmark?.dist52wHighPct).toBe(2.7); // (7400 - 7200) / 7400 * 100
+    });
+
+    it('mengembalikan null jika payload null atau array kosong', () => {
+      expect(parseIhsgBenchmarkResponse(null)).toBeNull();
+      expect(parseIhsgBenchmarkResponse({ data: [] })).toBeNull();
+    });
+  });
+
+  describe('fetchTradingViewIhsg', () => {
+    it('mengambil benchmark IHSG dengan mock fetch', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          totalCount: 1,
+          data: [
+            {
+              s: 'IDX:COMPOSITE',
+              d: [
+                'COMPOSITE',
+                7000,
+                -0.5,
+                7100,
+                7200,
+                7050,
+                -1.0,
+                -2.0,
+                -5.0,
+                -10.0,
+                -15.0,
+                7500,
+                6500,
+              ],
+            },
+          ],
+        }),
+      });
+
+      const ihsg = await fetchTradingViewIhsg({ fetchFn: mockFetch as any });
+      expect(ihsg).not.toBeNull();
+      expect(ihsg?.close).toBe(7000);
+      expect(ihsg?.trend).toBe('DOWNTREND');
+    });
+
+    it('mengembalikan null jika respons non-ok atau throw', async () => {
+      const mockFetchErr = vi.fn().mockRejectedValue(new Error('Network fail'));
+      const ihsg = await fetchTradingViewIhsg({ fetchFn: mockFetchErr as any });
+      expect(ihsg).toBeNull();
     });
   });
 });
