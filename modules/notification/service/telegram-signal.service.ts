@@ -1,11 +1,12 @@
 import { logger } from '@/shared/logger/logger';
 import type { DecisionAgentSignal } from '@/modules/decision-agent';
+import type { TradingViewStockItem, IdxMarketScanResult } from '@/modules/market-data';
 
 const BOT_TOKEN = process.env.TELEGRAM_SIGNAL_BOT_TOKEN ?? '';
 const CHAT_ID = process.env.TELEGRAM_SIGNAL_CHAT_ID ?? '';
 const API_BASE = `https://api.telegram.org/bot${BOT_TOKEN}`;
 
-function formatPrice(n: number): string {
+export function formatPrice(n: number): string {
   return n.toLocaleString('id-ID', { maximumFractionDigits: 0 });
 }
 
@@ -192,4 +193,307 @@ export async function sendSignalBatch(
   }
 
   return { sent, failed };
+}
+
+export interface SwingRiskSetup {
+  entryPrice: number;
+  entryRangeMin: number;
+  entryRangeMax: number;
+  stopLossPrice: number;
+  stopLossPct: number;
+  target1Price: number;
+  target1Pct: number;
+  target1RiskReward: number;
+  target2Price: number;
+  target2Pct: number;
+  target2RiskReward: number;
+  riskPerShare: number;
+  riskPerLot: number;
+  assumedPortfolio: number;
+  riskPerTradePct: number;
+  maxRiskAmount: number;
+  maxPositionShares: number;
+  maxPositionLots: number;
+  recommendedPositionShares: number;
+  recommendedPositionLots: number;
+  recommendedCapitalAllocation: number;
+  recommendedAllocationPct: number;
+  verdict: 'VALID SWING ENTRY' | 'WATCH ONLY' | 'HINDARI';
+  actionStatus: 'Beli bertahap' | 'Jual sebagian' | 'Batas batal (Stop Loss)' | 'Hindari';
+}
+
+export function calculateSwingRiskSetup(
+  stock: Pick<TradingViewStockItem, 'close' | 'ema20' | 'low' | 'atr' | 'rsScore'>,
+  portfolioSize: number = 100_000_000
+): SwingRiskSetup | null {
+  const entryPrice = stock.close;
+  if (entryPrice === null || entryPrice <= 0) return null;
+
+  const entryRangeMin = Math.round(entryPrice * 0.99);
+  const entryRangeMax = Math.round(entryPrice * 1.01);
+
+  // Cari level stop loss teknikal terukur (3.5% - 6.0%)
+  const minStop = Math.round(entryPrice * 0.94); // Stop maksimal -6.0%
+  const maxStop = Math.round(entryPrice * 0.965); // Stop minimal -3.5%
+  let stopLossPrice = Math.round(entryPrice * 0.955); // Default ~ -4.5%
+
+  if (stock.low !== null && stock.low < entryPrice) {
+    if (stock.low <= minStop) {
+      stopLossPrice = minStop;
+    } else if (stock.low <= maxStop) {
+      stopLossPrice = stock.low;
+    } else {
+      stopLossPrice = maxStop;
+    }
+  } else if (stock.ema20 !== null && stock.ema20 < entryPrice) {
+    const belowEma20 = Math.round(stock.ema20 * 0.98);
+    if (belowEma20 <= minStop) {
+      stopLossPrice = minStop;
+    } else if (belowEma20 <= maxStop) {
+      stopLossPrice = belowEma20;
+    } else {
+      stopLossPrice = maxStop;
+    }
+  }
+
+  // Jaga batasan ketat stop loss antara minStop dan maxStop
+  stopLossPrice = Math.max(minStop, Math.min(maxStop, stopLossPrice));
+
+  const riskPerShare = entryPrice - stopLossPrice;
+  const stopLossPct = Math.round(((entryPrice - stopLossPrice) / entryPrice) * 10000) / 100;
+
+  // Target Profit sesuai prinsip Libas (RR min 1:1.8 - 1:2.0)
+  const target1RiskReward = 2.0;
+  const target1Price = Math.round(entryPrice + target1RiskReward * riskPerShare);
+  const target1Pct = Math.round(((target1Price - entryPrice) / entryPrice) * 10000) / 100;
+
+  const target2RiskReward = 3.5;
+  const target2Price = Math.round(entryPrice + target2RiskReward * riskPerShare);
+  const target2Pct = Math.round(((target2Price - entryPrice) / entryPrice) * 10000) / 100;
+
+  const riskPerLot = riskPerShare * 100;
+  const riskPerTradePct = 2.5; // Toleransi risiko 2.5% modal portofolio
+  const maxRiskAmount = Math.round(portfolioSize * (riskPerTradePct / 100));
+
+  const maxPositionShares = riskPerShare > 0 ? Math.floor(maxRiskAmount / riskPerShare) : 0;
+  const maxPositionLots = Math.floor(maxPositionShares / 100);
+
+  // Alokasi modal maksimal 15% modal portofolio (Aturan Libas)
+  const maxAllocationCapital = portfolioSize * 0.15;
+  const maxLotsByAllocation = Math.floor(maxAllocationCapital / (entryPrice * 100));
+
+  const recommendedPositionLots = Math.max(1, Math.min(maxPositionLots, maxLotsByAllocation));
+  const recommendedPositionShares = recommendedPositionLots * 100;
+  const recommendedCapitalAllocation = recommendedPositionShares * entryPrice;
+  const recommendedAllocationPct =
+    Math.round((recommendedCapitalAllocation / portfolioSize) * 10000) / 100;
+
+  const isRsQualified = (stock.rsScore ?? 0) >= 70;
+  const isRrQualified = target1RiskReward >= 1.8 && stopLossPct <= 6.0;
+
+  const verdict: 'VALID SWING ENTRY' | 'WATCH ONLY' | 'HINDARI' =
+    isRrQualified && isRsQualified
+      ? 'VALID SWING ENTRY'
+      : isRrQualified
+        ? 'WATCH ONLY'
+        : 'HINDARI';
+
+  const actionStatus: 'Beli bertahap' | 'Jual sebagian' | 'Batas batal (Stop Loss)' | 'Hindari' =
+    verdict === 'VALID SWING ENTRY'
+      ? 'Beli bertahap'
+      : verdict === 'WATCH ONLY'
+        ? 'Beli bertahap'
+        : 'Hindari';
+
+  return {
+    entryPrice,
+    entryRangeMin,
+    entryRangeMax,
+    stopLossPrice,
+    stopLossPct,
+    target1Price,
+    target1Pct,
+    target1RiskReward,
+    target2Price,
+    target2Pct,
+    target2RiskReward,
+    riskPerShare,
+    riskPerLot,
+    assumedPortfolio: portfolioSize,
+    riskPerTradePct,
+    maxRiskAmount,
+    maxPositionShares,
+    maxPositionLots,
+    recommendedPositionShares,
+    recommendedPositionLots,
+    recommendedCapitalAllocation,
+    recommendedAllocationPct,
+    verdict,
+    actionStatus,
+  };
+}
+
+export function formatSwingMomentumAlert(
+  stock: TradingViewStockItem,
+  portfolioSize: number = 100_000_000
+): string {
+  const risk = calculateSwingRiskSetup(stock, portfolioSize);
+  const ticker = stock.ticker;
+  const sector = stock.sector || 'Umum';
+  const industry = stock.industry || 'Umum';
+  const turnoverM = stock.turnover ? (stock.turnover / 1e9).toFixed(1) : '0.0';
+  const rsScore = stock.rsScore !== null ? `${stock.rsScore}` : '-';
+  const changePct =
+    stock.change !== null
+      ? stock.change >= 0
+        ? `+${stock.change.toFixed(2)}%`
+        : `${stock.change.toFixed(2)}%`
+      : '-';
+
+  let setupTitle = 'Stage 2 Swing Momentum Setup';
+  let vsaEvidence = 'Struktur harga di atas SMA50 & SMA200';
+
+  if (stock.isBlueSkyRs) {
+    setupTitle = 'Blue Sky RS Leading Divergence + Stage 2';
+    vsaEvidence = 'RS Line rekor tertinggi baru saat IHSG konsolidasi/tertekan';
+  } else if (stock.isPocketPivot) {
+    setupTitle = 'Pocket Pivot Breakout + High RS';
+    vsaEvidence = `Volume spike RVOL ${stock.rvol?.toFixed(2) ?? '-'}x memantul dari moving average`;
+  } else if (stock.isShakeoutSpring) {
+    setupTitle = 'Shakeout Spring Reversal Trap';
+    vsaEvidence = `Intraday sweep bawah support lalu ditutup kuat (UCR ${(stock.ucr ?? 0).toFixed(2)})`;
+  } else if (stock.isVolumeAbsorption) {
+    setupTitle = 'Smart Money Volume Absorption / Stopping Volume';
+    vsaEvidence = `Spread sempit (${stock.spreadRatio?.toFixed(2) ?? '-'} ATR) dengan serapan volume tinggi`;
+  } else if (stock.near52wHigh) {
+    setupTitle = 'Stage 2 Near 52-Week High Breakout';
+    vsaEvidence = `Jarak dari 52W High hanya ${stock.dist52wHighPct?.toFixed(1) ?? '-'}%`;
+  }
+
+  let rsStatus = 'Menyamai IHSG';
+  if (stock.isLeadingVsIhsg) {
+    rsStatus = `OUTPERFORM IHSG (Alpha 3M: +${(stock.alphaVsIhsg3M ?? 0).toFixed(1)}%)`;
+  } else if (stock.isBlueSkyRs) {
+    rsStatus = 'BLUE SKY LEADING DIVERGENCE (Top Outperformer)';
+  }
+
+  const lines: string[] = [];
+  lines.push(`🚨 [SWING MOMENTUM ALERT] #${ticker} (${sector})`);
+  lines.push('━'.repeat(29));
+  lines.push(`📊 SETUP: ${setupTitle}`);
+  lines.push(`🏢 Sektor: ${sector} | Industri: ${industry}`);
+  lines.push(`⚡ Likuiditas: Rp ${turnoverM} M | RS Rank: ${rsScore}/99`);
+  lines.push(`📈 RS Line vs IHSG: ${rsStatus}`);
+  lines.push('');
+
+  if (risk) {
+    const statusNote =
+      risk.actionStatus === 'Beli bertahap'
+        ? '🟢 Beli bertahap (On Breakout Confirmation)'
+        : risk.actionStatus === 'Hindari'
+          ? '⚪ Hindari (Kriteria RS/Risiko Kurang Memadai)'
+          : risk.actionStatus === 'Jual sebagian'
+            ? '🟡 Jual sebagian (Take Profit Terukur)'
+            : '🔴 Batas batal (Stop Loss Disiplin)';
+
+    lines.push('🎯 STRATEGI & LEVEL EKSEKUSI:');
+    lines.push(`• Status: ${statusNote}`);
+    lines.push(
+      `• Area Beli: ${formatPrice(risk.entryRangeMin)} – ${formatPrice(risk.entryRangeMax)} (Last: ${formatPrice(risk.entryPrice)} | ${changePct})`
+    );
+    lines.push(`• Batas Batal (Stop Loss): ${formatPrice(risk.stopLossPrice)} (-${risk.stopLossPct}%)`);
+    lines.push(
+      `• Sasaran 1 (TP1): ${formatPrice(risk.target1Price)} (+${risk.target1Pct}% | RR 1 : ${risk.target1RiskReward}) -> Jual sebagian`
+    );
+    lines.push(
+      `• Sasaran 2 (TP2): ${formatPrice(risk.target2Price)} (+${risk.target2Pct}% | RR 1 : ${risk.target2RiskReward}) -> Trail Stop Loss`
+    );
+    lines.push('');
+    lines.push(`🛡️ MANAJEMEN RISIKO (Risk per Trade ${risk.riskPerTradePct}%):`);
+    lines.push(`• Modal Portofolio Asumsi: Rp ${formatPrice(risk.assumedPortfolio)}`);
+    lines.push(`• Maksimum Toleransi Risiko: Rp ${formatPrice(risk.maxRiskAmount)}`);
+    lines.push(`• Risiko per Lembar: Rp ${formatPrice(risk.riskPerShare)} (Rp ${formatPrice(risk.riskPerLot)}/lot)`);
+    lines.push(
+      `• Saran Alokasi Libas (Maks 15%): ${risk.recommendedPositionLots} Lot (~Rp ${formatPrice(risk.recommendedCapitalAllocation)} / ${risk.recommendedAllocationPct}% modal)`
+    );
+  }
+
+  lines.push('');
+  lines.push('🔍 BUKTI SMART MONEY (Microstructure):');
+  lines.push(`• Relative Volume (RVOL): ${stock.rvol !== null ? `${stock.rvol.toFixed(2)}x` : '-'}`);
+  lines.push(
+    `• Upper Close Ratio (UCR): ${stock.ucr !== null ? stock.ucr.toFixed(2) : '-'} (Tutup rentang atas)`
+  );
+  lines.push(`• Microstructure Footprint: ${vsaEvidence}`);
+  lines.push('');
+
+  if (risk) {
+    lines.push(`⚖️ VERDIK: ${risk.verdict} (RR 1:${risk.target1RiskReward}, Risiko ${risk.stopLossPct}%)`);
+  }
+  lines.push('━'.repeat(29));
+
+  return lines.join('\n');
+}
+
+export function formatSwingScannerBatchSummary(result: IdxMarketScanResult): string {
+  const mb = result.marketBreadth;
+  const ih = result.ihsg;
+
+  const ihClose = ih && ih.close !== null ? ih.close.toLocaleString('id-ID') : '-';
+  const ihChg =
+    ih && ih.change !== null
+      ? ih.change >= 0
+        ? `+${ih.change.toFixed(2)}%`
+        : `${ih.change.toFixed(2)}%`
+      : '-';
+  const ihTrend = ih?.trend ?? 'NEUTRAL';
+
+  const lines: string[] = [];
+  lines.push('📡 [IDX MARKET SCANNER RECAP]');
+  lines.push('━'.repeat(29));
+  lines.push(`📅 ${result.timestamp}`);
+  lines.push(`🏛️ IHSG Benchmark: ${ihClose} (${ihChg}) | Trend: ${ihTrend}`);
+  lines.push(
+    `📊 Market Breadth: Naik ${mb.advances} | Turun ${mb.declines} | A/D ${mb.advanceDeclineRatio}x (${mb.sentiment})`
+  );
+  lines.push(`💰 Total Turnover: Rp ${mb.totalTurnoverTrillion} Triliun`);
+  lines.push('');
+  lines.push('🔥 SETUP UNGGULAN:');
+  lines.push(`• Blue Sky RS Leaders   : ${result.blueSkyRsStocks.length} emiten`);
+  lines.push(`• Pocket Pivot Breakout  : ${result.pocketPivotStocks.length} emiten`);
+  lines.push(`• Smart Money Absorption : ${result.volumeAbsorptionStocks.length} emiten`);
+  lines.push(`• Shakeout Spring Traps  : ${result.shakeoutSpringStocks.length} emiten`);
+  lines.push(`• Stage 2 Near 52W High  : ${result.near52wStocks.length} emiten`);
+  lines.push('');
+
+  const candidates = [
+    ...result.blueSkyRsStocks.slice(0, 3),
+    ...result.shakeoutSpringStocks.slice(0, 2),
+    ...result.pocketPivotStocks.slice(0, 2),
+  ];
+
+  const seen = new Set<string>();
+  const uniqueCandidates = candidates.filter((c) => {
+    if (seen.has(c.ticker)) return false;
+    seen.add(c.ticker);
+    return true;
+  });
+
+  if (uniqueCandidates.length > 0) {
+    lines.push('🎯 TOP CANDIDATES TO WATCH:');
+    for (const s of uniqueCandidates.slice(0, 5)) {
+      const chg =
+        s.change !== null
+          ? s.change >= 0
+            ? `+${s.change.toFixed(1)}%`
+            : `${s.change.toFixed(1)}%`
+          : '-';
+      const toM = s.turnover ? (s.turnover / 1e9).toFixed(1) : '-';
+      const rs = s.rsScore ?? '-';
+      lines.push(`  • #${s.ticker} (${s.close}) [${chg}] | RS ${rs} | Vol Rp ${toM} M`);
+    }
+  }
+
+  lines.push('━'.repeat(29));
+  return lines.join('\n');
 }
