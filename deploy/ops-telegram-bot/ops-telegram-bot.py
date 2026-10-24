@@ -194,16 +194,21 @@ def run(command: list[str], timeout: int = 8) -> tuple[int, str]:
 
 
 def internal_health() -> tuple[str, str]:
+    """/api/health publik hanya membalas {status}; `checks` dan hitungan sumber hanya untuk
+    sesi admin. Jadi database dan sumber DOWN diukur langsung, bukan dibaca dari body."""
     try:
         with urllib.request.urlopen("http://127.0.0.1:3001/api/health", timeout=6) as response:
             body = json.loads(response.read().decode())
-        database = body.get("checks", {}).get("database", "unknown")
-        status = body.get("status", "unknown")
-        down = body.get("operationalReadiness", {}).get("dataSourceDownCount", 0)
-        level = "OK" if status == "ok" and database == "ok" and down == 0 else "WATCH"
-        return level, f"app {status} · db {database} · {down} source down"
     except Exception:
         return "DOWN", "local health endpoint unavailable"
+    status = body.get("status", "unknown")
+    db_level, _ = postgres_detail()
+    database = "ok" if db_level != "DOWN" else "error"
+    _, ds_text = data_source_detail()
+    down_part = ds_text.rsplit("down ", 1)[-1].strip()
+    down = int(down_part) if down_part.isdigit() else 0
+    level = "OK" if status == "ok" and database == "ok" and down == 0 else "WATCH"
+    return level, f"app {status} · db {database} · {down} source down"
 
 
 def db_url() -> str | None:
