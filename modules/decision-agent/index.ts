@@ -21,6 +21,13 @@ export {
   simulateForwardTrade,
   type PublicForwardLedgerSummary,
 } from './service/forward-signal-ledger.service';
+export {
+  executeShadowLenganB,
+  isEligibleShadowLenganB,
+  MODEL_VERSION_SHADOW_LENGAN_B,
+  type ShadowLenganBSignal,
+  type ExecuteShadowLenganBResult,
+} from './service/shadow-lengan-b.service';
 export type {
   DecisionAgentDashboard,
   DecisionAction,
