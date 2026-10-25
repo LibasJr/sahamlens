@@ -10,5 +10,5 @@ Group=lens
 WorkingDirectory=/opt/sahamlens/app
 EnvironmentFile=/opt/sahamlens/app/.env.production
 TimeoutStartSec=10min
-ExecStart=/usr/bin/curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 540 -H "Authorization: Bearer ***" http://127.0.0.1:3001/api/cron/fundamental-warmer
+ExecStart=/usr/bin/curl --fail-with-body --silent --show-error --connect-timeout 15 --max-time 540 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/fundamental-warmer
 NoNewPrivileges=true
