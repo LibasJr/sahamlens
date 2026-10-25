@@ -85,6 +85,7 @@ const ROUTE_LABELS = {
   '/admin/beta-pages': 'Halaman Beta',
   '/admin/infra-studio': 'Infographic Studio',
   '/admin/data-integrity': 'Pemeriksaan Harga Penutupan',
+  '/admin/shadow-ledger': 'Shadow Forward Ledger',
 };
 
 async function main() {

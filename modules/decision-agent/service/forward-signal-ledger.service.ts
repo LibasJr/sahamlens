@@ -18,13 +18,32 @@ import {
   getSignalsPendingOutcome,
   getExistingBaselineReturn,
   getForwardLedgerTransparencySummary,
+  getShadowLedgerDashboardData,
   type ForwardSignalLedgerRow,
   type InsertForwardSignalInput,
   type InsertForwardOutcomeInput,
   type PublicForwardLedgerSummary,
+  type HorizonMetrics,
+  type ExitReasonMetrics,
+  type ShadowLedgerMetrics,
+  type SignalOutcomeStatus,
+  type ShadowLedgerSignalItem,
+  type ShadowLedgerCronStatus,
+  type ShadowLedgerDashboardPayload,
 } from '../repository/forward-signal-ledger.repository';
 
-export { getForwardLedgerTransparencySummary, type PublicForwardLedgerSummary };
+export {
+  getForwardLedgerTransparencySummary,
+  getShadowLedgerDashboardData,
+  type PublicForwardLedgerSummary,
+  type HorizonMetrics,
+  type ExitReasonMetrics,
+  type ShadowLedgerMetrics,
+  type SignalOutcomeStatus,
+  type ShadowLedgerSignalItem,
+  type ShadowLedgerCronStatus,
+  type ShadowLedgerDashboardPayload,
+};
 
 export const FORWARD_PAPER_FEE_PCT_40 = 0.40;
 export const FORWARD_PAPER_FEE_PCT_60 = 0.60;

@@ -220,6 +220,24 @@ export default async function AdminPage() {
         </Link>
 
         <Link
+          href="/admin/shadow-ledger"
+          className="flex items-start gap-3 rounded-xl border border-tv-border bg-tv-card p-5 transition-colors hover:border-tv-borderLight hover:bg-tv-hover"
+        >
+          <div className="rounded-lg bg-tv-accent/10 p-2 text-tv-accent"><Target className="h-5 w-5" /></div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-heading text-lg font-bold text-tv-text">Shadow Forward Ledger</h2>
+              <span className="rounded-full border border-tv-accent/30 bg-tv-accent/10 px-2 py-0.5 text-xs font-semibold text-tv-accent">
+                Lengan B
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-tv-muted">
+              Observabilitas internal paper-trade forward ledger, evaluasi horizon T+5/T+10/T+20, dan rasio exit.
+            </p>
+          </div>
+        </Link>
+
+        <Link
           href="/admin/ara-scanner"
           className={`flex items-start gap-3 rounded-xl border bg-tv-card p-5 transition-colors hover:bg-tv-hover ${
             araScannerReadiness?.status === 'READY'

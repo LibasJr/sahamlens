@@ -144,6 +144,7 @@ Jika pengguna menanyakan fungsi atau cara pakai menu, jelaskan secara ringkas: *
 - **Validasi TP/CL** (admin): pengujian level target profit dan cut loss terhadap hasil harga nyata; dijalankan berkala oleh worker khusus.
 - **Ringkasan Broker** (admin): rekap broker summary per emiten dan periode, sumbernya data transaksi per broker (bukan komposisi kepemilikan).
 - **Broker End of Day** (admin): agregat transaksi broker level pasar untuk menutup hari perdagangan; dipakai saat data broker per emiten belum tersedia.
+- **Shadow Forward Ledger** (Shadow Ledger, admin): observabilitas paper-trade forward ledger sinyal keputusan (Lengan B), status evaluasi cron EOD harian (16:35 & 17:30 WIB), realisasi horizon T+5, T+10, T+20, dan rasio alasan exit (target hit, stop hit, hold expiry).
 - **Admin Panel**: pengelolaan pengguna dan langganan aplikasi; tidak menampilkan data pasar.
 
 ---

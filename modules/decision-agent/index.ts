@@ -17,9 +17,17 @@ export {
   recordDailyForwardSignals,
   evaluateForwardOutcomes,
   getForwardLedgerTransparencySummary,
+  getShadowLedgerDashboardData,
   calculateNextSessionEntryRef,
   simulateForwardTrade,
   type PublicForwardLedgerSummary,
+  type HorizonMetrics,
+  type ExitReasonMetrics,
+  type ShadowLedgerMetrics,
+  type SignalOutcomeStatus,
+  type ShadowLedgerSignalItem,
+  type ShadowLedgerCronStatus,
+  type ShadowLedgerDashboardPayload,
 } from './service/forward-signal-ledger.service';
 export {
   executeShadowLenganB,
