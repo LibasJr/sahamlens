@@ -180,9 +180,14 @@ $SUDO /usr/bin/install -m 0644 deploy/forward-ledger-evaluate/sahamlens-forward-
   /etc/systemd/system/sahamlens-forward-ledger-evaluate.service
 $SUDO /usr/bin/install -m 0644 deploy/forward-ledger-evaluate/sahamlens-forward-ledger-evaluate.timer \
   /etc/systemd/system/sahamlens-forward-ledger-evaluate.timer
+$SUDO /usr/bin/install -m 0644 deploy/shadow-lengan-b/sahamlens-shadow-lengan-b.service \
+  /etc/systemd/system/sahamlens-shadow-lengan-b.service
+$SUDO /usr/bin/install -m 0644 deploy/shadow-lengan-b/sahamlens-shadow-lengan-b.timer \
+  /etc/systemd/system/sahamlens-shadow-lengan-b.timer
 $SUDO /usr/bin/systemctl daemon-reload
 $SUDO /usr/bin/systemctl enable sahamlens-forward-ledger-record.timer
 $SUDO /usr/bin/systemctl enable sahamlens-forward-ledger-evaluate.timer
+$SUDO /usr/bin/systemctl enable sahamlens-shadow-lengan-b.timer
 
 echo "Restarting SahamLens..."
 $SUDO /usr/bin/systemctl restart sahamlens

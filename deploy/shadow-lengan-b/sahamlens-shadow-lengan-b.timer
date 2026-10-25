@@ -1,0 +1,10 @@
+[Unit]
+Description=Jadwal SahamLens - shadow forward ledger lengan-b daily record
+
+[Timer]
+OnCalendar=Mon..Fri 16:35 Asia/Jakarta
+Persistent=true
+Unit=sahamlens-shadow-lengan-b.service
+
+[Install]
+WantedBy=timers.target

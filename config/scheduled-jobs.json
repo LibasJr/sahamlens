@@ -60,6 +60,13 @@
       "source": "BARU 2026-10-18, pencatatan harian append-only forward paper-trade ledger point-in-time pada penutupan bursa."
     },
     {
+      "path": "/api/cron/shadow-lengan-b-record",
+      "provider": "systemd",
+      "schedule": "Mon..Fri 16:35 Asia/Jakarta",
+      "scheduleStatus": "known",
+      "source": "BARU 2026-10-25, pencatatan harian Shadow Forward Ledger Lengan B (Anti-Microcap + Anti-FCA) pada penutupan bursa."
+    },
+    {
       "path": "/api/cron/fundamental-snapshot",
       "provider": "systemd",
       "schedule": "0 5 * * 1-5",
