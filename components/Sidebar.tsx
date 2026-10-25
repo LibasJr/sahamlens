@@ -199,6 +199,7 @@ const ADMIN_NAV_GROUP: NavGroup = {
     { id: 'admin-profil-risiko', name: 'Profil Risiko & Tren', subtitle: 'Volatilitas rendah & kedekatan puncak 52 minggu', path: '/admin/profil-risiko', icon: Gauge },
     { id: 'admin-jobs', name: 'Cron & Update Mingguan', subtitle: 'Jadwal, hasil audit & kesehatan job', path: '/admin/jobs', icon: Activity },
     { id: 'admin-decision-lab', name: 'Simulasi Keputusan AI', subtitle: 'Paper order & bukti sinyal', path: '/admin/decision-lab', icon: Brain },
+    { id: 'admin-shadow-ledger', name: 'Shadow Forward Ledger', subtitle: 'Lengan B paper-trade', path: '/admin/shadow-ledger', icon: Target },
     { id: 'admin-ara-scanner', name: 'Kesiapan Scanner ARA', subtitle: 'Gate input real-time', path: '/admin/ara-scanner', icon: Radar },
     { id: 'admin-decision-lab-role-stack', name: 'Stack Role Decision Lab', subtitle: 'Lead, Analyst, Reviewer, Ops', path: '/docs/admin/decision-lab-role-stack', icon: Users },
     { id: 'admin-calibration', name: 'Uji Akurasi LensRadar', subtitle: 'Skor, T+20 & OOS', path: '/admin/calibration', icon: BookOpenCheck },
