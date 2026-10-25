@@ -14,4 +14,14 @@ describe('admin auth boundaries', () => {
     expect(route).toContain('handleAdminStatus(await cookies())');
     expect(route).toContain('runController');
   });
+
+  it('shadow-ledger admin page dan API rute dilindungi oleh isAdminServer', () => {
+    const page = readFileSync(new URL('../app/admin/shadow-ledger/page.tsx', import.meta.url), 'utf8');
+    expect(page).toContain("redirect('/admin-login')");
+    expect(page).toContain('if (!(await isAdminServer()))');
+
+    const apiRoute = readFileSync(new URL('../app/api/admin/shadow-ledger/route.ts', import.meta.url), 'utf8');
+    expect(apiRoute).toContain('if (!(await isAdminServer()))');
+    expect(apiRoute).toContain('status: 401');
+  });
 });

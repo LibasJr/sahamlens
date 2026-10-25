@@ -447,3 +447,406 @@ export async function getForwardLedgerTransparencySummary(): Promise<PublicForwa
     };
   }
 }
+
+export interface HorizonMetrics {
+  count: number;
+  winRatePct: number | null;
+  avgNetReturnPct: number | null;
+}
+
+export interface ExitReasonMetrics {
+  targetHitCount: number;
+  targetHitPct: number | null;
+  stopHitCount: number;
+  stopHitPct: number | null;
+  holdExpiryCount: number;
+  holdExpiryPct: number | null;
+  totalEvaluated: number;
+}
+
+export interface ShadowLedgerMetrics {
+  totalSignals: number;
+  t5: HorizonMetrics;
+  t10: HorizonMetrics;
+  t20: HorizonMetrics;
+  exitReasons: ExitReasonMetrics;
+}
+
+export interface SignalOutcomeStatus {
+  netReturnPct: number | null;
+  grossReturnPct: number | null;
+  exitReason: string | null;
+  stopHit: boolean;
+  targetHit: boolean;
+  isEvaluated: boolean;
+}
+
+export interface ShadowLedgerSignalItem {
+  signalId: string;
+  tradeDate: string;
+  ticker: string;
+  action: string;
+  closePrice: number;
+  entryRef: number;
+  stop: number | null;
+  target: number | null;
+  riskReward: number | null;
+  modelVersion: string;
+  universeFlag: boolean;
+  createdAt: string;
+  t5: SignalOutcomeStatus;
+  t10: SignalOutcomeStatus;
+  t20: SignalOutcomeStatus;
+}
+
+export interface ShadowLedgerCronStatus {
+  jobName: string;
+  title: string;
+  scheduleTime: string;
+  lastRunAt: string | null;
+  lastFinishedAt: string | null;
+  status: 'SUCCESS' | 'FAILED' | 'RUNNING' | 'NEVER_RUN';
+  errorMessage: string | null;
+}
+
+export interface ShadowLedgerDashboardPayload {
+  asOfDate: string | null;
+  cronJobs: ShadowLedgerCronStatus[];
+  modelMetrics: Record<string, ShadowLedgerMetrics>;
+  signalsByModel: Record<string, ShadowLedgerSignalItem[]>;
+  availableModels: string[];
+}
+
+export async function getShadowLedgerDashboardData(): Promise<ShadowLedgerDashboardPayload> {
+  await ensureSharedSchema();
+  try {
+    const cronRes = await pool.query(`
+      SELECT DISTINCT ON (job_name)
+        job_name as "jobName",
+        status,
+        started_at as "startedAt",
+        finished_at as "finishedAt",
+        error_message as "errorMessage"
+      FROM job_run_log
+      WHERE job_name IN ('shadow-lengan-b-record', 'forward-ledger-evaluate', 'forward-ledger-record')
+      ORDER BY job_name, started_at DESC
+    `);
+
+    const cronMap = new Map<string, any>();
+    for (const row of cronRes.rows) {
+      cronMap.set(String(row.jobName), row);
+    }
+
+    const shadowRecord = cronMap.get('shadow-lengan-b-record');
+    const evaluateJob = cronMap.get('forward-ledger-evaluate');
+
+    const cronJobs: ShadowLedgerCronStatus[] = [
+      {
+        jobName: 'shadow-lengan-b-record',
+        title: 'Rekam Sinyal Harian (Lengan B)',
+        scheduleTime: '16:35 WIB (Senin - Jumat)',
+        lastRunAt: shadowRecord?.startedAt ? new Date(shadowRecord.startedAt).toISOString() : null,
+        lastFinishedAt: shadowRecord?.finishedAt ? new Date(shadowRecord.finishedAt).toISOString() : null,
+        status: (shadowRecord?.status as any) || 'NEVER_RUN',
+        errorMessage: shadowRecord?.errorMessage ? String(shadowRecord.errorMessage) : null,
+      },
+      {
+        jobName: 'forward-ledger-evaluate',
+        title: 'Evaluasi Outcome Forward',
+        scheduleTime: '17:30 WIB (Senin - Jumat)',
+        lastRunAt: evaluateJob?.startedAt ? new Date(evaluateJob.startedAt).toISOString() : null,
+        lastFinishedAt: evaluateJob?.finishedAt ? new Date(evaluateJob.finishedAt).toISOString() : null,
+        status: (evaluateJob?.status as any) || 'NEVER_RUN',
+        errorMessage: evaluateJob?.errorMessage ? String(evaluateJob.errorMessage) : null,
+      },
+    ];
+
+    const metricsPerModelRes = await pool.query(`
+      SELECT
+        s.model_version as "modelVersion",
+        COUNT(DISTINCT s.signal_id)::int as "totalSignals",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T5' THEN s.signal_id END)::int as "t5Count",
+        AVG(CASE WHEN o.horizon = 'T5' THEN o.net_return_60_pct END) as "t5AvgNet",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T5' AND o.net_return_60_pct > 0 THEN s.signal_id END)::int as "t5Wins",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T10' THEN s.signal_id END)::int as "t10Count",
+        AVG(CASE WHEN o.horizon = 'T10' THEN o.net_return_60_pct END) as "t10AvgNet",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T10' AND o.net_return_60_pct > 0 THEN s.signal_id END)::int as "t10Wins",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T20' THEN s.signal_id END)::int as "t20Count",
+        AVG(CASE WHEN o.horizon = 'T20' THEN o.net_return_60_pct END) as "t20AvgNet",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T20' AND o.net_return_60_pct > 0 THEN s.signal_id END)::int as "t20Wins",
+        COUNT(DISTINCT CASE WHEN o.target_hit = true OR o.exit_reason = 'TARGET_HIT' THEN o.signal_id || '_' || o.horizon END)::int as "targetHitCount",
+        COUNT(DISTINCT CASE WHEN o.stop_hit = true OR o.exit_reason = 'STOP_HIT' THEN o.signal_id || '_' || o.horizon END)::int as "stopHitCount",
+        COUNT(DISTINCT CASE WHEN o.exit_reason = 'HOLD_EXPIRY' THEN o.signal_id || '_' || o.horizon END)::int as "holdExpiryCount",
+        COUNT(DISTINCT o.signal_id || '_' || o.horizon)::int as "totalOutcomes"
+      FROM forward_signal_ledger s
+      LEFT JOIN forward_signal_outcome o ON o.signal_id = s.signal_id
+      GROUP BY s.model_version
+    `);
+
+    const allMetricsRes = await pool.query(`
+      SELECT
+        COUNT(DISTINCT s.signal_id)::int as "totalSignals",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T5' THEN s.signal_id END)::int as "t5Count",
+        AVG(CASE WHEN o.horizon = 'T5' THEN o.net_return_60_pct END) as "t5AvgNet",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T5' AND o.net_return_60_pct > 0 THEN s.signal_id END)::int as "t5Wins",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T10' THEN s.signal_id END)::int as "t10Count",
+        AVG(CASE WHEN o.horizon = 'T10' THEN o.net_return_60_pct END) as "t10AvgNet",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T10' AND o.net_return_60_pct > 0 THEN s.signal_id END)::int as "t10Wins",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T20' THEN s.signal_id END)::int as "t20Count",
+        AVG(CASE WHEN o.horizon = 'T20' THEN o.net_return_60_pct END) as "t20AvgNet",
+        COUNT(DISTINCT CASE WHEN o.horizon = 'T20' AND o.net_return_60_pct > 0 THEN s.signal_id END)::int as "t20Wins",
+        COUNT(DISTINCT CASE WHEN o.target_hit = true OR o.exit_reason = 'TARGET_HIT' THEN o.signal_id || '_' || o.horizon END)::int as "targetHitCount",
+        COUNT(DISTINCT CASE WHEN o.stop_hit = true OR o.exit_reason = 'STOP_HIT' THEN o.signal_id || '_' || o.horizon END)::int as "stopHitCount",
+        COUNT(DISTINCT CASE WHEN o.exit_reason = 'HOLD_EXPIRY' THEN o.signal_id || '_' || o.horizon END)::int as "holdExpiryCount",
+        COUNT(DISTINCT o.signal_id || '_' || o.horizon)::int as "totalOutcomes",
+        MAX(s.trade_date)::text as "latestTradeDate"
+      FROM forward_signal_ledger s
+      LEFT JOIN forward_signal_outcome o ON o.signal_id = s.signal_id
+    `);
+
+    function buildMetrics(row: any): ShadowLedgerMetrics {
+      const totalSignals = Number(row?.totalSignals || 0);
+      const t5Count = Number(row?.t5Count || 0);
+      const t5Wins = Number(row?.t5Wins || 0);
+      const t10Count = Number(row?.t10Count || 0);
+      const t10Wins = Number(row?.t10Wins || 0);
+      const t20Count = Number(row?.t20Count || 0);
+      const t20Wins = Number(row?.t20Wins || 0);
+      const totalOutcomes = Number(row?.totalOutcomes || 0);
+      const targetHitCount = Number(row?.targetHitCount || 0);
+      const stopHitCount = Number(row?.stopHitCount || 0);
+      const holdExpiryCount = Number(row?.holdExpiryCount || 0);
+
+      return {
+        totalSignals,
+        t5: {
+          count: t5Count,
+          winRatePct: t5Count > 0 ? roundTo((t5Wins / t5Count) * 100, 1) : null,
+          avgNetReturnPct: roundTo(asNum(row?.t5AvgNet), 2),
+        },
+        t10: {
+          count: t10Count,
+          winRatePct: t10Count > 0 ? roundTo((t10Wins / t10Count) * 100, 1) : null,
+          avgNetReturnPct: roundTo(asNum(row?.t10AvgNet), 2),
+        },
+        t20: {
+          count: t20Count,
+          winRatePct: t20Count > 0 ? roundTo((t20Wins / t20Count) * 100, 1) : null,
+          avgNetReturnPct: roundTo(asNum(row?.t20AvgNet), 2),
+        },
+        exitReasons: {
+          targetHitCount,
+          targetHitPct: totalOutcomes > 0 ? roundTo((targetHitCount / totalOutcomes) * 100, 1) : null,
+          stopHitCount,
+          stopHitPct: totalOutcomes > 0 ? roundTo((stopHitCount / totalOutcomes) * 100, 1) : null,
+          holdExpiryCount,
+          holdExpiryPct: totalOutcomes > 0 ? roundTo((holdExpiryCount / totalOutcomes) * 100, 1) : null,
+          totalEvaluated: totalOutcomes,
+        },
+      };
+    }
+
+    const modelMetrics: Record<string, ShadowLedgerMetrics> = {};
+    const availableModelsSet = new Set<string>(['shadow-lengan-b-v1']);
+
+    for (const r of metricsPerModelRes.rows) {
+      const mv = String(r.modelVersion);
+      availableModelsSet.add(mv);
+      modelMetrics[mv] = buildMetrics(r);
+    }
+
+    if (!modelMetrics['shadow-lengan-b-v1']) {
+      modelMetrics['shadow-lengan-b-v1'] = {
+        totalSignals: 0,
+        t5: { count: 0, winRatePct: null, avgNetReturnPct: null },
+        t10: { count: 0, winRatePct: null, avgNetReturnPct: null },
+        t20: { count: 0, winRatePct: null, avgNetReturnPct: null },
+        exitReasons: {
+          targetHitCount: 0,
+          targetHitPct: null,
+          stopHitCount: 0,
+          stopHitPct: null,
+          holdExpiryCount: 0,
+          holdExpiryPct: null,
+          totalEvaluated: 0,
+        },
+      };
+    }
+
+    modelMetrics['all'] = buildMetrics(allMetricsRes.rows[0]);
+
+    const signalsRes = await pool.query(`
+      WITH ranked_signals AS (
+        SELECT
+          s.signal_id,
+          s.trade_date::text as trade_date,
+          s.ticker,
+          s.action,
+          s.close_price,
+          s.entry_ref,
+          s.stop,
+          s.target,
+          s.risk_reward,
+          s.model_version,
+          s.universe_flag,
+          s.created_at,
+          ROW_NUMBER() OVER (PARTITION BY s.model_version ORDER BY s.trade_date DESC, s.created_at DESC, s.ticker ASC) as rn
+        FROM forward_signal_ledger s
+      )
+      SELECT
+        r.signal_id as "signalId",
+        r.trade_date as "tradeDate",
+        r.ticker,
+        r.action,
+        r.close_price as "closePrice",
+        r.entry_ref as "entryRef",
+        r.stop,
+        r.target,
+        r.risk_reward as "riskReward",
+        r.model_version as "modelVersion",
+        r.universe_flag as "universeFlag",
+        r.created_at as "createdAt",
+        o_t5.net_return_60_pct as "t5Net",
+        o_t5.gross_return_pct as "t5Gross",
+        o_t5.exit_reason as "t5Reason",
+        o_t5.stop_hit as "t5StopHit",
+        o_t5.target_hit as "t5TargetHit",
+        o_t10.net_return_60_pct as "t10Net",
+        o_t10.gross_return_pct as "t10Gross",
+        o_t10.exit_reason as "t10Reason",
+        o_t10.stop_hit as "t10StopHit",
+        o_t10.target_hit as "t10TargetHit",
+        o_t20.net_return_60_pct as "t20Net",
+        o_t20.gross_return_pct as "t20Gross",
+        o_t20.exit_reason as "t20Reason",
+        o_t20.stop_hit as "t20StopHit",
+        o_t20.target_hit as "t20TargetHit"
+      FROM ranked_signals r
+      LEFT JOIN forward_signal_outcome o_t5 ON o_t5.signal_id = r.signal_id AND o_t5.horizon = 'T5'
+      LEFT JOIN forward_signal_outcome o_t10 ON o_t10.signal_id = r.signal_id AND o_t10.horizon = 'T10'
+      LEFT JOIN forward_signal_outcome o_t20 ON o_t20.signal_id = r.signal_id AND o_t20.horizon = 'T20'
+      WHERE r.rn <= 150
+      ORDER BY r.trade_date DESC, r.created_at DESC, r.ticker ASC
+    `);
+
+    const allSignals: ShadowLedgerSignalItem[] = signalsRes.rows.map((row) => ({
+      signalId: String(row.signalId),
+      tradeDate: String(row.tradeDate),
+      ticker: String(row.ticker),
+      action: String(row.action),
+      closePrice: Number(row.closePrice),
+      entryRef: Number(row.entryRef),
+      stop: asNum(row.stop),
+      target: asNum(row.target),
+      riskReward: asNum(row.riskReward),
+      modelVersion: String(row.modelVersion),
+      universeFlag: Boolean(row.universeFlag),
+      createdAt: new Date(String(row.createdAt)).toISOString(),
+      t5: {
+        netReturnPct: roundTo(asNum(row.t5Net), 2),
+        grossReturnPct: roundTo(asNum(row.t5Gross), 2),
+        exitReason: row.t5Reason ? String(row.t5Reason) : null,
+        stopHit: Boolean(row.t5StopHit),
+        targetHit: Boolean(row.t5TargetHit),
+        isEvaluated: row.t5Net != null,
+      },
+      t10: {
+        netReturnPct: roundTo(asNum(row.t10Net), 2),
+        grossReturnPct: roundTo(asNum(row.t10Gross), 2),
+        exitReason: row.t10Reason ? String(row.t10Reason) : null,
+        stopHit: Boolean(row.t10StopHit),
+        targetHit: Boolean(row.t10TargetHit),
+        isEvaluated: row.t10Net != null,
+      },
+      t20: {
+        netReturnPct: roundTo(asNum(row.t20Net), 2),
+        grossReturnPct: roundTo(asNum(row.t20Gross), 2),
+        exitReason: row.t20Reason ? String(row.t20Reason) : null,
+        stopHit: Boolean(row.t20StopHit),
+        targetHit: Boolean(row.t20TargetHit),
+        isEvaluated: row.t20Net != null,
+      },
+    }));
+
+    const signalsByModel: Record<string, ShadowLedgerSignalItem[]> = {
+      all: allSignals,
+    };
+    for (const m of availableModelsSet) {
+      signalsByModel[m] = allSignals.filter((s) => s.modelVersion === m);
+    }
+
+    const latestDate = allMetricsRes.rows[0]?.latestTradeDate
+      ? String(allMetricsRes.rows[0].latestTradeDate)
+      : null;
+
+    return {
+      asOfDate: latestDate,
+      cronJobs,
+      modelMetrics,
+      signalsByModel,
+      availableModels: Array.from(availableModelsSet),
+    };
+  } catch (error) {
+    logger.error('Gagal mengambil data dashboard shadow ledger', { err: error });
+    return {
+      asOfDate: null,
+      cronJobs: [
+        {
+          jobName: 'shadow-lengan-b-record',
+          title: 'Rekam Sinyal Harian (Lengan B)',
+          scheduleTime: '16:35 WIB (Senin - Jumat)',
+          lastRunAt: null,
+          lastFinishedAt: null,
+          status: 'NEVER_RUN',
+          errorMessage: null,
+        },
+        {
+          jobName: 'forward-ledger-evaluate',
+          title: 'Evaluasi Outcome Forward',
+          scheduleTime: '17:30 WIB (Senin - Jumat)',
+          lastRunAt: null,
+          lastFinishedAt: null,
+          status: 'NEVER_RUN',
+          errorMessage: null,
+        },
+      ],
+      modelMetrics: {
+        'shadow-lengan-b-v1': {
+          totalSignals: 0,
+          t5: { count: 0, winRatePct: null, avgNetReturnPct: null },
+          t10: { count: 0, winRatePct: null, avgNetReturnPct: null },
+          t20: { count: 0, winRatePct: null, avgNetReturnPct: null },
+          exitReasons: {
+            targetHitCount: 0,
+            targetHitPct: null,
+            stopHitCount: 0,
+            stopHitPct: null,
+            holdExpiryCount: 0,
+            holdExpiryPct: null,
+            totalEvaluated: 0,
+          },
+        },
+        all: {
+          totalSignals: 0,
+          t5: { count: 0, winRatePct: null, avgNetReturnPct: null },
+          t10: { count: 0, winRatePct: null, avgNetReturnPct: null },
+          t20: { count: 0, winRatePct: null, avgNetReturnPct: null },
+          exitReasons: {
+            targetHitCount: 0,
+            targetHitPct: null,
+            stopHitCount: 0,
+            stopHitPct: null,
+            holdExpiryCount: 0,
+            holdExpiryPct: null,
+            totalEvaluated: 0,
+          },
+        },
+      },
+      signalsByModel: {
+        'shadow-lengan-b-v1': [],
+        all: [],
+      },
+      availableModels: ['shadow-lengan-b-v1'],
+    };
+  }
+}
