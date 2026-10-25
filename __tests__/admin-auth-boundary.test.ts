@@ -24,4 +24,15 @@ describe('admin auth boundaries', () => {
     expect(apiRoute).toContain('if (!(await isAdminServer()))');
     expect(apiRoute).toContain('status: 401');
   });
+
+  it('tautan shadow-ledger di Sidebar hanya ada di grup admin', () => {
+    const sidebar = readFileSync(new URL('../components/Sidebar.tsx', import.meta.url), 'utf8');
+    const adminGroupStart = sidebar.indexOf('const ADMIN_NAV_GROUP');
+    const accessFunctionStart = sidebar.indexOf('function visibleGroupsFor');
+    const shadowLink = sidebar.indexOf("path: '/admin/shadow-ledger'");
+
+    expect(adminGroupStart).toBeGreaterThan(-1);
+    expect(shadowLink).toBeGreaterThan(adminGroupStart);
+    expect(shadowLink).toBeLessThan(accessFunctionStart);
+  });
 });
