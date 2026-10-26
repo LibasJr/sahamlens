@@ -1,0 +1,13 @@
+[Unit]
+Description=SahamLens - watchdog auto-recovery kesehatan telemetri
+After=network-online.target sahamlens.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=lens
+Group=lens
+WorkingDirectory=/opt/sahamlens/app
+EnvironmentFile=-/opt/sahamlens/app/.env.production
+TimeoutStartSec=60
+ExecStart=/usr/bin/node /opt/sahamlens/app/scripts/health-auto-recovery.mjs
