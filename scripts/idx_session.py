@@ -21,11 +21,12 @@ Pengaturan ulang rantai: env `IDX_IMPERSONATE_CHAIN` (dipisah koma).
 from __future__ import annotations
 
 import os
+import time
 from datetime import date
 
 from curl_cffi import requests
 
-DEFAULT_CHAIN = "chrome136,safari18_0,chrome131,safari17_0,chrome124"
+DEFAULT_CHAIN = "chrome124,chrome120,chrome123,chrome119,safari2601,chrome136"
 
 CANDIDATE_IMPERSONATIONS: tuple[str, ...] = tuple(
     value.strip()
@@ -60,9 +61,11 @@ def build_session(timeout: int = 30, probe_url: str | None = None) -> "requests.
                 response = session.get(target, timeout=timeout, headers=dict(_PROBE_HEADERS))
                 if response.status_code == 403:
                     failures.append(f"{name}: HTTP 403")
+                    time.sleep(1)
                     continue
                 if response.status_code >= 500:
                     failures.append(f"{name}: HTTP {response.status_code}")
+                    time.sleep(1)
                     continue
             print(f"[idx-session] fingerprint aktif: {name}", flush=True)
             return session
