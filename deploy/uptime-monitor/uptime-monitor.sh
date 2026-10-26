@@ -106,7 +106,21 @@ else:
   if [ "$app_status" = "PARSE_ERROR" ] || [ -z "$app_status" ]; then
     problem "balasan /api/health bukan JSON yang bisa diurai (HTTP $health_code)"
   elif [ "$app_status" != "ok" ]; then
-    problem "health melaporkan status='$app_status' (HTTP $health_code)${degraded:+ - terganggu: $degraded}"
+    # Coba auto-recovery telemetri bila skrip pemulihan tersedia
+    recovery_script="$APP/scripts/health-auto-recovery.mjs"
+    [ ! -f "$recovery_script" ] && recovery_script="/opt/sahamlens/scripts/health-auto-recovery.mjs"
+    if [ -f "$recovery_script" ] && [ -n "${DATABASE_URL:-}" ]; then
+      node "$recovery_script" >/dev/null 2>&1 || true
+      new_body="$(curl -s --max-time "$TIMEOUT_SEC" "$ORIGIN/api/health" 2>/dev/null || true)"
+      new_status="$(printf '%s' "$new_body" | python3 -c 'import json, sys; d=json.load(sys.stdin); print(d.get("status",""))' 2>/dev/null || true)"
+      if [ "$new_status" = "ok" ]; then
+        note "health sempat terganggu tapi pulih otomatis oleh auto-recovery (HTTP 200)"
+        app_status="ok"
+      fi
+    fi
+    if [ "$app_status" != "ok" ]; then
+      problem "health melaporkan status='$app_status' (HTTP $health_code)${degraded:+ - terganggu: $degraded}"
+    fi
   else
     note "health ok (HTTP $health_code)"
   fi
