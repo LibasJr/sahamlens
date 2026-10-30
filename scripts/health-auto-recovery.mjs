@@ -2,9 +2,9 @@
 /**
  * Watchdog Auto-Recovery untuk SahamLens
  *
- * Menginspeksi kesehatan internal dan memulihkan status telemetri yang degraded
+ * Menginspeksi kesehatan internal dan memulihkan status telemetri yang degraded/down
  * akibat gangguan transien pihak ketiga (mis. server Kemenkeu offline, timeout AI tunggal,
- * 404 ticker individual di Yahoo, RSS blip).
+ * 404 ticker individual di Yahoo, RSS blip, atau sinkronisasi EOD IDX yang sudah selesai).
  *
  * Prinsip:
  * 1. Tidak mengarang angka pasar atau mengganti data asli.
@@ -12,9 +12,13 @@
  * 3. Untuk bukti makro mingguan/tahunan (SBN/ERP/Inflasi): bila server hulu sementara tidak bisa dihubungi
  *    tetapi bukti terakhir di database masih SEGAR (sesuai ambang batas macro-watchdog), pulihkan telemetri
  *    agar tidak memicu alarm palsu pada pemantau uptime selama berhari-hari.
- * 4. Mereset unit systemd yang berstatus failed jika penyebabnya sudah tertangani secara mandiri.
+ * 4. Untuk artefak EOD IDX lokal: bila sinkronisasi EOD (sync-idx-flow) sudah mengimpor data terbaru ke disk,
+ *    pulihkan status telemetri IDX_TRADING_INFO_SS tanpa harus menunggu request pengguna berikutnya.
+ * 5. Mereset unit systemd yang berstatus failed jika penyebabnya sudah tertangani secara mandiri.
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import { Client } from 'pg';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -108,19 +112,26 @@ export async function runAutoRecovery(options = {}) {
       // Kasus B: YAHOO_CHART
       if (id === 'YAHOO_CHART') {
         try {
-          const probe = await fetch(`${origin}/api/stock/BBCA?force=1`, {
-            signal: AbortSignal.timeout(10_000),
-            headers: { Accept: 'application/json' },
-          });
+          // Probe Yahoo Finance API hulu secara langsung
+          const probe = await fetch(
+            'https://query1.finance.yahoo.com/v8/finance/chart/BBCA.JK?range=1d&interval=1d',
+            {
+              headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' },
+              signal: AbortSignal.timeout(8_000),
+            },
+          );
           if (probe.ok) {
-            await client.query(
-              `UPDATE data_source_health
-                  SET status = 'HEALTHY', consecutive_failures = 0, last_success_at = now(), updated_at = now(),
-                      detail = jsonb_set(COALESCE(detail, '{}'::jsonb), '{auto_recovered}', '"probe_stock_bbca_success"')
-                WHERE source_id = 'YAHOO_CHART'`,
-            );
-            recovered.push(id);
-            log('[auto-recovery] YAHOO_CHART berhasil dipulihkan via live probe BBCA.');
+            const data = await probe.json();
+            if (data?.chart?.result?.[0]?.meta?.regularMarketPrice != null) {
+              await client.query(
+                `UPDATE data_source_health
+                    SET status = 'HEALTHY', consecutive_failures = 0, last_success_at = now(), updated_at = now(),
+                        detail = jsonb_set(COALESCE(detail, '{}'::jsonb), '{auto_recovered}', '"probe_yahoo_direct_success"')
+                  WHERE source_id = 'YAHOO_CHART'`,
+              );
+              recovered.push(id);
+              log('[auto-recovery] YAHOO_CHART berhasil dipulihkan via live probe Yahoo Finance.');
+            }
           }
         } catch (e) {
           log(`[auto-recovery] Probe YAHOO_CHART gagal: ${e instanceof Error ? e.message : String(e)}`);
@@ -164,7 +175,7 @@ export async function runAutoRecovery(options = {}) {
       // Kasus D: Berita RSS (RSS_*)
       if (id.startsWith('RSS_')) {
         const failAgeMs = src.last_failure_at ? Date.now() - new Date(src.last_failure_at).getTime() : Infinity;
-        if (src.consecutive_failures <= 2 && failAgeMs > 15 * 60_000) {
+        if (src.consecutive_failures <= 3 && failAgeMs > 5 * 60_000) {
           await client.query(
             `UPDATE data_source_health
                 SET status = 'HEALTHY', consecutive_failures = 0, updated_at = now(),
@@ -173,8 +184,45 @@ export async function runAutoRecovery(options = {}) {
             [id],
           );
           recovered.push(id);
-          log(`[auto-recovery] ${id} blip transien dibersihkan (kegagalan terakhir >15m lalu).`);
+          log(`[auto-recovery] ${id} blip transien dibersihkan (kegagalan terakhir >5m lalu).`);
         }
+        continue;
+      }
+
+      // Kasus E: Artefak EOD IDX Foreign Flow (IDX_TRADING_INFO_SS)
+      if (id === 'IDX_TRADING_INFO_SS') {
+        try {
+          const defaultAppRoot = fs.existsSync(path.join(process.cwd(), 'data', 'foreign-flow'))
+            ? process.cwd()
+            : (process.env.SAHAMLENS_APP_DIR || '/opt/sahamlens/app');
+          const appRoot = options.appRoot || defaultAppRoot;
+          const artifactPath = path.join(appRoot, 'data', 'foreign-flow', 'BBCA.json');
+          if (fs.existsSync(artifactPath)) {
+            const raw = JSON.parse(fs.readFileSync(artifactPath, 'utf8'));
+            const rows = raw.history || raw.data || raw.rows || (Array.isArray(raw) ? raw : []);
+            if (rows.length > 0) {
+              const latestDate = rows[rows.length - 1].date || rows[rows.length - 1].Date;
+              if (latestDate) {
+                const dateTs = new Date(latestDate).getTime();
+                const ageDays = (Date.now() - dateTs) / 86_400_000;
+                // Fresh jika usia baris terakhir <= 4 hari kalender (mencakup akhir pekan)
+                if (ageDays <= 4) {
+                  await client.query(
+                    `UPDATE data_source_health
+                        SET status = 'HEALTHY', consecutive_failures = 0, last_success_at = now(), updated_at = now(),
+                            detail = jsonb_set(COALESCE(detail, '{}'::jsonb), '{auto_recovered}', '"artifact_foreign_flow_fresh"')
+                      WHERE source_id = 'IDX_TRADING_INFO_SS'`,
+                  );
+                  recovered.push(id);
+                  log(`[auto-recovery] IDX_TRADING_INFO_SS dipulihkan (artefak BBCA tanggal ${latestDate} masih segar: ${Math.round(ageDays)} hari lalu).`);
+                }
+              }
+            }
+          }
+        } catch (e) {
+          log(`[auto-recovery] Evaluasi artefak IDX_TRADING_INFO_SS gagal: ${e instanceof Error ? e.message : String(e)}`);
+        }
+        continue;
       }
     }
   } finally {
