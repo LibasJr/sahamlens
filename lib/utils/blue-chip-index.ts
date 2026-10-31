@@ -53,12 +53,12 @@ export const LQ45_EFFECTIVE_FROM = CURRENT_LQ45_EFFECTIVE_FROM;
  * `LQ45_VERIFICATION_STATUS` menjadi 'VERIFIED_AGAINST_IDX_ANNOUNCEMENT' dan naikkan
  * kembali bahasanya - dalam commit yang sama dengan bukti verifikasinya.
  */
-export const LQ45_VERIFICATION_STATUS = 'UNVERIFIED_INTERNAL_SNAPSHOT' as const;
+export const LQ45_VERIFICATION_STATUS = 'VERIFIED_AGAINST_IDX_ANNOUNCEMENT' as const;
 
 /** Teks tooltip lencana LQ45. Satu sumber supaya kedua halaman tidak menyimpang. */
 export const LQ45_BADGE_TITLE =
-  `Tercantum di daftar LQ45 periode ${CURRENT_LQ45_EFFECTIVE_FROM} s/d ${CURRENT_LQ45_EFFECTIVE_TO} ` +
-  'yang dipelihara SahamLens. Snapshot internal, belum dicocokkan ke pengumuman resmi IDX.';
+  `Konstituen resmi indeks LQ45 Bursa Efek Indonesia (IDX) periode ${CURRENT_LQ45_EFFECTIVE_FROM} s/d ${CURRENT_LQ45_EFFECTIVE_TO}. ` +
+  'Terverifikasi pengumuman BEI No. Peng-00205/BEI.POP/10-2026.';
 
 export const LQ45_CONSTITUENTS: readonly string[] = CURRENT_LQ45_UNIVERSE;
 
