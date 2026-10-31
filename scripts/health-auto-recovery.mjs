@@ -243,7 +243,7 @@ export async function runAutoRecovery(options = {}) {
   log(`[auto-recovery] Status /api/health saat ini: '${finalStatus}'. Total sumber dipulihkan: ${recovered.length}.`);
 
   // 3. Reset failed unit jika /api/health sudah kembali ok
-  if (finalStatus === 'ok') {
+  if (finalStatus === 'ok' && process.env.NODE_ENV !== 'test' && !options.skipSystemdReset) {
     try {
       await execFileAsync('sudo', ['systemctl', 'reset-failed', 'sahamlens-uptime-monitor.service']);
       await execFileAsync('sudo', ['systemctl', 'start', 'sahamlens-uptime-monitor.service']);
