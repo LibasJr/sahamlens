@@ -119,14 +119,21 @@ def sync_month(year: int, month: int, cache_dir: Path, workers: int) -> dict:
     query = urllib.parse.urlencode({"setLocale": "id-ID", "Year": year, "Month": f"{month:02d}"})
     body, _ = get(f"{BASE}{LIST_PATH}?{query}")
     page = body.decode("utf-8", errors="replace")
-    if "table table--zebra" not in page:
+    has_table = "table table--zebra" in page
+    has_ksei_form = "IsinAnnouncementFilterMonth" in page
+    is_empty_state = has_ksei_form and (
+        bool(re.search(r'belum ada data|tidak ada data|no data', page, re.I))
+        or "<table" not in page
+    )
+    if not has_table and not is_empty_state:
         raise RuntimeError(f"struktur daftar KSEI tidak dikenali: {period}")
 
     listed: list[dict] = []
-    for href, _about, published in ROW_RE.findall(page):
-        url = urllib.parse.urljoin(BASE, html.unescape(href))
-        url = f"{url}{'&' if '?' in url else '?'}month={month:02d}"
-        listed.append({"id": file_id(url), "url": url, "publishedAt": strip_tags(published), "period": period})
+    if has_table:
+        for href, _about, published in ROW_RE.findall(page):
+            url = urllib.parse.urljoin(BASE, html.unescape(href))
+            url = f"{url}{'&' if '?' in url else '?'}month={month:02d}"
+            listed.append({"id": file_id(url), "url": url, "publishedAt": strip_tags(published), "period": period})
     upstream_ids = {item["id"] for item in listed}
     old_documents = previous.get("documents", {}) if previous else {}
     documents = {key: value for key, value in old_documents.items() if key in upstream_ids}
