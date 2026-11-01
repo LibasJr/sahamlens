@@ -242,11 +242,17 @@ export async function runAutoRecovery(options = {}) {
 
   log(`[auto-recovery] Status /api/health saat ini: '${finalStatus}'. Total sumber dipulihkan: ${recovered.length}.`);
 
+  const shouldSkipReset =
+    options.skipSystemdReset ||
+    process.env.NODE_ENV === 'test' ||
+    process.env.SAHAMLENS_SKIP_SYSTEMD_RESET === '1' ||
+    process.argv.includes('--skip-systemd-reset');
+
   // 3. Reset failed unit jika /api/health sudah kembali ok
-  if (finalStatus === 'ok' && process.env.NODE_ENV !== 'test' && !options.skipSystemdReset) {
+  if (finalStatus === 'ok' && !shouldSkipReset) {
     try {
       await execFileAsync('sudo', ['systemctl', 'reset-failed', 'sahamlens-uptime-monitor.service']);
-      await execFileAsync('sudo', ['systemctl', 'start', 'sahamlens-uptime-monitor.service']);
+      await execFileAsync('sudo', ['systemctl', 'start', '--no-block', 'sahamlens-uptime-monitor.service']);
       log('[auto-recovery] sahamlens-uptime-monitor.service berhasil di-reset & di-trigger ulang (hijau).');
     } catch {}
   }

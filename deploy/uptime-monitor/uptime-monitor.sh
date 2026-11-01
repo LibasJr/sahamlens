@@ -110,7 +110,7 @@ else:
     recovery_script="$APP/scripts/health-auto-recovery.mjs"
     [ ! -f "$recovery_script" ] && recovery_script="/opt/sahamlens/scripts/health-auto-recovery.mjs"
     if [ -f "$recovery_script" ] && [ -n "${DATABASE_URL:-}" ]; then
-      node "$recovery_script" >/dev/null 2>&1 || true
+      node "$recovery_script" --skip-systemd-reset >/dev/null 2>&1 || true
       new_body="$(curl -s --max-time "$TIMEOUT_SEC" "$ORIGIN/api/health" 2>/dev/null || true)"
       new_status="$(printf '%s' "$new_body" | python3 -c 'import json, sys; d=json.load(sys.stdin); print(d.get("status",""))' 2>/dev/null || true)"
       if [ "$new_status" = "ok" ]; then
