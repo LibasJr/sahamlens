@@ -38,6 +38,7 @@ const BROKER_IMPORT_SCRIPT = 'scripts/import-broker-market-daily.mjs';
  * yang dipakai halaman analisis. Ubah lewat env, bukan dengan mengedit route. */
 const FOREIGN_FLOW_UNIVERSE = process.env.IDX_FLOW_SYNC_UNIVERSE || 'lq45';
 const FOREIGN_FLOW_LENGTH = process.env.IDX_FLOW_SYNC_LENGTH || '90';
+const FOREIGN_FLOW_SLEEP = process.env.IDX_FLOW_SYNC_SLEEP || '0.35';
 const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
 
 interface StepResult {
@@ -91,8 +92,16 @@ async function runSync(): Promise<SyncResult> {
   const foreignFlow = await runStep(
     'foreign-flow',
     PYTHON_BIN,
-    [path.resolve(root, FOREIGN_FLOW_SCRIPT), '--universe', FOREIGN_FLOW_UNIVERSE, '--length', FOREIGN_FLOW_LENGTH],
-    20 * 60 * 1000
+    [
+      path.resolve(root, FOREIGN_FLOW_SCRIPT),
+      '--universe',
+      FOREIGN_FLOW_UNIVERSE,
+      '--length',
+      FOREIGN_FLOW_LENGTH,
+      '--sleep',
+      FOREIGN_FLOW_SLEEP,
+    ],
+    25 * 60 * 1000
   );
   steps.push({ step: foreignFlow.step, ok: foreignFlow.ok, detail: foreignFlow.detail });
 

@@ -257,6 +257,27 @@ export async function runAutoRecovery(options = {}) {
     } catch {}
   }
 
+  // 4. Bersihkan status failed unit sync jika data artefak terbukti mutakhir
+  if (!shouldSkipReset) {
+    try {
+      const defaultAppRoot = fs.existsSync(path.join(process.cwd(), 'data', 'foreign-flow'))
+        ? process.cwd()
+        : (process.env.SAHAMLENS_APP_DIR || '/opt/sahamlens/app');
+      const appRoot = options.appRoot || defaultAppRoot;
+      const bbcaPath = path.join(appRoot, 'data', 'foreign-flow', 'BBCA.json');
+      if (fs.existsSync(bbcaPath)) {
+        const raw = JSON.parse(fs.readFileSync(bbcaPath, 'utf8'));
+        const rows = raw.history || raw.data || raw.rows || (Array.isArray(raw) ? raw : []);
+        if (rows.length > 0) {
+          const latestDate = rows[rows.length - 1].date || rows[rows.length - 1].Date;
+          if (latestDate && (Date.now() - new Date(latestDate).getTime()) / 86_400_000 <= 4) {
+            await execFileAsync('sudo', ['systemctl', 'reset-failed', 'sahamlens-idx-flow-sync.service']);
+          }
+        }
+      }
+    } catch {}
+  }
+
   return { status: finalStatus, recovered };
 }
 

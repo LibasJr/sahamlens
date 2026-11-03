@@ -189,6 +189,14 @@ $SUDO /usr/bin/systemctl enable sahamlens-forward-ledger-record.timer
 $SUDO /usr/bin/systemctl enable sahamlens-forward-ledger-evaluate.timer
 $SUDO /usr/bin/systemctl enable sahamlens-shadow-lengan-b.timer
 
+echo "Installing idx-flow-sync systemd units..."
+$SUDO /usr/bin/install -m 0644 deploy/idx-flow-sync/sahamlens-idx-flow-sync.service \
+  /etc/systemd/system/sahamlens-idx-flow-sync.service
+$SUDO /usr/bin/install -m 0644 deploy/idx-flow-sync/sahamlens-idx-flow-sync.timer \
+  /etc/systemd/system/sahamlens-idx-flow-sync.timer
+$SUDO /usr/bin/systemctl daemon-reload
+$SUDO /usr/bin/systemctl enable sahamlens-idx-flow-sync.timer
+
 echo "Restarting SahamLens..."
 $SUDO /usr/bin/systemctl restart sahamlens
 
