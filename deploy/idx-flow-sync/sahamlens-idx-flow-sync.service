@@ -13,6 +13,8 @@
 Description=SahamLens - sync Foreign Flow & Broker EOD resmi BEI
 After=network-online.target sahamlens.service
 Wants=network-online.target
+StartLimitIntervalSec=15min
+StartLimitBurst=2
 
 [Service]
 Type=oneshot
@@ -21,3 +23,5 @@ EnvironmentFile=/opt/sahamlens/app/.env.production
 # Endpoint localhost. CRON_SECRET tetap wajib; request tanpa secret ditolak.
 ExecStart=/usr/bin/curl -sfS --max-time 1800 -H "Authorization: Bearer ${CRON_SECRET}" http://127.0.0.1:3001/api/cron/idx-flow-sync
 TimeoutStartSec=1860
+Restart=on-failure
+RestartSec=120s
