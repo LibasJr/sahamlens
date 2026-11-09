@@ -1,0 +1,2 @@
+input_key,value_pct,market_date,observed_date,usable_from_date,evidence_type,source_tier,source_name,source_url,methodology,notes
+BI_RATE_PCT,5.75,2026-10-21,2026-10-21,2026-10-21,POLICY_RATE,GOVERNMENT_OFFICIAL,Bank Indonesia - Siaran Pers RDG 20-21 Oktober 2026,https://www.bi.go.id/id/publikasi/ruang-media/news-release/Pages/sp_2823326.aspx,Policy-rate context; tidak digunakan sebagai pengganti yield SBN 10Y dalam CAPM,BI-Rate tetap 5.75% pada RDG 20-21 Oktober 2026 (No.28/233/DKom).

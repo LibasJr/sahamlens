@@ -131,8 +131,8 @@ const WORLD_BANK_DEFINITIONS = [
 
 const WORLD_BANK_SOURCE_URL = 'https://data.worldbank.org/country/indonesia';
 const BI_NEWS_URL = 'https://www.bi.go.id/id/publikasi/ruang-media/news-release/default.aspx';
-// Siaran pers RDG 22-23 September 2026 (BI-Rate tetap 5,75%) - snapshot resmi terakhir terverifikasi.
-const BI_LAST_VERIFIED_URL = 'https://www.bi.go.id/id/publikasi/ruang-media/news-release/Pages/sp_2819326.aspx';
+// Siaran pers RDG 20-21 Oktober 2026 (BI-Rate tetap 5,75%) - snapshot resmi terakhir terverifikasi.
+const BI_LAST_VERIFIED_URL = 'https://www.bi.go.id/id/publikasi/ruang-media/news-release/Pages/sp_2823326.aspx';
 const BI_RATE_EVIDENCE_KEY = 'BI_RATE_PCT';
 const MONTHS_ID = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -144,15 +144,15 @@ const LAST_VERIFIED_BI_RATE: MacroOfficialIndicator = {
   label: 'BI-Rate',
   value: 5.75,
   unit: '%',
-  period: '22-23 September 2026',
+  period: '20-21 Oktober 2026',
   previousValue: 5.75,
-  previousPeriod: '19 Agustus 2026',
+  previousPeriod: '22-23 September 2026',
   trend: 'FLAT',
   frequency: 'Keputusan RDG',
   source: 'Bank Indonesia',
   sourceUrl: BI_LAST_VERIFIED_URL,
   retrievalStatus: 'LAST_VERIFIED',
-  note: 'Snapshot resmi terakhir terverifikasi (siaran pers RDG 22-23 September 2026); dipakai hanya bila laman publik BI tidak terbaca.',
+  note: 'Snapshot resmi terakhir terverifikasi (siaran pers RDG 20-21 Oktober 2026); dipakai hanya bila laman publik BI tidak terbaca.',
 };
 
 /** Periode bukti (YYYY-MM-DD) -> label Indonesia, mis. 2026-09-23 -> '23 September 2026'. */
