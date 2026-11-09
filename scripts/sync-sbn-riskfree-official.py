@@ -144,7 +144,8 @@ def baca_baris(teks: str) -> tuple[list[dict], dict]:
     seri_per_tenor: dict = {}
     data: list[dict] = []
     tanggal_re = re.compile(r"^\s*(\d{1,2})-([A-Za-z]{3})-(\d{2})\s")
-    angka_re = re.compile(r"(\d{1,3},\d{2})\s+(\d{1,2},\d{2})%")
+    # Tabel kuotasi DJPPR dapat menggunakan format desimal koma (102,02) atau titik (102.02)
+    angka_re = re.compile(r"(\d{1,3}[.,]\d{2})\s+(\d{1,2}[.,]\d{2})%")
 
     for indeks, baris_ini in enumerate(baris):
         if len(re.findall(r"\d{1,2}\s*Y", baris_ini)) == 4 and "Harga" not in baris_ini:
