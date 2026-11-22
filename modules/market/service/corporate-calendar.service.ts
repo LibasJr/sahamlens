@@ -40,6 +40,61 @@ const PAST_WINDOW_DAYS = 45;
 const FUTURE_WINDOW_DAYS = 180;
 const KSEI_MAX_AGE_MS = 36 * 60 * 60 * 1000;
 const KSEI_ARTIFACT = path.join(process.cwd(), 'data', 'corporate-calendar', 'ksei-rups.json');
+const CORPORATE_ACTIONS_ARTIFACT = path.join(process.cwd(), 'data', 'corporate-calendar', 'corporate-actions.json');
+
+export interface KseiCorporateAction {
+  id: string;
+  ticker: string;
+  action_type: 'DIVIDEND' | 'RUPS' | 'RUPSLB' | string;
+  description: string;
+  cum_date?: string | null;
+  ex_date?: string | null;
+  recording_date?: string | null;
+  payment_date?: string | null;
+  amount?: number | null;
+  currency?: string | null;
+  ratio?: string | null;
+}
+
+interface CorporateActionsArtifact {
+  schemaVersion: number;
+  source: 'KSEI_OFFICIAL';
+  generatedAt: string;
+  actions: KseiCorporateAction[];
+}
+
+export function readCorporateActionsArtifact(artifactPath = CORPORATE_ACTIONS_ARTIFACT): Array<CalendarEvent & { date: string }> {
+  try {
+    if (!fs.existsSync(artifactPath)) return [];
+    const parsed = JSON.parse(fs.readFileSync(artifactPath, 'utf8')) as CorporateActionsArtifact;
+    if (!Array.isArray(parsed.actions)) return [];
+    const events: Array<CalendarEvent & { date: string }> = [];
+    for (const act of parsed.actions) {
+      const eventType: CalendarEventType = act.action_type === 'DIVIDEND' ? 'DIVIDEND' : act.action_type === 'RUPSLB' ? 'RUPSLB' : 'RUPS';
+      const eventDate = act.payment_date || act.recording_date || act.ex_date || act.cum_date;
+      if (!eventDate) continue;
+
+      let title = act.description;
+      if (act.action_type === 'DIVIDEND' && act.amount) {
+        title = `${act.ticker} Dividen Rp ${act.amount}` + (act.description ? ` (${act.description})` : '');
+      }
+
+      events.push({
+        id: act.id,
+        symbol: act.ticker,
+        date: eventDate,
+        type: eventType,
+        title,
+        description: act.description || 'Aksi korporasi resmi terverifikasi KSEI/BEI',
+        source: 'KSEI_OFFICIAL',
+        verification: 'VERIFIED_PRIMARY_SOURCE',
+      });
+    }
+    return events;
+  } catch {
+    return [];
+  }
+}
 
 function toDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -98,9 +153,15 @@ export async function fetchCorporateCalendar(): Promise<CorporateCalendarResult>
   const now = new Date();
   const events: CalendarEventMap = {};
   const ksei = readKseiCalendarArtifact(now);
-  for (const event of ksei.events) {
+  const extraActions = readCorporateActionsArtifact();
+  const allKseiEvents = [...ksei.events, ...extraActions];
+
+  for (const event of allKseiEvents) {
     const date = new Date(`${event.date}T00:00:00+07:00`);
-    if (withinWindow(date, now)) { const { date: _, ...clean } = event; add(events, event.date, clean); }
+    if (withinWindow(date, now)) {
+      const { date: _, ...clean } = event;
+      add(events, event.date, clean);
+    }
   }
   let symbolsFailed = 0;
   for (let i = 0; i < SCREENER_UNIVERSE.length; i += 15) {
