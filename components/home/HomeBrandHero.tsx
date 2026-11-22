@@ -41,7 +41,7 @@ export default function HomeBrandHero({ ihsg, ihsgAsOfLabel, loadingMarket, mark
       variant="flat"
       padding="none"
       overflow="visible"
-      className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-[#0B1220] via-[#070B14] to-[#04070D] p-5 sm:p-7 shadow-[0_12px_40px_rgba(0,0,0,0.4)] pb-6 pt-5 sm:pb-7 sm:pt-6 mb-2"
+      className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-tv-surface via-tv-card to-tv-base p-5 sm:p-7 shadow-[0_12px_40px_rgba(0,0,0,0.4)] pb-6 pt-5 sm:pb-7 sm:pt-6 mb-2"
     >
       {/* Glow ambient background */}
       <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-tv-blue/15 blur-3xl" />
@@ -101,10 +101,10 @@ export default function HomeBrandHero({ ihsg, ihsgAsOfLabel, loadingMarket, mark
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-2xl border border-white/[0.1] bg-[#0A101C]/85 p-5 shadow-xl backdrop-blur-xl">
+        <div className="relative overflow-hidden rounded-2xl border border-white/[0.1] bg-tv-surface/80 p-5 shadow-xl backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <span className="lens-meta font-bold uppercase tracking-[0.12em] text-white/70">{t('hero.ihsgTitle')}</span>
-            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-[11px] font-medium text-white/80">
+            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/[0.05] border border-white/[0.08] text-xs font-medium text-white/80">
               <span className={`h-1.5 w-1.5 rounded-full ${positive ? 'bg-tv-green animate-pulse' : 'bg-tv-red animate-pulse'}`} />
               {ihsgAsOfLabel || 'Live IDX'}
             </span>
