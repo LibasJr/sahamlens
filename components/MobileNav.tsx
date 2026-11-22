@@ -75,6 +75,60 @@ export default function MobileNav() {
 
   return (
     <nav ref={navRef} className="lens-mobile-nav fixed inset-x-3 z-40 font-sans md:hidden" aria-label="Navigasi utama mobile">
+      {/* Quick Action Popup Hub */}
+      {isHubOpen && (
+        <div className="mb-2 overflow-hidden rounded-2xl border border-white/[0.12] bg-[#0A101B]/95 p-2 shadow-[0_16px_40px_rgba(0,0,0,0.5)] backdrop-blur-2xl animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="flex items-center justify-between border-b border-white/[0.06] px-2 pb-2 pt-1">
+            <span className="text-xs font-bold text-white flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-tv-blue" />
+              Aksi Cepat
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsHubOpen(false)}
+              aria-label="Tutup aksi cepat"
+              className="text-tv-muted hover:text-white transition-colors p-1 rounded-md"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 pt-2">
+            <button
+              type="button"
+              onClick={() => {
+                setIsHubOpen(false);
+                window.dispatchEvent(new CustomEvent('open-global-search'));
+              }}
+              className="flex items-center gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.03] p-2.5 text-left text-xs font-semibold text-white transition-colors hover:bg-white/[0.08] hover:border-tv-blue/30 active:scale-[0.98]"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-tv-blue/15 text-tv-blue">
+                <Search className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-bold text-[12px] leading-tight">Cari Emiten</p>
+                <p className="text-[10px] text-tv-muted">Ticker & rasio</p>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsHubOpen(false);
+                window.dispatchEvent(new CustomEvent('open-ai-chat'));
+              }}
+              className="flex items-center gap-2.5 rounded-xl border border-white/[0.05] bg-white/[0.03] p-2.5 text-left text-xs font-semibold text-white transition-colors hover:bg-white/[0.08] hover:border-tv-blue/30 active:scale-[0.98]"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-purple-500/15 text-purple-400">
+                <Sparkles className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="font-bold text-[12px] leading-tight">Tanya LensAI</p>
+                <p className="text-[10px] text-tv-muted">Analisis instan</p>
+              </div>
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-5 items-stretch rounded-[18px] border border-white/[0.08] bg-[#0A101B]/92 p-1 shadow-[0_10px_32px_rgba(0,0,0,0.38)] backdrop-blur-xl">
         {items.map((item) => {
           const active = item.matches.some((match) => {
@@ -101,10 +155,19 @@ export default function MobileNav() {
         })}
         <Button variant="bare" size="none"
           type="button"
-          onClick={() => window.dispatchEvent(new Event('toggle-sidebar'))}
-          className="flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-xs font-semibold leading-tight text-tv-muted transition-colors hover:bg-white/[0.04] hover:text-white"
+          onClick={() => {
+            setIsHubOpen((prev) => !prev);
+            window.dispatchEvent(new Event('toggle-sidebar'));
+          }}
+          aria-label="Buka menu navigasi lengkap"
+          className={`flex min-h-14 min-w-0 flex-col items-center justify-center gap-0.5 rounded-xl px-0.5 text-xs font-semibold leading-tight transition-colors ${
+            isHubOpen ? 'bg-tv-blue/20 text-tv-blue' : 'text-tv-muted hover:bg-white/[0.04] hover:text-white'
+          }`}
         >
-          <Menu className="h-[19px] w-[19px] shrink-0" />
+          <div className="relative flex items-center justify-center">
+            <Menu className="h-[19px] w-[19px] shrink-0" />
+            <span className="absolute -top-1 -right-1 h-2 w-2 rounded-full bg-tv-blue" />
+          </div>
           <span className="w-full truncate text-center text-[11px] opacity-90">Menu</span>
         </Button>
       </div>

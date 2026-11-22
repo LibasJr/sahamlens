@@ -84,6 +84,15 @@ export default function AIChat() {
   // Parser Markdown dimuat saat panel DIBUKA, bukan saat jawaban tiba - jadi begitu
   // jawaban pertama muncul, parser biasanya sudah siap dan tidak ada kedipan teks mentah.
   const [markdownReady, setMarkdownReady] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const handleCopyMessage = (msg: ChatMessage) => {
+    if (!msg.content) return;
+    navigator.clipboard?.writeText(msg.content).then(() => {
+      setCopiedId(msg.id);
+      setTimeout(() => setCopiedId((curr) => (curr === msg.id ? null : curr)), 2000);
+    }).catch(() => {});
+  };
   // Mode caveman (operator, 2026-09-22): gaya jawaban super ringkas per kata kunci.
   // Dikirim sebagai `mode` di body request; hanya mengubah gaya bahasa server-side.
   const [caveman, setCaveman] = useState(false);
@@ -706,6 +715,17 @@ export default function AIChat() {
                           </div>
                         )}
                         <div className="lens-meta mt-3 flex items-center gap-1 border-t border-tv-border/50 pt-2 text-tv-muted">
+                          <Button variant="bare" size="none"
+                            type="button"
+                            aria-label="Salin jawaban AI"
+                            title={copiedId === msg.id ? "Tersalin!" : "Salin teks jawaban"}
+                            onClick={() => handleCopyMessage(msg)}
+                            className={`rounded p-1 transition-colors ${
+                              copiedId === msg.id ? 'text-tv-green' : 'hover:text-tv-blue'
+                            }`}
+                          >
+                            {copiedId === msg.id ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                          </Button>
                           <Button variant="bare" size="none"
                             type="button"
                             aria-label="Balas pesan ini"
