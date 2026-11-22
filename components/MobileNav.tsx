@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/Button';
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Activity, Radar, LineChart, Menu, Sparkles, Search, Plus, Calculator, X } from 'lucide-react';
+import { Home, Activity, Radar, LineChart, Menu, Sparkles, Search, X } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { useLanguage } from '@/lib/i18n';
 
