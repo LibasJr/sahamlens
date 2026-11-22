@@ -83,17 +83,17 @@ export default function MobileNav() {
               <Sparkles className="h-3.5 w-3.5 text-tv-blue" />
               Aksi Cepat
             </span>
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => setIsHubOpen(false)}
               aria-label="Tutup aksi cepat"
               className="text-tv-muted hover:text-white transition-colors p-1 rounded-md"
             >
               <X className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           </div>
           <div className="grid grid-cols-2 gap-1.5 pt-2">
-            <button
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => {
                 setIsHubOpen(false);
@@ -108,8 +108,8 @@ export default function MobileNav() {
                 <p className="font-bold text-[12px] leading-tight">Cari Emiten</p>
                 <p className="text-[10px] text-tv-muted">Ticker & rasio</p>
               </div>
-            </button>
-            <button
+            </Button>
+            <Button variant="bare" size="none"
               type="button"
               onClick={() => {
                 setIsHubOpen(false);
@@ -124,7 +124,7 @@ export default function MobileNav() {
                 <p className="font-bold text-[12px] leading-tight">Tanya LensAI</p>
                 <p className="text-[10px] text-tv-muted">Analisis instan</p>
               </div>
-            </button>
+            </Button>
           </div>
         </div>
       )}
