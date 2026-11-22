@@ -1,10 +1,10 @@
 'use client';
 
 import { Button } from '@/components/ui/Button';
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Activity, Radar, LineChart, Menu, Sparkles } from 'lucide-react';
+import { Home, Activity, Radar, LineChart, Menu, Sparkles, Search, X } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { useLanguage } from '@/lib/i18n';
 
@@ -21,6 +21,8 @@ export default function MobileNav() {
   const navRef = useRef<HTMLElement>(null);
   const { effectiveRole, loading, resolved } = useAuthUser();
   const { t } = useLanguage();
+  const [isHubOpen, setIsHubOpen] = useState(false);
+
   // Saat status sesi belum pasti, tampilkan pintu analisis anggota agar user yang
   // sudah login tidak melihat item tamu lalu berkedip berubah sesaat kemudian.
   const isConfirmedGuest = !loading && resolved && effectiveRole === 'guest';
