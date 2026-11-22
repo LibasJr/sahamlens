@@ -1,10 +1,10 @@
 'use client';
 
 import { Button } from '@/components/ui/Button';
-import React, { useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Activity, Radar, LineChart, Menu, Sparkles } from 'lucide-react';
+import { Home, Activity, Radar, LineChart, Menu, Sparkles, Search, Plus, Calculator, X } from 'lucide-react';
 import { useAuthUser } from '@/lib/hooks/useAuthUser';
 import { useLanguage } from '@/lib/i18n';
 
@@ -21,14 +21,12 @@ export default function MobileNav() {
   const navRef = useRef<HTMLElement>(null);
   const { effectiveRole, loading, resolved } = useAuthUser();
   const { t } = useLanguage();
+  const [isHubOpen, setIsHubOpen] = useState(false);
+
   // Saat status sesi belum pasti, tampilkan pintu analisis anggota agar user yang
   // sudah login tidak melihat item tamu lalu berkedip berubah sesaat kemudian.
   const isConfirmedGuest = !loading && resolved && effectiveRole === 'guest';
-  // Label bilah bawah SENGAJA berbeda dari label sidebar. Lima sel di layar 320px
-  // hanya selebar 56px masing-masing, sedangkan nama merek panjang ("LensConsensus"
-  // terukur 101px, "LensMarket" 74px) - keduanya melimpah keluar selnya dan saling
-  // menabrak tetangganya, jadi teks navigasi utama tumpang tindih di SETIAP halaman.
-  // Nama panjangnya tetap dipakai di Sidebar, tempat lebarnya memang tersedia.
+
   const items = [
     { ...NAV_DEFS.home, label: t('nav.home') },
     { ...NAV_DEFS.market, label: 'Market' },
