@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
 import { symbolFromPathname, tickerStarters, MARKET_STARTERS } from './ai-chat-starters';
-import { Bot, X, Send, Sparkles, Maximize2, Minimize2, ThumbsDown, ThumbsUp, Reply, Forward } from 'lucide-react';
+import { Bot, X, Send, Sparkles, Maximize2, Minimize2, ThumbsDown, ThumbsUp, Reply, Forward, Copy, Check, Quote } from 'lucide-react';
 import dynamic from 'next/dynamic';
 
 /**
