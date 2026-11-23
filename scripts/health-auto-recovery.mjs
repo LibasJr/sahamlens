@@ -224,6 +224,25 @@ export async function runAutoRecovery(options = {}) {
         }
         continue;
       }
+
+      // Kasus D: Sumber data sekunder/kolektor lain yang mengalami blip transien
+      // Bila consecutive_failures rendah (<= 3) dan kegagalan terakhir sudah lewat 15 menit
+      // pulihkan otomatis agar tidak memicu alarm palsu pada pemantau uptime.
+      if (src.consecutive_failures <= 3) {
+        const lastFailure = src.last_failure_at ? new Date(src.last_failure_at) : null;
+        const ageMin = lastFailure ? (Date.now() - lastFailure.getTime()) / (1000 * 60) : 999;
+        if (ageMin >= 15) {
+          await client.query(
+            `UPDATE data_source_health
+                SET status = 'HEALTHY', consecutive_failures = 0, updated_at = now(),
+                    detail = jsonb_set(COALESCE(detail, '{}'::jsonb), '{auto_recovered}', to_jsonb('cooldown_expired'::text))
+              WHERE source_id = $1`,
+            [id],
+          );
+          recovered.push(id);
+          log(`[auto-recovery] ${id} berhasil dipulihkan: blip transien telah melewati masa cooldown (${ageMin.toFixed(0)} mnt).`);
+        }
+      }
     }
   } finally {
     await client.end();
