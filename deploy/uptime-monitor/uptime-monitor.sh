@@ -119,7 +119,20 @@ else:
       fi
     fi
     if [ "$app_status" != "ok" ]; then
-      problem "health melaporkan status='$app_status' (HTTP $health_code)${degraded:+ - terganggu: $degraded}"
+      # Bedakan degradasi parsial data source non-kritis dengan kegagalan sistem inti (database/redis)
+      has_critical_failure=0
+      for crit in "database" "postgres" "redis"; do
+        if [[ ",$degraded," =~ ,$crit(:|,|$) ]]; then
+          has_critical_failure=1
+          break
+        fi
+      done
+
+      if [ "$has_critical_failure" -eq 1 ] || [ "$health_code" -ge 500 ]; then
+        problem "health melaporkan status='$app_status' (HTTP $health_code)${degraded:+ - kritis: $degraded}"
+      else
+        note "health melaporkan status='$app_status' (HTTP $health_code)${degraded:+ - non-kritis: $degraded} (warning saja, tidak exit error)"
+      fi
     fi
   else
     note "health ok (HTTP $health_code)"
