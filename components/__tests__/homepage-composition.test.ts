@@ -92,5 +92,6 @@ describe('komposisi beranda', () => {
   it('hero tidak memotong dropdown pencarian emiten', () => {
     const hero = baca('components/home/HomeBrandHero.tsx');
     expect(hero).toMatch(/<Card[\s\S]*?overflow="visible"/);
+    expect(hero).not.toMatch(/<Card\b[^>]*className="[^"]*overflow-hidden[^"]*"/);
   });
 });

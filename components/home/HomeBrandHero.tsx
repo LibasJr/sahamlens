@@ -41,11 +41,13 @@ export default function HomeBrandHero({ ihsg, ihsgAsOfLabel, loadingMarket, mark
       variant="flat"
       padding="none"
       overflow="visible"
-      className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-tv-surface via-tv-card to-tv-base p-5 sm:p-7 shadow-[0_12px_40px_rgba(0,0,0,0.4)] pb-6 pt-5 sm:pb-7 sm:pt-6 mb-2"
+      className="relative rounded-3xl border border-white/[0.08] bg-gradient-to-br from-tv-surface via-tv-card to-tv-base p-5 sm:p-7 shadow-[0_12px_40px_rgba(0,0,0,0.4)] pb-6 pt-5 sm:pb-7 sm:pt-6 mb-2"
     >
       {/* Glow ambient background */}
-      <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-tv-blue/15 blur-3xl" />
-      <div className="pointer-events-none absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-purple-500/10 blur-3xl" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-3xl" aria-hidden="true">
+        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-tv-blue/15 blur-3xl" />
+        <div className="absolute -left-16 -bottom-16 h-64 w-64 rounded-full bg-purple-500/10 blur-3xl" />
+      </div>
 
       <div className="relative grid gap-7 lg:grid-cols-[minmax(0,1.5fr)_minmax(270px,0.55fr)] lg:items-center">
         <div className="min-w-0">
